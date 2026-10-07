@@ -10,7 +10,9 @@ import { securityCryptoService } from './security-crypto-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.join(__dirname, '..');
-const LEGACY_ASSETS_DIR = path.join(PROJECT_ROOT, 'assets');
+const LEGACY_ASSETS_DIR = fs.existsSync(path.join(PROJECT_ROOT, 'public', 'assets'))
+  ? path.join(PROJECT_ROOT, 'public', 'assets')
+  : path.join(PROJECT_ROOT, 'assets');
 const configuredDir = process.env.SOS_RUNTIME_DATA_DIR;
 
 if (process.env.NODE_ENV === 'production' && !configuredDir) {

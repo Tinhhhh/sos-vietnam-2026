@@ -1,13 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defaultPasswordForAccount } from '../services/agency-password-policy.js';
-import { securityCryptoService } from '../services/security-crypto-service.js';
-import { readRuntimeData, writeRuntimeData } from '../services/runtime-data-store.js';
+import { defaultPasswordForAccount } from '../../services/agency-password-policy.js';
+import { securityCryptoService } from '../../services/security-crypto-service.js';
+import { readRuntimeData, writeRuntimeData } from '../../services/runtime-data-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(__dirname, '..');
-const seedPath = path.join(projectRoot, 'assets', 'agency-accounts.json');
+const projectRoot = path.resolve(__dirname, '../..');
+const assetsDir = fs.existsSync(path.join(projectRoot, 'public', 'assets'))
+  ? path.join(projectRoot, 'public', 'assets')
+  : path.join(projectRoot, 'assets');
+const seedPath = path.join(assetsDir, 'agency-accounts.json');
 
 function requireAccountMap(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

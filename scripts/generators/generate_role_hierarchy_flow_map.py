@@ -9,7 +9,8 @@ import os
 import json
 import xml.etree.ElementTree as ET
 
-OUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs", "flow-maps"))
+_dir = os.path.dirname(__file__)
+OUT_DIR = os.path.abspath(os.path.join(_dir, "..", "..", "docs", "flow-maps")) if os.path.basename(_dir) in ('generators', 'maintenance', 'research') else os.path.abspath(os.path.join(_dir, "..", "docs", "flow-maps"))
 os.makedirs(OUT_DIR, exist_ok=True)
 
 SVG_PATH = os.path.join(OUT_DIR, "role-hierarchy.flow.svg")

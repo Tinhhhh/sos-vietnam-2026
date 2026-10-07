@@ -1,4 +1,4 @@
-﻿import http from 'http';
+import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -12,9 +12,14 @@ import { securityFirewall } from './services/security-firewall-middleware.js';
 import { readRuntimeData, runtimeDataPath, writeRuntimeData } from './services/runtime-data-store.js';
 import { defaultPasswordForAccount } from './services/agency-password-policy.js';
 import { generateAccountsWorkbookBuffer } from './services/accounts-excel-generator.js';
+import { documentExportService } from './services/document-export-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const ASSETS_DIR = fs.existsSync(path.join(PUBLIC_DIR, 'assets'))
+  ? path.join(PUBLIC_DIR, 'assets')
+  : path.join(ASSETS_DIR);
 const PORT = process.env.PORT || 3000;
 const PYTHON_CMD = process.platform === 'win32' ? 'python' : 'python3';
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = Number(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS || 10000);
@@ -58,7 +63,7 @@ function publicRequestError(error) {
 // Load 34 provinces & communes index
 let diadanhIndex = { tinh: [], xa: [] };
 try {
-  const diadanhRaw = fs.readFileSync(path.join(__dirname, 'assets', 'vn-diadanh-index.json'), 'utf-8');
+  const diadanhRaw = fs.readFileSync(path.join(ASSETS_DIR, 'vn-diadanh-index.json'), 'utf-8');
   diadanhIndex = JSON.parse(diadanhRaw);
   console.log(`🗺️ Loaded ${diadanhIndex.tinh.length} provinces and ${diadanhIndex.xa.length} communes/wards.`);
 } catch (e) {
@@ -68,7 +73,7 @@ try {
 // Load real stations directory
 let stationsDirectory = { stations: [] };
 try {
-  const stRaw = fs.readFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), 'utf-8');
+  const stRaw = fs.readFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), 'utf-8');
   stationsDirectory = JSON.parse(stRaw);
   console.log(`🏢 Loaded ${stationsDirectory.stations?.length || 0} real local stations.`);
 } catch (e) {
@@ -78,7 +83,7 @@ try {
 // Load registered rescue enterprises (Doanh nghiệp Cứu Hộ Xe)
 let rescueEnterprises = { enterprises: [] };
 try {
-  const reRaw = fs.readFileSync(path.join(__dirname, 'assets', 'rescue-enterprises.json'), 'utf-8');
+  const reRaw = fs.readFileSync(path.join(ASSETS_DIR, 'rescue-enterprises.json'), 'utf-8');
   rescueEnterprises = JSON.parse(reRaw);
   console.log(`🚗 Loaded ${rescueEnterprises.enterprises?.length || 0} registered rescue enterprises.`);
 } catch (e) {
@@ -88,7 +93,7 @@ try {
 // Load hospitals database (Bệnh viện & Trạm Cấp Cứu 115)
 let hospitalsDB = { hospitals: [] };
 try {
-  const hRaw = fs.readFileSync(path.join(__dirname, 'assets', 'hospitals.json'), 'utf-8');
+  const hRaw = fs.readFileSync(path.join(ASSETS_DIR, 'hospitals.json'), 'utf-8');
   hospitalsDB = JSON.parse(hRaw);
   console.log(`🏥 Loaded ${hospitalsDB.hospitals?.length || 0} hospitals/medical stations.`);
 } catch (e) {
@@ -100,13 +105,13 @@ let vnWardBoundaries = { type: 'FeatureCollection', features: [] };
 let vnProvinceBoundaries = { type: 'FeatureCollection', features: [] };
 // SOS_WARD_BOUNDARIES_FILE: tùy chọn dùng bản simplified (5MB) trên máy RAM thấp (<2GB). Mặc định: bản đầy đủ NARENCA.
 let WARD_BOUNDARIES_FILE = process.env.SOS_WARD_BOUNDARIES_FILE || 'vn-ward-boundaries.json';
-if (!fs.existsSync(path.join(__dirname, 'assets', WARD_BOUNDARIES_FILE))) {
-  if (fs.existsSync(path.join(__dirname, 'assets', 'vn-wards-simplified.geojson'))) {
+if (!fs.existsSync(path.join(ASSETS_DIR, WARD_BOUNDARIES_FILE))) {
+  if (fs.existsSync(path.join(ASSETS_DIR, 'vn-wards-simplified.geojson'))) {
     WARD_BOUNDARIES_FILE = 'vn-wards-simplified.geojson';
   }
 }
 try {
-  const wbRaw = fs.readFileSync(path.join(__dirname, 'assets', WARD_BOUNDARIES_FILE), 'utf-8');
+  const wbRaw = fs.readFileSync(path.join(ASSETS_DIR, WARD_BOUNDARIES_FILE), 'utf-8');
   vnWardBoundaries = JSON.parse(wbRaw);
   console.log(`🛡️ Loaded ${vnWardBoundaries.features?.length || 0} commune/ward geofence boundary polygons (${WARD_BOUNDARIES_FILE}).`);
 } catch (e) {
@@ -114,8 +119,8 @@ try {
 }
 
 function readProvinceBoundaries() {
-  const provinceFile = path.join(__dirname, 'assets', 'vn-provinces.geojson');
-  const labelFile = path.join(__dirname, 'assets', 'vn-province-labels.geojson');
+  const provinceFile = path.join(ASSETS_DIR, 'vn-provinces.geojson');
+  const labelFile = path.join(ASSETS_DIR, 'vn-province-labels.geojson');
   const primary = fs.existsSync(provinceFile) ? provinceFile : labelFile;
   const parsed = JSON.parse(fs.readFileSync(primary, 'utf-8'));
   if (!Array.isArray(parsed.features)) throw new Error('Dữ liệu ranh giới tỉnh không hợp lệ');
@@ -195,7 +200,7 @@ if (vnWardBoundaries && Array.isArray(vnWardBoundaries.features)) {
 const bandoSync = new BandoSyncService({
   refreshBoundaries: () => {
     try {
-      const wbRaw = (fs.existsSync(path.join(__dirname, 'assets', 'vn-ward-boundaries.json')) ? fs.readFileSync(path.join(__dirname, 'assets', 'vn-ward-boundaries.json'), 'utf-8') : fs.readFileSync(path.join(__dirname, 'assets', 'vn-wards-simplified.geojson'), 'utf-8'));
+      const wbRaw = (fs.existsSync(path.join(ASSETS_DIR, 'vn-ward-boundaries.json')) ? fs.readFileSync(path.join(ASSETS_DIR, 'vn-ward-boundaries.json'), 'utf-8') : fs.readFileSync(path.join(ASSETS_DIR, 'vn-wards-simplified.geojson'), 'utf-8'));
       vnWardBoundaries = JSON.parse(wbRaw);
       if (vnWardBoundaries && Array.isArray(vnWardBoundaries.features)) {
         for (const f of vnWardBoundaries.features) computeFeatureCenter(f);
@@ -253,7 +258,7 @@ try {
 
   // Auto-seed from assets if runtime data is empty (e.g. /tmp cleared on Render restart)
   if (Object.keys(AGENCY_ACCOUNTS).length === 0) {
-    const _seedFilePath = path.join(__dirname, 'assets', 'agency-accounts.json');
+    const _seedFilePath = path.join(ASSETS_DIR, 'agency-accounts.json');
     if (fs.existsSync(_seedFilePath)) {
       try {
         const _seedData = JSON.parse(fs.readFileSync(_seedFilePath, 'utf8'));
@@ -391,9 +396,9 @@ function syncAllDirectoriesFromAgencyAccounts() {
     rescueEnterprises.enterprises = resList;
 
     try {
-      fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
-      fs.writeFileSync(path.join(__dirname, 'assets', 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
-      fs.writeFileSync(path.join(__dirname, 'assets', 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
+      fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+      fs.writeFileSync(path.join(ASSETS_DIR, 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
+      fs.writeFileSync(path.join(ASSETS_DIR, 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
     } catch(e) {
       console.warn('Could not write synchronized directories to disk:', e.message);
     }
@@ -415,7 +420,7 @@ function saveAgencyAccounts() {
     }
     writeRuntimeData('agency-accounts.json', AGENCY_ACCOUNTS);
     try {
-      fs.writeFileSync(path.join(__dirname, 'assets', 'agency-accounts.json'), JSON.stringify(AGENCY_ACCOUNTS, null, 2), 'utf-8');
+      fs.writeFileSync(path.join(ASSETS_DIR, 'agency-accounts.json'), JSON.stringify(AGENCY_ACCOUNTS, null, 2), 'utf-8');
     } catch(e) {}
     syncAllDirectoriesFromAgencyAccounts();
   } catch (e) {
@@ -1847,7 +1852,7 @@ function staticCacheControl(urlPath, ext) {
 // -------------------------------------------------------------
 // CYBER DEFENSE & INTERNAL SECURITY SYSTEM
 // -------------------------------------------------------------
-const SECURITY_CONFIG_FILE = path.join(__dirname, 'assets', 'security-config.json');
+const SECURITY_CONFIG_FILE = path.join(ASSETS_DIR, 'security-config.json');
 const LOGIN_HISTORY_FILE = runtimeDataPath('login-history.json');
 const SECURITY_ALERTS_FILE = runtimeDataPath('security-alerts.json');
 const LOCKOUT_STATE_FILE = runtimeDataPath('login-lockouts.json');
@@ -2581,7 +2586,7 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   if (urlPath === '/api/admin/accounts' && req.method === 'GET') {
       try {
-        const seedPath = path.join(__dirname, 'assets', 'agency-accounts.json');
+        const seedPath = path.join(ASSETS_DIR, 'agency-accounts.json');
         if (fs.existsSync(seedPath)) {
           const diskData = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
           if (diskData && typeof diskData === 'object' && Object.keys(diskData).length > Object.keys(AGENCY_ACCOUNTS).length) {
@@ -2700,7 +2705,7 @@ const server = http.createServer(async (req, res) => {
           else stList.push(stData);
           stationsDirectory.stations = stList;
           try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+            fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
           } catch (e) {}
         }
 
@@ -2738,7 +2743,7 @@ const server = http.createServer(async (req, res) => {
           if (stationsDirectory && Array.isArray(stationsDirectory.stations)) {
             stationsDirectory.stations = stationsDirectory.stations.filter(s => s.id !== `st-${foundKey}` && s.id !== `st-${u}`);
             try {
-              fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+              fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
             } catch (e) {}
           }
           console.log(`🗑️ [ADMIN ACCOUNT] Deleted account: ${foundKey}`);
@@ -2824,7 +2829,7 @@ const server = http.createServer(async (req, res) => {
 
           // Save to file
           try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+            fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
           } catch (e) {
             console.warn('Could not write stations file:', e.message);
           }
@@ -2859,7 +2864,7 @@ const server = http.createServer(async (req, res) => {
         stationsDirectory.stations = list;
 
         try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
         } catch (e) {}
 
         console.log(`✅ [STATION CREATE] Created station: ${newStation.name}`);
@@ -2890,7 +2895,7 @@ const server = http.createServer(async (req, res) => {
           stationsDirectory.stations = list;
 
           try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+            fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
           } catch (e) {}
 
           console.log(`🗑️ [STATION DELETE] Deleted station #${id}: ${removed.name}`);
@@ -3006,7 +3011,7 @@ const server = http.createServer(async (req, res) => {
 
         // Save to disk
         try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(ASSETS_DIR, 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
         } catch (e) {
           console.warn('Could not save hospitals.json:', e.message);
         }
@@ -3054,7 +3059,7 @@ const server = http.createServer(async (req, res) => {
             hosp.callCount = (hosp.callCount || 0) + 1;
             callCount = hosp.callCount;
             try {
-              fs.writeFileSync(path.join(__dirname, 'assets', 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
+              fs.writeFileSync(path.join(ASSETS_DIR, 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
             } catch (err) {
               console.warn('Could not save hospitals.json:', err.message);
             }
@@ -3066,7 +3071,7 @@ const server = http.createServer(async (req, res) => {
             ent.callCount = (ent.callCount || 0) + 1;
             callCount = ent.callCount;
             try {
-              fs.writeFileSync(path.join(__dirname, 'assets', 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
+              fs.writeFileSync(path.join(ASSETS_DIR, 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
             } catch (err) {
               console.warn('Could not save rescue-enterprises.json:', err.message);
             }
@@ -3172,7 +3177,7 @@ const server = http.createServer(async (req, res) => {
         ent.rating = parseFloat((sum / ent.reviews.length).toFixed(2));
 
         try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(ASSETS_DIR, 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
         } catch (e) {}
 
         console.log(`⭐ [ENTERPRISE REVIEW] Added review for ${ent.name}: ${newReview.rating}★ by ${newReview.name}`);
@@ -3207,7 +3212,7 @@ const server = http.createServer(async (req, res) => {
         rescueEnterprises.enterprises = list;
 
         try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(ASSETS_DIR, 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
         } catch (e) {}
 
         console.log(`🚗 [ENTERPRISE REGISTER] Registered enterprise: ${newEnt.name} (${newEnt.phone})`);
@@ -3238,7 +3243,7 @@ const server = http.createServer(async (req, res) => {
           rescueEnterprises.enterprises = list;
 
           try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
+            fs.writeFileSync(path.join(ASSETS_DIR, 'rescue-enterprises.json'), JSON.stringify(rescueEnterprises, null, 2), 'utf-8');
           } catch (e) {}
 
           console.log(`🗑️ [ENTERPRISE DELETE] Deleted enterprise #${id}: ${removed.name}`);
@@ -3309,7 +3314,7 @@ const server = http.createServer(async (req, res) => {
         hospitalsDB.hospitals = list;
 
         try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(ASSETS_DIR, 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
         } catch (e) {
           console.warn('Error saving hospitals.json:', e.message);
         }
@@ -3342,7 +3347,7 @@ const server = http.createServer(async (req, res) => {
           hospitalsDB.hospitals = list;
 
           try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
+            fs.writeFileSync(path.join(ASSETS_DIR, 'hospitals.json'), JSON.stringify(hospitalsDB, null, 2), 'utf-8');
           } catch (e) {}
 
           console.log(`🗑️ [HOSPITAL DELETE] Deleted hospital #${id}: ${removed.name}`);
@@ -3447,7 +3452,7 @@ const server = http.createServer(async (req, res) => {
         stationsDirectory.stations.push(newStation);
 
         try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
         } catch (e) {}
 
         // Automatically provision dispatcher login account for this station if none exists
@@ -3527,7 +3532,7 @@ const server = http.createServer(async (req, res) => {
 
         stationsDirectory.stations = list;
         try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
         } catch (e) {}
 
         console.log(`✏️ [STATION UPDATE] Updated station #${payload.id}: ${list[index].name}`);
@@ -3558,7 +3563,7 @@ const server = http.createServer(async (req, res) => {
           stationsDirectory.stations = list;
 
           try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
+            fs.writeFileSync(path.join(ASSETS_DIR, 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
           } catch (e) {}
 
           console.log(`🗑️ [STATION DELETE] Deleted station #${id}: ${removed.name}`);
@@ -3731,9 +3736,9 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   if (urlPath === '/api/admin/reload-boundaries') {
     try {
-      const wbRaw = (fs.existsSync(path.join(__dirname, 'assets', 'vn-ward-boundaries.json')) ? fs.readFileSync(path.join(__dirname, 'assets', 'vn-ward-boundaries.json'), 'utf-8') : fs.readFileSync(path.join(__dirname, 'assets', 'vn-wards-simplified.geojson'), 'utf-8'));
+      const wbRaw = (fs.existsSync(path.join(ASSETS_DIR, 'vn-ward-boundaries.json')) ? fs.readFileSync(path.join(ASSETS_DIR, 'vn-ward-boundaries.json'), 'utf-8') : fs.readFileSync(path.join(ASSETS_DIR, 'vn-wards-simplified.geojson'), 'utf-8'));
       vnWardBoundaries = JSON.parse(wbRaw);
-      const diadanhRaw = fs.readFileSync(path.join(__dirname, 'assets', 'vn-diadanh-index.json'), 'utf-8');
+      const diadanhRaw = fs.readFileSync(path.join(ASSETS_DIR, 'vn-diadanh-index.json'), 'utf-8');
       diadanhIndex = JSON.parse(diadanhRaw);
       vnProvinceBoundaries = readProvinceBoundaries();
       const provinces = buildProvinceCatalog();
@@ -5118,7 +5123,7 @@ const server = http.createServer(async (req, res) => {
         if (reportData.address) incident.address = reportData.address;
 
         // Save report to archive json file
-        const archivePath = path.join(__dirname, 'assets', 'incident-reports-archive.json');
+        const archivePath = path.join(ASSETS_DIR, 'incident-reports-archive.json');
         let archive = [];
         try {
           if (fs.existsSync(archivePath)) {
@@ -5741,35 +5746,20 @@ const server = http.createServer(async (req, res) => {
   if (urlPath === '/api/export/verification-record-docx' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const recordData = JSON.parse(body || '{}');
-        recordData.incidentId = recordData.incidentId || recordData.id || 'SOS-01';
-        const tempId = `${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}`;
-        const tempJsonPath = path.join(__dirname, `temp_verification_${tempId}.json`);
-        const tempDocxPath = path.join(__dirname, `temp_verification_${tempId}.docx`);
-        fs.writeFileSync(tempJsonPath, JSON.stringify(recordData), { encoding: 'utf8', mode: 0o600 });
-        const scriptPath = path.join(__dirname, 'scripts', 'generate_verification_record_docx.py');
-        exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempDocxPath}"`, (error, stdout, stderr) => {
-          if (error || !fs.existsSync(tempDocxPath)) {
-            console.error('Verification DOCX generation error:', error, stderr);
-            try { fs.unlinkSync(tempJsonPath); } catch (_) {}
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ ok: false, error: 'Không thể tạo biên bản Word từ máy chủ (' + (stderr || error?.message || 'Lỗi xử lý tệp') + ')' }));
-          }
-          const fileData = fs.readFileSync(tempDocxPath);
-          try { fs.unlinkSync(tempJsonPath); fs.unlinkSync(tempDocxPath); } catch (_) {}
-          const filename = encodeURIComponent(`DuThao_BienBan_XacMinh_${recordData.incidentId}.docx`);
-          res.writeHead(200, {
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${filename}`,
-            'Content-Length': fileData.length
-          });
-          return res.end(fileData);
+        const { buffer, filename, contentType } = await documentExportService.generateVerificationRecordDocx(recordData);
+        const encodedName = encodeURIComponent(filename);
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${encodedName}"; filename*=UTF-8''${encodedName}`,
+          'Content-Length': buffer.length
         });
+        return res.end(buffer);
       } catch (error) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: 'Dữ liệu lập biên bản không hợp lệ: ' + error.message }));
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Không thể tạo biên bản Word: ' + error.message }));
       }
     });
     return;
@@ -5778,42 +5768,20 @@ const server = http.createServer(async (req, res) => {
   if (urlPath === '/api/export/docx' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const reportData = JSON.parse(body || '{}');
-        const tempId = Date.now().toString(36);
-        const tempJsonPath = path.join(__dirname, `temp_report_${tempId}.json`);
-        const tempDocxPath = path.join(__dirname, `temp_report_${tempId}.docx`);
-
-        fs.writeFileSync(tempJsonPath, JSON.stringify(reportData, null, 2), 'utf-8');
-
-        // Execute Python script to build official Word document
-        const scriptPath = path.join(__dirname, 'scripts', 'generate_report_docx.py');
-        exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempDocxPath}"`, (error, stdout, stderr) => {
-          if (error || !fs.existsSync(tempDocxPath)) {
-            console.error('DOCX generation error:', error, stderr);
-            try { fs.unlinkSync(tempJsonPath); } catch(e) {}
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ ok: false, error: 'Không thể tạo file Word' }));
-          }
-
-          const fileData = fs.readFileSync(tempDocxPath);
-          try {
-            fs.unlinkSync(tempJsonPath);
-            fs.unlinkSync(tempDocxPath);
-          } catch(e) {}
-
-          const filename = encodeURIComponent(`Phieu_TiepNhan_UPSC_${reportData.incidentId || 'SOS'}.docx`);
-          res.writeHead(200, {
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${filename}`,
-            'Content-Length': fileData.length
-          });
-          return res.end(fileData);
+        const { buffer, filename, contentType } = await documentExportService.generateIncidentReportDocx(reportData);
+        const encodedName = encodeURIComponent(filename);
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${encodedName}"; filename*=UTF-8''${encodedName}`,
+          'Content-Length': buffer.length
         });
+        return res.end(buffer);
       } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: err.message }));
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Không thể tạo file Word: ' + err.message }));
       }
     });
     return;
@@ -5825,7 +5793,7 @@ const server = http.createServer(async (req, res) => {
   if (urlPath === '/api/export/excel' && (req.method === 'POST' || req.method === 'GET')) {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         let exportPayload = {};
         if (body) {
@@ -5882,39 +5850,17 @@ const server = http.createServer(async (req, res) => {
         exportPayload.generatedAt = exportPayload.generatedAt || new Date().toLocaleString('vi-VN');
         exportPayload.officerName = exportPayload.officerName || 'Trung Tâm Tác Chiến & Cứu Hộ Quốc Gia';
 
-        const tempId = Date.now().toString(36);
-        const tempJsonPath = path.join(__dirname, `temp_excel_${tempId}.json`);
-        const tempXlsxPath = path.join(__dirname, `temp_excel_${tempId}.xlsx`);
-
-        fs.writeFileSync(tempJsonPath, JSON.stringify(exportPayload, null, 2), 'utf-8');
-
-        // Execute Python script to generate styled Excel document
-        const scriptPath = path.join(__dirname, 'scripts', 'generate_history_excel.py');
-        exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempXlsxPath}"`, (error, stdout, stderr) => {
-          if (error || !fs.existsSync(tempXlsxPath)) {
-            console.error('Excel generation error:', error, stderr);
-            try { fs.unlinkSync(tempJsonPath); } catch(e) {}
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ ok: false, error: 'Không thể tạo file Excel thống kê' }));
-          }
-
-          const fileData = fs.readFileSync(tempXlsxPath);
-          try {
-            fs.unlinkSync(tempJsonPath);
-            fs.unlinkSync(tempXlsxPath);
-          } catch(e) {}
-
-          const filename = encodeURIComponent(`BangKe_LichSu_SuCo_SOS_${new Date().toISOString().slice(0,10)}.xlsx`);
-          res.writeHead(200, {
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${filename}`,
-            'Content-Length': fileData.length
-          });
-          return res.end(fileData);
+        const { buffer, filename, contentType } = await documentExportService.generateIncidentHistoryExcel(exportPayload);
+        const encodedName = encodeURIComponent(filename);
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${encodedName}"; filename*=UTF-8''${encodedName}`,
+          'Content-Length': buffer.length
         });
+        return res.end(buffer);
       } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: err.message }));
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Không thể tạo file Excel thống kê: ' + err.message }));
       }
     });
     return;
@@ -6043,7 +5989,7 @@ const server = http.createServer(async (req, res) => {
         const tempId = Date.now().toString(36);
         const tempXlsxPath = path.join(__dirname, `temp_imp_acc_${tempId}.xlsx`);
         const tempOutJsonPath = path.join(__dirname, `temp_imp_out_${tempId}.json`);
-        const currentAccountsPath = path.join(__dirname, 'assets', 'agency-accounts.json');
+        const currentAccountsPath = path.join(ASSETS_DIR, 'agency-accounts.json');
 
         fs.writeFileSync(tempXlsxPath, xlsxBuffer);
 
@@ -6109,14 +6055,20 @@ const server = http.createServer(async (req, res) => {
   // Static File Serving
   // -------------------------------------------------------------
   const requestedFile = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
-  let filePath = path.resolve(__dirname, requestedFile);
-  if (!filePath.startsWith(`${__dirname}${path.sep}`)) {
+  let filePath = path.resolve(PUBLIC_DIR, requestedFile);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.resolve(__dirname, requestedFile);
+  }
+  const isInsidePublic = filePath.startsWith(`${PUBLIC_DIR}${path.sep}`);
+  const isInsideRoot = filePath.startsWith(`${__dirname}${path.sep}`);
+  if (!isInsidePublic && !isInsideRoot) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('404 - Không tìm thấy trang');
   }
   if (!fs.existsSync(filePath)) {
     if (urlPath === '/dispatcher' || urlPath === '/truc-ban') {
-      filePath = path.join(__dirname, 'dispatcher.html');
+      filePath = path.join(PUBLIC_DIR, 'dispatcher.html');
+      if (!fs.existsSync(filePath)) filePath = path.join(__dirname, 'dispatcher.html');
     } else {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       return res.end('404 - Không tìm thấy trang');

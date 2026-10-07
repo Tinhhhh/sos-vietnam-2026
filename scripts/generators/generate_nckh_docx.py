@@ -72,7 +72,8 @@ def add_formatted_runs(paragraph, text, default_font_size=12.5, default_color=RG
             r.font.color.rgb = default_color
 
 def create_full_nckh_docx():
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    _dir = os.path.dirname(__file__)
+    repo_root = os.path.abspath(os.path.join(_dir, '..', '..')) if os.path.basename(_dir) in ('generators', 'maintenance', 'research') else os.path.abspath(os.path.join(_dir, '..'))
     doc = docx.Document()
 
     # Section 0: Cover Page

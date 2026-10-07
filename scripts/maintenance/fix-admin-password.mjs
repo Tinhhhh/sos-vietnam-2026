@@ -1,18 +1,21 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { securityCryptoService } from '../services/security-crypto-service.js';
-import { readRuntimeData, writeRuntimeData } from '../services/runtime-data-store.js';
+import { securityCryptoService } from '../../services/security-crypto-service.js';
+import { readRuntimeData, writeRuntimeData } from '../../services/runtime-data-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(__dirname, '..');
+const projectRoot = path.resolve(__dirname, '../..');
 
 // 1. Generate clean PBKDF2 hash for password 'Admin'
 const adminHash = securityCryptoService.hashPassword('Admin');
 console.log('Generated PBKDF2 hash for Admin:', adminHash);
 
 // 2. Update assets/agency-accounts.json
-const seedPath = path.join(projectRoot, 'assets', 'agency-accounts.json');
+const assetsDir = fs.existsSync(path.join(projectRoot, 'public', 'assets'))
+  ? path.join(projectRoot, 'public', 'assets')
+  : path.join(projectRoot, 'assets');
+const seedPath = path.join(assetsDir, 'agency-accounts.json');
 const seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
 if (seed.admin) {
   seed.admin.passwordHash = adminHash;

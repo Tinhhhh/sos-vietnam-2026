@@ -1,12 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { securityCryptoService } from '../services/security-crypto-service.js';
+import { securityCryptoService } from '../../services/security-crypto-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const accountsPath = path.join(__dirname, '..', 'assets', 'agency-accounts.json');
+const projectRoot = path.resolve(__dirname, '../..');
+const assetsDir = fs.existsSync(path.join(projectRoot, 'public', 'assets'))
+  ? path.join(projectRoot, 'public', 'assets')
+  : path.join(projectRoot, 'assets');
+const accountsPath = path.join(assetsDir, 'agency-accounts.json');
 if (!fs.existsSync(accountsPath)) {
   console.error('File not found:', accountsPath);
   process.exit(1);

@@ -20,6 +20,15 @@ assets/security-alerts.json
 assets/security-audit.json
 assets/banned-ips.json
 assets/fake-incidents-archive.json
+public/assets/agency-accounts.json
+public/assets/incident-history.json
+public/assets/history-trash.json
+public/assets/login-history.json
+public/assets/login-lockouts.json
+public/assets/security-alerts.json
+public/assets/security-audit.json
+public/assets/banned-ips.json
+public/assets/fake-incidents-archive.json
 .runtime-data/
 *.log
 *.tar.gz

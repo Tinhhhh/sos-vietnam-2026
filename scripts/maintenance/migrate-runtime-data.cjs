@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 const names = [
   'agency-accounts.json', 'incident-history.json', 'history-trash.json',
   'login-history.json', 'login-lockouts.json', 'security-alerts.json',
@@ -15,10 +15,11 @@ if (!process.env.SOS_RUNTIME_DATA_DIR || !process.env.SOS_MASTER_SECRET || !proc
 }
 
 (async () => {
-  const { writeRuntimeData, readRuntimeData, RUNTIME_DATA_DIR } = await import('../services/runtime-data-store.js');
+  const { writeRuntimeData, readRuntimeData, RUNTIME_DATA_DIR } = await import('../../services/runtime-data-store.js');
+  const assetsDir = fs.existsSync(path.join(root, 'public', 'assets')) ? path.join(root, 'public', 'assets') : path.join(root, 'assets');
   let migrated = 0;
   for (const name of names) {
-    const source = path.join(root, 'assets', name);
+    const source = path.join(assetsDir, name);
     if (!fs.existsSync(source)) continue;
     const data = JSON.parse(fs.readFileSync(source, 'utf8'));
     writeRuntimeData(name, data);

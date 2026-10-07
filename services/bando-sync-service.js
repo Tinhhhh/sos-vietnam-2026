@@ -12,10 +12,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
+const ASSETS_DIR = fs.existsSync(path.join(ROOT_DIR, 'public', 'assets'))
+  ? path.join(ROOT_DIR, 'public', 'assets')
+  : path.join(ROOT_DIR, 'assets');
 
-const SYNC_META_FILE = path.join(ROOT_DIR, 'assets', 'bando-sync-meta.json');
-const WARDS_BOUNDARIES_FILE = path.join(ROOT_DIR, 'assets', 'vn-ward-boundaries.json');
-const PROVINCES_GEOJSON_FILE = path.join(ROOT_DIR, 'assets', 'vn-provinces.geojson');
+const SYNC_META_FILE = path.join(ASSETS_DIR, 'bando-sync-meta.json');
+const WARDS_BOUNDARIES_FILE = path.join(ASSETS_DIR, 'vn-ward-boundaries.json');
+const PROVINCES_GEOJSON_FILE = path.join(ASSETS_DIR, 'vn-provinces.geojson');
 
 export class BandoSyncService {
   constructor(serverContext = {}) {

@@ -35,11 +35,8 @@ ROOT_FILES = [
 
 # Directories to copy
 INCLUDE_DIRS = [
-    "css",
-    "js",
-    "assets",
+    "public",
     "services",
-    "vendor",
     "scripts",
     ".runtime-data",
     ".well-known"

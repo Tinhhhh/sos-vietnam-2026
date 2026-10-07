@@ -12,10 +12,11 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ACCOUNTS_PATH = os.path.join(BASE_DIR, 'assets', 'agency-accounts.json')
-STATIONS_PATH = os.path.join(BASE_DIR, 'assets', 'vn-stations-directory.json')
-HOSPITALS_PATH = os.path.join(BASE_DIR, 'assets', 'hospitals.json')
-RESCUES_PATH = os.path.join(BASE_DIR, 'assets', 'rescue-enterprises.json')
+ASSETS_DIR = os.path.join(BASE_DIR, 'public', 'assets') if os.path.exists(os.path.join(BASE_DIR, 'public', 'assets')) else os.path.join(BASE_DIR, 'assets')
+ACCOUNTS_PATH = os.path.join(ASSETS_DIR, 'agency-accounts.json')
+STATIONS_PATH = os.path.join(ASSETS_DIR, 'vn-stations-directory.json')
+HOSPITALS_PATH = os.path.join(ASSETS_DIR, 'hospitals.json')
+RESCUES_PATH = os.path.join(ASSETS_DIR, 'rescue-enterprises.json')
 
 def make_pwd_hash(password, salt=None):
     if not salt:

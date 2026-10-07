@@ -21,13 +21,18 @@ print("✓ Đã cập nhật css/tactical-responsive.css (bản đồ rộng, kh
 # 3. Update scripts
 os.makedirs(os.path.join(dst_root, 'scripts'), exist_ok=True)
 for s in ['generate_verification_record_docx.py', 'generate_report_docx.py', 'generate_accounts_excel.py', 'import_accounts_excel.py', 'generate_history_excel.py', 'reset-agency-default-passwords.mjs', 'migrate-runtime-data.cjs']:
-    s_path = os.path.join(src_root, 'scripts', s)
-    if os.path.exists(s_path):
-        shutil.copy2(s_path, os.path.join(dst_root, 'scripts', s))
+    for sub in ['', 'generators', 'maintenance']:
+        s_path = os.path.join(src_root, 'scripts', sub, s) if sub else os.path.join(src_root, 'scripts', s)
+        if os.path.exists(s_path):
+            shutil.copy2(s_path, os.path.join(dst_root, 'scripts', s))
+            break
 print("✓ Đã cập nhật scripts/ (Biên bản xác minh chuẩn không ngắt dòng)")
 
 # 4. Update assets/agency-accounts.json
-shutil.copy2(os.path.join(src_root, 'assets', 'agency-accounts.json'), os.path.join(dst_root, 'assets', 'agency-accounts.json'))
+src_accounts = os.path.join(src_root, 'public', 'assets', 'agency-accounts.json') if os.path.exists(os.path.join(src_root, 'public', 'assets', 'agency-accounts.json')) else os.path.join(src_root, 'assets', 'agency-accounts.json')
+dst_accounts_dir = os.path.join(dst_root, 'public', 'assets') if os.path.exists(os.path.join(dst_root, 'public', 'assets')) else os.path.join(dst_root, 'assets')
+os.makedirs(dst_accounts_dir, exist_ok=True)
+shutil.copy2(src_accounts, os.path.join(dst_accounts_dir, 'agency-accounts.json'))
 print("✓ Đã cập nhật assets/agency-accounts.json")
 
 # 5. Clear login-lockouts.json and banned-ips.json in dst_root/.runtime-data

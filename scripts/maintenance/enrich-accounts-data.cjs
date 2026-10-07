@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const filePath = path.join(__dirname, '..', 'assets', 'agency-accounts.json');
+const projectRoot = path.resolve(__dirname, '../..');
+const assetsDir = fs.existsSync(path.join(projectRoot, 'public', 'assets')) ? path.join(projectRoot, 'public', 'assets') : path.join(projectRoot, 'assets');
+const filePath = path.join(assetsDir, 'agency-accounts.json');
 const accs = JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
 // Area code map for telephones in 34 provinces

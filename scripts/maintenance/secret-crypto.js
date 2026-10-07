@@ -24,7 +24,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { securityCryptoService } from '../services/security-crypto-service.js';
+import { securityCryptoService } from '../../services/security-crypto-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

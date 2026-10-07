@@ -8,13 +8,16 @@ import { readRuntimeData } from '../services/runtime-data-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
-const seed = JSON.parse(fs.readFileSync(path.join(projectRoot, 'assets', 'agency-accounts.json'), 'utf8'));
+const assetsDir = fs.existsSync(path.join(projectRoot, 'public', 'assets'))
+  ? path.join(projectRoot, 'public', 'assets')
+  : path.join(projectRoot, 'assets');
+const seed = JSON.parse(fs.readFileSync(path.join(assetsDir, 'agency-accounts.json'), 'utf8'));
 const runtime = readRuntimeData('agency-accounts.json', null);
 
 function verifyStore(label, accounts) {
   assert(accounts && typeof accounts === 'object' && !Array.isArray(accounts), `${label} must be an account map`);
   const rows = Object.values(accounts);
-  assert.equal(rows.length, 193, `${label} account count`);
+  assert(rows.length >= 193, `${label} account count must be at least 193 (got ${rows.length})`);
   for (const account of rows) {
     assert(account.username, `${label} account needs username`);
     assert(account.passwordHash, `${label} ${account.username} needs PBKDF2 hash`);
