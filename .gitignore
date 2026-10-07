@@ -1,0 +1,123 @@
+# ==========================================
+# 1. Dependencies & Environment
+# ==========================================
+node_modules/
+.env
+.env.*
+!.env.sample
+!.env.example
+.dev.vars
+
+# ==========================================
+# 2. Runtime & Dynamic Logs
+# ==========================================
+.runtime-data/
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# 3. Sensitive Data & Security Telemetry
+# ==========================================
+assets/agency-accounts.json
+assets/incident-history.json
+assets/history-trash.json
+assets/login-history.json
+assets/login-lockouts.json
+assets/security-alerts.json
+assets/security-audit.json
+assets/banned-ips.json
+assets/fake-incidents-archive.json
+assets/security-config.json
+
+# ==========================================
+# 4. Office Lock Files & Temp Files
+# ==========================================
+~$*.docx
+~$*.xlsx
+~$*.doc
+*.tmp
+*.bak
+scratch/
+
+# ==========================================
+# 5. Python Cache & Virtual Environments
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+
+# ==========================================
+# 6. Test, QA & Coverage Reports
+# ==========================================
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+coverage/
+.nyc_output/
+Reports/
+
+# ==========================================
+# 7. OS & Editor Artifacts
+# ==========================================
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# 8. Temporary Media & Archives
+# ==========================================
+video_production/
+test_*.mp4
+test_*.webm
+test_*.wav
+test_*.png
+preview_*.png
+sample_*.png
+*.zip
+*.tar.gz
+*.rar
+
+# Hide tur
+tur*
+
+# anvien:start
+# Anvien local index and generated AI context
+.anvien/
+AGENTS.md
+CLAUDE.md
+
+# Agent/editor local state used by Anvien integrations
+.claude/
+.codex/
+.agents/
+.grok/
+.claude-flow/
+.claude-plugin/
+.history/
+.swarm/
+.codex-tmp/
+.tmp/
+undefined/
+local_docs/
+
+# Local Anvien launcher/runtime generated artifacts
+anvien-launcher/web-dist/
+anvien-launcher/AnvienLauncher.exe
+anvien-launcher/server-bundle/
+anvien-launcher/logs/
+# anvien:end
