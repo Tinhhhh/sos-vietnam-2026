@@ -1,4 +1,4 @@
-﻿import http from 'http';
+import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -251,16 +251,18 @@ try {
   const rawStore = readRuntimeData('agency-accounts.json', {});
   AGENCY_ACCOUNTS = normalizeAccountsStore(rawStore);
 
-  // Auto-seed from assets if runtime data is empty (e.g. /tmp cleared on Render restart)
+  // Auto-seed from assets if runtime data is empty (e.g. /tmp cleared on Render restart or fresh git clone)
   if (Object.keys(AGENCY_ACCOUNTS).length === 0) {
     const _seedFilePath = path.join(__dirname, 'assets', 'agency-accounts.json');
-    if (fs.existsSync(_seedFilePath)) {
+    const _backupSeedPath = path.join(__dirname, 'assets', 'agency-accounts.seed.json');
+    const pathToUse = fs.existsSync(_seedFilePath) ? _seedFilePath : (fs.existsSync(_backupSeedPath) ? _backupSeedPath : null);
+    if (pathToUse) {
       try {
-        const _seedData = JSON.parse(fs.readFileSync(_seedFilePath, 'utf8'));
+        const _seedData = JSON.parse(fs.readFileSync(pathToUse, 'utf8'));
         if (_seedData && typeof _seedData === 'object' && !Array.isArray(_seedData) && Object.keys(_seedData).length > 0) {
           AGENCY_ACCOUNTS = _seedData;
           try { writeRuntimeData('agency-accounts.json', AGENCY_ACCOUNTS); } catch (_seedWriteErr) {}
-          console.log('[SEED] Auto-seeded ' + Object.keys(AGENCY_ACCOUNTS).length + ' accounts from assets seed file (runtime was empty).');
+          console.log('[SEED] Auto-seeded ' + Object.keys(AGENCY_ACCOUNTS).length + ' accounts from ' + path.basename(pathToUse) + ' (runtime was empty).');
         }
       } catch (_seedErr) { console.warn('[SEED] Auto-seed from assets failed:', _seedErr.message); }
     }

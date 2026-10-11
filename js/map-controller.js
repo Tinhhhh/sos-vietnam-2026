@@ -1,4 +1,4 @@
-﻿// Map Controller with CartoDB Dark, Esri Satellite, Google Maps & 34 Provinces System
+// Map Controller with CartoDB Dark, Esri Satellite, Google Maps & 34 Provinces System
 
 export class MapController {
   constructor(containerId, options = {}) {
@@ -1090,11 +1090,11 @@ export class MapController {
     }
 
     const zoom = this.map.getZoom();
-    // MIN_STATION_ZOOM: Hide all station icons at national/regional macro view (< 9.8)
-    // to prevent lag, heavy DOM load on mobile, and crowded label mountains.
-    const MIN_STATION_ZOOM = 9.8;
+    const isFilteredRegion = Boolean(this.currentRegionFilter && this.currentRegionFilter !== 'all' && !this.currentRegionFilter.includes('Quốc'));
+    // Macro view: When zoomed way out (< 8.5) and looking at whole nation, show only province/district level hubs
+    const isMacroView = zoom < 8.5 && !isFilteredRegion;
 
-    if (zoom < MIN_STATION_ZOOM) {
+    if (zoom < 5.8 && !isFilteredRegion) {
       if (this.activeStationMarkersMap && this.activeStationMarkersMap.size > 0) {
         this.activeStationMarkersMap.forEach(m => { try { m.remove(); } catch(e) {} });
         this.activeStationMarkersMap.clear();
@@ -1117,7 +1117,16 @@ export class MapController {
     const visibleStations = this.candidateStations.filter(st => {
       const lng = Number(st.lng || st.stationLng);
       const lat = Number(st.lat || st.stationLat);
-      return !isNaN(lng) && !isNaN(lat) && lng >= west && lng <= east && lat >= south && lat <= north;
+      if (isNaN(lng) || isNaN(lat) || lng < west || lng > east || lat < south || lat > north) {
+        return false;
+      }
+      if (isMacroView) {
+        const nameLower = (st.name || '').toLowerCase();
+        const isWardLevel = st.level === 'ward' || st.level === 'commune' || st.type === 'ward' || st.type === 'commune' ||
+          nameLower.startsWith('công an xã') || nameLower.startsWith('công an phường') || nameLower.startsWith('công an thị trấn');
+        if (isWardLevel) return false;
+      }
+      return true;
     });
 
     const visibleIds = new Set(visibleStations.map(st => String(st.id || `${st.name}_${st.lat}_${st.lng}`)));
@@ -1160,22 +1169,20 @@ export class MapController {
     this.removeClusteredStationsLayers();
     this.clearStationMarkers();
 
+    this.currentRegionFilter = filterRegion;
     const isAll = !filterRegion || filterRegion === 'all' || filterRegion === 'Toàn Quốc' || filterRegion === 'Cấp Quốc Gia' || (filterRegion && filterRegion.includes('Quốc'));
 
     this.candidateStations = allStations.filter(s => {
       if (!s.lat || !s.lng || s.id === 'st-admin' || s.level === 'national') return false;
 
-      // Không vẽ trước các trạm cấp Xã / Phường (tránh do lag và rối bản đồ)
-      // Các trạm Xã / Phường sẽ xuất hiện khi trực ban click vào ô lưới xã/phường đó!
-      const nameLower = (s.name || '').toLowerCase();
-      const isWardLevel = s.level === 'ward' || s.level === 'commune' || s.type === 'ward' || s.type === 'commune' ||
-        nameLower.startsWith('công an xã') || nameLower.startsWith('công an phường') || nameLower.startsWith('công an thị trấn');
-      if (isWardLevel) return false;
+      if (!isAll && filterRegion) {
+        const provClean = (s.province || '').toLowerCase();
+        const filterClean = filterRegion.toLowerCase().replace('tp. ', '').replace('tỉnh ', '').trim();
+        const matchProv = s.level === 'province' || (s.name && s.name.includes('Quốc Gia')) ||
+          provClean.includes(filterClean);
+        if (!matchProv) return false;
+      }
 
-      if (isAdmin || isAll) return true;
-      const matchProv = s.level === 'province' || (s.name && s.name.includes('Quốc Gia')) ||
-        (s.province || '').toLowerCase().includes(filterRegion.toLowerCase());
-      if (!matchProv) return false;
       if (agency && agency !== 'all' && s.level !== 'national' && s.id !== 'st-admin') {
         if (agency === 'fire') return s.agency === 'fire' || s.agency === 'rescue';
         return s.agency === agency;

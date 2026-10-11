@@ -13204,7 +13204,19 @@ class DispatcherApp {
   }
 
   printTerritoryStats() {
-    window.print();
+    const modal = document.getElementById('territoryStatsModal');
+    if (!modal) return;
+    document.body.classList.add('printing-territory-stats');
+    const oldTitle = document.title;
+    document.title = 'BaoCao_ThongKe_SuCo_SOS_VietNam_2026';
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-territory-stats');
+        document.title = oldTitle;
+      }, 800);
+    }, 150);
   }
 
   exportTerritoryStatsCsv() {

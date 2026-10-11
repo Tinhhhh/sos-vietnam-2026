@@ -3191,13 +3191,31 @@ body.theme-admin .brand-badge {
     display: none !important;
   }
 
-  /* Only display the modal container starting precisely at top 0 of page 1 */
+  /* Only display the active report modal container during print */
   body > #incidentReportDocxModal,
   #incidentReportDocxModal {
     display: block !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    z-index: 999999 !important;
+  }
+
+  body > #territoryStatsModal,
+  #territoryStatsModal {
+    display: block !important;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
     width: 100% !important;
     height: auto !important;
     min-height: auto !important;
@@ -7952,16 +7970,23 @@ textarea:focus {
   }
 
   #territoryStatsModal {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
     width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
     display: block !important;
     box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    float: none !important;
+    inset: auto !important;
   }
 
   .report-docx-modal-dialog {
@@ -7969,10 +7994,16 @@ textarea:focus {
     width: 100% !important;
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
+    height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+    display: block !important;
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   /* Ẩn các nút điều khiển, header màn hình, tabs lọc khi in */
@@ -7986,7 +8017,8 @@ textarea:focus {
   #btnExportTerritoryStatsCsv,
   #inputSearchTerritoryStats,
   #btnBottomCloseStatsModal,
-  .report-docx-modal-backdrop::before {
+  .report-docx-modal-backdrop::before,
+  #territoryStatsModal .report-docx-modal-dialog > div:last-child {
     display: none !important;
   }
 
@@ -7994,24 +8026,49 @@ textarea:focus {
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    max-height: none !important;
     overflow: visible !important;
+    display: block !important;
+    position: static !important;
     font-family: 'Times New Roman', Times, serif !important;
   }
 
   /* Hiện tiêu ngữ hành chính và chữ ký khi in */
   .print-official-header {
     display: block !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 16px !important;
   }
 
   .print-official-footer {
     display: flex !important;
+    page-break-inside: avoid !important;
+    margin-top: 24px !important;
   }
 
   .territory-stats-table {
     width: 100% !important;
     color: #000000 !important;
     border: 1.5px solid #000000 !important;
+    border-collapse: collapse !important;
     font-family: 'Times New Roman', Times, serif !important;
+    page-break-inside: auto !important;
+  }
+
+  .territory-stats-table thead {
+    display: table-header-group !important;
+  }
+
+  .territory-stats-table tbody {
+    display: table-row-group !important;
+  }
+
+  .territory-stats-table tr {
+    background: transparent !important;
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
   }
 
   .territory-stats-table th,
@@ -8020,6 +8077,8 @@ textarea:focus {
     color: #000000 !important;
     padding: 6px 8px !important;
     font-size: 10pt !important;
+    page-break-inside: avoid !important;
+    word-break: break-word !important;
   }
 
   .territory-stats-table th {
@@ -8027,10 +8086,6 @@ textarea:focus {
     color: #000000 !important;
     font-weight: bold !important;
     text-align: center !important;
-  }
-
-  .territory-stats-table tbody tr {
-    background: transparent !important;
   }
 }
 
