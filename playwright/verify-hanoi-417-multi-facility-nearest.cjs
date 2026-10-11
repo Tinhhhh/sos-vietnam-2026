@@ -42,35 +42,57 @@ async function fetchJson(urlPath, options = {}) {
   const hanoiStations = stations.filter(s => s.province === 'Hà Nội');
   report.hanoiTotalStations = hanoiStations.length;
 
-  const hanoiPolice = hanoiStations.filter(s => s.agency === 'police' && s.level === 'ward');
+  const hanoiPolice = hanoiStations.filter(s => s.agency === 'police' && (s.level === 'ward' || s.unitCategory === 'ward_police'));
   report.hanoiPoliceStations = hanoiPolice.length;
 
   assertions.push({
-    name: 'Directory total operational stations >= 890 (after purging 13 non-operational units)',
-    pass: report.totalStations >= 890,
+    name: 'Directory total operational stations >= 845 (after purging all 48 non-emergency/administrative bureaus and legacy duplicates)',
+    pass: report.totalStations >= 845,
     actual: report.totalStations
   });
 
   assertions.push({
-    name: 'Hanoi operational facilities == 404 (417 ANTD minus 13 non-operational entities)',
-    pass: report.hanoiTotalStations >= 404,
+    name: 'Hanoi operational facilities >= 370 (369 ANTD operational units + Trung Tâm Thông Tin Chỉ Huy CATP Hà Nội)',
+    pass: report.hanoiTotalStations >= 369,
     actual: report.hanoiTotalStations
   });
 
   assertions.push({
-    name: 'Hanoi grassroots ward police facilities >= 310 (excluding PCCC/CSGT regional squads & City HQs)',
-    pass: report.hanoiPoliceStations >= 310,
+    name: 'Hanoi grassroots ward police facilities >= 312 (across all 126 communes/wards)',
+    pass: report.hanoiPoliceStations >= 312,
     actual: report.hanoiPoliceStations
   });
 
-  // R2 Check: Zero non-operational entities in directory
-  const forbiddenKeywords = ['bảo tàng công an', 'báo an ninh thủ đô', 'bệnh viện catp', 'nhà nghỉ dưỡng suối hai', 'công ty tnhh mtv tháng 8', 'công ty tnhh bóng đá'];
-  const leakedNonOperational = stations.filter(s => {
-    const nm = (s.name || '').toLowerCase();
+  // R2 Check: Zero non-operational or administrative police bureaus in directory and /api/stations/all
+  const apiAllRes = await fetchJson('/api/stations/all');
+  const apiAllStations = apiAllRes?.stations || [];
+  const forbiddenKeywords = [
+    'bảo tàng công an',
+    'báo an ninh thủ đô',
+    'bệnh viện catp',
+    'nhà nghỉ dưỡng suối hai',
+    'công ty tnhh mtv tháng 8',
+    'công ty tnhh bóng đá',
+    'văn phòng cơ quan cảnh sát điều tra',
+    'phòng cảnh sát kinh tế',
+    'phòng cảnh sát điều tra tội phạm về tham nhũng',
+    'phòng cảnh sát quản lý hành chính về trật tự xã hội',
+    'phòng quản lý xuất nhập cảnh',
+    'thanh tra catp',
+    'trại tạm giam',
+    'phòng cảnh sát hình sự',
+    'phòng cảnh sát cơ động',
+    'phòng cảnh sát điều tra tội phạm về ma túy',
+    'phòng hồ sơ nghiệp vụ',
+    'cơ sở đăng ký xe',
+    'đội sát hạch'
+  ];
+  const leakedNonOperational = [...stations, ...apiAllStations].filter(s => {
+    const nm = `${s.name || ''} ${s.unit_title || ''}`.toLowerCase();
     return forbiddenKeywords.some(k => nm.includes(k));
   });
   assertions.push({
-    name: 'Zero non-operational entities (Bảo tàng, Báo ANTĐ, Bệnh viện CATP, Suối Hai, Công ty Tháng 8) in station directory',
+    name: 'Zero non-operational or administrative bureaus (Văn phòng CSĐT, Kinh tế, QLHC về TTXH, Xuất nhập cảnh, Thanh tra, Trại tạm giam, Bảo tàng, Báo ANTĐ, Bệnh viện CATP) in station directory or /api/stations/all',
     pass: leakedNonOperational.length === 0,
     actual: leakedNonOperational.map(s => s.name)
   });
@@ -79,8 +101,8 @@ async function fetchJson(urlPath, options = {}) {
   const htmlEntityLeaks = hanoiStations.filter(s => JSON.stringify(s).includes('&amp;'));
   const validAntdSource = hanoiStations.filter(s => s.source_url === 'https://anninhthudo.vn/chi-tiet-danh-sach-417-tru-so-diem-tiep-dan-kem-link-google-map-cua-cong-an-tp-ha-noi-post666267.antd');
   assertions.push({
-    name: 'All 404 Hanoi operational stations have decoded HTML entities (0 &amp;) and official ANTD source_url',
-    pass: htmlEntityLeaks.length === 0 && validAntdSource.length >= 404,
+    name: 'All 369 Hanoi ANTD operational stations have decoded HTML entities (0 &amp;) and official ANTD source_url',
+    pass: htmlEntityLeaks.length === 0 && validAntdSource.length >= 369,
     actual: { htmlEntityLeaks: htmlEntityLeaks.length, validAntdSourceCount: validAntdSource.length }
   });
 
@@ -102,11 +124,19 @@ async function fetchJson(urlPath, options = {}) {
     actual: { count: bachMaiStations.length, facilities: bachMaiStations.map(s => s.facility_type) }
   });
 
+  // Check Hoàn Kiếm facilities
+  const hoanKiemStations = hanoiStations.filter(s => s.ward === 'Phường Hoàn Kiếm' && s.unitCategory === 'ward_police');
+  assertions.push({
+    name: 'Phường Hoàn Kiếm has all 6 distinct ward police facilities (Trụ sở chính, Cơ sở 2..6)',
+    pass: hoanKiemStations.length === 6,
+    actual: { count: hoanKiemStations.length, facilities: hoanKiemStations.map(s => s.name) }
+  });
+
   // Check Google Maps URLs validity
   const stationsWithMaps = hanoiStations.filter(s => s.maps_url && (s.maps_url.startsWith('https://maps.app.goo.gl/') || s.maps_url.startsWith('https://www.google.com/maps/')));
   assertions.push({
-    name: 'All 404 Hanoi operational stations have valid Google Maps URLs',
-    pass: stationsWithMaps.length >= 404,
+    name: 'All 369 Hanoi ANTD operational stations have valid Google Maps URLs',
+    pass: stationsWithMaps.length >= 369,
     actual: stationsWithMaps.length
   });
 
@@ -435,6 +465,49 @@ async function fetchJson(urlPath, options = {}) {
     name: 'UI renders 1 primary pin + 4 auxiliary pins (5 total) for Phường Bạch Mai',
     pass: bachMaiUiResult.primaryPinFound && bachMaiUiResult.auxPinsCount === 4,
     actual: bachMaiUiResult
+  });
+
+  // UI Check 2B: Render Phường Hoàn Kiếm (6 facilities: Trụ sở chính + Cơ sở 2..6)
+  const hoanKiemUiResult = await page.evaluate(async () => {
+    const app = window.dispatcher || window.dispatcherApp;
+    const mc = app?.mapController;
+    if (!mc) return { error: 'No mapController' };
+
+    const wardFeature = {
+      properties: {
+        ward: 'Phường Hoàn Kiếm',
+        province: 'Hà Nội',
+        ten_xa: 'Phường Hoàn Kiếm',
+        ten_tinh: 'Hà Nội',
+        center: [105.853993, 21.028505]
+      },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[105.845, 21.020], [105.862, 21.020], [105.862, 21.038], [105.845, 21.038], [105.845, 21.020]]]
+      }
+    };
+
+    mc.showWardStationPin(wardFeature);
+    await new Promise(r => setTimeout(r, 600));
+
+    const primaryPin = document.querySelector('.active-ward-reveal-pin');
+    const auxPins = document.querySelectorAll('.auxiliary-ward-pin');
+    return {
+      primaryPinFound: Boolean(primaryPin),
+      primaryPinText: primaryPin ? primaryPin.textContent.trim().replace(/\s+/g, ' ') : null,
+      auxPinsCount: auxPins.length,
+      auxPinsText: Array.from(auxPins).map(p => p.textContent.trim().replace(/\s+/g, ' '))
+    };
+  });
+
+  const ssHoanKiemPath = path.join(SCREENSHOT_DIR, 'hanoi-hoan-kiem-6-facilities.png');
+  await page.screenshot({ path: ssHoanKiemPath });
+  report.screenshots.push(ssHoanKiemPath);
+
+  assertions.push({
+    name: 'UI renders 1 primary pin + 5 auxiliary pins (all 6 facilities) simultaneously for Phường Hoàn Kiếm',
+    pass: hoanKiemUiResult.primaryPinFound && hoanKiemUiResult.auxPinsCount === 5,
+    actual: hoanKiemUiResult
   });
 
   // UI Check 3: Clear ward pins cleanly

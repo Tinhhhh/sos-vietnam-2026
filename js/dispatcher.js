@@ -1,4 +1,4 @@
-import { MapController } from './map-controller.js?v=20260921_admin_geodata_progress2';
+import { MapController } from './map-controller.js?v=20261011_multifacility_v4';
 
 const AGENCY_PREVIEWS = {
   congan: {
@@ -9131,7 +9131,7 @@ class DispatcherApp {
     }
 
     // Extract official values
-    const unitTitle = matchedSt?.unit_title || (matchedSt?.ward ? matchedSt.ward : (props.ward || 'Phường Tân An'));
+    const unitTitle = matchedSt?.name || matchedSt?.unit_title || (matchedSt?.ward ? matchedSt.ward : (props.ward || 'Phường Tân An'));
     const address = matchedSt?.address || props.address || props.trungTamHanhChinh || ('02 Nguyễn Tri Phương, Kv.10, ' + (props.ward || 'phường Tân An') + ', thành phố ' + (props.province || 'Cần Thơ'));
     const phone = (matchedSt?.phone && !matchedSt.phone.includes('cập nhật')) ? matchedSt.phone : (props.phone || '02923894939');
     const cleanPhone = phone.replace(/[^0-9+]/g, '');
@@ -9202,11 +9202,21 @@ class DispatcherApp {
             const i = Number(itemEl.getAttribute('data-idx'));
             const st = wardStations[i];
             if (!st) return;
+            if (unitTitleEl && (st.name || st.unit_title)) unitTitleEl.textContent = st.name || st.unit_title;
             if (addressEl && st.address) addressEl.textContent = st.address;
             if (phoneEl && st.phone) phoneEl.textContent = st.phone;
             if (phoneLinkEl && st.phone) phoneLinkEl.href = `tel:${st.phone.replace(/[^0-9+]/g, '')}`;
+            if (officerEl) {
+              const stOff = st.officer || (st.officer_name ? `${st.officer_name}${st.officer_phone ? ` (SĐT: ${st.officer_phone})` : ''}` : '');
+              if (stOff) officerEl.textContent = stOff;
+            }
+            if (emailEl && st.email) emailEl.textContent = st.email;
+            if (emailLinkEl && st.email) emailLinkEl.href = `mailto:${st.email}`;
             if (servicesEl && st.services) servicesEl.textContent = st.services;
             if (gmapsBtn) gmapsBtn.href = st.maps_url || `https://www.google.com/maps/dir/?api=1&destination=${st.lat},${st.lng}`;
+            if (this.mapController && typeof this.mapController.showWardStationPin === 'function') {
+              this.mapController.showWardStationPin(boundaryFeature, st);
+            }
             if (this.mapController && st.lat && st.lng) {
               this.mapController.panTo(Number(st.lat), Number(st.lng), 16);
             }

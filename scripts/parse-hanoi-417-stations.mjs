@@ -45,24 +45,10 @@ function normalizeVn(str) {
 }
 
 function resolveWardName(address, name) {
-  // Try matching from address
-  const addrMatch = address.match(/(phường|xã|thị trấn)\s+([^,]+)/i);
-  let candidate = null;
-  if (addrMatch) {
-    const type = addrMatch[1].toLowerCase() === 'phường' ? 'Phường' : (addrMatch[1].toLowerCase() === 'xã' ? 'Xã' : 'Thị trấn');
-    const rawName = addrMatch[2].trim();
-    candidate = `${type} ${rawName}`;
-    
-    // 1. Direct match
-    if (hnWardsMap.has(candidate)) return candidate;
-    
-    // 2. Normalized match against all hn wards
-    const normCand = normalizeVn(candidate);
-    for (const w of hnWardsMap.keys()) {
-      if (normalizeVn(w) === normCand) return w;
-    }
-
-    // 3. Normalized without prefix
+  // 1. Priority: match from station name first when explicitly named "Công an phường/xã/thị trấn <X>"
+  const nameMatch = (name || '').match(/Công (?:an )?(phường|xã|thị trấn)\s+([^-—–]+)/i);
+  if (nameMatch) {
+    const rawName = nameMatch[2].trim();
     const normRaw = normalizeVn(rawName);
     for (const w of hnWardsMap.keys()) {
       const pureW = normalizeVn(w.replace(/^(phường|xã|thị trấn)\s+/i, ''));
@@ -70,10 +56,24 @@ function resolveWardName(address, name) {
     }
   }
 
-  // Fallback: match from station name
-  const nameMatch = name.match(/Công an (phường|xã|thị trấn)\s+([^-—–]+)/i);
-  if (nameMatch) {
-    const rawName = nameMatch[2].trim();
+  // 2. Try matching from address
+  const addrMatch = (address || '').match(/(phường|xã|thị trấn)\s+([^,]+)/i);
+  let candidate = null;
+  if (addrMatch) {
+    const type = addrMatch[1].toLowerCase() === 'phường' ? 'Phường' : (addrMatch[1].toLowerCase() === 'xã' ? 'Xã' : 'Thị trấn');
+    const rawName = addrMatch[2].trim();
+    candidate = `${type} ${rawName}`;
+    
+    // Direct match
+    if (hnWardsMap.has(candidate)) return candidate;
+    
+    // Normalized match against all hn wards
+    const normCand = normalizeVn(candidate);
+    for (const w of hnWardsMap.keys()) {
+      if (normalizeVn(w) === normCand) return w;
+    }
+
+    // Normalized without prefix
     const normRaw = normalizeVn(rawName);
     for (const w of hnWardsMap.keys()) {
       const pureW = normalizeVn(w.replace(/^(phường|xã|thị trấn)\s+/i, ''));
@@ -189,8 +189,8 @@ function decodeHtmlEntities(str) {
 }
 
 function isNonOperationalEntity(name, services = '') {
-  const n = (name || '').toLowerCase();
-  const s = (services || '').toLowerCase();
+  const n = decodeHtmlEntities(name || '').toLowerCase();
+  const s = decodeHtmlEntities(services || '').toLowerCase();
   const bannedNamePatterns = [
     /bảo tàng công an/i,
     /bảo tàng nghiệp vụ/i,
@@ -204,11 +204,45 @@ function isNonOperationalEntity(name, services = '') {
     /công ty tháng 8/i,
     /uỷ ban kiểm tra đảng/i,
     /ủy ban kiểm tra đảng/i,
-    /trung tâm huấn luyện và bồi dưỡng/i
+    /trung tâm huấn luyện và bồi dưỡng/i,
+    /văn phòng cơ quan cảnh sát điều tra/i,
+    /phòng cảnh sát kinh tế/i,
+    /phòng cảnh sát quản lý hành chính/i,
+    /phòng quản lý xuất nhập cảnh/i,
+    /thanh tra catp|thanh tra công an/i,
+    /trại tạm giam|phân trại tạm giam|nhà tạm giữ/i,
+    /phòng cảnh sát hình sự/i,
+    /phòng cảnh sát điều tra tội phạm về ma túy/i,
+    /phòng cảnh sát cơ động/i,
+    /phòng cảnh sát thi hành án hình sự/i,
+    /phòng hồ sơ nghiệp vụ/i,
+    /phòng an ninh/i,
+    /phòng kỹ thuật hình sự/i,
+    /phòng hậu cần/i,
+    /phòng tổ chức cán bộ/i,
+    /phòng công tác đảng|phòng công tác chính trị/i,
+    /phòng tham mưu/i,
+    /cơ sở đăng ký xe|đội quản lý xe/i,
+    /đội sát hạch, cấp giấy phép lái xe/i,
+    /đội đèn tín hiệu giao thông/i
   ];
   if (bannedNamePatterns.some(rx => rx.test(n))) return true;
   if (/tiếp đón khách tham quan bảo tàng|tiếp đón bệnh nhân đến khám chữa bệnh|nghỉ ngơi, điều dưỡng/i.test(s)) return true;
-  return false;
+
+  // Strict operational SOS whitelist:
+  // 1. Grassroots Commune/Ward/Town/Post Police
+  const isWardPolice = /^(công an (phường|xã|thị trấn|đặc khu)|công xã|đồn công an)/i.test(n);
+  // 2. PCCC & CNCH (City HQ + Regional/River Squads)
+  const isFireUnit = /^(trụ sở phòng cảnh sát pccc|phòng cảnh sát pccc|đội cc&cnch|đội cảnh sát pccc)/i.test(n);
+  // 3. CSGT (City HQ + Road/Waterway/Patrol Squads)
+  const isCsgtUnit = /^phòng cảnh sát giao thông\s*-\s*(trụ sở chính|đội csgt|đội cs đường thủy|đội tuần tra)/i.test(n);
+  // 4. City/Province Police Command HQ
+  const isCityPoliceHq = /^(công an tp|công an thành phố|công an tỉnh|trung tâm thông tin chỉ huy)/i.test(n);
+
+  if (isWardPolice || isFireUnit || isCsgtUnit || isCityPoliceHq) {
+    return false;
+  }
+  return true;
 }
 
 function classifyOperationalUnit(name) {
@@ -240,7 +274,7 @@ function classifyOperationalUnit(name) {
     };
   }
   // 3. Grassroots Commune/Ward Police (Công an xã/phường/thị trấn/đồn)
-  if (/^(công an (phường|xã|thị trấn)|công xã|đồn công an)/i.test(cleanName)) {
+  if (/^(công an (phường|xã|thị trấn|đặc khu)|công xã|đồn công an)/i.test(cleanName)) {
     return {
       agency: 'police',
       agency_name: 'Công An',
@@ -251,16 +285,15 @@ function classifyOperationalUnit(name) {
       jurisdictionScope: 'ward'
     };
   }
-  // 4. City-level Police Departments / Investigation Clusters
-  const isHq = /trụ sở chính|^thanh tra catp|^phòng quản lý xuất nhập cảnh|^phòng cảnh sát quản lý hành chính|^phòng cảnh sát điều tra tội phạm về ma túy|^phòng hồ sơ nghiệp vụ/i.test(cleanName);
+  // 4. City-level Police HQ
   return {
     agency: 'police',
     agency_name: 'Công An',
-    level: isHq ? 'province' : 'ward',
-    isCityHq: isHq,
-    isRegionalSquad: !isHq,
-    unitCategory: isHq ? 'city_hq' : 'regional_squad',
-    jurisdictionScope: isHq ? 'city_hq' : 'radius'
+    level: 'province',
+    isCityHq: true,
+    isRegionalSquad: false,
+    unitCategory: 'city_hq',
+    jurisdictionScope: 'city_hq'
   };
 }
 
@@ -392,6 +425,29 @@ async function main() {
       email: `cahn_${wardSlug}@hanoi.gov.vn`
     };
   });
+
+  // De-stack facilities within the same ward that are < 0.0011 deg (~110m) apart so pins never stack on the map
+  const wardGroups = new Map();
+  for (const st of officialStations) {
+    const key = `${st.ward}__${st.agency}`;
+    if (!wardGroups.has(key)) wardGroups.set(key, []);
+    wardGroups.get(key).push(st);
+  }
+  for (const group of wardGroups.values()) {
+    if (group.length < 2) continue;
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const dLat = Math.abs(group[i].lat - group[j].lat);
+        const dLng = Math.abs(group[i].lng - group[j].lng);
+        if (dLat < 0.0011 && dLng < 0.0011) {
+          const angle = (j * (2 * Math.PI)) / Math.max(group.length, 3);
+          const radius = 0.00125;
+          group[j].lat = +(group[i].lat + Math.sin(angle) * radius).toFixed(6);
+          group[j].lng = +(group[i].lng + Math.cos(angle) * radius).toFixed(6);
+        }
+      }
+    }
+  }
 
   console.log(`\nStatistics:`);
   console.log(`- Total operational stations: ${officialStations.length}`);

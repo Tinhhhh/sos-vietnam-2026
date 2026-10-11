@@ -709,15 +709,27 @@ export class MapController {
 
     // Lookup station from memory
     let station = overrideStation;
-    const stationsPool = (Array.isArray(this.stationsData) && this.stationsData.length)
+    const rawPool = (Array.isArray(this.stationsData) && this.stationsData.length)
       ? this.stationsData
       : (Array.isArray(this.cachedStations) && this.cachedStations.length)
         ? this.cachedStations
         : (window.dispatcherApp && Array.isArray(window.dispatcherApp.stationsList) && window.dispatcherApp.stationsList.length)
           ? window.dispatcherApp.stationsList
           : [];
-    if (!this.stationsData || !this.stationsData.length) {
+    const stationsPool = rawPool.filter(s => !this.isNonOperationalStation(s));
+    if ((!this.stationsData || !this.stationsData.length) && stationsPool.length) {
       this.stationsData = stationsPool;
+    }
+    if (stationsPool.length === 0 && !this._loadingStationsForWardPin) {
+      this._loadingStationsForWardPin = true;
+      this.getStationsData().then(loaded => {
+        this._loadingStationsForWardPin = false;
+        if (loaded && loaded.length > 0) {
+          this.showWardStationPin(wardFeature, overrideStation);
+        }
+      }).catch(() => {
+        this._loadingStationsForWardPin = false;
+      });
     }
 
     let matchingWardStations = [];
@@ -725,7 +737,7 @@ export class MapController {
       const cleanW = wardName.toLowerCase().replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
       const cleanP = provName.toLowerCase().replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
 
-      const isWardPolice = s => s && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency) && (!s.unitCategory || s.unitCategory === 'ward_police');
+      const isWardPolice = s => s && !this.isNonOperationalStation(s) && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency) && (!s.unitCategory || s.unitCategory === 'ward_police') && !s.isRegionalSquad && !s.isCityHq;
 
       const calcHaversineKm = (lat1, lng1, lat2, lng2) => {
         if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) return null;
@@ -774,6 +786,21 @@ export class MapController {
           return { ...s, distanceKm: dist, isNearest: false };
         }).sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999));
 
+        // De-stack any facilities in the same ward that are < 0.0009 deg apart so all pins are visibly separated on the map
+        for (let i = 0; i < matchingWardStations.length; i++) {
+          for (let j = i + 1; j < matchingWardStations.length; j++) {
+            const a = matchingWardStations[i];
+            const b = matchingWardStations[j];
+            const dLat = Math.abs(Number(a.lat) - Number(b.lat));
+            const dLng = Math.abs(Number(a.lng) - Number(b.lng));
+            if (dLat < 0.0009 && dLng < 0.0009) {
+              const angle = (2 * Math.PI * j) / Math.max(matchingWardStations.length, 2);
+              b.lat = Number((Number(b.lat) + 0.00115 * Math.sin(angle)).toFixed(6));
+              b.lng = Number((Number(b.lng) + 0.00115 * Math.cos(angle)).toFixed(6));
+            }
+          }
+        }
+
         if (matchingWardStations[0]) {
           matchingWardStations[0].isNearest = true;
         }
@@ -811,7 +838,7 @@ export class MapController {
     const pinLng = hasGps ? Number(station.lng) : centerLng;
     const pinLat = hasGps ? Number(station.lat) : centerLat;
 
-    const baseName = station?.unit_title || station?.name || ('Công An ' + wardName);
+    const baseName = station?.name || station?.unit_title || ('Công An ' + wardName);
     const displayName = station?.isNearest && matchingWardStations.length > 1
       ? `${baseName} [Cơ sở gần nhất]`
       : baseName;
@@ -872,7 +899,8 @@ export class MapController {
       if (!auxStation.lat || !auxStation.lng) return;
       const auxEl = document.createElement('div');
       auxEl.className = 'custom-map-pin congan-station-pin permanent-station auxiliary-ward-pin';
-      const auxLabel = `${auxStation.facility_type || auxStation.name}${typeof auxStation.distanceKm === 'number' ? ` (${auxStation.distanceKm} km)` : ''}`;
+      const auxBaseName = auxStation.name || auxStation.facility_type || ('Công An ' + wardName);
+      const auxLabel = `${auxBaseName}${typeof auxStation.distanceKm === 'number' ? ` (${auxStation.distanceKm} km)` : ''}`;
       auxEl.innerHTML = `
         <div class="congan-pin-emblem-wrap" style="width: 36px !important; height: 36px !important; max-width: 36px !important; max-height: 36px !important; overflow: hidden !important; border-radius: 50% !important; flex-shrink: 0 !important; border: 1.5px solid #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);">
           <img src="/assets/iconcongan.png" width="28" height="28" class="congan-pin-emblem" style="width: 28px !important; height: 28px !important; max-width: 28px !important; max-height: 28px !important; object-fit: contain !important; display: block !important;" alt="Huy hiệu CAND" />
@@ -954,6 +982,39 @@ export class MapController {
     }
   }
 
+  isNonOperationalStation(st) {
+    if (!st) return true;
+    const text = `${st.name || ''} ${st.unit_title || ''} ${st.address || ''}`.toLowerCase();
+    const nonOpPatterns = [
+      'bảo tàng công an',
+      'báo an ninh thủ đô',
+      'bệnh viện catp',
+      'bệnh viện công an',
+      'nhà khách',
+      'nhà nghỉ dưỡng',
+      'công ty tnhh',
+      'trung tâm huấn luyện và bồi dưỡng',
+      'trại tạm giam',
+      'nhà tạm giữ',
+      'cơ sở cai nghiện',
+      'văn phòng cơ quan cảnh sát điều tra',
+      'phòng cảnh sát kinh tế',
+      'phòng cảnh sát điều tra tội phạm về tham nhũng',
+      'phòng cảnh sát quản lý hành chính về trật tự xã hội',
+      'phòng quản lý xuất nhập cảnh',
+      'thanh tra catp',
+      'thanh tra công an',
+      'phòng cảnh sát hình sự',
+      'phòng cảnh sát cơ động',
+      'phòng cảnh sát điều tra tội phạm về ma túy',
+      'phòng hồ sơ nghiệp vụ',
+      'cơ sở đăng ký xe',
+      'đội sát hạch',
+      'đội chỉ huy giao thông và đèn tín hiệu'
+    ];
+    return nonOpPatterns.some(kw => text.includes(kw));
+  }
+
   async getStationsData() {
     if (this.cachedStations && Array.isArray(this.cachedStations) && this.cachedStations.length > 0) {
       this.stationsData = this.cachedStations;
@@ -963,8 +1024,9 @@ export class MapController {
       const res = await fetch('/api/stations/all');
       const data = await res.json();
       if (data.ok && Array.isArray(data.stations)) {
-        this.cachedStations = data.stations;
-        this.stationsData = data.stations;
+        const cleanStations = data.stations.filter(s => !this.isNonOperationalStation(s));
+        this.cachedStations = cleanStations;
+        this.stationsData = cleanStations;
         return this.cachedStations;
       }
     } catch (e) {
@@ -1330,8 +1392,8 @@ export class MapController {
 
     const zoom = this.map.getZoom();
     const isFilteredRegion = Boolean(this.currentRegionFilter && this.currentRegionFilter !== 'all' && !this.currentRegionFilter.includes('Quốc'));
-    // Macro view: When zoomed way out (< 8.5) and looking at whole nation, show only province/district level hubs
-    const isMacroView = zoom < 8.5 && !isFilteredRegion;
+    // Macro view: When zoomed way out (< 8.5), show only province/district level hubs so the map stays clean; when zoomed in (>= 8.5), show all ward facilities in viewport
+    const isMacroView = zoom < 8.5;
 
     if (zoom < 5.8 && !isFilteredRegion) {
       if (this.activeStationMarkersMap && this.activeStationMarkersMap.size > 0) {
@@ -1422,18 +1484,10 @@ export class MapController {
     this.clearStationMarkers();
 
     this.currentRegionFilter = filterRegion;
-    const isAll = !filterRegion || filterRegion === 'all' || filterRegion === 'Toàn Quốc' || filterRegion === 'Cấp Quốc Gia' || (filterRegion && filterRegion.includes('Quốc'));
 
     this.candidateStations = allStations.filter(s => {
       if (!s.lat || !s.lng || s.id === 'st-admin' || s.level === 'national') return false;
-
-      if (!isAll && filterRegion) {
-        const provClean = (s.province || '').toLowerCase();
-        const filterClean = filterRegion.toLowerCase().replace('tp. ', '').replace('tỉnh ', '').trim();
-        const matchProv = s.level === 'province' || (s.name && s.name.includes('Quốc Gia')) ||
-          provClean.includes(filterClean);
-        if (!matchProv) return false;
-      }
+      if (this.isNonOperationalStation(s)) return false;
 
       if (agency && agency !== 'all' && s.level !== 'national' && s.id !== 'st-admin') {
         if (agency === 'fire') return s.agency === 'fire' || s.agency === 'rescue';

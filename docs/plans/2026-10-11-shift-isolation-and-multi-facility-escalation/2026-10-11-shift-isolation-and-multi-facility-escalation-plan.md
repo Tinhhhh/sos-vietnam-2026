@@ -86,3 +86,14 @@ Resolve the unauthenticated shift expiry alert bug by scoping duty shifts strict
     3. Run `anvien detect-changes` and commit implementation.
   - Implementation Gate: P4-A complete.
   - Acceptance: 100% Playwright tests pass with zero console/runtime errors.
+
+- [x] **P6-A: Strict Operational Police/PCCC/CSGT Whitelist & Full Multi-Facility Map Pin Visibility**
+  - Goal: Purge all non-emergency administrative/investigative police bureaus (`Văn phòng cơ quan CSĐT`, `Phòng Cảnh sát kinh tế`, `Phòng Cảnh sát QLHC về TTXH`, `Phòng quản lý xuất nhập cảnh`, `Thanh tra CATP`, `Trại tạm giam`, `Phòng Cảnh sát hình sự`, `Phòng Cảnh sát cơ động`, `Phòng CSĐT tội phạm về ma túy`, `Phòng Hồ sơ nghiệp vụ`, `Cơ sở Đăng ký xe`, `Đội Sát hạch GPLX`, `Đội Đèn tín hiệu`, etc.) so ONLY local Commune/Ward/Town/Post Police (`Công an xã/phường/thị trấn/đồn`), City/Province HQs, and operational PCCC & CNCH / CSGT units appear, and ensure ALL facilities (`Trụ sở chính`, `Cơ sở 1, 2, 3, 4, 5, 6...`) of every ward render visibly and simultaneously on the map without browser cache staleness or coordinate overlap.
+  - Work Steps:
+    1. Update `scripts/parse-hanoi-417-stations.mjs`, `scripts/merge-hanoi-directory.mjs`, and `server.js` to enforce a strict operational whitelist, fix ward resolution order (`name` before `address`), remove legacy duplicate Hanoi CSGT/PCCC records, and apply deterministic radial coordinate separation for facilities within the same ward that are `< 0.0008` deg apart.
+    2. Regenerate `assets/hanoi-official-417-stations.json`, `assets/vn-stations-directory.json`, `assets/agency-accounts.seed.json`, `assets/agency-accounts.json`, and `.runtime-data/agency-accounts.json`.
+    3. Update `js/map-controller.js` (`loadAllStationsMarkers`, `updateVisibleStationPins`, `showWardStationPin`, `createStationMarker`) and `js/dispatcher.js` (`selectAndHighlightWard`, `showWardHud`, and cache-bust query `?v=`) + `server.js` (`staticCacheControl` for `/js/map-controller.js`) so all ward facilities render simultaneously on the map with full names (`Công an phường Hoàn Kiếm - Trụ sở chính`, `Công an phường Hoàn Kiếm - Cơ sở 2`, `Công an phường Hoàn Kiếm - Cơ sở 3`...) regardless of initial login province.
+    4. Restart server, run Playwright verification (`playwright/verify-hanoi-417-multi-facility-nearest.cjs` and `playwright/test-shift-isolation-gatekeeping.cjs`), record QA evidence, run `anvien detect-changes`, and commit.
+  - Implementation Gate: P5-A complete.
+  - Acceptance: Zero non-emergency bureau pins on map; clicking `Phường Hoàn Kiếm` or viewing Hanoi renders all 6 `Công an phường Hoàn Kiếm` facility pins visibly and simultaneously on the map.
+

@@ -81,7 +81,27 @@ function isNonOperationalStationRecord(st = {}) {
     /công ty tháng 8/i,
     /uỷ ban kiểm tra đảng/i,
     /ủy ban kiểm tra đảng/i,
-    /trung tâm huấn luyện và bồi dưỡng/i
+    /trung tâm huấn luyện và bồi dưỡng/i,
+    /văn phòng cơ quan cảnh sát điều tra/i,
+    /phòng cảnh sát kinh tế/i,
+    /phòng cảnh sát quản lý hành chính/i,
+    /phòng quản lý xuất nhập cảnh/i,
+    /thanh tra catp|thanh tra công an/i,
+    /trại tạm giam|phân trại tạm giam|nhà tạm giữ/i,
+    /phòng cảnh sát hình sự/i,
+    /phòng cảnh sát điều tra tội phạm về ma túy/i,
+    /phòng cảnh sát cơ động/i,
+    /phòng cảnh sát thi hành án hình sự/i,
+    /phòng hồ sơ nghiệp vụ/i,
+    /phòng an ninh/i,
+    /phòng kỹ thuật hình sự/i,
+    /phòng hậu cần/i,
+    /phòng tổ chức cán bộ/i,
+    /phòng công tác đảng|phòng công tác chính trị/i,
+    /phòng tham mưu/i,
+    /cơ sở đăng ký xe|đội quản lý xe/i,
+    /đội sát hạch, cấp giấy phép lái xe/i,
+    /đội đèn tín hiệu giao thông/i
   ];
   if (banned.some(rx => rx.test(n))) return true;
   if (/tiếp đón khách tham quan bảo tàng|tiếp đón bệnh nhân đến khám chữa bệnh|nghỉ ngơi, điều dưỡng/i.test(s)) return true;
@@ -438,6 +458,12 @@ function syncAllDirectoriesFromAgencyAccounts() {
           }
           continue;
         }
+        if (u === 'csgthanoi' || u === 'pccchanoi' || u === 'catphanoi' || u === 'cahanioi') {
+          continue;
+        }
+        if (/^hn_(csgt_doi|pccc_)/i.test(u)) {
+          continue;
+        }
 
         const stId = `st-${u}`;
         const normU = u.replace(/[^a-z0-9]/g, '');
@@ -513,7 +539,10 @@ function syncAllDirectoriesFromAgencyAccounts() {
       'st-caxkhuvucsotaica', 'st-capancuct', 'st-capthoibinhct', 'st-capxuankhanhct',
       'st-capankhanhct', 'st-caphungloict', 'st-capanhoact', 'st-caxmykhanhct',
       'st-captranocct', 'st-caplebinhct', 'st-csgt', 'st-cuuho',
-      'st-captananca', 'st-capcaikhect', 'st-capanbinhct', 'st-capbinhthuyct', 'st-caphungphuct'
+      'st-captananca', 'st-capcaikhect', 'st-capanbinhct', 'st-capbinhthuyct', 'st-caphungphuct',
+      'st-csgthanoi', 'st-pccchanoi', 'st-hn-csgt-doi1', 'st-hn-csgt-doi2', 'st-hn-csgt-doi3',
+      'st-hn-csgt-doi6', 'st-hn-csgt-doi7', 'st-hn-pccc-hoankiem', 'st-hn-pccc-badinh',
+      'st-hn-pccc-caugiay', 'st-hn-pccc-dongda', 'st-hn-pccc-haibatrung'
     ]);
     stationsDirectory.stations = stList.filter(s => !dupeIds.has(s.id) && !isNonOperationalStationRecord(s));
     hospitalsDB.hospitals = hospList;
@@ -2088,7 +2117,7 @@ function staticCacheControl(urlPath, ext) {
   if (ext === '.html' || urlPath === '/' || urlPath === '/dispatcher' || urlPath === '/truc-ban') {
     return 'no-cache';
   }
-  if (urlPath.startsWith('/js/dispatcher.js') || urlPath.startsWith('/js/app.js')) {
+  if (urlPath.startsWith('/js/dispatcher.js') || urlPath.startsWith('/js/app.js') || urlPath.startsWith('/js/map-controller.js')) {
     return 'no-cache, must-revalidate';
   }
   if (urlPath.startsWith('/vendor/') || urlPath.startsWith('/assets/icons/') || ['.woff', '.woff2', '.ttf'].includes(ext)) {

@@ -23,7 +23,27 @@ function isNonOperationalEntity(name = '', services = '') {
     /công ty tháng 8/i,
     /uỷ ban kiểm tra đảng/i,
     /ủy ban kiểm tra đảng/i,
-    /trung tâm huấn luyện và bồi dưỡng/i
+    /trung tâm huấn luyện và bồi dưỡng/i,
+    /văn phòng cơ quan cảnh sát điều tra/i,
+    /phòng cảnh sát kinh tế/i,
+    /phòng cảnh sát quản lý hành chính/i,
+    /phòng quản lý xuất nhập cảnh/i,
+    /thanh tra catp|thanh tra công an/i,
+    /trại tạm giam|phân trại tạm giam|nhà tạm giữ/i,
+    /phòng cảnh sát hình sự/i,
+    /phòng cảnh sát điều tra tội phạm về ma túy/i,
+    /phòng cảnh sát cơ động/i,
+    /phòng cảnh sát thi hành án hình sự/i,
+    /phòng hồ sơ nghiệp vụ/i,
+    /phòng an ninh/i,
+    /phòng kỹ thuật hình sự/i,
+    /phòng hậu cần/i,
+    /phòng tổ chức cán bộ/i,
+    /phòng công tác đảng|phòng công tác chính trị/i,
+    /phòng tham mưu/i,
+    /cơ sở đăng ký xe|đội quản lý xe/i,
+    /đội sát hạch, cấp giấy phép lái xe/i,
+    /đội đèn tín hiệu giao thông/i
   ];
   if (banned.some(rx => rx.test(n))) return true;
   if (/tiếp đón khách tham quan bảo tàng|tiếp đón bệnh nhân đến khám chữa bệnh|nghỉ ngơi, điều dưỡng/i.test(s)) return true;
@@ -43,16 +63,19 @@ const nonHnStations = dir.stations.filter(s =>
   !isNonOperationalEntity(s.name, s.services)
 );
 const hnHQ = dir.stations.find(s => s.id === 'st-cahanioi');
+// For Hà Nội, police, fire (PCCC&CNCH), and csgt are all provided by officialHN + hnHQ; keep only hospital/traffic-rescue from legacy
 const hnNonPolice = dir.stations.filter(s =>
   (s.province === 'Hà Nội' || s.province === 'Thành phố Hà Nội') &&
   s.agency !== 'police' &&
+  s.agency !== 'fire' &&
+  s.agency !== 'csgt' &&
   !officialIds.has(s.id) &&
   !s.id?.startsWith('st-hn-ca-') &&
   !isNonOperationalEntity(s.name, s.services)
 );
 
 console.log(`Non-Hà Nội stations kept: ${nonHnStations.length}`);
-console.log(`Hà Nội legacy non-police kept: ${hnNonPolice.length}`);
+console.log(`Hà Nội legacy hospital/rescue kept: ${hnNonPolice.length}`);
 console.log(`Hà Nội provincial HQ kept: ${hnHQ ? hnHQ.name : 'none'}`);
 console.log(`Hà Nội official operational facilities adding: ${officialHN.length}`);
 
@@ -76,9 +99,13 @@ function updateAccounts(filePath) {
   const accounts = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   
   const updatedAccounts = {};
+  const legacyHnDuplicateAccountKeys = new Set([
+    'hn_csgt_doi1', 'hn_csgt_doi2', 'hn_csgt_doi3', 'hn_csgt_doi6', 'hn_csgt_doi7',
+    'hn_pccc_hoankiem', 'hn_pccc_badinh', 'hn_pccc_caugiay', 'hn_pccc_dongda', 'hn_pccc_haibatrung'
+  ]);
   for (const [key, acc] of Object.entries(accounts)) {
     const uName = acc.unitName || acc.agencyName || '';
-    if (isNonOperationalEntity(uName, acc.services || '')) {
+    if (isNonOperationalEntity(uName, acc.services || '') || legacyHnDuplicateAccountKeys.has(key)) {
       continue;
     }
     if (key.startsWith('hn_ca_')) {
