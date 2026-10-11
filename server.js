@@ -65,12 +65,44 @@ try {
   console.warn('Could not load vn-diadanh-index.json:', e.message);
 }
 
+function isNonOperationalStationRecord(st = {}) {
+  const n = String(st.name || st.agencyName || st.unitName || '').toLowerCase();
+  const s = String(st.services || '').toLowerCase();
+  const banned = [
+    /bảo tàng công an/i,
+    /bảo tàng nghiệp vụ/i,
+    /báo an ninh thủ đô/i,
+    /bệnh viện catp/i,
+    /bệnh viện công an/i,
+    /nhà nghỉ dưỡng/i,
+    /nhà khách/i,
+    /trung tâm điều dưỡng/i,
+    /công ty tnhh/i,
+    /công ty tháng 8/i,
+    /uỷ ban kiểm tra đảng/i,
+    /ủy ban kiểm tra đảng/i,
+    /trung tâm huấn luyện và bồi dưỡng/i
+  ];
+  if (banned.some(rx => rx.test(n))) return true;
+  if (/tiếp đón khách tham quan bảo tàng|tiếp đón bệnh nhân đến khám chữa bệnh|nghỉ ngơi, điều dưỡng/i.test(s)) return true;
+  return false;
+}
+
 // Load real stations directory
 let stationsDirectory = { stations: [] };
 try {
   const stRaw = fs.readFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), 'utf-8');
   stationsDirectory = JSON.parse(stRaw);
-  console.log(`🏢 Loaded ${stationsDirectory.stations?.length || 0} real local stations.`);
+  if (Array.isArray(stationsDirectory.stations)) {
+    stationsDirectory.stations = stationsDirectory.stations
+      .filter(st => !isNonOperationalStationRecord(st))
+      .map(st => ({
+        ...st,
+        name: String(st.name || '').replace(/&amp;/gi, '&'),
+        services: st.services ? String(st.services).replace(/&amp;/gi, '&') : st.services
+      }));
+  }
+  console.log(`🏢 Loaded ${stationsDirectory.stations?.length || 0} real local stations (sanitized).`);
 } catch (e) {
   console.warn('Could not load vn-stations-directory.json:', e.message);
 }
@@ -251,23 +283,31 @@ try {
   const rawStore = readRuntimeData('agency-accounts.json', {});
   AGENCY_ACCOUNTS = normalizeAccountsStore(rawStore);
 
-  // Auto-seed from assets if runtime data is empty (e.g. /tmp cleared on Render restart or fresh git clone)
-  if (Object.keys(AGENCY_ACCOUNTS).length === 0) {
-    const _seedFilePath = path.join(__dirname, 'assets', 'agency-accounts.json');
-    const _backupSeedPath = path.join(__dirname, 'assets', 'agency-accounts.seed.json');
-    const pathToUse = fs.existsSync(_seedFilePath) ? _seedFilePath : (fs.existsSync(_backupSeedPath) ? _backupSeedPath : null);
-    if (pathToUse) {
-      try {
-        const _seedData = JSON.parse(fs.readFileSync(pathToUse, 'utf8'));
-        if (_seedData && typeof _seedData === 'object' && !Array.isArray(_seedData) && Object.keys(_seedData).length > 0) {
-          AGENCY_ACCOUNTS = _seedData;
-          try { writeRuntimeData('agency-accounts.json', AGENCY_ACCOUNTS); } catch (_seedWriteErr) {}
-          console.log('[SEED] Auto-seeded ' + Object.keys(AGENCY_ACCOUNTS).length + ' accounts from ' + path.basename(pathToUse) + ' (runtime was empty).');
+  // Merge with seed accounts to ensure newly added or updated official stations are present
+  const _seedFilePath = path.join(__dirname, 'assets', 'agency-accounts.seed.json');
+  const _backupSeedPath = path.join(__dirname, 'assets', 'agency-accounts.json');
+  const pathToUse = fs.existsSync(_seedFilePath) ? _seedFilePath : (fs.existsSync(_backupSeedPath) ? _backupSeedPath : null);
+  if (pathToUse) {
+    try {
+      const _seedData = JSON.parse(fs.readFileSync(pathToUse, 'utf8'));
+      if (_seedData && typeof _seedData === 'object' && !Array.isArray(_seedData)) {
+        AGENCY_ACCOUNTS = { ..._seedData, ...AGENCY_ACCOUNTS };
+        // Always overwrite Hanoi official accounts from seed so classification/sanitization stays authoritative
+        for (const [k, v] of Object.entries(_seedData)) {
+          if (k.startsWith('hn_ca_')) AGENCY_ACCOUNTS[k] = v;
         }
-      } catch (_seedErr) { console.warn('[SEED] Auto-seed from assets failed:', _seedErr.message); }
+      }
+    } catch (_seedErr) { console.warn('[SEED] Auto-seed from assets failed:', _seedErr.message); }
+  }
+
+  // Strip any non-operational accounts (Bảo tàng, Báo ANTĐ, Bệnh viện CATP, Nhà nghỉ dưỡng, Công ty...)
+  for (const [k, v] of Object.entries(AGENCY_ACCOUNTS)) {
+    if (isNonOperationalStationRecord(v)) {
+      delete AGENCY_ACCOUNTS[k];
     }
   }
-  console.log(`🔑 Loaded ${Object.keys(AGENCY_ACCOUNTS).length} agency accounts (National & Local).`);
+  try { writeRuntimeData('agency-accounts.json', AGENCY_ACCOUNTS); } catch (_seedWriteErr) {}
+  console.log(`🔑 Loaded ${Object.keys(AGENCY_ACCOUNTS).length} agency accounts (National & Local, sanitized).`);
 } catch (e) {
   if (process.env.NODE_ENV === 'production') {
     throw new Error(`Could not load encrypted agency accounts: ${e.message}`);
@@ -431,16 +471,21 @@ function syncAllDirectoriesFromAgencyAccounts() {
           raw_id: existingSt?.raw_id,
           stt: existingSt?.stt || acc.stt,
           postal_code: existingSt?.postal_code || (acc.postal_code || ''),
-          name: existingSt?.name || acc.agencyName || acc.unitName,
+          name: String(existingSt?.name || acc.agencyName || acc.unitName || '').replace(/&amp;/gi, '&'),
           unit_title: existingSt?.unit_title || acc.unit_title || acc.ward || acc.unitName,
-          agency: acc.agency || 'police',
-          agency_name: acc.agency === 'csgt' ? 'Cảnh Sát Giao Thông' : (acc.agency === 'fire' ? 'PCCC & CNCH' : 'Công An'),
-          level: u === 'congan' ? 'province' : (acc.level || 'ward'),
+          agency: acc.agency || existingSt?.agency || 'police',
+          agency_name: (acc.agency || existingSt?.agency) === 'csgt' ? 'Cảnh Sát Giao Thông' : ((acc.agency || existingSt?.agency) === 'fire' ? 'PCCC & CNCH' : 'Công An'),
+          level: u === 'congan' ? 'province' : (acc.level || existingSt?.level || 'ward'),
+          isCityHq: Boolean(acc.isCityHq ?? existingSt?.isCityHq ?? false),
+          isRegionalSquad: Boolean(acc.isRegionalSquad ?? existingSt?.isRegionalSquad ?? false),
+          unitCategory: acc.unitCategory || existingSt?.unitCategory || 'ward_police',
+          jurisdictionScope: acc.jurisdictionScope || existingSt?.jurisdictionScope || 'ward',
           province: acc.province || 'Cần Thơ',
           district: acc.district || '',
           ward: (existingSt?.ward && existingSt.ward !== 'Toàn Thành Phố') ? existingSt.ward : (acc.ward || ''),
           facility_type: existingSt?.facility_type || acc.facilityType || 'Trụ sở chính',
           maps_url: existingSt?.maps_url || acc.maps_url || '',
+          source_url: existingSt?.source_url || acc.source_url || '',
           address: isCleanText(existingSt?.address) ? existingSt.address : (isCleanText(acc.address) ? acc.address : `Trụ sở ${acc.agencyName}`),
           phone: isCleanText(existingSt?.phone) ? existingSt.phone : (acc.officerPhone || ''),
           sms: isCleanText(existingSt?.sms) ? existingSt.sms : (acc.officerSms || '0988 113 113'),
@@ -450,7 +495,7 @@ function syncAllDirectoriesFromAgencyAccounts() {
           officer_clean_name: existingSt?.officer_clean_name || acc.officerName || '',
           officer_phone: existingSt?.officer_phone || acc.officerSms || '',
           email: isCleanText(existingSt?.email) ? existingSt.email : (acc.officerEmail || ''),
-          services: existingSt?.services || acc.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
+          services: String(existingSt?.services || acc.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT').replace(/&amp;/gi, '&'),
           lat: (existingSt?.lat && existingSt.lat !== 0) ? existingSt.lat : (acc.lat || null),
           lng: (existingSt?.lng && existingSt.lng !== 0) ? existingSt.lng : (acc.lng || null),
           isGpsVerified: true
@@ -463,14 +508,14 @@ function syncAllDirectoriesFromAgencyAccounts() {
       }
     }
 
-    // Clean duplicate station IDs & abolished stations
+    // Clean duplicate station IDs, abolished stations, and any non-operational entities
     const dupeIds = new Set([
       'st-caxkhuvucsotaica', 'st-capancuct', 'st-capthoibinhct', 'st-capxuankhanhct',
       'st-capankhanhct', 'st-caphungloict', 'st-capanhoact', 'st-caxmykhanhct',
       'st-captranocct', 'st-caplebinhct', 'st-csgt', 'st-cuuho',
       'st-captananca', 'st-capcaikhect', 'st-capanbinhct', 'st-capbinhthuyct', 'st-caphungphuct'
     ]);
-    stationsDirectory.stations = stList.filter(s => !dupeIds.has(s.id));
+    stationsDirectory.stations = stList.filter(s => !dupeIds.has(s.id) && !isNonOperationalStationRecord(s));
     hospitalsDB.hospitals = hospList;
     rescueEnterprises.enterprises = resList;
 
@@ -584,22 +629,23 @@ function saveFakeIncidentsArchive() {
   }
 }
 
-// Active Duty Shift State (Ca Trực Ban & Phân Công Kíp Trực Ban)
-let activeDutyShift = null;
+// Unit-Scoped Duty Shift State (Ca Trực Ban & Phân Công Kíp Trực Ban Theo Đơn Vị)
+let unitDutyShifts = {};
 try {
-  activeDutyShift = readRuntimeData('active-duty-shift.json', null);
-  if (activeDutyShift) {
-    console.log(`📋 Loaded active duty shift: ${activeDutyShift.officerRank || ''} ${activeDutyShift.officerName || ''} (${activeDutyShift.startTime || ''} - ${activeDutyShift.endTime || ''})`);
+  const loadedShifts = readRuntimeData('unit-duty-shifts.json', {});
+  if (loadedShifts && typeof loadedShifts === 'object' && !Array.isArray(loadedShifts)) {
+    unitDutyShifts = loadedShifts;
+    console.log(`📋 Loaded unit duty shifts for ${Object.keys(unitDutyShifts).length} unit(s).`);
   }
 } catch (e) {
-  activeDutyShift = null;
+  unitDutyShifts = {};
 }
 
-function saveActiveDutyShift() {
+function saveUnitDutyShifts() {
   try {
-    writeRuntimeData('active-duty-shift.json', activeDutyShift);
+    writeRuntimeData('unit-duty-shifts.json', unitDutyShifts);
   } catch (e) {
-    console.warn('Could not save active duty shift:', e.message);
+    console.warn('Could not save unit duty shifts:', e.message);
   }
 }
 
@@ -1173,28 +1219,77 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
 
   // Filter stations by agency
   const agencyStations = allStations.filter(st => st.agency === agency);
+  const isSpecializedRadiusAgency = (agency === 'fire' || agency === 'csgt');
 
-  // 1. First priority: Check if there is an exact station matching jurisdiction.ward (and province)
+  // Helper to check if a station is a City/Provincial HQ
+  const isStationCityHq = (st) => Boolean(
+    st && (
+      st.isCityHq ||
+      st.unitCategory === 'city_hq' ||
+      st.level === 'province' ||
+      /^(trụ sở phòng cảnh sát pccc|phòng cảnh sát giao thông\s*-\s*trụ sở chính|công an tp|công an thành phố|công an tỉnh)/i.test(st.name || '')
+    )
+  );
+
+  // Helper to check if a police station is a grassroots ward/commune police facility
+  const isGrassrootsWardPolice = (st) => Boolean(
+    st &&
+    st.agency === 'police' &&
+    (!st.unitCategory || st.unitCategory === 'ward_police') &&
+    !st.isRegionalSquad &&
+    !isStationCityHq(st)
+  );
+
+  // Helper to check if a station is a regional squad (Đội khu vực PCCC/CNCH, Đội CSGT, Đội trên sông...)
+  const isRegionalSquadStation = (st) => Boolean(
+    st && (
+      st.isRegionalSquad ||
+      st.unitCategory === 'regional_squad' ||
+      (!isStationCityHq(st) && (st.level === 'ward' || /đội\s+(cc&cnch|cảnh sát|csgt|chữa cháy|tuần tra)/i.test(st.name || '')))
+    )
+  );
+
+  // 1. First priority:
+  //    - For grassroots Police ('police'): match all ward_police facilities in jurisdiction.ward (and province) and pick the nearest by Haversine distance.
+  //    - For specialized radius forces ('fire', 'csgt'): ignore ward boundaries and find the geographically nearest Regional Squad (Đội khu vực) within the same province/city!
   let matchedStation = null;
   let minDistance = Infinity;
   let matchedWardStations = [];
 
-  if (ward) {
+  if (isSpecializedRadiusAgency) {
+    const normProv = province ? removeVietnameseTones(province).toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim() : '';
+    const sameProvSquads = agencyStations.filter(st => {
+      if (!st.lat || !st.lng || !isRegionalSquadStation(st)) return false;
+      if (normProv && st.province) {
+        const stProv = removeVietnameseTones(st.province).toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim();
+        if (stProv !== normProv && !stProv.includes(normProv) && !normProv.includes(stProv)) return false;
+      }
+      return true;
+    });
+
+    if (sameProvSquads.length > 0) {
+      const scoredSquads = sameProvSquads.map(st => ({
+        station: st,
+        distance: getDistanceKm(lat, lng, Number(st.lat), Number(st.lng))
+      })).sort((a, b) => a.distance - b.distance);
+
+      matchedStation = scoredSquads[0].station;
+      minDistance = scoredSquads[0].distance;
+    }
+  } else if (ward) {
     const normWard = removeVietnameseTones(ward).toLowerCase().replace(/^(phuong|xa|thi tran|p\.|x\.)\s*/, '').trim();
     const wardStations = agencyStations.filter(st => {
       if (!st.ward) return false;
+      if (agency === 'police' && !isGrassrootsWardPolice(st)) return false;
       const stNormWard = removeVietnameseTones(st.ward).toLowerCase().replace(/^(phuong|xa|thi tran|p\.|x\.)\s*/, '').trim();
       const provMatch = !province || !st.province || removeVietnameseTones(st.province).toLowerCase().includes(removeVietnameseTones(province).toLowerCase()) || removeVietnameseTones(province).toLowerCase().includes(removeVietnameseTones(st.province).toLowerCase());
       return stNormWard === normWard && provMatch;
     });
-    // A merged ward can contain several legacy service points.  Selecting the
-    // first directory row makes every SOS in that ward appear at the same
-    // former-area station.  Keep the exact ward/province match, then select
-    // the closest coordinate-bearing station so the assigned unit is truthful
-    // to the citizen's GPS position.
+    // A merged ward can contain several legacy service points. Selecting the
+    // closest coordinate-bearing station ensures the assigned unit is truthful
+    // to the citizen's GPS position while preserving all facilities for display.
     if (wardStations.length) {
       matchedWardStations = wardStations;
-      // Prioritize stations that have a verified/valid phone number
       const withValidPhone = wardStations.filter(st => st.phone && !st.phone.includes('cập nhật'));
       const candidateList = withValidPhone.length ? withValidPhone : wardStations;
 
@@ -1210,32 +1305,26 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
         minDistance = matchedStation.distance;
         matchedStation = matchedStation.station;
       } else {
-        // Preserve deterministic behavior for incomplete directory records.
         matchedStation = candidateList[0];
       }
     }
   }
 
-  // 2. If not found by ward name, find the geographically closest station.
-  //    A directory row hundreds of kilometres away is NOT the jurisdictional
-  //    unit for this GPS point, so only accept a genuinely nearby station.
-  //    CRITICAL: Public security / police jurisdiction is strictly bound to provincial
-  //    administrative boundaries. A station in another province must NEVER be assigned
-  //    as the local jurisdictional unit, even if geographically close across borders.
-  const MAX_LOCAL_STATION_KM = 30;
+  // 2. If not found by ward name, find the geographically closest station in the same province.
+  const MAX_LOCAL_STATION_KM = 50;
   if (!matchedStation) {
     let nearest = null;
     let nearestDistance = Infinity;
-    const normProv = province ? removeVietnameseTones(province).toLowerCase().trim() : '';
+    const normProv = province ? removeVietnameseTones(province).toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim() : '';
 
     for (const st of agencyStations) {
+      if (agency === 'police' && !isGrassrootsWardPolice(st)) continue;
       if (st.lat && st.lng) {
-        // Enforce same-province rule if province is determined
         if (normProv && st.province) {
-          const stProv = removeVietnameseTones(st.province).toLowerCase().trim();
+          const stProv = removeVietnameseTones(st.province).toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim();
           const matchesProvince = stProv === normProv || stProv.includes(normProv) || normProv.includes(stProv);
           if (!matchesProvince) {
-            continue; // Skip stations in other provinces!
+            continue;
           }
         }
         const d = getDistanceKm(lat, lng, Number(st.lat), Number(st.lng));
@@ -1253,9 +1342,9 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
 
   // 3. Fallback to province matching (same province only)
   if (!matchedStation && province) {
-    const normProv = removeVietnameseTones(province).toLowerCase().trim();
+    const normProv = removeVietnameseTones(province).toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim();
     matchedStation = agencyStations.find(st => {
-      const stProv = removeVietnameseTones(st.province || '').toLowerCase().trim();
+      const stProv = removeVietnameseTones(st.province || '').toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim();
       return stProv && (stProv.includes(normProv) || normProv.includes(stProv));
     }) || null;
     if (matchedStation && Number.isFinite(Number(matchedStation.lat)) && Number.isFinite(Number(matchedStation.lng))) {
@@ -1264,8 +1353,6 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
   }
 
   // 4. AUTO-ROUTING TO NEAREST UNIT (Yêu cầu nghiệp vụ: Địa bàn chưa cập nhật dữ liệu số)
-  //    Nếu khu vực người dân sống chưa có dữ liệu đơn vị quản lý sở tại (hoặc không có SĐT trực ban),
-  //    hệ thống tự động quét toàn mạng lưới và chuyển cho đơn vị gần nhất ĐÚNG VỚI LỰC LƯỢNG YÊU CẦU!
   let isAutoRoutedNearest = false;
   let routingNotice = '';
   if (!matchedStation || !matchedStation.phone || matchedStation.phone === 'Đang cập nhật') {
@@ -1295,13 +1382,14 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
   const resolvedProvince = removeVietnameseTones(effectiveProvince).toLowerCase();
   const hasVerifiedProfile = officerProfile.contactVerification === 'official' &&
     profileProvince && (profileProvince === resolvedProvince || profileProvince.includes(resolvedProvince) || resolvedProvince.includes(profileProvince));
-  // A province account is a fallback contact only.  It must never replace an
-  // exact ward station or the police unit explicitly attached to the matched
-  // ward polygon: those are the jurisdictional receiver for a local SOS.
-  const hasLocalPoliceJurisdiction = agency === 'police' && Boolean(
-    jurisdiction.boundary?.properties?.police ||
-    matchedStation?.level === 'ward' ||
-    (matchedStation?.ward && ward && removeVietnameseTones(matchedStation.ward).toLowerCase() === removeVietnameseTones(ward).toLowerCase())
+  // Never overwrite a specific matched station from the directory with a generic fallback profile
+  const hasLocalStationJurisdiction = Boolean(
+    matchedStation?.id ||
+    (agency === 'police' && (
+      jurisdiction.boundary?.properties?.police ||
+      matchedStation?.level === 'ward' ||
+      (matchedStation?.ward && ward && removeVietnameseTones(matchedStation.ward).toLowerCase() === removeVietnameseTones(ward).toLowerCase())
+    ))
   );
 
   let localStationName = '';
@@ -1382,21 +1470,19 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     }
   }
 
-  if (hasVerifiedProfile && !hasLocalPoliceJurisdiction) {
+  if (hasVerifiedProfile && !hasLocalStationJurisdiction) {
     localStationName = officerProfile.unitName || officerProfile.agencyName;
     localStationAddress = officerProfile.address || localStationAddress || 'Đang cập nhật';
     localPhone = officerProfile.officerPhone || localPhone || 'Đang cập nhật';
     localSms = officerProfile.officerSms || localSms || 'Đang cập nhật';
     stationOfficer = officerProfile.officerName || stationOfficer || 'Đang cập nhật';
   } else {
-    // Bảo toàn thông tin trạm đã match được từ danh bạ/ranh giới, không gán đè xóa trắng
     localStationAddress = localStationAddress || 'Đang cập nhật';
     localPhone = localPhone || 'Đang cập nhật';
     localSms = localSms || 'Đang cập nhật';
     stationOfficer = stationOfficer || 'Đang cập nhật';
   }
 
-  // Bổ sung thông tin từ trạm chính hoặc tài khoản cơ sở nếu trạm hiện tại còn thiếu SĐT hoặc Cán bộ
   if (localPhone === 'Đang cập nhật' || stationOfficer === 'Đang cập nhật' || localStationAddress === 'Đang cập nhật') {
     const normCurProv = province ? removeVietnameseTones(province).toLowerCase().trim() : '';
     const backupStation = agencyStations.find(st => {
@@ -1417,16 +1503,47 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     }
   }
 
-  const gmapsQuery = `${localStationName}, ${localStationAddress}`;
-  const gmapsStationUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gmapsQuery)}`;
+  const isMatchedRegionalSquad = Boolean(matchedStation && isRegionalSquadStation(matchedStation));
+  const unitLevel = (agency === 'hospital' || agency === 'ambulance')
+    ? 'province'
+    : (agency === 'traffic-rescue'
+      ? 'enterprise'
+      : (isMatchedRegionalSquad || agency === 'police' ? 'ward' : (matchedStation?.level || 'province')));
 
-  const unitLevel = (agency === 'csgt' || agency === 'fire' || agency === 'hospital' || agency === 'ambulance') ? 'province' : (agency === 'traffic-rescue' ? 'enterprise' : 'ward');
+  const sortedWardFacilities = (matchedWardStations && matchedWardStations.length)
+    ? matchedWardStations.map(st => ({
+        id: st.id,
+        name: st.name,
+        facility_type: st.facility_type || 'Trụ sở chính',
+        address: st.address,
+        phone: st.phone,
+        services: st.services,
+        maps_url: st.maps_url,
+        lat: Number(st.lat),
+        lng: Number(st.lng),
+        distanceKm: Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)) ? parseFloat(getDistanceKm(lat, lng, Number(st.lat), Number(st.lng)).toFixed(2)) : null
+      }))
+      .sort((a, b) => ((a.distanceKm !== null ? a.distanceKm : Infinity) - (b.distanceKm !== null ? b.distanceKm : Infinity)))
+      .map((f, idx) => ({ ...f, isNearest: idx === 0 }))
+    : [];
 
   const localUnit = {
     id: matchedStation?.id || null,
     station_id: matchedStation?.id || null,
     level: unitLevel,
-    levelName: agency === 'csgt' ? `Phòng CSGT (PC08) - Cấp Tỉnh/TP` : (agency === 'fire' ? `Phòng PCCC và CNCH (PC07) - Cấp Tỉnh/TP` : (agency === 'hospital' ? `Trung Tâm Cấp Cứu 115 - Cấp Tỉnh/TP` : (agency === 'traffic-rescue' ? `Doanh Nghiệp Cứu Hộ Phương Tiện` : `Công An Cấp Xã/Phường (${localStationName})`))),
+    isRegionalSquad: isMatchedRegionalSquad,
+    isCityHq: Boolean(matchedStation && isStationCityHq(matchedStation)),
+    unitCategory: matchedStation?.unitCategory || (isMatchedRegionalSquad ? 'regional_squad' : 'ward_police'),
+    jurisdictionScope: matchedStation?.jurisdictionScope || (isMatchedRegionalSquad ? 'radius' : 'ward'),
+    levelName: agency === 'csgt'
+      ? (isMatchedRegionalSquad ? `Đội CSGT Khu Vực (${localStationName})` : `Phòng CSGT (PC08) - Cấp Tỉnh/TP`)
+      : (agency === 'fire'
+        ? (isMatchedRegionalSquad ? `Đội PCCC & CNCH Khu Vực (${localStationName})` : `Phòng PCCC và CNCH (PC07) - Cấp Tỉnh/TP`)
+        : (agency === 'hospital'
+          ? `Trung Tâm Cấp Cứu 115 - Cấp Tỉnh/TP`
+          : (agency === 'traffic-rescue'
+            ? `Doanh Nghiệp Cứu Hộ Phương Tiện`
+            : `Công An Cấp Xã/Phường (${localStationName})`))),
     name: localStationName,
     unit_title: matchedStation?.unit_title || jurisdiction.ward || localStationName,
     address: localStationAddress,
@@ -1456,35 +1573,50 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     distanceKm: realDistanceKm,
     facility_type: matchedStation?.facility_type || 'Trụ sở chính',
     maps_url: matchedStation?.maps_url || null,
-    wardFacilities: (matchedWardStations && matchedWardStations.length) ? matchedWardStations.map(st => ({
-      id: st.id,
-      name: st.name,
-      facility_type: st.facility_type || 'Trụ sở chính',
-      address: st.address,
-      phone: st.phone,
-      services: st.services,
-      maps_url: st.maps_url,
-      lat: Number(st.lat),
-      lng: Number(st.lng),
-      distanceKm: Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)) ? parseFloat(getDistanceKm(lat, lng, Number(st.lat), Number(st.lng)).toFixed(2)) : null
-    })).sort((a, b) => ((a.distanceKm !== null ? a.distanceKm : Infinity) - (b.distanceKm !== null ? b.distanceKm : Infinity))) : [],
-    isNearestFacilityInWard: Boolean(matchedWardStations && matchedWardStations.length > 1),
+    wardFacilities: sortedWardFacilities,
+    isNearestFacilityInWard: Boolean(sortedWardFacilities.length > 1),
     isAutoRoutedNearest: Boolean(isAutoRoutedNearest),
     routingNotice: routingNotice || null,
     originalWard: ward || '',
     originalProvince: province || ''
   };
 
-  const provStation = agencyStations.find(st => {
-    if (st.level === 'province' && st.province) {
-      const stp = removeVietnameseTones(st.province).toLowerCase().trim();
-      const effp = removeVietnameseTones(effectiveProvince).toLowerCase().trim();
-      return stp === effp || stp.includes(effp) || effp.includes(stp);
-    }
-    return false;
-  });
+  if (jurisdiction && sortedWardFacilities.length > 0) {
+    jurisdiction.wardFacilities = sortedWardFacilities;
+  }
 
-  const hqInfo = hasVerifiedProfile ? {
+  // Find the City/Provincial Headquarters (Trụ sở chính cấp Tỉnh/Thành phố) for this agency & province
+  const effProvClean = removeVietnameseTones(effectiveProvince).toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim();
+  const sameProvCityHqs = agencyStations.filter(st => {
+    if (!st.province || !isStationCityHq(st)) return false;
+    const stp = removeVietnameseTones(st.province).toLowerCase().replace(/^(tinh|thanh pho|tp\.)\s*/i, '').trim();
+    return stp === effProvClean || stp.includes(effProvClean) || effProvClean.includes(stp);
+  });
+  const provStation = (agency === 'police'
+    ? sameProvCityHqs.find(st => /^công an (tp|thành phố|tỉnh)/i.test(st.name || '') && (st.facility_type === 'Trụ sở chính' || /trụ sở chính/i.test(st.name || '')))
+    : null
+  ) || sameProvCityHqs.find(st =>
+    st.isCityHq === true && (st.facility_type === 'Trụ sở chính' || /trụ sở chính|trụ sở phòng cảnh sát/i.test(st.name || ''))
+  ) || sameProvCityHqs[0] || null;
+
+  const defaultHqFallbackName = agency === 'fire'
+    ? `Trụ sở Phòng Cảnh sát PCCC và CNCH - Công An ${effectiveProvince}`
+    : (agency === 'csgt'
+      ? `Phòng Cảnh sát giao thông - Trụ sở chính (${effectiveProvince})`
+      : `Công An ${effectiveProvince} - Trụ sở chính`);
+
+  const hqInfo = provStation ? {
+    id: provStation.id,
+    name: provStation.name,
+    address: provStation.address || `Bộ Chỉ Huy Công An ${effectiveProvince}`,
+    phone: provStation.phone || '0692196550',
+    sms: provStation.sms || '0988 113 113',
+    email: provStation.email || 'Đang cập nhật',
+    officer: provStation.officer || `Chỉ huy Trực ban ${provStation.name}`,
+    lat: Number(provStation.lat) || stationLat + 0.008,
+    lng: Number(provStation.lng) || stationLng + 0.008
+  } : (hasVerifiedProfile ? {
+    id: null,
     name: officerProfile.agencyName || officerProfile.unitName,
     address: officerProfile.address || 'Đang cập nhật',
     phone: officerProfile.officerPhone || 'Đang cập nhật',
@@ -1493,17 +1625,9 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     officer: officerProfile.officerName || 'Đang cập nhật',
     lat: stationLat + 0.008,
     lng: stationLng + 0.008
-  } : (provStation ? {
-    name: provStation.name,
-    address: provStation.address || `Bộ Chỉ Huy Công An ${effectiveProvince}`,
-    phone: provStation.phone || '113',
-    sms: provStation.sms || '0988 113 113',
-    email: 'Đang cập nhật',
-    officer: provStation.officer || `Trực ban Tác chiến Công An ${effectiveProvince}`,
-    lat: provStation.lat || stationLat + 0.008,
-    lng: provStation.lng || stationLng + 0.008
   } : {
-    name: `Công An ${effectiveProvince} (Trụ Sở Bộ Chỉ Huy)`,
+    id: null,
+    name: defaultHqFallbackName,
     address: `Bộ Chỉ Huy Công An ${effectiveProvince}`,
     phone: '113',
     sms: '0988 113 113',
@@ -1514,21 +1638,29 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
   });
 
   const provinceUnit = {
+    id: hqInfo.id || null,
+    station_id: hqInfo.id || null,
     level: 'province',
-    levelName: `Cấp Tỉnh / Thành Phố (${hqInfo.name})`,
+    isCityHq: true,
+    unitCategory: 'city_hq',
+    jurisdictionScope: 'city_hq',
+    levelName: `Trụ Sở Chính Cấp Tỉnh / Thành Phố (${hqInfo.name})`,
     name: hqInfo.name,
     address: hqInfo.address,
     phone: hqInfo.phone,
     sms: hqInfo.sms || 'Đang cập nhật',
     email: hqInfo.email,
-    officerRank: hasVerifiedProfile ? (officerProfile.officerRank || 'Đang cập nhật') : 'Đang cập nhật',
-    officerName: hqInfo.officer || 'Đang cập nhật',
-    officerFullTitle: hqInfo.officer === 'Đang cập nhật' ? 'Đang cập nhật' : hqInfo.officer,
-    contactVerification: hasVerifiedProfile ? 'official' : 'updating',
+    province: effectiveProvince,
+    officerRank: hasVerifiedProfile ? (officerProfile.officerRank || 'Thượng tá') : 'Thượng tá',
+    officerName: hqInfo.officer || 'Chỉ huy Trực ban Thành phố',
+    officerFullTitle: hqInfo.officer === 'Đang cập nhật' ? 'Chỉ huy Trực ban Thành phố' : hqInfo.officer,
+    contactVerification: (provStation || hasVerifiedProfile) ? 'official' : 'updating',
     gmapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hqInfo.name + ', ' + hqInfo.address)}`,
     lat: hqInfo.lat,
     lng: hqInfo.lng,
-    distanceKm: parseFloat((realDistanceKm + 1.8).toFixed(1))
+    distanceKm: Number.isFinite(Number(hqInfo.lat)) && Number.isFinite(Number(hqInfo.lng))
+      ? parseFloat(getDistanceKm(lat, lng, Number(hqInfo.lat), Number(hqInfo.lng)).toFixed(2))
+      : parseFloat((realDistanceKm + 1.8).toFixed(1))
   };
 
   return { localUnit, provinceUnit };
@@ -1632,8 +1764,13 @@ function resolveEffectiveLevel(userOrClient, agency) {
   if (lvl === 'national' || a === 'all' || userOrClient?.role === 'admin' || userOrClient?.username === 'admin') {
     return 'national';
   }
-  // CSGT, PCCC & CNCH không có cấp xã/phường; địa bàn hoạt động rộng hơn tương đương công an tỉnh / thành phố
-  if (a === 'csgt' || a === 'fire' || a === 'hospital' || a === 'traffic-rescue' || lvl === 'province' || lvl === 'city') {
+  if (userOrClient?.isCityHq || userOrClient?.unitCategory === 'city_hq' || lvl === 'province' || lvl === 'city') {
+    return 'province';
+  }
+  if (userOrClient?.isRegionalSquad || userOrClient?.unitCategory === 'regional_squad' || lvl === 'ward') {
+    return 'ward';
+  }
+  if (a === 'csgt' || a === 'fire' || a === 'hospital' || a === 'traffic-rescue') {
     return 'province';
   }
   return lvl || 'ward';
@@ -1655,13 +1792,15 @@ function isIncidentInOfficerWard(inc, officerWard, officerUnitName, officerProvi
 
   const normWard = removeVietnameseTones(officerWard || '').toLowerCase().trim();
   const normUnit = removeVietnameseTones(officerUnitName || '').toLowerCase().trim();
+  const cleanUnit = normUnit.split(',')[0].trim();
 
   // 2. Kiểm tra assignedUnit (đơn vị trực tiếp được gán thụ lý ca)
   const assignedName = removeVietnameseTones(inc.assignedUnit?.name || inc.dispatchUnit?.unitName || inc.policeStation?.name || '').toLowerCase().trim();
+  const cleanAssignedName = assignedName.split(',')[0].trim();
   const assignedWard = removeVietnameseTones(inc.assignedUnit?.ward || inc.dispatchUnit?.ward || inc.assignedUnit?.jurisdiction?.ward || '').toLowerCase().trim();
 
   // Nếu đơn vị trực tiếp chứa tên đơn vị hoặc phường của cán bộ
-  if (normUnit && assignedName && (assignedName.includes(normUnit) || normUnit.includes(assignedName))) {
+  if (cleanUnit && cleanAssignedName && (cleanAssignedName.includes(cleanUnit) || cleanUnit.includes(cleanAssignedName))) {
     return true;
   }
   if (normWard) {
@@ -3885,7 +4024,7 @@ const server = http.createServer(async (req, res) => {
         const citizenAccessToken = createCitizenAccessToken();
         const lat = parseFloat(data.lat) || 21.0285;
         const lng = parseFloat(data.lng) || 105.8542;
-        const agency = data.agency || 'police';
+        const agency = data.agency || data.emergencyType || 'police';
         let address = (data.address || '').trim();
 
         // 1. Resolve Jurisdiction & Real Station
@@ -3938,7 +4077,9 @@ const server = http.createServer(async (req, res) => {
           address = jurisdiction.ward ? `${jurisdiction.ward}, ${jurisdiction.province || ''}`.replace(/^,\s*/, '') : `Tọa độ: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         }
 
-        const initialLevel = (agency === 'csgt' || agency === 'fire' || agency === 'hospital' || agency === 'ambulance') ? 'province' : (agency === 'traffic-rescue' ? 'enterprise' : 'ward');
+        const initialLevel = localUnit.level || ((agency === 'csgt' || agency === 'fire' || agency === 'hospital' || agency === 'ambulance') ? 'province' : (agency === 'traffic-rescue' ? 'enterprise' : 'ward'));
+        jurisdiction.currentLevel = initialLevel;
+        const escalationDueAt = initialLevel === 'ward' ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
 
         const rawClientIp = getClientIp(req).replace(/^::ffff:/, '');
         const clientUserAgent = req.headers['user-agent'] || data.telemetry?.userAgent || 'Unknown User-Agent';
@@ -3971,6 +4112,8 @@ const server = http.createServer(async (req, res) => {
           jurisdiction,
           wardBoundary: jurisdiction.boundary,
           currentLevel: initialLevel,
+          escalationDueAt,
+          escalationStatus: initialLevel === 'ward' ? 'PENDING_LOCAL' : 'PROVINCE_DIRECT',
           assignedUnit: localUnit,
           provinceUnit: provinceUnit,
           status: 'pending',
@@ -4017,15 +4160,18 @@ const server = http.createServer(async (req, res) => {
         console.log(`   👮‍♂️ Cán bộ tiếp nhận: ${localUnit.officerFullTitle}`);
         console.log(`   ========================================================\n`);
 
-        // 3. Auto-Escalation Timer (Chỉ áp dụng cho Công An khu vực / Cảnh sát 113 từ xã/phường lên tỉnh sau 15 phút)
-        if (agency === 'police') {
+        // 3. Auto-Escalation Timer (Áp dụng cho Công An cấp xã/phường và các Đội PCCC&CNCH / Đội CSGT khu vực sau 15 phút chuyển lên Trụ sở chính cấp Thành phố)
+        if ((agency === 'police' || agency === 'fire' || agency === 'csgt') && initialLevel === 'ward') {
           const timer = setTimeout(() => {
             const inc = incidents.get(id);
             if (inc && inc.status === 'pending') {
-              console.log(`⚠️ [ESCALATION #${id}] Cấp xã/phường chưa tiếp nhận sau 15 phút. Chuyển thẳng quyền xử lý lên Tuyến Tỉnh/TP: ${provinceUnit.name}!`);
+              console.log(`⚠️ [ESCALATION #${id}] Cấp cơ sở/Đội khu vực chưa xử lý xong sau 15 phút. Chuyển thẳng quyền xử lý lên Trụ sở chính cấp Tỉnh/TP: ${provinceUnit.name}!`);
               inc.currentLevel = 'province';
               inc.status = 'escalated';
-              inc.statusText = `Đã chuyển thẳng quyền xử lý lên Tuyến Tỉnh/TP: ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address} - SĐT: ${provinceUnit.phone})`;
+              inc.escalationStatus = 'ESCALATED_CITY_HQ';
+              inc.escalatedAt = new Date().toISOString();
+              if (inc.jurisdiction) inc.jurisdiction.currentLevel = 'province';
+              inc.statusText = `Đã chuyển thẳng quyền xử lý lên Trụ sở chính cấp Tỉnh/TP: ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address} - SĐT: ${provinceUnit.phone})`;
               inc.assignedUnit = provinceUnit;
 
               const provChannels = generateMultiChannelDispatch(inc);
@@ -4033,8 +4179,8 @@ const server = http.createServer(async (req, res) => {
 
               inc.timeline.push({
                 step: 1,
-                title: `Chuyển thẳng quyền xử lý lên Tuyến Tỉnh/Thành Phố (Sau 15 phút)`,
-                desc: `Do cấp cơ sở quá 15 phút chưa tiếp nhận, hệ thống đã chuyển toàn bộ quyền xử lý lên ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address}). Cấp xã/phường không còn quyền xử lý.`,
+                title: `Chuyển thẳng quyền xử lý lên Trụ sở chính cấp Tỉnh/Thành Phố (Sau 15 phút)`,
+                desc: `Do cấp cơ sở/Đội khu vực quá 15 phút chưa giải quyết, hệ thống đã chuyển toàn bộ quyền xử lý lên ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address}).`,
                 time: new Date().toISOString(),
                 done: true
               });
@@ -4043,10 +4189,11 @@ const server = http.createServer(async (req, res) => {
                 id: 'msg-escalate-' + Date.now(),
                 sender: 'system',
                 senderName: 'Hệ Thống Chỉ Huy Tỉnh/TP',
-                text: `Hệ thống đã chuyển thẳng quyền xử lý ca này lên Tuyến Tỉnh/TP: ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address} - SĐT: ${provinceUnit.phone}). Cấp xã/phường hết quyền tiếp nhận.`,
+                text: `Hệ thống đã chuyển thẳng quyền xử lý ca này lên Trụ sở chính cấp Tỉnh/TP: ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address} - SĐT: ${provinceUnit.phone}).`,
                 timestamp: new Date().toISOString()
               });
 
+              saveIncidentHistory();
               notifyCitizen(id, 'sos_update', inc);
               broadcastToDispatchers('sos_escalate', inc);
             }
@@ -4644,7 +4791,80 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
-  // API: Dispatcher De-escalate (Cấp Tỉnh/TP chuyển trả về Cấp Xã/Phường)
+  // API: Dispatcher Escalate (Cấp Xã/Phường hoặc Đội Khu Vực chuyển lên Trụ sở chính Cấp Tỉnh/TP)
+  // -------------------------------------------------------------
+  if (urlPath === '/api/dispatcher/escalate' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { id, officerName, officerRank, unitName, reason } = JSON.parse(body || '{}');
+        const incident = incidents.get(id);
+        if (!incident) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy ca sự cố' }));
+        }
+
+        const hierarchy = createJurisdictionHierarchy(incident.agency || 'police', incident.jurisdiction || {}, incident.lat, incident.lng);
+        const targetCityHq = incident.provinceUnit || hierarchy.provinceUnit;
+        const previousUnitName = incident.assignedUnit?.name || unitName || 'Đơn vị cấp cơ sở/Đội khu vực';
+
+        incident.currentLevel = 'province';
+        incident.status = 'escalated';
+        incident.escalationStatus = 'ESCALATED_CITY_HQ';
+        incident.escalatedAt = new Date().toISOString();
+        incident.updatedAt = new Date().toISOString();
+        if (incident.jurisdiction) {
+          incident.jurisdiction.currentLevel = 'province';
+        }
+        incident.previousAssignedUnit = incident.assignedUnit;
+        incident.assignedUnit = targetCityHq;
+        incident.provinceUnit = targetCityHq;
+        incident.statusText = `Đã chuyển quyền xử lý lên Trụ sở chính cấp Tỉnh/TP: ${targetCityHq.name} (Địa chỉ: ${targetCityHq.address} - SĐT: ${targetCityHq.phone}). Lý do: ${reason || 'Quá 15 phút cấp đội/cơ sở chưa giải quyết xong'}`;
+
+        if (escalationTimers.has(id)) {
+          clearTimeout(escalationTimers.get(id));
+          escalationTimers.delete(id);
+        }
+
+        const provChannels = generateMultiChannelDispatch(incident);
+        incident.dispatchChannels = provChannels;
+
+        incident.timeline.push({
+          step: 2,
+          title: 'Chuyển cấp Thành Phố / Trụ sở chính chỉ huy toàn địa bàn',
+          desc: `${officerRank || 'Cán bộ'} ${officerName || 'Trực ban'} (${previousUnitName}) đã chuyển quyền xử lý lên ${targetCityHq.name} (${targetCityHq.address}). Lý do: ${reason || 'Vượt quá thời gian 15 phút xử lý tại cấp đội/cơ sở'}`,
+          time: new Date().toISOString(),
+          done: true
+        });
+
+        incident.messages.push({
+          id: 'msg-escalate-' + Date.now(),
+          sender: 'system',
+          senderName: 'Hệ Thống Chỉ Huy Tỉnh/TP',
+          text: `⚡ [CHUYỂN CẤP THÀNH PHỐ] Ca sự cố #${id} đã được chuyển từ ${previousUnitName} lên ${targetCityHq.name} (Địa chỉ: ${targetCityHq.address} - SĐT: ${targetCityHq.phone}) để điều phối toàn địa bàn thành phố.`,
+          timestamp: new Date().toISOString()
+        });
+
+        saveIncidentHistory();
+        notifyCitizen(id, 'sos_update', incident);
+        broadcastToDispatchers('sos_escalate', incident);
+        broadcastToDispatchers('sos_update', incident);
+
+        console.log(`⚡ [MANUAL ESCALATE CITY HQ] #${id} -> ${targetCityHq.name}`);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, incident }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // -------------------------------------------------------------
+  // API: Dispatcher De-escalate (Cấp Tỉnh/TP chuyển trả về Cấp Xã/Phường hoặc Đội Khu Vực)
   // -------------------------------------------------------------
   if (urlPath === '/api/dispatcher/de-escalate' && req.method === 'POST') {
     let body = '';
@@ -4658,16 +4878,21 @@ const server = http.createServer(async (req, res) => {
           return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy ca sự cố' }));
         }
 
-        if (incident.agency !== 'police') {
+        if (!['police', 'fire', 'csgt'].includes(incident.agency)) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: false, error: 'Chỉ có lực lượng Công An khu vực mới có phân cấp Xã/Phường và Tỉnh/TP.' }));
+          return res.end(JSON.stringify({ ok: false, error: 'Chỉ có lực lượng Công An, PCCC&CNCH và CSGT mới có phân cấp Đội/Cơ sở và Trụ sở chính Tỉnh/TP.' }));
         }
 
-        const { localUnit } = createJurisdictionHierarchy('police', incident.jurisdiction, incident.lat, incident.lng);
+        const { localUnit } = createJurisdictionHierarchy(incident.agency, incident.jurisdiction, incident.lat, incident.lng);
         incident.currentLevel = 'ward';
         incident.status = 'pending';
+        incident.escalationStatus = 'PENDING_LOCAL';
+        incident.escalationDueAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        if (incident.jurisdiction) {
+          incident.jurisdiction.currentLevel = 'ward';
+        }
         incident.assignedUnit = localUnit;
-        incident.statusText = `Cấp Tỉnh/TP đã chuyển trả quyền xử lý về cho: ${localUnit.name} (Địa chỉ: ${localUnit.address} - SĐT: ${localUnit.phone}). Lý do: ${reason || 'Yêu cầu lực lượng công an địa bàn sở tại tiếp cận xử lý trực tiếp'}`;
+        incident.statusText = `Cấp Tỉnh/TP đã chuyển trả quyền xử lý về cho: ${localUnit.name} (Địa chỉ: ${localUnit.address} - SĐT: ${localUnit.phone}). Lý do: ${reason || 'Yêu cầu lực lượng công an/đội khu vực sở tại tiếp cận xử lý trực tiếp'}`;
         incident.updatedAt = new Date().toISOString();
 
         incident.timeline.push({
@@ -5274,15 +5499,20 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
-  // API: Get Active Duty Shift (Ca Trực Ban & Phân Công Kíp Trực)
+  // API: Get Active Duty Shift (Ca Trực Ban & Phân Công Kíp Trực Theo Đơn Vị)
   // -------------------------------------------------------------
   if (urlPath === '/api/dispatcher/duty-shift' && req.method === 'GET') {
+    const reqUsername = (urlObj.searchParams.get('username') || req.headers['x-officer-username'] || req.user?.username || '').trim().toLowerCase();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, dutyShift: activeDutyShift }));
+    if (!reqUsername) {
+      return res.end(JSON.stringify({ ok: true, dutyShift: null }));
+    }
+    const unitShift = unitDutyShifts[reqUsername] || null;
+    return res.end(JSON.stringify({ ok: true, dutyShift: unitShift }));
   }
 
   // -------------------------------------------------------------
-  // API: Set / Update Active Duty Shift
+  // API: Set / Update Active Duty Shift (Scoped Per Unit)
   // -------------------------------------------------------------
   if (urlPath === '/api/dispatcher/duty-shift' && req.method === 'POST') {
     let body = '';
@@ -5290,15 +5520,22 @@ const server = http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         const shiftData = JSON.parse(body || '{}');
-        activeDutyShift = {
+        const reqUsername = (shiftData.username || req.headers['x-officer-username'] || req.user?.username || '').trim().toLowerCase();
+        if (!reqUsername) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chưa xác thực đơn vị trực ban' }));
+        }
+        const scopedShift = {
           ...shiftData,
+          username: shiftData.username || reqUsername,
           updatedAt: new Date().toISOString()
         };
-        saveActiveDutyShift();
-        broadcastToDispatchers('duty_shift_update', activeDutyShift);
-        console.log(`📋 [DUTY SHIFT] Phân công kíp trực: ${activeDutyShift.officerRank || ''} ${activeDutyShift.officerName || ''} (${activeDutyShift.startTime || ''} - ${activeDutyShift.endTime || ''})`);
+        unitDutyShifts[reqUsername] = scopedShift;
+        saveUnitDutyShifts();
+        broadcastToDispatchers('duty_shift_update', scopedShift);
+        console.log(`📋 [DUTY SHIFT][${reqUsername}] Phân công kíp trực: ${scopedShift.officerRank || ''} ${scopedShift.officerName || ''} (${scopedShift.startTime || ''} - ${scopedShift.endTime || ''})`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, dutyShift: activeDutyShift }));
+        return res.end(JSON.stringify({ ok: true, dutyShift: scopedShift }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));

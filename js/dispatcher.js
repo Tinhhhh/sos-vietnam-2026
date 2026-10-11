@@ -260,7 +260,8 @@ class DispatcherApp {
           this.authGateModal.style.setProperty('display', 'none', 'important');
         }
 
-        const savedShift = sessionStorage.getItem('sos_duty_shift_' + profile.username);
+        const savedShift = sessionStorage.getItem('sos_duty_shift_' + profile.username) ||
+                           localStorage.getItem('sos_duty_shift_' + profile.username);
         if (savedShift) {
           try {
             this.currentDutyShift = JSON.parse(savedShift);
@@ -271,6 +272,7 @@ class DispatcherApp {
           const curH = String(now.getHours()).padStart(2, '0');
           const endH = String((now.getHours() + 8) % 24).padStart(2, '0');
           this.currentDutyShift = {
+            username: profile.username,
             officerName: profile.officerName || profile.username,
             officerRank: profile.officerRank || 'Cán bộ',
             officerPhone: profile.officerPhone || '113',
@@ -281,6 +283,7 @@ class DispatcherApp {
           };
           this.applyDutyShift(this.currentDutyShift);
         }
+        this.restoreDutyShift();
 
         // Khởi tạo danh sách ca và stream SSE chính xác theo địa bàn cán bộ
         this.clearActiveSelectionAndMap();
@@ -331,11 +334,13 @@ class DispatcherApp {
         dateEl.textContent = `${dayName}, ${dayStr}/${monthStr}/${yearStr}`;
       }
 
-      // Calculate shift remaining
-      if (this.currentDutyShift && this.currentDutyShift.endTime) {
+      // Calculate shift remaining — ONLY when officer is authenticated to this unit.
+      // Guard: Do NOT run shift expiry check or show any alert when officer hasn't logged in yet.
+      // This prevents the shift-expired popup from showing on the login/cosmic-portal screen.
+      if (this.currentOfficer && this.currentDutyShift && this.currentDutyShift.endTime) {
         const [endH, endM] = this.currentDutyShift.endTime.split(':').map(Number);
         const [startH, startM] = (this.currentDutyShift.startTime || '07:00').split(':').map(Number);
-        
+
         const nowH = now.getHours();
         const nowM = now.getMinutes();
 
@@ -355,10 +360,12 @@ class DispatcherApp {
 
         if (diffMin <= 0) {
           if (shiftDisplay) shiftDisplay.innerHTML = `<span style="color: #ef4444; font-weight: 800;">⚠️ HẾT CA (${this.currentDutyShift.startTime}-${this.currentDutyShift.endTime})</span>`;
-          if (!this.shiftExpiredNotified) {
+          // Only alert once per session AND only if officer is authenticated to this specific unit
+          if (!this.shiftExpiredNotified && this.currentOfficer) {
             this.shiftExpiredNotified = true;
+            const unitName = this.currentOfficer.agencyName || this.currentOfficer.unitName || this.currentOfficer.username || '';
             setTimeout(() => {
-              alert(`⏰ THÔNG BÁO HẾT GIỜ KÍP TRỰC BAN (${this.currentDutyShift.startTime} - ${this.currentDutyShift.endTime})!\nVui lòng bàn giao ca và nhập thông tin cán bộ kíp trực tiếp theo.`);
+              alert(`⏰ THÔNG BÁO HẾT GIỜ KÍP TRỰC BAN (${this.currentDutyShift.startTime} - ${this.currentDutyShift.endTime})!\n${unitName ? `Đơn vị: ${unitName}\n` : ''}Vui lòng bàn giao ca và nhập thông tin cán bộ kíp trực tiếp theo.`);
               this.openDutyShiftModal();
             }, 200);
           }
@@ -370,6 +377,11 @@ class DispatcherApp {
             shiftDisplay.innerHTML = `<span>Ca: ${this.currentDutyShift.startTime}-${this.currentDutyShift.endTime}</span><span class="shift-remaining-time"> (Còn: ${remH}h ${remM}p)</span>`;
           }
         }
+      } else if (!this.currentOfficer) {
+        // Not logged in — clear shift display quietly, reset notification flag
+        this.shiftExpiredNotified = false;
+        const shiftDisplay = document.getElementById('dutyShiftDisplay');
+        if (shiftDisplay) shiftDisplay.textContent = '';
       }
     };
 
@@ -844,7 +856,15 @@ class DispatcherApp {
     localStorage.removeItem('sos_dispatcher_officer');
     sessionStorage.removeItem('sos_gatekeeper_pass');
     sessionStorage.removeItem('sos_cyber_gatekeeper_passed');
+    sessionStorage.removeItem('sos_duty_shift');
+    localStorage.removeItem('sos_duty_shift');
+    sessionStorage.removeItem('SOS_ACTIVE_DUTY_SHIFT');
+    localStorage.removeItem('SOS_ACTIVE_DUTY_SHIFT');
     this.currentOfficer = null;
+    this.currentDutyShift = null;
+    this.shiftExpiredNotified = false;
+    const shiftDisplay = document.getElementById('dutyShiftDisplay');
+    if (shiftDisplay) shiftDisplay.textContent = '';
     if (this.eventSource) {
       try { this.eventSource.close(); } catch(e) {}
       this.eventSource = null;
@@ -1055,6 +1075,7 @@ class DispatcherApp {
     if (this.formDutyShift) {
       this.formDutyShift.addEventListener('submit', (e) => {
         e.preventDefault();
+        if (!this.currentOfficer || !this.currentOfficer.username) return;
         const name = (document.getElementById('shiftOfficerName')?.value || '').trim();
         const rank = (document.getElementById('shiftOfficerRank')?.value || '').trim();
         const phone = (document.getElementById('shiftOfficerPhone')?.value || '').trim();
@@ -1063,6 +1084,7 @@ class DispatcherApp {
         const endTime = document.getElementById('shiftEndTime')?.value || '15:00';
 
         this.currentDutyShift = {
+          username: this.currentOfficer.username,
           officerName: name,
           officerRank: rank,
           officerPhone: phone,
@@ -1075,32 +1097,15 @@ class DispatcherApp {
 
         this.shiftExpiredNotified = false;
 
-        if (!this.currentOfficer) {
-          this.currentOfficer = {
-            username: 'duty_officer',
-            officerName: name,
-            officerRank: rank,
-            officerPhone: phone,
-            officerSms: sms
-          };
-        } else {
-          this.currentOfficer.officerName = name;
-          this.currentOfficer.officerRank = rank;
-          this.currentOfficer.officerPhone = phone;
-          this.currentOfficer.officerSms = sms;
-        }
+        this.currentOfficer.officerName = name;
+        this.currentOfficer.officerRank = rank;
+        this.currentOfficer.officerPhone = phone;
+        this.currentOfficer.officerSms = sms;
 
-        // Persist to storage
-        sessionStorage.setItem('sos_duty_shift', JSON.stringify(this.currentDutyShift));
-        localStorage.setItem('sos_duty_shift', JSON.stringify(this.currentDutyShift));
-        sessionStorage.setItem('SOS_ACTIVE_DUTY_SHIFT', JSON.stringify(this.currentDutyShift));
-        localStorage.setItem('SOS_ACTIVE_DUTY_SHIFT', JSON.stringify(this.currentDutyShift));
+        // Persist strictly under unit-scoped storage key
+        this.saveDutyShiftToStorage(this.currentDutyShift);
         sessionStorage.setItem('sos_dispatcher_officer', JSON.stringify(this.currentOfficer));
         localStorage.setItem('sos_dispatcher_officer', JSON.stringify(this.currentOfficer));
-        if (this.currentOfficer.username) {
-          sessionStorage.setItem('sos_duty_shift_' + this.currentOfficer.username, JSON.stringify(this.currentDutyShift));
-          localStorage.setItem('sos_duty_shift_' + this.currentOfficer.username, JSON.stringify(this.currentDutyShift));
-        }
 
         // Sync to server
         fetch('/api/dispatcher/duty-shift', {
@@ -1127,12 +1132,14 @@ class DispatcherApp {
     if (this.formSubstituteOfficer) {
       this.formSubstituteOfficer.addEventListener('submit', (e) => {
         e.preventDefault();
+        if (!this.currentOfficer || !this.currentOfficer.username) return;
         const subName = (document.getElementById('subOfficerName')?.value || '').trim();
         const subRank = (document.getElementById('subOfficerRank')?.value || '').trim();
         const subPhone = (document.getElementById('subOfficerPhone')?.value || '').trim();
         const reason = (document.getElementById('subOfficerReason')?.value || '').trim();
 
         this.currentDutyShift = this.currentDutyShift || {};
+        this.currentDutyShift.username = this.currentOfficer.username;
         this.currentDutyShift.substitute = {
           officerName: subName,
           officerRank: subRank,
@@ -1142,14 +1149,7 @@ class DispatcherApp {
         this.currentDutyShift.isSubstitute = true;
         this.currentDutyShift.updatedAt = new Date().toISOString();
 
-        sessionStorage.setItem('sos_duty_shift', JSON.stringify(this.currentDutyShift));
-        localStorage.setItem('sos_duty_shift', JSON.stringify(this.currentDutyShift));
-        sessionStorage.setItem('SOS_ACTIVE_DUTY_SHIFT', JSON.stringify(this.currentDutyShift));
-        localStorage.setItem('SOS_ACTIVE_DUTY_SHIFT', JSON.stringify(this.currentDutyShift));
-        if (this.currentOfficer?.username) {
-          sessionStorage.setItem('sos_duty_shift_' + this.currentOfficer.username, JSON.stringify(this.currentDutyShift));
-          localStorage.setItem('sos_duty_shift_' + this.currentOfficer.username, JSON.stringify(this.currentDutyShift));
-        }
+        this.saveDutyShiftToStorage(this.currentDutyShift);
 
         fetch('/api/dispatcher/duty-shift', {
           method: 'POST',
@@ -1172,10 +1172,36 @@ class DispatcherApp {
       });
     }
 
-    this.restoreDutyShift();
+    this.purgeGlobalDutyShiftKeys();
+  }
+
+  purgeGlobalDutyShiftKeys() {
+    try {
+      sessionStorage.removeItem('sos_duty_shift');
+      localStorage.removeItem('sos_duty_shift');
+      sessionStorage.removeItem('SOS_ACTIVE_DUTY_SHIFT');
+      localStorage.removeItem('SOS_ACTIVE_DUTY_SHIFT');
+    } catch (_) {}
+  }
+
+  saveDutyShiftToStorage(shift) {
+    this.purgeGlobalDutyShiftKeys();
+    const uname = shift?.username || this.currentOfficer?.username;
+    if (!uname || !shift) return;
+    const payload = JSON.stringify({ ...shift, username: uname });
+    try {
+      sessionStorage.setItem('sos_duty_shift_' + uname, payload);
+      localStorage.setItem('sos_duty_shift_' + uname, payload);
+      if (uname.toLowerCase() !== uname) {
+        sessionStorage.setItem('sos_duty_shift_' + uname.toLowerCase(), payload);
+        localStorage.setItem('sos_duty_shift_' + uname.toLowerCase(), payload);
+      }
+      this.currentDutyShift = shift;
+    } catch (_) {}
   }
 
   openSubstituteModal() {
+    if (!this.currentOfficer || !document.body.classList.contains('officer-authenticated')) return;
     if (!this.substituteOfficerModal) return;
     if (this.currentDutyShift && this.currentDutyShift.substitute) {
       if (document.getElementById('subOfficerName')) document.getElementById('subOfficerName').value = this.currentDutyShift.substitute.officerName || '';
@@ -1187,6 +1213,7 @@ class DispatcherApp {
   }
 
   openDutyShiftModal() {
+    if (!this.currentOfficer || !document.body.classList.contains('officer-authenticated')) return;
     if (!this.dutyShiftModal) return;
     const activeName = this.currentDutyShift?.officerName || this.currentOfficer?.officerName || '';
     const activeRank = this.currentDutyShift?.officerRank || this.currentOfficer?.officerRank || '';
@@ -1285,14 +1312,17 @@ class DispatcherApp {
 
   async restoreDutyShift() {
     try {
-      let saved = sessionStorage.getItem('SOS_ACTIVE_DUTY_SHIFT') ||
-                  localStorage.getItem('SOS_ACTIVE_DUTY_SHIFT') ||
-                  sessionStorage.getItem('sos_duty_shift') ||
-                  localStorage.getItem('sos_duty_shift');
-      if (!saved && this.currentOfficer?.username) {
-        saved = sessionStorage.getItem('sos_duty_shift_' + this.currentOfficer.username) ||
-                localStorage.getItem('sos_duty_shift_' + this.currentOfficer.username);
+      this.purgeGlobalDutyShiftKeys();
+      const uname = this.currentOfficer?.username;
+      if (!uname || !document.body.classList.contains('officer-authenticated')) {
+        this.currentDutyShift = null;
+        return;
       }
+
+      const saved = sessionStorage.getItem('sos_duty_shift_' + uname) ||
+                    localStorage.getItem('sos_duty_shift_' + uname) ||
+                    sessionStorage.getItem('sos_duty_shift_' + uname.toLowerCase()) ||
+                    localStorage.getItem('sos_duty_shift_' + uname.toLowerCase());
       if (saved) {
         try {
           this.currentDutyShift = JSON.parse(saved);
@@ -1300,16 +1330,13 @@ class DispatcherApp {
         } catch (e) {}
       }
 
-      const res = await fetch('/api/dispatcher/duty-shift', {
+      const res = await fetch(`/api/dispatcher/duty-shift?username=${encodeURIComponent(uname)}`, {
         headers: this.getAuthHeaders()
       });
       const data = await res.json();
-      if (data.ok && data.dutyShift) {
-        this.currentDutyShift = data.dutyShift;
-        sessionStorage.setItem('sos_duty_shift', JSON.stringify(this.currentDutyShift));
-        localStorage.setItem('sos_duty_shift', JSON.stringify(this.currentDutyShift));
-        sessionStorage.setItem('SOS_ACTIVE_DUTY_SHIFT', JSON.stringify(this.currentDutyShift));
-        localStorage.setItem('SOS_ACTIVE_DUTY_SHIFT', JSON.stringify(this.currentDutyShift));
+      if (data.ok && data.dutyShift && (!data.dutyShift.username || data.dutyShift.username.toLowerCase() === uname.toLowerCase())) {
+        this.currentDutyShift = { ...data.dutyShift, username: uname };
+        this.saveDutyShiftToStorage(this.currentDutyShift);
         if (this.currentOfficer) {
           this.currentOfficer.officerName = this.currentDutyShift.officerName || this.currentOfficer.officerName;
           this.currentOfficer.officerRank = this.currentDutyShift.officerRank || this.currentOfficer.officerRank;
@@ -1334,7 +1361,9 @@ class DispatcherApp {
     }
     if (officer?.token) {
       headers['Authorization'] = `Bearer ${officer.token}`;
-      if (officer.username) headers['X-Officer-Username'] = officer.username;
+    }
+    if (officer?.username) {
+      headers['X-Officer-Username'] = officer.username;
     }
     return headers;
   }
@@ -6147,7 +6176,8 @@ class DispatcherApp {
         this.applyOfficerProfile(data.profile);
 
         // 4. Handle duty shift
-        const savedShift = sessionStorage.getItem('sos_duty_shift_' + data.profile.username);
+        const savedShift = sessionStorage.getItem('sos_duty_shift_' + data.profile.username) ||
+                           localStorage.getItem('sos_duty_shift_' + data.profile.username);
         if (savedShift) {
           try {
             this.currentDutyShift = JSON.parse(savedShift);
@@ -6158,6 +6188,7 @@ class DispatcherApp {
           const curH = String(now.getHours()).padStart(2, '0');
           const endH = String((now.getHours() + 8) % 24).padStart(2, '0');
           this.currentDutyShift = {
+            username: data.profile.username,
             officerName: data.profile.officerName || data.profile.username,
             officerRank: data.profile.officerRank || 'Cán bộ',
             officerPhone: data.profile.officerPhone || '113',
@@ -6168,6 +6199,7 @@ class DispatcherApp {
           };
           this.applyDutyShift(this.currentDutyShift);
         }
+        this.restoreDutyShift();
 
         // 5. Connect live stream and load active incidents
         this.loadIncidents();
@@ -9028,8 +9060,17 @@ class DispatcherApp {
     const targetProv = (props.province || 'Cần Thơ').toLowerCase().trim();
     const cleanTargetProv = targetProv.replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
 
-    // Helper to test if station is a grass-roots ward police station
-    const isWardPolice = s => s && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency);
+    // Helper to test if station is a grass-roots ward police station (excluding regional squads and city HQs)
+    const isWardPolice = s => s && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency) && (!s.unitCategory || s.unitCategory === 'ward_police') && !s.isRegionalSquad && !s.isCityHq;
+
+    const calcDistKm = (lat1, lon1, lat2, lon2) => {
+      if (!Number.isFinite(Number(lat1)) || !Number.isFinite(Number(lon1)) || !Number.isFinite(Number(lat2)) || !Number.isFinite(Number(lon2))) return null;
+      const R = 6371;
+      const dLat = (Number(lat2) - Number(lat1)) * Math.PI / 180;
+      const dLon = (Number(lon2) - Number(lon1)) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(Number(lat1) * Math.PI / 180) * Math.cos(Number(lat2) * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      return +(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2);
+    };
 
     // Priority 1: Match by postal code / ma_xa / maDVHC
     const maXa = props.ma_xa || props.postal_code || props.postalCode || props.maDVHC;
@@ -9062,18 +9103,30 @@ class DispatcherApp {
       }
     }
 
-    if (!matchedSt && wardStations.length) {
-      const incLat = this.activeIncident?.lat || props.center?.[1];
-      const incLng = this.activeIncident?.lng || props.center?.[0];
-      if (incLat && incLng) {
-        wardStations.sort((a, b) => {
-          const da = Math.hypot(Number(a.lat) - incLat, Number(a.lng) - incLng);
-          const db = Math.hypot(Number(b.lat) - incLat, Number(b.lng) - incLng);
-          return da - db;
-        });
-        matchedSt = wardStations[0];
+    const activeInc = (this.selectedIncidentId && this.incidents) ? this.incidents.get(this.selectedIncidentId) : this.activeIncident;
+    const refLat = activeInc?.lat || props.center?.[1];
+    const refLng = activeInc?.lng || props.center?.[0];
+
+    if (wardStations.length) {
+      wardStations = wardStations.map(s => ({
+        ...s,
+        distanceKm: (refLat && refLng) ? calcDistKm(refLat, refLng, s.lat, s.lng) : null,
+        isNearest: false
+      }));
+      if (refLat && refLng) {
+        wardStations.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
       } else {
-        matchedSt = wardStations.find(s => s.facility_type === 'Trụ sở chính' || s.name?.includes('Trụ sở chính')) || wardStations[0];
+        wardStations.sort((a, b) => {
+          const aMain = (a.facility_type === 'Trụ sở chính' || /trụ sở chính/i.test(a.name || '')) ? 0 : 1;
+          const bMain = (b.facility_type === 'Trụ sở chính' || /trụ sở chính/i.test(b.name || '')) ? 0 : 1;
+          return aMain - bMain;
+        });
+      }
+      if (wardStations[0]) {
+        wardStations[0].isNearest = true;
+      }
+      if (!matchedSt) {
+        matchedSt = wardStations[0];
       }
     }
 
@@ -9112,6 +9165,59 @@ class DispatcherApp {
     if (servicesEl) servicesEl.textContent = services;
     if (gmapsBtn) gmapsBtn.href = gmapsUrl;
 
+    // Render all ward facilities in #hudWardMultiFacilityContainer
+    const multiContainer = document.getElementById('hudWardMultiFacilityContainer');
+    if (multiContainer) {
+      if (wardStations.length > 0) {
+        multiContainer.style.display = 'block';
+        multiContainer.innerHTML = `
+          <div style="font-size: 11px; font-weight: 800; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+            <span>🏛️ Toàn bộ cơ sở tại ${props.ward || unitTitle} (${wardStations.length} cơ sở)</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${wardStations.map((st, idx) => {
+              const roleLabel = st.facility_type || (idx === 0 ? 'Trụ sở chính' : `Cơ sở ${idx + 1}`);
+              const isNearest = Boolean(st.isNearest || idx === 0);
+              const distText = st.distanceKm !== null && st.distanceKm !== undefined ? `${st.distanceKm} km` : '';
+              return `
+                <div class="hud-ward-facility-item" data-idx="${idx}" style="background: ${isNearest ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 255, 255, 0.05)'}; border: 1px solid ${isNearest ? '#10b981' : 'rgba(255, 255, 255, 0.12)'}; border-radius: 6px; padding: 6px 8px; cursor: pointer; transition: all 0.2s;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; flex-wrap: wrap; margin-bottom: 2px;">
+                    <span style="font-size: 11.5px; font-weight: 800; color: ${isNearest ? '#34d399' : '#f8fafc'};">${st.name || unitTitle}</span>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span style="font-size: 9.5px; font-weight: 700; background: rgba(56, 189, 248, 0.18); color: #7dd3fc; padding: 1px 5px; border-radius: 4px;">${roleLabel}</span>
+                      ${isNearest ? `<span class="nearest-facility-badge" style="font-size: 9.5px; font-weight: 800; background: #10b981; color: #052e16; padding: 1px 6px; border-radius: 4px;">[Cơ sở gần nhất${distText ? ' · ' + distText : ''}]</span>` : (distText ? `<span style="font-size: 9.5px; color: #94a3b8; font-weight: 700;">Cách ${distText}</span>` : '')}
+                    </div>
+                  </div>
+                  <div style="font-size: 11px; color: #cbd5e1; line-height: 1.35;">📍 ${st.address || 'Đang cập nhật'}</div>
+                  <div style="font-size: 11px; color: #22c55e; font-weight: 700; margin-top: 2px;">📞 ${st.phone || '0692196550'}</div>
+                  ${st.services ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 2px; line-height: 1.3;">📋 ${st.services}</div>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+        multiContainer.querySelectorAll('.hud-ward-facility-item').forEach(itemEl => {
+          itemEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const i = Number(itemEl.getAttribute('data-idx'));
+            const st = wardStations[i];
+            if (!st) return;
+            if (addressEl && st.address) addressEl.textContent = st.address;
+            if (phoneEl && st.phone) phoneEl.textContent = st.phone;
+            if (phoneLinkEl && st.phone) phoneLinkEl.href = `tel:${st.phone.replace(/[^0-9+]/g, '')}`;
+            if (servicesEl && st.services) servicesEl.textContent = st.services;
+            if (gmapsBtn) gmapsBtn.href = st.maps_url || `https://www.google.com/maps/dir/?api=1&destination=${st.lat},${st.lng}`;
+            if (this.mapController && st.lat && st.lng) {
+              this.mapController.panTo(Number(st.lat), Number(st.lng), 16);
+            }
+          });
+        });
+      } else {
+        multiContainer.style.display = 'none';
+        multiContainer.innerHTML = '';
+      }
+    }
+
     // Area info (Thông tin địa bàn xem thêm)
     if (sapNhapEl) sapNhapEl.textContent = props.sapNhapTu || props.sap_nhap || `${props.ward} (giữ nguyên)`;
     if (adminCenterEl) adminCenterEl.textContent = props.trungTamHanhChinh || props.tru_so || `UBND ${props.ward}`;
@@ -9138,6 +9244,11 @@ class DispatcherApp {
   showProvinceHud(station) {
     const hud = document.getElementById('tacticalWardGeofenceHud');
     if (!hud || !station) return;
+    const multiContainer = document.getElementById('hudWardMultiFacilityContainer');
+    if (multiContainer) {
+      multiContainer.style.display = 'none';
+      multiContainer.innerHTML = '';
+    }
 
     const nameEl = document.getElementById('hudWardName');
     const provEl = document.getElementById('hudWardProvince');
@@ -9411,18 +9522,19 @@ class DispatcherApp {
 
     this.eventSource.addEventListener('duty_shift_update', (e) => {
       try {
+        if (!this.currentOfficer || !this.currentOfficer.username) return;
         const shift = JSON.parse(e.data);
         if (shift) {
-          this.currentDutyShift = shift;
-          sessionStorage.setItem('sos_duty_shift', JSON.stringify(shift));
-          localStorage.setItem('sos_duty_shift', JSON.stringify(shift));
-          if (this.currentOfficer) {
-            this.currentOfficer.officerName = shift.officerName || this.currentOfficer.officerName;
-            this.currentOfficer.officerRank = shift.officerRank || this.currentOfficer.officerRank;
-            this.currentOfficer.officerPhone = shift.officerPhone || this.currentOfficer.officerPhone;
-            this.currentOfficer.officerSms = shift.officerSms || this.currentOfficer.officerSms;
+          if (shift.username && shift.username.toLowerCase() !== this.currentOfficer.username.toLowerCase()) {
+            return;
           }
-          this.applyDutyShift(shift);
+          this.currentDutyShift = { ...shift, username: this.currentOfficer.username };
+          this.saveDutyShiftToStorage(this.currentDutyShift);
+          this.currentOfficer.officerName = shift.officerName || this.currentOfficer.officerName;
+          this.currentOfficer.officerRank = shift.officerRank || this.currentOfficer.officerRank;
+          this.currentOfficer.officerPhone = shift.officerPhone || this.currentOfficer.officerPhone;
+          this.currentOfficer.officerSms = shift.officerSms || this.currentOfficer.officerSms;
+          this.applyDutyShift(this.currentDutyShift);
         }
       } catch (err) {}
     });
@@ -10953,6 +11065,56 @@ class DispatcherApp {
       }
     }
 
+    // Render Multi-Facility Ward Directory in Drawer (#drawerWardFacilitiesSection)
+    const wardFacSection = document.getElementById('drawerWardFacilitiesSection');
+    const wardFacTitle = document.getElementById('drawerWardFacilitiesTitle');
+    const wardFacList = document.getElementById('drawerWardFacilitiesList');
+    const wardFacilities = (inc.assignedUnit && Array.isArray(inc.assignedUnit.wardFacilities) && inc.assignedUnit.wardFacilities.length)
+      ? inc.assignedUnit.wardFacilities
+      : (inc.jurisdiction && Array.isArray(inc.jurisdiction.wardFacilities) && inc.jurisdiction.wardFacilities.length)
+        ? inc.jurisdiction.wardFacilities
+        : [];
+    if (wardFacSection && wardFacList) {
+      if (wardFacilities.length > 0) {
+        wardFacSection.style.display = 'block';
+        const wardLabel = inc.jurisdiction?.ward || inc.assignedUnit?.ward || 'Địa bàn';
+        if (wardFacTitle) {
+          wardFacTitle.innerHTML = `<span>🏛️ Toàn bộ cơ sở tại ${wardLabel} (${wardFacilities.length} cơ sở)</span>`;
+        }
+        wardFacList.innerHTML = wardFacilities.map((f, idx) => {
+          const isNearest = Boolean(f.isNearest || idx === 0);
+          const roleLabel = f.facility_type || (idx === 0 ? 'Trụ sở chính' : `Cơ sở ${idx + 1}`);
+          const distText = (f.distanceKm !== null && f.distanceKm !== undefined) ? `${f.distanceKm} km` : '';
+          return `
+            <div class="drawer-ward-facility-item" data-lat="${f.lat || ''}" data-lng="${f.lng || ''}" style="background: ${isNearest ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 255, 255, 0.04)'}; border: 1px solid ${isNearest ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}; border-radius: 6px; padding: 6px 8px; cursor: pointer; transition: all 0.2s;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; flex-wrap: wrap; margin-bottom: 2px;">
+                <span style="font-size: 11.5px; font-weight: 800; color: ${isNearest ? '#34d399' : '#f1f5f9'};">${f.name || wardLabel}</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 9.5px; font-weight: 700; background: rgba(56, 189, 248, 0.18); color: #7dd3fc; padding: 1px 5px; border-radius: 4px;">${roleLabel}</span>
+                  ${isNearest ? `<span class="nearest-facility-badge" style="font-size: 9.5px; font-weight: 800; background: #10b981; color: #052e16; padding: 1px 6px; border-radius: 4px;">[Cơ sở gần nhất]${distText ? ' · ' + distText : ''}</span>` : (distText ? `<span style="font-size: 9.5px; color: #94a3b8; font-weight: 700;">Cách ${distText}</span>` : '')}
+                </div>
+              </div>
+              <div style="font-size: 11px; color: #cbd5e1; line-height: 1.35;">📍 ${f.address || 'Đang cập nhật'}</div>
+              <div style="font-size: 11px; color: #34d399; font-weight: 700; margin-top: 2px;">📞 ${f.phone || '0692196550'}</div>
+              ${f.services ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 2px; line-height: 1.3;">📋 ${f.services}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+        wardFacList.querySelectorAll('.drawer-ward-facility-item').forEach(el => {
+          el.addEventListener('click', () => {
+            const lat = parseFloat(el.getAttribute('data-lat'));
+            const lng = parseFloat(el.getAttribute('data-lng'));
+            if (this.mapController && Number.isFinite(lat) && Number.isFinite(lng)) {
+              this.mapController.panTo(lat, lng, 16);
+            }
+          });
+        });
+      } else {
+        wardFacSection.style.display = 'none';
+        wardFacList.innerHTML = '';
+      }
+    }
+
     const assigned = inc.dispatchUnit || inc.assignedUnit;
     if (this.drawerChannelDetails && inc.dispatchChannels) {
       this.drawerChannelDetails.innerHTML = `
@@ -10965,8 +11127,13 @@ class DispatcherApp {
       `;
     }
 
-    const isWardOfficer = Boolean(this.currentOfficer && this.currentOfficer.level === 'ward');
+    const isWardOfficer = Boolean(this.currentOfficer && (this.currentOfficer.level === 'ward' || this.currentOfficer.isRegionalSquad));
     const isReadOnlySameTerritory = Boolean(inc.readOnlySameTerritory);
+    const escalationCard = document.getElementById('drawerEscalationTimerCard');
+    const btnEscalateCityHq = document.getElementById('btnEscalateCityHq');
+    if (btnEscalateCityHq) {
+      btnEscalateCityHq.onclick = () => this.handleEscalateToCityHq(inc.id);
+    }
 
     let restrictedNotice = document.getElementById('drawerSameTerritoryNotice');
     if (!restrictedNotice) {
@@ -10978,6 +11145,8 @@ class DispatcherApp {
     }
 
     if (isReadOnlySameTerritory) {
+      this.stopDrawerEscalationCountdown();
+      if (escalationCard) escalationCard.style.display = 'none';
       restrictedNotice.style.display = 'block';
       restrictedNotice.innerHTML = `🛡️ <b>CHẾ ĐỘ THEO DÕI SỐ LIỆU ĐỊA BÀN:</b> Ca sự cố này do <b>${inc.agencyName || 'Lực lượng chuyên trách'}</b> thụ lý chính trên cùng địa bàn. Đơn vị chỉ theo dõi số liệu phục vụ báo cáo chung, không có thẩm quyền thao tác xử lý hay tải tài liệu từ ca này.`;
       if (btnDrawerCall) btnDrawerCall.style.display = 'none';
@@ -11017,6 +11186,12 @@ class DispatcherApp {
       const natCard = document.getElementById('drawerNationalOversightCard');
 
       if (isNationalCommand) {
+        if (inc.status === 'pending') {
+          this.startDrawerEscalationCountdown(inc);
+        } else {
+          this.stopDrawerEscalationCountdown();
+          if (escalationCard) escalationCard.style.display = 'none';
+        }
         // Cấp quốc gia CHỈ COI / GIÁM SÁT, tuyệt đối KHÔNG tiếp nhận thay cơ sở
         if (this.btnAcceptSOS) this.btnAcceptSOS.style.display = 'none';
         if (this.btnDeEscalateSOS) this.btnDeEscalateSOS.style.display = 'none';
@@ -11093,52 +11268,175 @@ class DispatcherApp {
       } else {
         if (natCard) natCard.style.display = 'none';
         if (inc.status === 'fake_alarm') {
+          this.stopDrawerEscalationCountdown();
+          if (escalationCard) escalationCard.style.display = 'none';
           this.btnAcceptSOS.style.display = 'none';
           if (this.btnDeEscalateSOS) this.btnDeEscalateSOS.style.display = 'none';
           if (this.drawerEscalatedWardNotice) this.drawerEscalatedWardNotice.style.display = 'none';
           this.btnMarkArrived.style.display = 'none';
           this.btnMarkResolved.style.display = 'none';
         } else if (inc.status === 'dispatching' || inc.status === 'arrived') {
+          this.stopDrawerEscalationCountdown();
+          if (escalationCard) escalationCard.style.display = 'none';
           this.btnAcceptSOS.style.display = 'none';
           if (this.btnDeEscalateSOS) this.btnDeEscalateSOS.style.display = 'none';
           if (this.drawerEscalatedWardNotice) this.drawerEscalatedWardNotice.style.display = 'none';
           this.btnMarkArrived.style.display = inc.status === 'arrived' ? 'none' : 'block';
           this.btnMarkResolved.style.display = 'block';
         } else if (inc.status === 'resolved') {
+          this.stopDrawerEscalationCountdown();
+          if (escalationCard) escalationCard.style.display = 'none';
           this.btnAcceptSOS.style.display = 'none';
           if (this.btnDeEscalateSOS) this.btnDeEscalateSOS.style.display = 'none';
           if (this.drawerEscalatedWardNotice) this.drawerEscalatedWardNotice.style.display = 'none';
           this.btnMarkArrived.style.display = 'none';
           this.btnMarkResolved.style.display = 'none';
         } else if (inc.status === 'escalated') {
+          this.stopDrawerEscalationCountdown();
+          if (escalationCard) escalationCard.style.display = 'none';
+          if (this.drawerEscalatedWardNotice) {
+            const targetHqName = inc.provinceUnit?.name || inc.assignedUnit?.name || 'Trụ sở chính cấp Tỉnh/Thành phố';
+            this.drawerEscalatedWardNotice.innerHTML = `<b style="display: flex; align-items: center; gap: 4px;"><svg class="svg-ico ico-xs ico-red" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> ĐÃ CHUYỂN LÊN TRỤ SỞ CHÍNH CẤP TỈNH/TP CHỈ ĐẠO:</b> Ca sự cố này đã chuyển lên <b>${targetHqName}</b> điều phối toàn địa bàn sau 15 phút. Cấp Đội / Xã Phường hiện không còn quyền tiếp nhận.`;
+          }
           if (isWardOfficer) {
-            // Cấp xã/phường không còn quyền xử lý khi ca đã leo thang
+            // Cấp xã/phường hoặc Đội khu vực không còn quyền xử lý khi ca đã leo thang lên Trụ sở chính Thành phố
             this.btnAcceptSOS.style.display = 'none';
             if (this.btnDeEscalateSOS) this.btnDeEscalateSOS.style.display = 'none';
             if (this.drawerEscalatedWardNotice) this.drawerEscalatedWardNotice.style.display = 'block';
           } else {
-            // Tuyến Tỉnh/TP có 2 quyền: Tiếp nhận trực tiếp HOẶC Chuyển trả về cấp Xã/Phường
+            // Tuyến Tỉnh/TP (Trụ sở chính) có 2 quyền: Tiếp nhận trực tiếp HOẶC Chuyển trả về cấp Xã/Phường / Đội khu vực
             this.btnAcceptSOS.style.display = 'flex';
-            this.btnAcceptSOS.innerHTML = '<svg class="svg-ico ico-sm ico-white" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></svg> TIẾP NHẬN ĐIỀU PHỐI (CẤP TỈNH XỬ LÝ)';
+            this.btnAcceptSOS.innerHTML = '<svg class="svg-ico ico-sm ico-white" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></svg> TIẾP NHẬN ĐIỀU PHỐI (CẤP TỈNH/TP XỬ LÝ)';
             if (this.btnDeEscalateSOS) this.btnDeEscalateSOS.style.display = 'flex';
             if (this.drawerEscalatedWardNotice) this.drawerEscalatedWardNotice.style.display = 'none';
           }
           this.btnMarkArrived.style.display = 'none';
           this.btnMarkResolved.style.display = 'none';
         } else {
-          // Pending
+          // Pending at local ward or regional squad level
           this.btnAcceptSOS.style.display = 'flex';
           this.btnAcceptSOS.innerHTML = '<svg class="svg-ico ico-sm ico-white" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></svg> TIẾP NHẬN & ĐIỀU ĐỘNG';
           if (this.btnDeEscalateSOS) this.btnDeEscalateSOS.style.display = 'none';
           if (this.drawerEscalatedWardNotice) this.drawerEscalatedWardNotice.style.display = 'none';
           this.btnMarkArrived.style.display = 'none';
           this.btnMarkResolved.style.display = 'none';
+          this.startDrawerEscalationCountdown(inc);
         }
       }
     }
 
     // Render direct 2-way chat messages
     this.renderDispatcherChat(inc);
+  }
+
+  stopDrawerEscalationCountdown() {
+    if (this._drawerEscalationInterval) {
+      clearInterval(this._drawerEscalationInterval);
+      this._drawerEscalationInterval = null;
+    }
+  }
+
+  startDrawerEscalationCountdown(inc) {
+    this.stopDrawerEscalationCountdown();
+    const escalationCard = document.getElementById('drawerEscalationTimerCard');
+    const countdownEl = document.getElementById('drawerEscalationCountdown');
+    const targetTextEl = document.getElementById('drawerEscalationTargetText');
+    const btnEscalate = document.getElementById('btnEscalateCityHq');
+    if (!escalationCard || !inc || inc.status !== 'pending') {
+      if (escalationCard) escalationCard.style.display = 'none';
+      return;
+    }
+
+    escalationCard.style.display = 'block';
+    const cityHqName = inc.provinceUnit?.name || 'Trụ sở chính cấp Thành phố';
+    if (targetTextEl) {
+      targetTextEl.innerHTML = `Quá 15 phút chưa giải quyết tại cấp Đội/Cơ sở sẽ chuyển lên <b>${cityHqName}</b> điều phối toàn địa bàn.`;
+    }
+
+    const updateTick = () => {
+      const createdMs = new Date(inc.createdAt || inc.timestamp || Date.now()).getTime();
+      const dueMs = inc.escalationDueAt ? new Date(inc.escalationDueAt).getTime() : (createdMs + 15 * 60 * 1000);
+      const remSec = Math.max(0, Math.floor((dueMs - Date.now()) / 1000));
+      const mm = String(Math.floor(remSec / 60)).padStart(2, '0');
+      const ss = String(remSec % 60).padStart(2, '0');
+
+      if (countdownEl) {
+        if (remSec <= 0) {
+          countdownEl.textContent = '00:00 (QUÁ 15P)';
+          countdownEl.style.color = '#fca5a5';
+          countdownEl.style.background = 'rgba(239, 68, 68, 0.25)';
+          countdownEl.style.borderColor = '#ef4444';
+        } else {
+          countdownEl.textContent = `${mm}:${ss}`;
+          countdownEl.style.color = '#fef08a';
+          countdownEl.style.background = 'rgba(245, 158, 11, 0.2)';
+          countdownEl.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+        }
+      }
+      if (btnEscalate) {
+        if (remSec <= 0) {
+          btnEscalate.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+          btnEscalate.style.borderColor = '#f87171';
+          btnEscalate.style.color = '#ffffff';
+          btnEscalate.innerHTML = `<span>🚨</span> QUÁ 15 PHÚT — CHUYỂN CẤP THÀNH PHỐ NGAY`;
+        } else {
+          btnEscalate.style.background = 'rgba(245, 158, 11, 0.2)';
+          btnEscalate.style.borderColor = '#f59e0b';
+          btnEscalate.style.color = '#fbbf24';
+          btnEscalate.innerHTML = `<span>⚡</span> Chuyển cấp Thành phố (${cityHqName})`;
+        }
+      }
+    };
+
+    updateTick();
+    this._drawerEscalationInterval = setInterval(updateTick, 1000);
+  }
+
+  async handleEscalateToCityHq(incidentId) {
+    const id = incidentId || this.selectedIncidentId;
+    if (!id) return;
+    const inc = this.incidents.get(id);
+    if (!inc) return;
+
+    const btn = document.getElementById('btnEscalateCityHq');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ ĐANG CHUYỂN LÊN TRỤ SỞ CHÍNH THÀNH PHỐ...';
+    }
+
+    const officer = this.currentOfficer || {};
+    const dutyShift = this.currentDutyShift || {};
+    try {
+      const res = await fetch('/api/dispatcher/escalate', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: typeof this.getAuthHeaders === 'function' ? this.getAuthHeaders() : { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          incidentId: id,
+          escalatedBy: officer.unitName || officer.agencyName || officer.username || inc.assignedUnit?.name || 'Đơn vị cơ sở',
+          officerName: dutyShift.officerName || officer.officerName || 'Trực ban cơ sở',
+          officerRank: dutyShift.officerRank || officer.officerRank || 'Đại úy',
+          reason: 'Cấp cơ sở / cấp đội chuyển lên Trụ sở chính cấp Thành phố điều phối chỉ đạo toàn địa bàn.'
+        })
+      });
+      const data = await res.json();
+      if (data.ok && data.incident) {
+        this.stopDrawerEscalationCountdown();
+        this.incidents.set(data.incident.id, data.incident);
+        this.renderQueue();
+        this.updateDrawer(data.incident);
+      } else {
+        alert('Lỗi: ' + (data.error || 'Không thể chuyển cấp Thành phố'));
+      }
+    } catch (e) {
+      console.error('handleEscalateToCityHq error:', e);
+      alert('Không thể kết nối máy chủ khi chuyển cấp Thành phố.');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+      }
+    }
   }
 
   addMapPinForIncident(inc, shouldFly = false) {

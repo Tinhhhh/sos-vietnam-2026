@@ -46,37 +46,58 @@ async function fetchJson(urlPath, options = {}) {
   report.hanoiPoliceStations = hanoiPolice.length;
 
   assertions.push({
-    name: 'Directory total stations >= 900',
-    pass: report.totalStations >= 900,
+    name: 'Directory total operational stations >= 890 (after purging 13 non-operational units)',
+    pass: report.totalStations >= 890,
     actual: report.totalStations
   });
 
   assertions.push({
-    name: 'Hanoi total facilities >= 430',
-    pass: report.hanoiTotalStations >= 430,
+    name: 'Hanoi operational facilities == 404 (417 ANTD minus 13 non-operational entities)',
+    pass: report.hanoiTotalStations >= 404,
     actual: report.hanoiTotalStations
   });
 
   assertions.push({
-    name: 'Hanoi ward police facilities >= 417',
-    pass: report.hanoiPoliceStations >= 417,
+    name: 'Hanoi grassroots ward police facilities >= 310 (excluding PCCC/CSGT regional squads & City HQs)',
+    pass: report.hanoiPoliceStations >= 310,
     actual: report.hanoiPoliceStations
   });
 
+  // R2 Check: Zero non-operational entities in directory
+  const forbiddenKeywords = ['bảo tàng công an', 'báo an ninh thủ đô', 'bệnh viện catp', 'nhà nghỉ dưỡng suối hai', 'công ty tnhh mtv tháng 8', 'công ty tnhh bóng đá'];
+  const leakedNonOperational = stations.filter(s => {
+    const nm = (s.name || '').toLowerCase();
+    return forbiddenKeywords.some(k => nm.includes(k));
+  });
+  assertions.push({
+    name: 'Zero non-operational entities (Bảo tàng, Báo ANTĐ, Bệnh viện CATP, Suối Hai, Công ty Tháng 8) in station directory',
+    pass: leakedNonOperational.length === 0,
+    actual: leakedNonOperational.map(s => s.name)
+  });
+
+  // R5 Check: Zero &amp; HTML entities and valid ANTD source_url
+  const htmlEntityLeaks = hanoiStations.filter(s => JSON.stringify(s).includes('&amp;'));
+  const validAntdSource = hanoiStations.filter(s => s.source_url === 'https://anninhthudo.vn/chi-tiet-danh-sach-417-tru-so-diem-tiep-dan-kem-link-google-map-cua-cong-an-tp-ha-noi-post666267.antd');
+  assertions.push({
+    name: 'All 404 Hanoi operational stations have decoded HTML entities (0 &amp;) and official ANTD source_url',
+    pass: htmlEntityLeaks.length === 0 && validAntdSource.length >= 404,
+    actual: { htmlEntityLeaks: htmlEntityLeaks.length, validAntdSourceCount: validAntdSource.length }
+  });
+
   // Check Ba Đình facilities
-  const baDinhStations = hanoiStations.filter(s => s.ward === 'Phường Ba Đình');
+  const baDinhStations = hanoiStations.filter(s => s.ward === 'Phường Ba Đình' && s.unitCategory === 'ward_police');
   const hasBaDinhTruSoChinh = baDinhStations.some(s => s.facility_type === 'Trụ sở chính' && s.address.includes('Điện Biên Phủ'));
   const hasBaDinhCoSo4 = baDinhStations.some(s => s.facility_type === 'Cơ sở 4' && s.address.includes('Quán Thánh'));
   assertions.push({
-    name: 'Phường Ba Đình has exactly 2 facilities (Trụ sở chính & Cơ sở 4)',
+    name: 'Phường Ba Đình has exactly 2 ward police facilities (Trụ sở chính & Cơ sở 4)',
     pass: baDinhStations.length === 2 && hasBaDinhTruSoChinh && hasBaDinhCoSo4,
     actual: { count: baDinhStations.length, names: baDinhStations.map(s => s.name) }
   });
 
   // Check Bạch Mai facilities
-  const bachMaiStations = hanoiStations.filter(s => s.ward === 'Phường Bạch Mai');
+  const bachMaiStations = hanoiStations.filter(s => s.ward === 'Phường Bạch Mai' && s.unitCategory === 'ward_police');
   assertions.push({
-    name: 'Phường Bạch Mai has exactly 5 distinct facilities',
+    name: 'Phường Bạch Mai has exactly 5 distinct ward police facilities',
     pass: bachMaiStations.length === 5,
     actual: { count: bachMaiStations.length, facilities: bachMaiStations.map(s => s.facility_type) }
   });
@@ -84,12 +105,12 @@ async function fetchJson(urlPath, options = {}) {
   // Check Google Maps URLs validity
   const stationsWithMaps = hanoiStations.filter(s => s.maps_url && (s.maps_url.startsWith('https://maps.app.goo.gl/') || s.maps_url.startsWith('https://www.google.com/maps/')));
   assertions.push({
-    name: 'All Hanoi 417 stations have valid Google Maps URLs',
-    pass: stationsWithMaps.length >= 417,
+    name: 'All 404 Hanoi operational stations have valid Google Maps URLs',
+    pass: stationsWithMaps.length >= 404,
     actual: stationsWithMaps.length
   });
 
-  console.log('--- 2. NEAREST FACILITY DISPATCH API CHECKS ---');
+  console.log('--- 2. NEAREST FACILITY & REGIONAL SQUAD DISPATCH API CHECKS ---');
   // Dispatch Case A: Citizen near 116 Quán Thánh (lat: 21.042397, lng: 105.843138)
   const sosQuanThanh = await fetchJson('/api/sos/create', {
     method: 'POST',
@@ -111,17 +132,19 @@ async function fetchJson(urlPath, options = {}) {
     unitA.isNearestFacilityInWard === true &&
     Array.isArray(unitA.wardFacilities) &&
     unitA.wardFacilities.length === 2 &&
-    unitA.wardFacilities[0].id === 'st-hn-ca-005-ba-dinh';
+    unitA.wardFacilities[0].id === 'st-hn-ca-005-ba-dinh' &&
+    unitA.wardFacilities[0].isNearest === true;
 
   assertions.push({
-    name: 'Dispatch near Quán Thánh selects Cơ sở 4 as nearest facility',
+    name: 'Dispatch near Quán Thánh selects Cơ sở 4 as nearest facility with isNearest=true',
     pass: Boolean(unitAPass),
     actual: {
       selectedId: unitA?.id,
       selectedFacility: unitA?.facility_type,
       selectedAddress: unitA?.address,
       wardFacilitiesCount: unitA?.wardFacilities?.length,
-      firstInList: unitA?.wardFacilities?.[0]?.name
+      firstInList: unitA?.wardFacilities?.[0]?.name,
+      firstIsNearest: unitA?.wardFacilities?.[0]?.isNearest
     }
   });
 
@@ -146,23 +169,128 @@ async function fetchJson(urlPath, options = {}) {
     unitB.isNearestFacilityInWard === true &&
     Array.isArray(unitB.wardFacilities) &&
     unitB.wardFacilities.length === 2 &&
-    unitB.wardFacilities[0].id === 'st-hn-ca-004-ba-dinh';
+    unitB.wardFacilities[0].id === 'st-hn-ca-004-ba-dinh' &&
+    unitB.wardFacilities[0].isNearest === true;
 
   assertions.push({
-    name: 'Dispatch near Điện Biên Phủ selects Trụ sở chính as nearest facility',
+    name: 'Dispatch near Điện Biên Phủ selects Trụ sở chính as nearest facility with isNearest=true',
     pass: Boolean(unitBPass),
     actual: {
       selectedId: unitB?.id,
       selectedFacility: unitB?.facility_type,
       selectedAddress: unitB?.address,
       wardFacilitiesCount: unitB?.wardFacilities?.length,
-      firstInList: unitB?.wardFacilities?.[0]?.name
+      firstInList: unitB?.wardFacilities?.[0]?.name,
+      firstIsNearest: unitB?.wardFacilities?.[0]?.isNearest
+    }
+  });
+
+  // Dispatch Case C (R4): PCCC&CNCH incident routes to nearest Regional Squad by radius across city (with 15-min escalation timer to City HQ)
+  const sosFire = await fetchJson('/api/sos/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      emergencyType: 'fire',
+      name: 'Báo cháy khu vực Hoàn Kiếm',
+      phone: '0909114114',
+      lat: 21.0285,
+      lng: 105.8542,
+      address: 'Phường Hoàn Kiếm, Hà Nội'
+    })
+  });
+  const fireInc = sosFire?.incident;
+  const fireSquadPass = fireInc &&
+    fireInc.currentLevel === 'ward' &&
+    fireInc.escalationStatus === 'PENDING_LOCAL' &&
+    Boolean(fireInc.escalationDueAt) &&
+    fireInc.assignedUnit?.isRegionalSquad === true &&
+    fireInc.assignedUnit?.jurisdictionScope === 'radius' &&
+    fireInc.provinceUnit?.isCityHq === true;
+
+  assertions.push({
+    name: 'PCCC&CNCH SOS routes to nearest Regional Squad by radius (level=ward, 15m timer) with City HQ as provinceUnit',
+    pass: Boolean(fireSquadPass),
+    actual: {
+      incidentId: fireInc?.id,
+      currentLevel: fireInc?.currentLevel,
+      escalationStatus: fireInc?.escalationStatus,
+      escalationDueAt: fireInc?.escalationDueAt,
+      assignedSquad: fireInc?.assignedUnit?.name,
+      isRegionalSquad: fireInc?.assignedUnit?.isRegionalSquad,
+      cityHqTarget: fireInc?.provinceUnit?.name,
+      cityHqIsCityHq: fireInc?.provinceUnit?.isCityHq
+    }
+  });
+
+  // Dispatch Case D (R4): CSGT incident routes to nearest Regional Squad by radius, then escalates to City HQ via POST /api/dispatcher/escalate
+  const loginRes = await fetchJson('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: '2002' })
+  });
+  const authToken = loginRes?.profile?.token || '';
+
+  const sosCsgt = await fetchJson('/api/sos/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      emergencyType: 'csgt',
+      name: 'Tai nạn giao thông đường bộ',
+      phone: '0909113113',
+      lat: 21.0278,
+      lng: 105.8525,
+      address: 'Trần Quang Khải, Hoàn Kiếm, Hà Nội'
+    })
+  });
+  const csgtInc = sosCsgt?.incident;
+  const csgtEscalateRes = await fetchJson('/api/dispatcher/escalate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    },
+    body: JSON.stringify({
+      id: csgtInc?.id,
+      officerName: 'Trực ban Đội CSGT',
+      officerRank: 'Thiếu tá',
+      unitName: csgtInc?.assignedUnit?.name,
+      reason: 'Quá 15 phút cấp đội chưa giải quyết xong, chuyển Trụ sở chính Phòng CSGT Thành phố điều phối'
+    })
+  });
+  const escalatedInc = csgtEscalateRes?.incident;
+  const csgtEscalatePass = csgtInc?.assignedUnit?.isRegionalSquad === true &&
+    escalatedInc &&
+    escalatedInc.currentLevel === 'province' &&
+    escalatedInc.status === 'escalated' &&
+    escalatedInc.escalationStatus === 'ESCALATED_CITY_HQ' &&
+    escalatedInc.assignedUnit?.isCityHq === true &&
+    (escalatedInc.assignedUnit?.name || '').toLowerCase().includes('phòng cảnh sát giao thông');
+
+  assertions.push({
+    name: 'CSGT SOS routes to nearest Regional Squad and escalates to Phòng CSGT - Trụ sở chính via POST /api/dispatcher/escalate',
+    pass: Boolean(csgtEscalatePass),
+    actual: {
+      initialSquad: csgtInc?.assignedUnit?.name,
+      escalatedLevel: escalatedInc?.currentLevel,
+      escalatedStatus: escalatedInc?.status,
+      escalationStatus: escalatedInc?.escalationStatus,
+      escalatedCityHq: escalatedInc?.assignedUnit?.name
     }
   });
 
   report.apiChecks = {
     sosQuanThanh: unitA,
-    sosDienBienPhu: unitB
+    sosDienBienPhu: unitB,
+    sosFire: {
+      assignedUnit: fireInc?.assignedUnit,
+      provinceUnit: fireInc?.provinceUnit,
+      escalationDueAt: fireInc?.escalationDueAt
+    },
+    sosCsgtEscalated: {
+      initialSquad: csgtInc?.assignedUnit?.name,
+      escalatedTo: escalatedInc?.assignedUnit?.name,
+      escalationStatus: escalatedInc?.escalationStatus
+    }
   };
 
   console.log('--- 3. BROWSER UI MULTI-FACILITY MAP RENDERING ---');
@@ -331,10 +459,52 @@ async function fetchJson(urlPath, options = {}) {
     actual: clearPinsResult
   });
 
+  // UI Check 4: Active Incident Drawer renders Multi-Facility List with [Cơ sở gần nhất] badge and 15-Minute Countdown + Chuyển cấp Thành phố button
+  const drawerUiResult = await page.evaluate(async (incData) => {
+    const app = window.dispatcher || window.dispatcherApp;
+    if (!app || typeof app.updateDrawer !== 'function') return { error: 'No updateDrawer method' };
+    app.activeIncident = incData;
+    app.updateDrawer(incData);
+    await new Promise(r => setTimeout(r, 300));
+
+    const facSection = document.getElementById('drawerWardFacilitiesSection');
+    const facList = document.getElementById('drawerWardFacilitiesList');
+    const timerCard = document.getElementById('drawerEscalationTimerCard');
+    const countdownEl = document.getElementById('drawerEscalationCountdown');
+    const btnEscalate = document.getElementById('btnEscalateCityHq');
+
+    const facHtml = facList ? facList.innerHTML : '';
+    const countdownText = countdownEl ? countdownEl.textContent.trim() : '';
+
+    return {
+      facSectionVisible: facSection ? facSection.style.display !== 'none' : false,
+      hasNearestBadge: facHtml.includes('[Cơ sở gần nhất]'),
+      hasDistanceKm: facHtml.includes('km'),
+      timerCardVisible: timerCard ? timerCard.style.display !== 'none' : false,
+      countdownText,
+      countdownFormatValid: /^\d{2}:\d{2}$/.test(countdownText),
+      btnEscalateVisible: btnEscalate ? !btnEscalate.disabled : false,
+      btnEscalateText: btnEscalate ? btnEscalate.textContent.trim() : ''
+    };
+  }, sosQuanThanh.incident);
+
+  assertions.push({
+    name: 'Active Incident Drawer displays multi-facility list with [Cơ sở gần nhất] badge and 15-minute countdown + Chuyển cấp Thành phố button',
+    pass: Boolean(
+      drawerUiResult.facSectionVisible &&
+      drawerUiResult.hasNearestBadge &&
+      drawerUiResult.timerCardVisible &&
+      drawerUiResult.countdownFormatValid &&
+      drawerUiResult.btnEscalateVisible
+    ),
+    actual: drawerUiResult
+  });
+
   report.uiChecks = {
     baDinhUiResult,
     bachMaiUiResult,
-    clearPinsResult
+    clearPinsResult,
+    drawerUiResult
   };
 
   await browser.close();

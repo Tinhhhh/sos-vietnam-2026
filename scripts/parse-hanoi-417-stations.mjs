@@ -173,6 +173,97 @@ async function resolveCoordsFromUrl(mapsUrl) {
   return null;
 }
 
+const OFFICIAL_ANTD_SOURCE_URL = 'https://anninhthudo.vn/chi-tiet-danh-sach-417-tru-so-diem-tiep-dan-kem-link-google-map-cua-cong-an-tp-ha-noi-post666267.antd';
+
+function decodeHtmlEntities(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isNonOperationalEntity(name, services = '') {
+  const n = (name || '').toLowerCase();
+  const s = (services || '').toLowerCase();
+  const bannedNamePatterns = [
+    /bảo tàng công an/i,
+    /bảo tàng nghiệp vụ/i,
+    /báo an ninh thủ đô/i,
+    /bệnh viện catp/i,
+    /bệnh viện công an/i,
+    /nhà nghỉ dưỡng/i,
+    /nhà khách/i,
+    /trung tâm điều dưỡng/i,
+    /công ty tnhh/i,
+    /công ty tháng 8/i,
+    /uỷ ban kiểm tra đảng/i,
+    /ủy ban kiểm tra đảng/i,
+    /trung tâm huấn luyện và bồi dưỡng/i
+  ];
+  if (bannedNamePatterns.some(rx => rx.test(n))) return true;
+  if (/tiếp đón khách tham quan bảo tàng|tiếp đón bệnh nhân đến khám chữa bệnh|nghỉ ngơi, điều dưỡng/i.test(s)) return true;
+  return false;
+}
+
+function classifyOperationalUnit(name) {
+  const cleanName = decodeHtmlEntities(name);
+  // 1. PCCC & CNCH
+  if (/PCCC|CC&CNCH|chữa cháy/i.test(cleanName)) {
+    const isHq = /phòng cảnh sát pccc|trụ sở phòng cảnh sát pccc|trụ sở chính/i.test(cleanName);
+    return {
+      agency: 'fire',
+      agency_name: 'Cảnh Sát PCCC & CNCH',
+      level: isHq ? 'province' : 'ward',
+      isCityHq: isHq,
+      isRegionalSquad: !isHq,
+      unitCategory: isHq ? 'city_hq' : 'regional_squad',
+      jurisdictionScope: isHq ? 'city_hq' : 'radius'
+    };
+  }
+  // 2. CSGT
+  if (/cảnh sát giao thông|CSGT|cảnh sát đường thủy/i.test(cleanName)) {
+    const isHq = /trụ sở chính/i.test(cleanName);
+    return {
+      agency: 'csgt',
+      agency_name: 'Cảnh Sát Giao Thông',
+      level: isHq ? 'province' : 'ward',
+      isCityHq: isHq,
+      isRegionalSquad: !isHq,
+      unitCategory: isHq ? 'city_hq' : 'regional_squad',
+      jurisdictionScope: isHq ? 'city_hq' : 'radius'
+    };
+  }
+  // 3. Grassroots Commune/Ward Police (Công an xã/phường/thị trấn/đồn)
+  if (/^(công an (phường|xã|thị trấn)|công xã|đồn công an)/i.test(cleanName)) {
+    return {
+      agency: 'police',
+      agency_name: 'Công An',
+      level: 'ward',
+      isCityHq: false,
+      isRegionalSquad: false,
+      unitCategory: 'ward_police',
+      jurisdictionScope: 'ward'
+    };
+  }
+  // 4. City-level Police Departments / Investigation Clusters
+  const isHq = /trụ sở chính|^thanh tra catp|^phòng quản lý xuất nhập cảnh|^phòng cảnh sát quản lý hành chính|^phòng cảnh sát điều tra tội phạm về ma túy|^phòng hồ sơ nghiệp vụ/i.test(cleanName);
+  return {
+    agency: 'police',
+    agency_name: 'Công An',
+    level: isHq ? 'province' : 'ward',
+    isCityHq: isHq,
+    isRegionalSquad: !isHq,
+    unitCategory: isHq ? 'city_hq' : 'regional_squad',
+    jurisdictionScope: isHq ? 'city_hq' : 'radius'
+  };
+}
+
 function parseTableRows() {
   const trRegex = /<tr>([\s\S]*?)<\/tr>/gi;
   const rows = [];
@@ -188,13 +279,17 @@ function parseTableRows() {
     }
     if (cells.length >= 6) {
       const mapsMatch = cells[5].match(/href="([^"]+)"/i);
+      const rawName = decodeHtmlEntities(cells[1].replace(/<[^>]+>/g, '').trim());
+      const rawAddress = decodeHtmlEntities(cells[2].replace(/<[^>]+>/g, '').trim());
+      const rawPhone = decodeHtmlEntities(cells[3].replace(/<[^>]+>/g, '').trim());
+      const rawServices = decodeHtmlEntities(cells[4].replace(/<[^>]+>/g, '').trim());
       rows.push({
         stt: parseInt(cells[0].replace(/<[^>]+>/g, '').trim(), 10) || cells[0].replace(/<[^>]+>/g, '').trim(),
-        name: cells[1].replace(/<[^>]+>/g, '').trim(),
-        address: cells[2].replace(/<[^>]+>/g, '').trim(),
-        phone: cells[3].replace(/<[^>]+>/g, '').trim(),
-        services: cells[4].replace(/<[^>]+>/g, '').trim(),
-        maps_url: mapsMatch ? mapsMatch[1] : ''
+        name: rawName,
+        address: rawAddress,
+        phone: rawPhone,
+        services: rawServices,
+        maps_url: mapsMatch ? decodeHtmlEntities(mapsMatch[1]) : ''
       });
     }
   }
@@ -207,9 +302,8 @@ function determineFacilityType(name) {
   if (mCs) return `Cơ sở ${mCs[1]}`;
   const mTs = name.match(/trụ sở\s*(\d+|[A-Z]+)/i);
   if (mTs) return `Trụ sở ${mTs[1]}`;
-  if (/bệnh viện/i.test(name)) return 'Bệnh viện ngành';
-  if (/bảo tàng/i.test(name)) return 'Bảo tàng nghiệp vụ';
-  if (/báo/i.test(name)) return 'Cơ quan báo chí';
+  if (/đội cc&cnch|đội cảnh sát pccc/i.test(name)) return 'Đội PCCC & CNCH khu vực';
+  if (/đội csgt|đội cs đường thủy|đội tuần tra/i.test(name)) return 'Đội CSGT địa bàn';
   if (/cảnh sát điều tra/i.test(name)) return 'Cơ quan điều tra';
   return 'Điểm tiếp dân';
 }
@@ -219,9 +313,10 @@ function slugify(text) {
 }
 
 async function main() {
-  console.log('--- STARTING HÀ NỘI 417 STATIONS INGESTION ---');
-  const rows = parseTableRows();
-  console.log(`Parsed ${rows.length} rows from source.`);
+  console.log('--- STARTING HÀ NỘI OFFICIAL STATIONS INGESTION & SANITIZATION ---');
+  const allRows = parseTableRows();
+  const rows = allRows.filter(r => !isNonOperationalEntity(r.name, r.services));
+  console.log(`Parsed ${allRows.length} total rows -> Filtered out ${allRows.length - rows.length} non-operational rows -> Keeping ${rows.length} operational units.`);
 
   console.log('Resolving Google Maps coordinates (with concurrency & caching)...');
   const CONCURRENCY = 8;
@@ -232,7 +327,6 @@ async function main() {
       row.coords = coords;
     }));
     process.stdout.write(`\rResolved ${Math.min(i + CONCURRENCY, rows.length)} / ${rows.length} coordinates...`);
-    // save cache periodically
     if (i % 40 === 0) {
       fs.writeFileSync(cachePath, JSON.stringify(urlCache, null, 2));
     }
@@ -252,9 +346,7 @@ async function main() {
     let lng = row.coords?.lng;
     let isGpsVerified = true;
 
-    // Check if coordinates fall within the general Hà Nội region (lat 20.5-21.6, lng 105.2-106.2)
     if (!lat || !lng || lat < 20.5 || lat > 21.6 || lng < 105.2 || lng > 106.2) {
-      // Small jitter so multiple fallback stations in the same ward don't stack exactly on top of each other
       const jitterOffset = ((row.stt % 7) - 3) * 0.0003;
       lat = +(fallbackCentroid.lat + jitterOffset).toFixed(6);
       lng = +(fallbackCentroid.lng + jitterOffset).toFixed(6);
@@ -265,6 +357,7 @@ async function main() {
     }
 
     const facilityType = determineFacilityType(row.name);
+    const classification = classifyOperationalUnit(row.name);
     const wardSlug = slugify(ward.replace(/^(phường|xã|thị trấn)\s+/i, ''));
     const id = `st-hn-ca-${row.stt.toString().padStart(3, '0')}-${wardSlug}`;
 
@@ -272,9 +365,13 @@ async function main() {
       id,
       stt: row.stt,
       name: row.name,
-      agency: 'police',
-      agency_name: 'Công An',
-      level: 'ward',
+      agency: classification.agency,
+      agency_name: classification.agency_name,
+      level: classification.level,
+      isCityHq: classification.isCityHq,
+      isRegionalSquad: classification.isRegionalSquad,
+      unitCategory: classification.unitCategory,
+      jurisdictionScope: classification.jurisdictionScope,
       province: 'Hà Nội',
       ward,
       address: row.address,
@@ -289,6 +386,7 @@ async function main() {
       lng,
       isGpsVerified,
       maps_url: row.maps_url,
+      source_url: OFFICIAL_ANTD_SOURCE_URL,
       facility_type: facilityType,
       services: row.services || 'Tiếp nhận tố giác tội phạm, cư trú, ANTT',
       email: `cahn_${wardSlug}@hanoi.gov.vn`
@@ -296,20 +394,10 @@ async function main() {
   });
 
   console.log(`\nStatistics:`);
-  console.log(`- Total stations: ${officialStations.length}`);
+  console.log(`- Total operational stations: ${officialStations.length}`);
   console.log(`- GPS verified from Google Maps: ${gpsResolvedCount}`);
   console.log(`- Fallback to ward centroid: ${fallbackCount}`);
 
-  // Count distribution across wards
-  const wardCounts = {};
-  officialStations.forEach(s => {
-    wardCounts[s.ward] = (wardCounts[s.ward] || 0) + 1;
-  });
-  const sortedWards = Object.entries(wardCounts).sort((a, b) => b[1] - a[1]);
-  console.log(`- Distinct wards covered: ${sortedWards.length}`);
-  console.log(`- Top wards with most facilities:`, sortedWards.slice(0, 5));
-
-  // Save official 417 stations to assets/hanoi-official-417-stations.json
   const outputPath = 'assets/hanoi-official-417-stations.json';
   fs.writeFileSync(outputPath, JSON.stringify(officialStations, null, 2), 'utf8');
   console.log(`Saved official dataset to ${outputPath} (${(fs.statSync(outputPath).size / 1024).toFixed(1)} KB).`);

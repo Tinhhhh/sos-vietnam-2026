@@ -42,7 +42,9 @@
     body:not(.officer-authenticated) .header-nav,
     body:not(.officer-authenticated) .dispatcher-layout,
     body:not(.officer-authenticated) #dispatcherFloatingChatDock,
-    body:not(.officer-authenticated) .tactical-tabbar {
+    body:not(.officer-authenticated) .tactical-tabbar,
+    body:not(.officer-authenticated) #dutyShiftModal,
+    body:not(.officer-authenticated) #substituteOfficerModal {
       display: none !important;
       visibility: hidden !important;
       pointer-events: none !important;
@@ -2003,6 +2005,8 @@
             </div>
           </div>
 
+          <div id="hudWardMultiFacilityContainer" style="display: none; margin-top: 10px; margin-bottom: 10px; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 8px; max-height: 210px; overflow-y: auto;"></div>
+
           <div style="margin-top: 12px;">
             <a id="hudGmapsBtn" href="https://www.google.com/maps" target="_blank" rel="noopener" style="display: block; width: 100%; text-align: center; background: #c2410c; color: #ffffff; padding: 9px 0; border-radius: 6px; font-size: 13.5px; font-weight: 800; text-decoration: none; box-shadow: 0 4px 12px rgba(194, 65, 12, 0.45); transition: all 0.2s ease;">
               Chỉ đường
@@ -2224,6 +2228,14 @@
             <div id="drawerMediaGrid" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
           </div>
 
+          <!-- Multi-Facility Ward Directory Card (Hiển thị toàn bộ cơ sở trong phường/xã & đánh dấu cơ sở gần nhất) -->
+          <div id="drawerWardFacilitiesSection" style="display: none; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
+            <div id="drawerWardFacilitiesTitle" style="font-size: 10.5px; font-weight: 800; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+              <span>🏛️ Các Cơ Sở Công An Thuộc Địa Bàn</span>
+            </div>
+            <div id="drawerWardFacilitiesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 210px; overflow-y: auto;"></div>
+          </div>
+
           <!-- Multi-Channel Dispatch Info Card -->
           <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;" id="drawerChannelInfo">
             <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Kênh Cảnh Báo Tự Động</div>
@@ -2251,6 +2263,21 @@
 
           <!-- Action Control Buttons -->
           <div style="display: flex; flex-direction: column; gap: 6px;" id="drawerActionButtons">
+            <!-- 15-MINUTE ESCALATION COUNTDOWN & MANUAL CITY HQ TRANSFER CARD -->
+            <div id="drawerEscalationTimerCard" style="display: none; background: rgba(15, 23, 42, 0.85); border: 1.5px solid rgba(245, 158, 11, 0.45); border-radius: 10px; padding: 10px 12px; margin-bottom: 4px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <div style="font-size: 10.5px; font-weight: 800; color: #fbbf24; text-transform: uppercase;">
+                  ⏱️ Thời hạn xử lý tại Cấp Đội / Cơ sở (15p)
+                </div>
+                <span id="drawerEscalationCountdown" style="font-family: monospace; font-size: 13.5px; font-weight: 900; color: #fef08a; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.5); padding: 1px 7px; border-radius: 6px;">15:00</span>
+              </div>
+              <div id="drawerEscalationTargetText" style="font-size: 11px; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
+                Quá 15 phút chưa giải quyết sẽ chuyển lên <b>Trụ sở chính cấp Thành phố</b> điều phối toàn địa bàn.
+              </div>
+              <button type="button" id="btnEscalateCityHq" class="btn-refresh-loc" style="width: 100%; margin-top: 7px; justify-content: center; background: rgba(245, 158, 11, 0.2); border: 1.5px solid #f59e0b; color: #fbbf24; font-weight: 800; font-size: 11.5px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;">
+                <span>⚡</span> Chuyển cấp Thành phố (Trụ sở chính xử lý)
+              </button>
+            </div>
             <!-- NATIONAL COMMAND OVERSIGHT CARD (Dành riêng cho Trung Tâm Chỉ Huy Quốc Gia - Chỉ xem, không tiếp nhận thay cơ sở) -->
             <div id="drawerNationalOversightCard" style="display: none; background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.98)); border: 1.5px solid rgba(56, 189, 248, 0.45); border-radius: 12px; padding: 12px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6); margin-bottom: 6px;">
               <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 8px; margin-bottom: 8px;">
