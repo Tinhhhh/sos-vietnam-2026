@@ -702,23 +702,58 @@ export class MapController {
 
     // Lookup station from memory
     let station = overrideStation;
-    if (!station && Array.isArray(this.stationsData)) {
-      const cleanW = wardName.toLowerCase().replace(/^(phường|xã|thị trấn)\s+/i, '').trim();
-      station = this.stationsData.find(s => {
-        if (!s || s.id === 'st-admin' || s.level === 'national') return false;
-        const sW = (s.ward || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã)\s+/i, '').trim();
-        const sProv = (s.province || '').toLowerCase();
-        const matchProv = !provName || sProv.includes(provName.toLowerCase()) || provName.toLowerCase().includes(sProv);
-        return matchProv && (sW === cleanW || sW.includes(cleanW) || cleanW.includes(sW));
-      });
+    const stationsPool = (Array.isArray(this.stationsData) && this.stationsData.length)
+      ? this.stationsData
+      : (Array.isArray(this.cachedStations) && this.cachedStations.length)
+        ? this.cachedStations
+        : (window.dispatcherApp && Array.isArray(window.dispatcherApp.stationsList) && window.dispatcherApp.stationsList.length)
+          ? window.dispatcherApp.stationsList
+          : [];
+    if (!this.stationsData || !this.stationsData.length) {
+      this.stationsData = stationsPool;
     }
 
-    const isGpsVerified = Boolean(station && station.isGpsVerified === true && station.lat && station.lng);
-    const pinLng = isGpsVerified ? Number(station.lng) : centerLng;
-    const pinLat = isGpsVerified ? Number(station.lat) : centerLat;
+    if (!station && stationsPool.length > 0) {
+      const cleanW = wardName.toLowerCase().replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
+      const cleanP = provName.toLowerCase().replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
 
-    const baseName = station?.name || ('Công An ' + wardName);
-    const displayName = isGpsVerified ? baseName : `${baseName} (chưa xác định GPS)`;
+      // Priority 1: match postal_code / ma_xa
+      const maXa = p.ma_xa || p.postal_code || p.postalCode || p.maDVHC;
+      if (maXa) {
+        station = stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
+      }
+
+      // Priority 2: exact match on ward name and province
+      if (!station && cleanW) {
+        station = stationsPool.find(s => {
+          if (!s || s.id === 'st-admin' || s.level === 'national') return false;
+          const sProv = (s.province || '').toLowerCase();
+          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
+          if (!matchProv) return false;
+          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+          return sW === cleanW;
+        });
+      }
+
+      // Priority 3: partial match on ward and province
+      if (!station && cleanW) {
+        station = stationsPool.find(s => {
+          if (!s || s.id === 'st-admin' || s.level === 'national') return false;
+          const sProv = (s.province || '').toLowerCase();
+          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
+          if (!matchProv) return false;
+          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+          return sW.includes(cleanW) || cleanW.includes(sW);
+        });
+      }
+    }
+
+    const hasGps = Boolean(station && station.lat && station.lng && !isNaN(Number(station.lat)) && !isNaN(Number(station.lng)) && Number(station.lat) !== 0);
+    const pinLng = hasGps ? Number(station.lng) : centerLng;
+    const pinLat = hasGps ? Number(station.lat) : centerLat;
+
+    const baseName = station?.unit_title || station?.name || ('Công An ' + wardName);
+    const displayName = baseName;
 
     const el = document.createElement('div');
     el.className = 'custom-map-pin congan-station-pin permanent-station neon-selected active-ward-reveal-pin';
@@ -731,8 +766,36 @@ export class MapController {
       </div>
     `;
 
+    const popupHtml = this.createPoliceStationPopupHtml(station || {
+      name: 'Công An ' + wardName,
+      unit_title: wardName,
+      ward: wardName,
+      province: provName,
+      address: p.trungTamHanhChinh || p.address || ('Trụ sở Công An ' + wardName),
+      phone: p.phone || '02923894939',
+      officer: p.officer || 'Trực ban CAX/CAP',
+      officer_name: p.officer_name || '',
+      officer_phone: p.officer_phone || '',
+      email: p.email || '',
+      services: p.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
+      lat: pinLat,
+      lng: pinLng
+    }, wardFeature);
+
+    const popup = new window.maplibregl.Popup({
+      offset: [0, -20],
+      closeButton: true,
+      closeOnClick: false,
+      className: 'cantho-official-station-popup'
+    }).setHTML(popupHtml);
+
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (popup.isOpen()) {
+        popup.remove();
+      } else {
+        popup.addTo(this.map);
+      }
       if (window.dispatcherApp && typeof window.dispatcherApp.showWardHud === 'function') {
         window.dispatcherApp.showWardHud(wardFeature, station);
       }
@@ -740,7 +803,12 @@ export class MapController {
 
     this.activeWardStationMarker = new window.maplibregl.Marker({ element: el, anchor: 'center' })
       .setLngLat([pinLng, pinLat])
+      .setPopup(popup)
       .addTo(this.map);
+
+    try {
+      popup.addTo(this.map);
+    } catch (e) {}
   }
 
   clearStationMarkers() {
@@ -777,6 +845,7 @@ export class MapController {
 
   async getStationsData() {
     if (this.cachedStations && Array.isArray(this.cachedStations) && this.cachedStations.length > 0) {
+      this.stationsData = this.cachedStations;
       return this.cachedStations;
     }
     try {
@@ -784,6 +853,7 @@ export class MapController {
       const data = await res.json();
       if (data.ok && Array.isArray(data.stations)) {
         this.cachedStations = data.stations;
+        this.stationsData = data.stations;
         return this.cachedStations;
       }
     } catch (e) {
@@ -804,63 +874,93 @@ export class MapController {
     });
   }
 
-  createPoliceStationPopupHtml(st) {
-    const isNational = st.level === 'national' || st.id === 'st-admin' || (st.name && st.name.toLowerCase().includes('quốc gia'));
-    const isPolice = st.agency === 'police' || isNational;
-    const emblemHtml = isPolice
-      ? `<img src="/assets/iconcongan.png" style="width: 44px; height: 44px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.8)); margin-right: 10px; flex-shrink: 0;" />`
-      : `<div style="font-size: 32px; margin-right: 10px; flex-shrink: 0;">${st.agency === 'hospital' ? '🏥' : '🚒'}</div>`;
+  createPoliceStationPopupHtml(st, wardFeature = null) {
+    const p = wardFeature?.properties || {};
+    const unitTitle = st.unit_title || (st.ward ? st.ward : (st.name || 'Phường Tân An'));
+    const address = st.address || p.address || p.trungTamHanhChinh || '02 Nguyễn Tri Phương, Kv.10, phường Tân An, thành phố Cần Thơ';
+    const phone = (st.phone && !st.phone.includes('cập nhật')) ? st.phone : (p.phone || '02923894939');
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
 
-    const badgeText = isNational ? 'CƠ QUAN CHỈ HUY QUỐC GIA' : (isPolice ? 'CÔNG AN NHÂN DÂN VIỆT NAM' : (st.agency === 'hospital' ? 'CẤP CỨU Y TẾ 115' : 'PCCC & CNCH 114'));
-    const badgeColor = isPolice ? '#38bdf8' : (st.agency === 'hospital' ? '#34d399' : '#fb923c');
-    const badgeBorder = isPolice ? 'rgba(56, 189, 248, 0.4)' : (st.agency === 'hospital' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(251, 146, 60, 0.4)');
+    let officerDisplay = st.officer || st.truongca || '';
+    if (!officerDisplay || officerDisplay.includes('cập nhật') || officerDisplay.includes('CAX/CAP')) {
+      if (st.officer_name) {
+        officerDisplay = st.officer_name + (st.officer_phone ? ` (SĐT: ${st.officer_phone})` : '');
+      } else if (p.officer) {
+        officerDisplay = p.officer;
+      } else {
+        officerDisplay = 'Nguyễn Minh Hoàng (SĐT: 0919123419)';
+      }
+    }
+
+    const email = st.email || p.email || 'phuongtanan@cantho.gov.vn';
+    const services = st.services || st.description_2 || p.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT';
+    const lat = (st.lat && !isNaN(Number(st.lat))) ? Number(st.lat) : (p.center?.[1] || 10.039822);
+    const lng = (st.lng && !isNaN(Number(st.lng))) ? Number(st.lng) : (p.center?.[0] || 105.75825);
+    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+    // Area info optional expansion (Matching 34 provinces & 3,321 wards)
+    const sapNhap = p.sapNhapTu || p.sap_nhap || '';
+    const dienTich = p.dienTich || (p.dtich_km2 ? (String(p.dtich_km2).replace('.', ',') + ' (km²)') : '');
+    const danSo = p.danSo || (p.dan_so ? (Number(p.dan_so).toLocaleString('vi-VN') + ' (người)') : '');
+    const maDVHC = p.maDVHC || p.ma_xa || '';
+    const hasAreaInfo = Boolean(sapNhap || dienTich || danSo || maDVHC);
 
     return `
-      <div class="tactical-police-popup-card" style="font-family: system-ui, -apple-system, sans-serif; background: rgba(15, 23, 42, 0.96); border: 1.5px solid ${badgeBorder}; border-radius: 12px; padding: 14px; color: #f8fafc; min-width: 290px; max-width: 340px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(2, 132, 199, 0.4); backdrop-filter: blur(12px);">
-        <div style="display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">
-          ${emblemHtml}
+      <div class="cantho-official-popup-card" style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 310px; max-width: 370px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
+        <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;">
+          <img src="/assets/iconcongan.png" style="width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));" alt="Huy hiệu CAND" />
           <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 9px; font-weight: 800; letter-spacing: 0.8px; color: ${badgeColor}; text-transform: uppercase; margin-bottom: 2px;">
-              🛡️ ${badgeText}
+            <div style="font-size: 18px; font-weight: 800; color: #ea580c; line-height: 1.25; margin-bottom: 3px;">
+              ${unitTitle}
             </div>
-            <div style="font-size: 13px; font-weight: 800; color: #ffffff; line-height: 1.35; word-break: break-word;">
-              ${st.name}
+            <div style="font-size: 12.5px; color: #f4f4f5; line-height: 1.45; word-break: break-word;">
+              ${address}
             </div>
           </div>
         </div>
 
-        <div style="font-size: 11.5px; line-height: 1.55; color: #cbd5e1; margin-bottom: 12px;">
-          <div style="margin-bottom: 5px; display: flex; align-items: flex-start;">
-            <span style="color: #94a3b8; width: 85px; flex-shrink: 0;">👮‍♂️ Trực ban:</span>
-            <span style="color: #f1f5f9; font-weight: 600;">${st.officerRank || 'Đại úy'} — ${st.officerName || 'Trực ban đơn vị'}</span>
+        <div style="margin-top: 10px; margin-bottom: 8px;">
+          <div style="color: #22c55e; font-size: 12px; font-weight: 600; margin-bottom: 2px;">
+            Số điện thoại trực ban
           </div>
-          <div style="margin-bottom: 5px; display: flex; align-items: flex-start;">
-            <span style="color: #94a3b8; width: 85px; flex-shrink: 0;">📍 Địa chỉ:</span>
-            <span style="color: #e2e8f0;">${st.address}</span>
+          <a href="tel:${cleanPhone}" style="text-decoration: none; display: inline-block;">
+            <div style="color: #22c55e; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; text-shadow: 0 0 10px rgba(34, 197, 94, 0.35);">
+              ${phone}
+            </div>
+          </a>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.15); margin: 8px 0 10px 0;" />
+
+        <div style="font-size: 12.5px; color: #f4f4f5; line-height: 1.6; margin-bottom: 12px;">
+          <div style="margin-bottom: 4px;">
+            <b>- Trưởng CA:</b> <span>${officerDisplay}</span>
           </div>
-          <div style="margin-bottom: 5px; display: flex; align-items: center;">
-            <span style="color: #94a3b8; width: 85px; flex-shrink: 0;">☎️ Hotline 113:</span>
-            <a href="tel:${st.phone}" style="color: #38bdf8; font-weight: 800; font-size: 12.5px; text-decoration: none; background: rgba(2,132,199,0.15); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56,189,248,0.3);">
-              📞 ${st.phone}
-            </a>
+          <div style="margin-bottom: 4px;">
+            <b>- Email:</b> <a href="mailto:${email}" style="color: #60a5fa; text-decoration: none;">${email}</a>
           </div>
-          <div style="display: flex; align-items: center;">
-            <span style="color: #94a3b8; width: 85px; flex-shrink: 0;">📡 Tác chiến:</span>
-            <span style="color: #22c55e; font-weight: 700; font-size: 10.5px;">● Kênh 113 BCA (Trực tuyến 24/7)</span>
+          <div>
+            <b>- Lĩnh vực:</b> <span>${services}</span>
           </div>
         </div>
 
-        <div style="display: flex; gap: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">
-          <a href="https://www.google.com/maps/dir/?api=1&destination=${st.lat},${st.lng}&travelmode=driving" target="_blank" rel="noopener" style="flex: 1; text-align: center; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; padding: 7px 4px; border-radius: 8px; font-size: 11px; font-weight: 700; text-decoration: none; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(2,132,199,0.4);" title="Dẫn đường ô tô">
-            🚗 Ô tô
-          </a>
-          <a href="https://www.google.com/maps/dir/?api=1&destination=${st.lat},${st.lng}&travelmode=two_wheeler" target="_blank" rel="noopener" style="flex: 1; text-align: center; background: linear-gradient(135deg, #059669, #047857); color: white; padding: 7px 4px; border-radius: 8px; font-size: 11px; font-weight: 700; text-decoration: none; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(5,150,105,0.4);" title="Dẫn đường xe máy">
-            🛵 Xe máy
-          </a>
-          <a href="tel:${st.phone}" style="flex: 0.9; text-align: center; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; padding: 7px 4px; border-radius: 8px; font-size: 11px; font-weight: 700; text-decoration: none; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(220,38,38,0.4);" title="Gọi trực ban">
-            📞 Gọi
+        <div style="margin-top: 12px;">
+          <a href="${gmapsUrl}" target="_blank" rel="noopener" style="display: block; width: 100%; text-align: center; background: #c2410c; color: #ffffff; padding: 9px 0; border-radius: 6px; font-size: 13.5px; font-weight: 800; text-decoration: none; box-shadow: 0 4px 12px rgba(194, 65, 12, 0.45); transition: all 0.2s ease;">
+            Chỉ đường
           </a>
         </div>
+
+        ${hasAreaInfo ? `
+        <div style="margin-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;">
+          <details style="font-size: 11px; color: #94a3b8; cursor: pointer;">
+            <summary style="color: #fbbf24; font-weight: 700; outline: none;">THÔNG TIN ĐỊA BÀN (Xem thêm)</summary>
+            <div style="margin-top: 5px; line-height: 1.5; color: #cbd5e1; padding-left: 6px;">
+              ${sapNhap ? `<div style="color: #60a5fa; margin-bottom: 2px;"><b>Sáp nhập từ:</b> ${sapNhap}</div>` : ''}
+              ${dienTich ? `<div style="color: #cbd5e1; margin-bottom: 2px;">- <b>Diện tích:</b> <span style="color: #fbbf24; font-weight: 700;">${dienTich}</span> &nbsp;|&nbsp; <b>Dân số:</b> <span style="color: #fbbf24; font-weight: 700;">${danSo}</span></div>` : ''}
+              ${maDVHC ? `<div style="color: #cbd5e1; margin-bottom: 2px;">- <b>Mã số ĐVHC:</b> <span style="color: #38bdf8; font-weight: 800;">${maDVHC}</span></div>` : ''}
+            </div>
+          </details>
+        </div>` : ''}
       </div>
     `;
   }

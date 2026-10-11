@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
@@ -1917,18 +1917,21 @@
         </div>
       </div>
 
-      <!-- sapnhap.bando.com.vn Tactical Ward Geofence Info HUD (Floats when a ward is highlighted) -->
-      <div id="tacticalWardGeofenceHud" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-          <div>
-            <div id="hudWardName" style="font-size: 16px; font-weight: 900; color: #ef4444; text-shadow: 0 0 10px rgba(239, 68, 68, 0.4);">
-              Xã Thuận Hòa
-            </div>
-            <div id="hudWardProvince" style="font-size: 11px; font-weight: 700; color: #34d399;">
-              (Thành phố Cần Thơ)
+      <!-- Official Can Tho Police / Ward Info HUD (Matching Hình 1 bando-congan.cantho.gov.vn) -->
+      <div id="tacticalWardGeofenceHud" style="display: none; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 310px; max-width: 370px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: flex-start; gap: 10px; flex: 1;">
+            <img src="/assets/iconcongan.png" style="width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));" alt="Huy hiệu CAND" />
+            <div style="flex: 1; min-width: 0;">
+              <div id="hudWardUnitTitle" style="font-size: 18px; font-weight: 800; color: #ea580c; line-height: 1.25; margin-bottom: 3px;">
+                Phường Tân An
+              </div>
+              <div id="hudWardAddress" style="font-size: 12.5px; color: #f4f4f5; line-height: 1.45; word-break: break-word;">
+                02 Nguyễn Tri Phương, Kv.10, phường Tân An, thành phố Cần Thơ
+              </div>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
             <button type="button" id="btnMinimizeTacticalHud" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #e2e8f0; font-size: 11px; font-weight: 800; cursor: pointer; padding: 2px 7px; border-radius: 6px; display: flex; align-items: center; gap: 3px;" title="Thu gọn / Mở rộng bảng thông tin">
               <span id="hudMinimizeIcon">▾</span> Thu gọn
             </button>
@@ -1936,49 +1939,60 @@
           </div>
         </div>
 
-        <!-- sapnhap.bando.com.vn Detailed Metadata Block -->
-        <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 8px 10px; margin: 6px 0; font-size: 11px; line-height: 1.5;">
-          <div style="color: #60a5fa; margin-bottom: 2px;">
-            <b>Sáp nhập từ:</b> <span id="hudWardSapNhap" style="color: #e2e8f0;">Xã Thuận Hòa, Xã Phú Tân</span>
+        <div id="hudBodyContent">
+          <div style="margin-top: 12px; margin-bottom: 8px;">
+            <div style="color: #22c55e; font-size: 12px; font-weight: 600; margin-bottom: 2px;">
+              Số điện thoại trực ban
+            </div>
+            <a id="hudWardPhoneLink" href="tel:02923894939" style="text-decoration: none; display: inline-block;">
+              <div id="hudWardPhone" style="color: #22c55e; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; text-shadow: 0 0 10px rgba(34, 197, 94, 0.35);">
+                02923894939
+              </div>
+            </a>
           </div>
-          <div style="color: #cbd5e1; margin-bottom: 2px;">
-            - <b>Trung tâm hành chính:</b> <span id="hudWardAdminCenter" style="color: #f8fafc; font-weight: 700;">UBND xã Phú Tân</span>
-          </div>
-          <div style="color: #cbd5e1; margin-bottom: 2px;">
-            - <b>Diện tích:</b> <span id="hudWardDienTich" style="color: #fbbf24; font-weight: 700;">45,86 (km²)</span> &nbsp;|&nbsp; <b>Dân số:</b> <span id="hudWardDanSo" style="color: #fbbf24; font-weight: 700;">29.846 (người)</span>
-          </div>
-          <div style="color: #cbd5e1; margin-bottom: 2px;">
-            - <b>Mã số ĐVHC (theo QĐ 19/2025/QĐ-TTg):</b> <span id="hudWardMaDVHC" style="color: #38bdf8; font-weight: 800;">31582</span>
-          </div>
-          <div style="color: #94a3b8; font-size: 10px; font-style: italic; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 3px; margin-top: 3px; display: flex; align-items: center; gap: 4px;">
-            <svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> <b>Căn cứ:</b> <span id="hudWardCanCu">Nghị quyết số 1668/NQ-UBTVQH15</span>
-          </div>
-        </div>
 
-        <!-- Police Placement Info -->
-        <div style="background: rgba(0, 136, 255, 0.08); border: 1px solid rgba(0, 136, 255, 0.25); border-radius: 8px; padding: 7px 10px; margin: 6px 0; font-size: 11px; line-height: 1.45;">
-          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
-            <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 9h6M9 13h6M9 17h6"></path></svg>
-            <b>Đơn vị Công an:</b> <span id="hudWardPolice" style="color: #60a5fa; font-weight: 800;">Công An Xã Thuận Hòa</span>
-          </div>
-          <div style="display: flex; gap: 12px; margin-bottom: 2px; flex-wrap: wrap;">
-            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="svg-ico ico-xs ico-emerald" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.45 5.45l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> <b>Trực ban:</b> <a id="hudWardPhoneLink" href="tel:02923897113" style="color: #34d399; font-weight: 800; text-decoration: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); transition: all 0.2s ease;" title="Bấm gọi ngay số trực ban đơn vị"><span id="hudWardPhone">0292 389 7113</span></a></span>
-            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg> <b>SMS:</b> <b id="hudWardSms" style="color: #fbbf24;">0988 999 115</b></span>
-          </div>
-          <div style="color: #e2e8f0; display: flex; align-items: center; gap: 5px;">
-            <svg class="svg-ico ico-xs ico-white" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <b>Chỉ huy trực:</b> <span id="hudWardOfficer" style="color: #f8fafc; font-weight: 700;">Đại úy Nguyễn Văn Khang (Trưởng CAX)</span>
-          </div>
-        </div>
+          <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.15); margin: 8px 0 10px 0;" />
 
-        <!-- Navigation Buttons: Car & Motorbike (No more CAX placement button) -->
-        <div style="display: flex; gap: 6px; margin-top: 8px;">
-          <a id="hudGmapsBtn" href="https://www.google.com/maps" target="_blank" rel="noopener" style="flex: 1; text-align: center; background: #0088ff; color: white; padding: 7px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;" title="Dẫn đường ô tô nhanh nhất từ vị trí hiện tại / trụ sở đến địa bàn">
-            <svg class="svg-ico ico-xs ico-white" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></svg> Dẫn Đường Ô Tô ↗
-          </a>
-          <a id="hudGmapsMotoBtn" href="https://www.google.com/maps" target="_blank" rel="noopener" style="flex: 1; text-align: center; background: #059669; color: white; padding: 7px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;" title="Dẫn đường xe máy nhanh nhất từ vị trí hiện tại / trụ sở đến địa bàn">
-            <svg class="svg-ico ico-xs ico-white" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg> Dẫn Đường Xe Máy ↗
-          </a>
+          <div style="font-size: 12.5px; color: #f4f4f5; line-height: 1.6; margin-bottom: 12px;">
+            <div style="margin-bottom: 4px;">
+              <b>- Trưởng CA:</b> <span id="hudWardOfficer">Nguyễn Minh Hoàng (SĐT: 0919123419)</span>
+            </div>
+            <div style="margin-bottom: 4px;">
+              <b>- Email:</b> <a id="hudWardEmailLink" href="mailto:phuongtanan@cantho.gov.vn" style="color: #60a5fa; text-decoration: none;"><span id="hudWardEmail">phuongtanan@cantho.gov.vn</span></a>
+            </div>
+            <div>
+              <b>- Lĩnh vực:</b> <span id="hudWardServices">Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 12px;">
+            <a id="hudGmapsBtn" href="https://www.google.com/maps" target="_blank" rel="noopener" style="display: block; width: 100%; text-align: center; background: #c2410c; color: #ffffff; padding: 9px 0; border-radius: 6px; font-size: 13.5px; font-weight: 800; text-decoration: none; box-shadow: 0 4px 12px rgba(194, 65, 12, 0.45); transition: all 0.2s ease;">
+              Chỉ đường
+            </a>
+          </div>
+
+          <div style="margin-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;">
+            <details style="font-size: 11px; color: #94a3b8; cursor: pointer;">
+              <summary style="color: #fbbf24; font-weight: 700; outline: none;">THÔNG TIN ĐỊA BÀN (Xem thêm)</summary>
+              <div style="margin-top: 5px; line-height: 1.5; color: #cbd5e1; padding-left: 6px;">
+                <div style="color: #60a5fa; margin-bottom: 2px;">
+                  <b>Sáp nhập từ:</b> <span id="hudWardSapNhap" style="color: #e2e8f0;">Phường Tân An (giữ nguyên)</span>
+                </div>
+                <div style="color: #cbd5e1; margin-bottom: 2px;">
+                  - <b>Trung tâm hành chính:</b> <span id="hudWardAdminCenter" style="color: #f8fafc; font-weight: 700;">UBND Phường Tân An</span>
+                </div>
+                <div style="color: #cbd5e1; margin-bottom: 2px;">
+                  - <b>Diện tích:</b> <span id="hudWardDienTich" style="color: #fbbf24; font-weight: 700;">8,06 (km²)</span> &nbsp;|&nbsp; <b>Dân số:</b> <span id="hudWardDanSo" style="color: #fbbf24; font-weight: 700;">85.997 (người)</span>
+                </div>
+                <div style="color: #cbd5e1; margin-bottom: 2px;">
+                  - <b>Mã số ĐVHC (theo QĐ 19/2025/QĐ-TTg):</b> <span id="hudWardMaDVHC" style="color: #38bdf8; font-weight: 800;">31147</span>
+                </div>
+                <div style="color: #94a3b8; font-size: 10px; font-style: italic; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 3px; margin-top: 3px;">
+                  <b>Căn cứ:</b> <span id="hudWardCanCu">Nghị quyết số 1668/NQ-UBTVQH15</span>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
 

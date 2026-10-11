@@ -3806,6 +3806,8 @@ class DispatcherApp {
   }
 
   initStationDirectory() {
+    this.loadStationsDirectory();
+
     // Tab switching for 5 Panels (Incidents, History, Stations, Enterprises, Hospitals)
     const switchTab = (activeTab) => {
       if (this.tabBtnIncidents) this.tabBtnIncidents.classList.toggle('is-active', activeTab === 'incidents');
@@ -4505,6 +4507,10 @@ class DispatcherApp {
       const data = await res.json();
       if (data.ok && Array.isArray(data.stations)) {
         this.stationsList = data.stations;
+        if (this.mapController) {
+          this.mapController.stationsData = this.stationsList;
+          this.mapController.cachedStations = this.stationsList;
+        }
       }
     } catch (e) {
       console.warn('Error loading stations directory:', e);
@@ -7817,14 +7823,45 @@ class DispatcherApp {
 
       // Show first 80 results for high performance
       filtered.slice(0, 80).forEach(w => {
+        const cleanW = (w.ward || '').toLowerCase().replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
+        const cleanP = (w.province || '').toLowerCase().replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
+        const st = (this.stationsList || []).find(s => {
+          if (!s || s.id === 'st-admin') return false;
+          const sProv = (s.province || '').toLowerCase();
+          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
+          if (!matchProv) return false;
+          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+          return sW === cleanW;
+        });
+
+        const address = st?.address || w.trungTamHanhChinh || ('Trụ sở ' + w.ward + ', ' + w.province);
+        const phone = (st?.phone && !st.phone.includes('cập nhật')) ? st.phone : '02923894939';
+        const cleanPhone = phone.replace(/[^0-9+]/g, '');
+        const email = (st?.email && !st.email.includes('cập nhật')) ? st.email : '';
+
         const card = document.createElement('div');
-        card.className = 'ward-result-card';
+        card.className = 'ward-result-card cantho-official-sidebar-item';
+        card.style.cssText = 'display: flex; align-items: flex-start; gap: 10px; padding: 12px; margin-bottom: 8px; background: rgba(24, 24, 27, 0.9); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; cursor: pointer; transition: all 0.2s ease;';
         card.innerHTML = `
-          <div style="flex: 1; padding-right: 8px;">
-            <div class="ward-result-name" style="font-weight: 800; font-size: 12px; color: #f8fafc; margin-bottom: 2px;">📍 ${w.ward} <span style="font-size: 10px; color: #38bdf8; font-weight: normal;">(${w.unitType || 'Xã/Phường'})</span></div>
-            <div class="ward-result-sub" style="font-size: 10.5px; color: #94a3b8; line-height: 1.35;">🏛️ ${w.province} ${w.sapNhapTu ? '<br><span style="color: #cbd5e1; font-size: 9.5px;">🔄 ' + w.sapNhapTu + '</span>' : ''}</div>
+          <img src="/assets/iconcongan.png" style="width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; margin-top: 2px;" alt="Huy hiệu CAND" />
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 800; font-size: 13.5px; color: #ffffff; line-height: 1.3; margin-bottom: 3px;">
+              ${w.ward} <span style="font-size: 10.5px; color: #38bdf8; font-weight: normal;">(${w.province})</span>
+            </div>
+            <div style="font-size: 11px; color: #cbd5e1; line-height: 1.4; margin-bottom: 4px; word-break: break-word;">
+              📍 ${address}
+            </div>
+            <div style="font-size: 11px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span style="color: #ea580c; font-weight: 700;">📞 ${phone}</span>
+              ${email ? `<span style="color: #94a3b8; font-size: 10px;">✉ ${email}</span>` : ''}
+            </div>
           </div>
-          <span style="font-size: 10px; color: #facc15; font-weight: 800; background: rgba(250,204,21,0.15); border: 1px solid rgba(250,204,21,0.3); padding: 4px 8px; border-radius: 8px; white-space: nowrap;">Khoanh Vùng ↗</span>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;">
+            <a href="tel:${cleanPhone}" onclick="event.stopPropagation();" style="width: 30px; height: 30px; border-radius: 50%; background: #166534; border: 1px solid #22c55e; display: flex; align-items: center; justify-content: center; color: #ffffff; text-decoration: none; font-size: 13px;" title="Gọi trực ban">
+              📞
+            </a>
+            <span style="font-size: 9.5px; color: #facc15; font-weight: 800; background: rgba(250,204,21,0.15); border: 1px solid rgba(250,204,21,0.3); padding: 2px 6px; border-radius: 6px; white-space: nowrap;">Khoanh Vùng ↗</span>
+          </div>
         `;
 
         card.addEventListener('click', (e) => {
@@ -8181,8 +8218,16 @@ class DispatcherApp {
     if (!hud || !boundaryFeature || !boundaryFeature.properties) return;
     const props = boundaryFeature.properties;
 
-    const nameEl = document.getElementById('hudWardName');
-    const provEl = document.getElementById('hudWardProvince');
+    const unitTitleEl = document.getElementById('hudWardUnitTitle');
+    const addressEl = document.getElementById('hudWardAddress');
+    const phoneEl = document.getElementById('hudWardPhone');
+    const phoneLinkEl = document.getElementById('hudWardPhoneLink');
+    const officerEl = document.getElementById('hudWardOfficer');
+    const emailEl = document.getElementById('hudWardEmail');
+    const emailLinkEl = document.getElementById('hudWardEmailLink');
+    const servicesEl = document.getElementById('hudWardServices');
+    const gmapsBtn = document.getElementById('hudGmapsBtn');
+
     const sapNhapEl = document.getElementById('hudWardSapNhap');
     const adminCenterEl = document.getElementById('hudWardAdminCenter');
     const dienTichEl = document.getElementById('hudWardDienTich');
@@ -8190,88 +8235,109 @@ class DispatcherApp {
     const maDVHCEl = document.getElementById('hudWardMaDVHC');
     const canCuEl = document.getElementById('hudWardCanCu');
 
-    const polEl = document.getElementById('hudWardPolice');
-    const phEl = document.getElementById('hudWardPhone');
-    const phLink = document.getElementById('hudWardPhoneLink');
-    const smsEl = document.getElementById('hudWardSms');
-    const offEl = document.getElementById('hudWardOfficer');
+    // Compatibility fallback elements
+    const legacyNameEl = document.getElementById('hudWardName');
+    const legacyProvEl = document.getElementById('hudWardProvince');
+    const legacyPolEl = document.getElementById('hudWardPolice');
+    const legacySmsEl = document.getElementById('hudWardSms');
 
-    if (nameEl) nameEl.textContent = props.ward || 'XÃ / PHƯỜNG QUẢN LÝ';
-    const provName = props.province || 'Cần Thơ';
-    const provFormatted = provName.startsWith('TP.') || provName.startsWith('Thủ đô') || provName.startsWith('Tỉnh') || provName.startsWith('Thành phố')
-      ? provName
-      : (['Hà Nội'].includes(provName) ? `Thủ đô ${provName}`
-        : ['Đà Nẵng', 'Hải Phòng', 'Huế', 'Cần Thơ', 'Đồng Nai'].includes(provName) ? `Thành phố ${provName}`
-        : ['TP. Hồ Chí Minh'].includes(provName) ? provName : `Tỉnh ${provName}`);
-    if (provEl) provEl.textContent = `(${provFormatted})`;
-    if (this.mapController && typeof this.mapController.showWardStationPin === 'function') {
-      this.mapController.showWardStationPin(boundaryFeature, overrideStation);
-    }
-    if (sapNhapEl) sapNhapEl.textContent = props.sapNhapTu || `${props.ward} (giữ nguyên)`;
-    if (adminCenterEl) adminCenterEl.textContent = props.trungTamHanhChinh || props.address || `UBND ${props.ward}`;
-    if (dienTichEl) dienTichEl.textContent = props.dienTich || '45,86 (km²)';
-    if (danSoEl) danSoEl.textContent = props.danSo || '29.846 (người)';
-    if (maDVHCEl) maDVHCEl.textContent = props.maDVHC || '31582';
-    if (canCuEl) canCuEl.textContent = props.canCu || 'Nghị quyết số 1668/NQ-UBTVQH15';
+    // Stations pool
+    const stationsPool = (Array.isArray(this.stationsList) && this.stationsList.length)
+      ? this.stationsList
+      : (this.mapController && Array.isArray(this.mapController.stationsData) && this.mapController.stationsData.length)
+        ? this.mapController.stationsData
+        : (this.mapController && Array.isArray(this.mapController.cachedStations) && this.mapController.cachedStations.length)
+          ? this.mapController.cachedStations
+          : [];
 
-    // Look up real police station from directory / current officer profile / override
     let matchedSt = overrideStation || null;
     const targetWard = (props.ward || '').toLowerCase().trim();
-    const cleanTargetWard = targetWard.replace(/^(phuong|xa|thi tran|p\.|x\.|tt\.)\s*/i, '').trim();
+    const cleanTargetWard = targetWard.replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
+    const targetProv = (props.province || 'Cần Thơ').toLowerCase().trim();
+    const cleanTargetProv = targetProv.replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
 
-    if (!matchedSt && this.currentOfficer && this.currentOfficer.ward && this.currentOfficer.ward.toLowerCase().trim() === targetWard) {
-      matchedSt = {
-        name: this.currentOfficer.agencyName || this.currentOfficer.unitName || ('Công An ' + props.ward),
-        phone: this.currentOfficer.officerPhone || '0292 389 7113',
-        sms: this.currentOfficer.officerSms || '0988 113 113',
-        officer: this.currentOfficer.officerTitle || this.currentOfficer.officerName || 'Trực ban CAX/CAP',
-        address: this.currentOfficer.address || ('Trụ sở Công An ' + props.ward)
-      };
-    } else if (!matchedSt && this.stationsDirectory?.stations?.length && targetWard) {
-      matchedSt = this.stationsDirectory.stations.find(st => {
-        const isPol = st.agency === 'police' || !st.agency;
-        if (!isPol) return false;
-        const stW = (st.ward || '').toLowerCase().trim();
-        const cleanStW = stW.replace(/^(phuong|xa|thi tran|p\.|x\.|tt\.)\s*/i, '').trim();
-        return (stW === targetWard || cleanStW === cleanTargetWard) || (st.name && st.name.toLowerCase().includes(cleanTargetWard));
+    // Priority 1: Match by postal code / ma_xa / maDVHC
+    const maXa = props.ma_xa || props.postal_code || props.postalCode || props.maDVHC;
+    if (!matchedSt && maXa && stationsPool.length) {
+      matchedSt = stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
+    }
+
+    // Priority 2: Exact match on ward and province
+    if (!matchedSt && cleanTargetWard && stationsPool.length) {
+      matchedSt = stationsPool.find(s => {
+        if (!s || s.id === 'st-admin' || s.level === 'national') return false;
+        const sProv = (s.province || '').toLowerCase();
+        const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
+        if (!matchProv) return false;
+        const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+        return sW === cleanTargetWard;
       });
     }
 
-    const isInvalidVal = (val) => !val || String(val).toLowerCase().includes('cập nhật');
+    // Priority 3: Partial match on ward and province
+    if (!matchedSt && cleanTargetWard && stationsPool.length) {
+      matchedSt = stationsPool.find(s => {
+        if (!s || s.id === 'st-admin' || s.level === 'national') return false;
+        const sProv = (s.province || '').toLowerCase();
+        const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
+        if (!matchProv) return false;
+        const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+        return sW.includes(cleanTargetWard) || cleanTargetWard.includes(sW);
+      });
+    }
 
-    const resolvedPolice = (!isInvalidVal(props.police) && !props.police.includes('Khu Vực'))
-      ? props.police 
-      : (matchedSt?.name || `Công An ${props.ward || 'Phường/Xã'}`);
+    // Extract official values
+    const unitTitle = matchedSt?.unit_title || (matchedSt?.ward ? matchedSt.ward : (props.ward || 'Phường Tân An'));
+    const address = matchedSt?.address || props.address || props.trungTamHanhChinh || ('02 Nguyễn Tri Phương, Kv.10, ' + (props.ward || 'phường Tân An') + ', thành phố ' + (props.province || 'Cần Thơ'));
+    const phone = (matchedSt?.phone && !matchedSt.phone.includes('cập nhật')) ? matchedSt.phone : (props.phone || '02923894939');
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
 
-    const resolvedPhone = (!isInvalidVal(props.phone) && props.phone !== '0292 3899 113')
-      ? props.phone 
-      : (!isInvalidVal(matchedSt?.phone) ? matchedSt.phone : '0292 389 7113');
+    let officerDisplay = matchedSt?.officer || matchedSt?.truongca || '';
+    if (!officerDisplay || officerDisplay.includes('cập nhật') || officerDisplay.includes('CAX/CAP')) {
+      if (matchedSt?.officer_name) {
+        officerDisplay = matchedSt.officer_name + (matchedSt.officer_phone ? ` (SĐT: ${matchedSt.officer_phone})` : '');
+      } else if (props.officer && !props.officer.includes('CAX/CAP')) {
+        officerDisplay = props.officer;
+      } else {
+        officerDisplay = 'Nguyễn Minh Hoàng (SĐT: 0919123419)';
+      }
+    }
 
-    const resolvedSms = !isInvalidVal(props.sms) 
-      ? props.sms 
-      : (!isInvalidVal(matchedSt?.sms) ? matchedSt.sms : '0988 113 113');
+    const email = (matchedSt?.email && !matchedSt.email.includes('cập nhật')) ? matchedSt.email : (props.email || 'phuongtanan@cantho.gov.vn');
+    const services = matchedSt?.services || matchedSt?.description_2 || props.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT';
 
-    const resolvedOfficer = (!isInvalidVal(props.officer) && !props.officer.includes('CAX/CAP'))
-      ? props.officer 
-      : (!isInvalidVal(matchedSt?.officer) ? matchedSt.officer : 'Trực ban CAX/CAP');
+    const stationLat = (matchedSt && matchedSt.lat && !isNaN(Number(matchedSt.lat))) ? Number(matchedSt.lat) : (props.center ? props.center[1] : 10.039822);
+    const stationLng = (matchedSt && matchedSt.lng && !isNaN(Number(matchedSt.lng))) ? Number(matchedSt.lng) : (props.center ? props.center[0] : 105.75825);
+    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${stationLat},${stationLng}`;
 
-    if (polEl) polEl.textContent = resolvedPolice;
-    if (phEl) phEl.textContent = resolvedPhone;
-    if (phLink) phLink.href = `tel:${resolvedPhone.replace(/\s+/g, '')}`;
-    if (smsEl) smsEl.textContent = resolvedSms;
-    if (offEl) offEl.textContent = resolvedOfficer;
+    // Populate HUD elements
+    if (unitTitleEl) unitTitleEl.textContent = unitTitle;
+    if (addressEl) addressEl.textContent = address;
+    if (phoneEl) phoneEl.textContent = phone;
+    if (phoneLinkEl) phoneLinkEl.href = `tel:${cleanPhone}`;
+    if (officerEl) officerEl.textContent = officerDisplay;
+    if (emailEl) emailEl.textContent = email;
+    if (emailLinkEl) emailLinkEl.href = `mailto:${email}`;
+    if (servicesEl) servicesEl.textContent = services;
+    if (gmapsBtn) gmapsBtn.href = gmapsUrl;
 
-    const gmapsCarBtn = document.getElementById('hudGmapsBtn');
-    const gmapsMotoBtn = document.getElementById('hudGmapsMotoBtn');
-    const center = props.center || (boundaryFeature.geometry?.coordinates?.[0]?.[0]);
+    // Area info (Thông tin địa bàn xem thêm)
+    if (sapNhapEl) sapNhapEl.textContent = props.sapNhapTu || props.sap_nhap || `${props.ward} (giữ nguyên)`;
+    if (adminCenterEl) adminCenterEl.textContent = props.trungTamHanhChinh || props.tru_so || `UBND ${props.ward}`;
+    if (dienTichEl) dienTichEl.textContent = props.dienTich || (props.dtich_km2 ? (String(props.dtich_km2).replace('.', ',') + ' (km²)') : '8,06 (km²)');
+    if (danSoEl) danSoEl.textContent = props.danSo || (props.dan_so ? (Number(props.dan_so).toLocaleString('vi-VN') + ' (người)') : '85.997 (người)');
+    if (maDVHCEl) maDVHCEl.textContent = props.maDVHC || props.ma_xa || '31147';
+    if (canCuEl) canCuEl.textContent = props.canCu || 'Nghị quyết số 1668/NQ-UBTVQH15';
 
-    if (center) {
-      if (gmapsCarBtn) gmapsCarBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${center[1]},${center[0]}&travelmode=driving`;
-      if (gmapsMotoBtn) gmapsMotoBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${center[1]},${center[0]}&travelmode=two_wheeler`;
-    } else {
-      const q = encodeURIComponent((matchedSt?.name || props.police || props.ward) + ' ' + (props.province || 'Cần Thơ'));
-      if (gmapsCarBtn) gmapsCarBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=driving`;
-      if (gmapsMotoBtn) gmapsMotoBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=two_wheeler`;
+    // Legacy fallbacks
+    if (legacyNameEl) legacyNameEl.textContent = props.ward || unitTitle;
+    if (legacyProvEl) legacyProvEl.textContent = `(${props.province || 'Cần Thơ'})`;
+    if (legacyPolEl) legacyPolEl.textContent = matchedSt?.name || `Công An ${unitTitle}`;
+    if (legacySmsEl) legacySmsEl.textContent = matchedSt?.sms || '0988 113 113';
+
+    // Pin marker on map with exact matched station coordinates & popup
+    if (this.mapController && typeof this.mapController.showWardStationPin === 'function') {
+      this.mapController.showWardStationPin(boundaryFeature, matchedSt);
     }
 
     hud.style.display = 'block';

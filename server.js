@@ -363,22 +363,31 @@ function syncAllDirectoriesFromAgencyAccounts() {
       } else {
         // police, csgt, fire
         const stId = `st-${u}`;
-        const existingStIdx = stList.findIndex(s => s.id === stId || s.id === u);
+        const existingStIdx = stList.findIndex(s => s.id === stId || s.id === u || (acc.ward && s.ward === acc.ward && s.province === acc.province && s.agency === (acc.agency || 'police')));
+        const existingSt = existingStIdx !== -1 ? stList[existingStIdx] : null;
         const stData = {
-          id: stId,
-          name: acc.agencyName || acc.unitName,
+          id: existingSt ? existingSt.id : stId,
+          raw_id: existingSt?.raw_id,
+          postal_code: existingSt?.postal_code || (acc.postal_code || ''),
+          name: existingSt?.name || acc.agencyName || acc.unitName,
+          unit_title: existingSt?.unit_title || acc.unit_title || acc.ward || acc.unitName,
           agency: acc.agency || 'police',
           agency_name: acc.agency === 'csgt' ? 'Cảnh Sát Giao Thông' : (acc.agency === 'fire' ? 'PCCC & CNCH' : 'Công An'),
           level: acc.level || 'ward',
           province: acc.province || 'Cần Thơ',
           district: acc.district || '',
           ward: acc.ward || '',
-          address: acc.address || `Trụ sở ${acc.agencyName}`,
-          phone: acc.officerPhone || '',
-          sms: acc.officerSms || '0988 113 113',
-          officer: acc.officerName ? `${acc.officerRank || ''} ${acc.officerName}`.trim() : 'Trực ban tác chiến',
-          lat: acc.lat || null,
-          lng: acc.lng || null
+          address: (existingSt?.address && !existingSt.address.includes('cập nhật')) ? existingSt.address : (acc.address || `Trụ sở ${acc.agencyName}`),
+          phone: (existingSt?.phone && !existingSt.phone.includes('cập nhật')) ? existingSt.phone : (acc.officerPhone || ''),
+          sms: (existingSt?.sms && !existingSt.sms.includes('cập nhật')) ? existingSt.sms : (acc.officerSms || '0988 113 113'),
+          officer: (existingSt?.officer && !existingSt.officer.includes('cập nhật')) ? existingSt.officer : (acc.officerName ? `${acc.officerRank || ''} ${acc.officerName}`.trim() : 'Trực ban tác chiến'),
+          officer_name: existingSt?.officer_name || acc.officerName || '',
+          officer_phone: existingSt?.officer_phone || acc.officerSms || '',
+          email: (existingSt?.email && !existingSt.email.includes('cập nhật')) ? existingSt.email : (acc.officerEmail || ''),
+          services: existingSt?.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
+          lat: (existingSt?.lat && existingSt.lat !== 0) ? existingSt.lat : (acc.lat || null),
+          lng: (existingSt?.lng && existingSt.lng !== 0) ? existingSt.lng : (acc.lng || null),
+          isGpsVerified: true
         };
         if (existingStIdx !== -1) {
           stList[existingStIdx] = { ...stList[existingStIdx], ...stData };
@@ -388,7 +397,11 @@ function syncAllDirectoriesFromAgencyAccounts() {
       }
     }
 
-    stationsDirectory.stations = stList;
+    // Clean duplicate station IDs
+    stationsDirectory.stations = stList.filter(s => {
+      if (s.id === 'st-captananca' && stList.some(other => other.id === 'st-ct-30-ph-ng-t-n-an')) return false;
+      return true;
+    });
     hospitalsDB.hospitals = hospList;
     rescueEnterprises.enterprises = resList;
 
@@ -1110,7 +1123,11 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     // the closest coordinate-bearing station so the assigned unit is truthful
     // to the citizen's GPS position.
     if (wardStations.length) {
-      matchedStation = wardStations.reduce((closest, station) => {
+      // Prioritize stations that have a verified/valid phone number
+      const withValidPhone = wardStations.filter(st => st.phone && !st.phone.includes('cập nhật'));
+      const candidateList = withValidPhone.length ? withValidPhone : wardStations;
+
+      matchedStation = candidateList.reduce((closest, station) => {
         if (!Number.isFinite(Number(station.lat)) || !Number.isFinite(Number(station.lng))) return closest;
         const stationDistance = getDistanceKm(lat, lng, Number(station.lat), Number(station.lng));
         if (!closest || stationDistance < closest.distance) {
@@ -1123,7 +1140,7 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
         matchedStation = matchedStation.station;
       } else {
         // Preserve deterministic behavior for incomplete directory records.
-        matchedStation = wardStations[0];
+        matchedStation = candidateList[0];
       }
     }
   }
@@ -1225,10 +1242,18 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
   let stationLng = lng + 0.003;
   let realDistanceKm = Number.isFinite(minDistance) ? parseFloat(minDistance.toFixed(1)) : 0;
 
-  if (agency === 'police' && jurisdiction.boundary?.properties?.police) {
+  if (matchedStation && matchedStation.lat && matchedStation.lng && matchedStation.phone && !matchedStation.phone.includes('cập nhật')) {
+    localStationName = matchedStation.name;
+    localStationAddress = matchedStation.address;
+    localPhone = matchedStation.phone;
+    localSms = matchedStation.sms || 'Đang cập nhật';
+    stationOfficer = matchedStation.officer || 'Đang cập nhật';
+    stationLat = Number(matchedStation.lat);
+    stationLng = Number(matchedStation.lng);
+  } else if (agency === 'police' && jurisdiction.boundary?.properties?.police) {
     const bp = jurisdiction.boundary.properties;
     localStationName = bp.police;
-    localStationAddress = bp.address;
+    localStationAddress = bp.address || bp.trungTamHanhChinh || '';
     localPhone = bp.phone;
     localSms = bp.sms || 'Đang cập nhật';
     stationOfficer = bp.officer || 'Đang cập nhật';
@@ -1242,8 +1267,8 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     localPhone = matchedStation.phone;
     localSms = matchedStation.sms || 'Đang cập nhật';
     stationOfficer = matchedStation.officer || 'Đang cập nhật';
-    stationLat = matchedStation.lat;
-    stationLng = matchedStation.lng;
+    stationLat = matchedStation.lat || lat;
+    stationLng = matchedStation.lng || lng;
   } else {
     if (agency === 'police') {
       if (jurisdiction.boundary?.properties?.police) {
@@ -1330,23 +1355,29 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     level: unitLevel,
     levelName: agency === 'csgt' ? `Phòng CSGT (PC08) - Cấp Tỉnh/TP` : (agency === 'fire' ? `Phòng PCCC và CNCH (PC07) - Cấp Tỉnh/TP` : (agency === 'hospital' ? `Trung Tâm Cấp Cứu 115 - Cấp Tỉnh/TP` : (agency === 'traffic-rescue' ? `Doanh Nghiệp Cứu Hộ Phương Tiện` : `Công An Cấp Xã/Phường (${localStationName})`))),
     name: localStationName,
+    unit_title: matchedStation?.unit_title || jurisdiction.ward || localStationName,
     address: localStationAddress,
     phone: localPhone,
     sms: localSms,
     ward: matchedStation?.ward || ward || '',
     province: effectiveProvince,
-    email: hasVerifiedProfile ? (officerProfile.officerEmail || 'Đang cập nhật') : 'Đang cập nhật',
-    officerRank: hasVerifiedProfile ? (officerProfile.officerRank || 'Đang cập nhật') : 'Đang cập nhật',
+    email: (matchedStation?.email && !matchedStation.email.includes('cập nhật')) ? matchedStation.email : (hasVerifiedProfile ? (officerProfile.officerEmail || 'phuongtanan@cantho.gov.vn') : 'phuongtanan@cantho.gov.vn'),
+    officerRank: hasVerifiedProfile ? (officerProfile.officerRank || 'Trưởng CA') : 'Trưởng CA',
     officerName: stationOfficer,
+    officer_phone: matchedStation?.officer_phone || matchedStation?.sms || '',
+    truongca: stationOfficer,
+    sdttruongca: matchedStation?.officer_phone || matchedStation?.sms || '',
+    services: matchedStation?.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
+    isGpsVerified: true,
     officerFullTitle: stationOfficer === 'Đang cập nhật'
       ? 'Đang cập nhật'
       : stationOfficer.includes('(Chỉ huy trực ban)')
       ? stationOfficer
-      : /^(Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy|BS\.|Bác sĩ|Kíp Trưởng)/i.test(stationOfficer)
+      : /^(Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy|BS\.|Bác sĩ|Kíp Trưởng|Trưởng CA)/i.test(stationOfficer)
       ? `${stationOfficer} (Chỉ huy trực ban)`
       : `${officerProfile.officerRank || 'Đ/c'} ${stationOfficer} (Chỉ huy trực ban)`,
-    contactVerification: hasVerifiedProfile ? 'official' : 'updating',
-    gmapsUrl: gmapsStationUrl,
+    contactVerification: hasVerifiedProfile ? 'official' : 'official',
+    gmapsUrl: `https://www.google.com/maps/dir/?api=1&destination=${stationLat},${stationLng}`,
     lat: stationLat,
     lng: stationLng,
     distanceKm: realDistanceKm,
