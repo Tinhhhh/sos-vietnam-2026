@@ -1678,7 +1678,15 @@ class DispatcherApp {
         setVal('editAccAgency', 'police');
         setVal('editAccLevel', 'ward');
         setVal('editAccProvince', 'Cần Thơ');
+        this.populateAccountWardsDatalist('Cần Thơ');
         try { this.updateAdminAccountFormDynamicFields('police', false); } catch(e) {}
+
+        const btnPickAcc = document.getElementById('btnPickAccLocationOnMap');
+        if (btnPickAcc) {
+          btnPickAcc.innerHTML = `<svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Chọn Trên Map`;
+          btnPickAcc.style.borderColor = '#eab308';
+          btnPickAcc.style.color = '#fde047';
+        }
 
         const editModal = document.getElementById('adminAccountEditModal') || this.adminAccountEditModal;
         if (editModal) {
@@ -1699,48 +1707,59 @@ class DispatcherApp {
       this.selectFilterAdminAgency.addEventListener('change', () => this.renderAdminAccountsList());
     }
 
+    // Bind Province, Ward, and AgencyName auto-sync handlers in Account Modal
+    const inputAccProv = document.getElementById('editAccProvince');
+    const inputAccWard = document.getElementById('editAccWard');
+    const inputAccAgencyName = document.getElementById('editAccAgencyName');
+
+    if (inputAccProv) {
+      inputAccProv.addEventListener('change', () => {
+        const provVal = inputAccProv.value.trim() || 'Cần Thơ';
+        this.populateAccountWardsDatalist(provVal);
+        this.syncAccountModalWithStation({ forceOverwrite: false, triggerSource: 'province' });
+      });
+    }
+
+    if (inputAccWard) {
+      inputAccWard.addEventListener('change', () => {
+        this.syncAccountModalWithStation({ forceOverwrite: true, triggerSource: 'ward' });
+      });
+    }
+
+    if (inputAccAgencyName) {
+      inputAccAgencyName.addEventListener('change', () => {
+        this.syncAccountModalWithStation({ forceOverwrite: false, triggerSource: 'agencyName' });
+      });
+    }
+
     // Auto geocode and map picker for account modal
     const btnGeocodeAcc = document.getElementById('btnGeocodeAccAddress');
     if (btnGeocodeAcc) {
       btnGeocodeAcc.addEventListener('click', async () => {
-        const addr = document.getElementById('editAccAddress')?.value.trim() || '';
-        const ward = document.getElementById('editAccWard')?.value.trim() || '';
+        // First try local station synchronization
+        const matchedLocal = await this.syncAccountModalWithStation({ forceOverwrite: true, triggerSource: 'geocodeBtn' });
+        const rawAddr = document.getElementById('editAccAddress')?.value.trim() || '';
+        const rawWard = document.getElementById('editAccWard')?.value.trim() || '';
         const prov = document.getElementById('editAccProvince')?.value.trim() || 'Cần Thơ';
-        const query = [addr, ward, prov].filter(Boolean).join(', ');
+        const agencyName = document.getElementById('editAccAgencyName')?.value.trim() || '';
+
+        const addr = this.isPlaceholderAccountValue(rawAddr) ? '' : rawAddr;
+        const ward = this.isPlaceholderAccountValue(rawWard) ? '' : rawWard;
+        const query = [addr, ward, agencyName, prov].filter(Boolean).join(', ');
         if (!query) {
           alert('Vui lòng nhập địa chỉ trụ sở hoặc tên xã/phường để nhận dạng!');
           return;
         }
 
-        const PROV_COORDS = {
-          'cần thơ': { lat: 10.0355, lng: 105.7788 },
-          'hà nội': { lat: 21.0285, lng: 105.8542 },
-          'tp. hồ chí minh': { lat: 10.8231, lng: 106.6297 },
-          'hồ chí minh': { lat: 10.8231, lng: 106.6297 },
-          'đà nẵng': { lat: 16.0544, lng: 108.2022 },
-          'hải phòng': { lat: 20.8449, lng: 106.6881 },
-          'huế': { lat: 16.4637, lng: 107.5909 },
-          'an giang': { lat: 10.5216, lng: 105.1259 },
-          'đồng tháp': { lat: 10.4578, lng: 105.6322 },
-          'vĩnh long': { lat: 10.2537, lng: 105.9722 },
-          'hậu giang': { lat: 9.7844, lng: 105.4701 },
-          'sóc trăng': { lat: 9.6033, lng: 105.9800 },
-          'kiên giang': { lat: 9.9576, lng: 105.1324 },
-          'cà mau': { lat: 9.1769, lng: 105.1524 },
-          'bạc liêu': { lat: 9.2941, lng: 105.7278 }
-        };
-
-        const cleanKey = prov.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
-        const fallback = PROV_COORDS[prov.toLowerCase()] || PROV_COORDS[cleanKey] || PROV_COORDS['cần thơ'];
-
         try {
           btnGeocodeAcc.disabled = true;
           btnGeocodeAcc.textContent = '⏳ Đang tìm...';
           const params = new URLSearchParams({
-            q: query,
+            q: addr || ward || agencyName,
             address: addr,
             ward: ward,
-            province: prov
+            province: prov,
+            agencyName: agencyName
           });
           const res = await fetch(`/api/geocode/search?${params.toString()}`);
           if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1750,33 +1769,59 @@ class DispatcherApp {
             const lng = parseFloat(d.lng).toFixed(6);
             const inputLat = document.getElementById('editAccLat');
             const inputLng = document.getElementById('editAccLng');
+            const inputAddr = document.getElementById('editAccAddress');
+            const inputWard = document.getElementById('editAccWard');
+            const inputProv = document.getElementById('editAccProvince');
+            const inputRank = document.getElementById('editAccRank');
+            const inputOfficer = document.getElementById('editAccOfficerName');
+            const inputPhone = document.getElementById('editAccPhone');
+            const inputSms = document.getElementById('editAccSms');
+            const inputEmail = document.getElementById('editAccEmail');
+
             if (inputLat) inputLat.value = lat;
             if (inputLng) inputLng.value = lng;
-            const wardFound = d.ward || ward || '';
+            if (inputAddr && d.address && (!addr || this.isPlaceholderAccountValue(inputAddr.value))) {
+              inputAddr.value = d.address;
+            }
+            if (inputWard && d.ward && !this.isPlaceholderAccountValue(d.ward) && (!ward || this.isPlaceholderAccountValue(inputWard.value))) {
+              inputWard.value = d.ward;
+            }
+            if (inputProv && d.province) {
+              inputProv.value = d.province;
+            }
+            if (inputRank && d.officerRank && (!inputRank.value || ['Đại', 'Thượng', 'Trung', 'Thiếu'].includes(inputRank.value.trim()))) {
+              inputRank.value = d.officerRank;
+            }
+            if (inputOfficer && d.officerName && (!inputOfficer.value || this.isPlaceholderAccountValue(inputOfficer.value))) {
+              inputOfficer.value = d.officerName;
+            }
+            if (inputPhone && d.phone && (!inputPhone.value || this.isPlaceholderAccountValue(inputPhone.value))) {
+              inputPhone.value = d.phone;
+            }
+            if (inputSms && (d.officerPhone || d.sms) && (!inputSms.value || this.isPlaceholderAccountValue(inputSms.value))) {
+              inputSms.value = d.officerPhone || d.sms;
+            }
+            if (inputEmail && d.email && (!inputEmail.value || this.isPlaceholderAccountValue(inputEmail.value))) {
+              inputEmail.value = d.email;
+            }
+
+            const wardFound = d.ward || ward || matchedLocal?.ward || '';
             const provFound = d.province || prov || '';
-            alert(`✅ Đã tìm thấy tọa độ GPS:\n• Vĩ độ (Lat): ${lat}\n• Kinh độ (Lng): ${lng}\n• Khu vực: ${wardFound ? wardFound + ', ' : ''}${provFound}`);
+            const addrFound = d.address || addr || matchedLocal?.address || '';
+            alert(`✅ Đã định vị chính xác trụ sở:\n• Địa chỉ: ${addrFound}\n• Vĩ độ (Lat): ${lat}\n• Kinh độ (Lng): ${lng}\n• Khu vực: ${wardFound ? wardFound + ', ' : ''}${provFound}`);
+          } else if (matchedLocal && matchedLocal.lat && matchedLocal.lng) {
+            alert(`✅ Đã đồng bộ tọa độ trụ sở từ danh bạ chính thức:\n• Địa chỉ: ${matchedLocal.address}\n• Vĩ độ (Lat): ${Number(matchedLocal.lat).toFixed(6)}\n• Kinh độ (Lng): ${Number(matchedLocal.lng).toFixed(6)}`);
           } else {
-            // Apply province-level safe fallback
-            const lat = parseFloat(fallback.lat).toFixed(6);
-            const lng = parseFloat(fallback.lng).toFixed(6);
-            const inputLat = document.getElementById('editAccLat');
-            const inputLng = document.getElementById('editAccLng');
-            if (inputLat) inputLat.value = lat;
-            if (inputLng) inputLng.value = lng;
-            alert(`✅ Đã định vị theo khu vực ${prov}:\n• Vĩ độ (Lat): ${lat}\n• Kinh độ (Lng): ${lng}\n(Bạn có thể bấm "Chọn Trên Map" để tinh chỉnh vị trí)`);
+            alert(`⚠️ Không tìm thấy tọa độ chi tiết cho "${query}". Bạn có thể bấm "Chọn Trên Map" để ghim trực tiếp.`);
           }
         } catch (e) {
-          console.warn('Geocode API offline/fallback:', e);
-          const lat = parseFloat(fallback.lat).toFixed(6);
-          const lng = parseFloat(fallback.lng).toFixed(6);
-          const inputLat = document.getElementById('editAccLat');
-          const inputLng = document.getElementById('editAccLng');
-          if (inputLat) inputLat.value = lat;
-          if (inputLng) inputLng.value = lng;
-          alert(`✅ Đã định vị theo khu vực ${prov}:\n• Vĩ độ (Lat): ${lat}\n• Kinh độ (Lng): ${lng}\n(Bạn có thể bấm "Chọn Trên Map" để tinh chỉnh vị trí)`);
+          console.warn('Geocode API warning:', e);
+          if (matchedLocal && matchedLocal.lat && matchedLocal.lng) {
+            alert(`✅ Đã đồng bộ tọa độ trụ sở:\n• Vĩ độ (Lat): ${Number(matchedLocal.lat).toFixed(6)}\n• Kinh độ (Lng): ${Number(matchedLocal.lng).toFixed(6)}`);
+          }
         } finally {
           btnGeocodeAcc.disabled = false;
-          btnGeocodeAcc.textContent = '📍 Tìm GPS Từ Địa Chỉ';
+          btnGeocodeAcc.innerHTML = `<svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> 📍 Tìm GPS Từ Địa Chỉ`;
         }
       });
     }
@@ -1872,6 +1917,7 @@ class DispatcherApp {
                 this.accountsList.push(data.account);
               }
             }
+            await this.loadStationsDirectory();
             this.closeEditAccountModal();
             await this.loadAdminAccounts();
           } else {
@@ -1882,6 +1928,342 @@ class DispatcherApp {
         }
       });
     }
+  }
+
+  escapeHtml(val) {
+    return String(val ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  normalizeAdminGeoText(val) {
+    return String(val || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .replace(/\b(tp\.?|thanh pho|tinh|phuong|xa|thi tran|dac khu|cong an|ubnd|tru so|ban chi huy|phong)\b/g, ' ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  isPlaceholderAccountValue(val) {
+    if (!val) return true;
+    const t = String(val)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .trim();
+    return (
+      !t ||
+      t.includes('chua cong bo') ||
+      t.includes('dang cap nhat') ||
+      t.includes('toan thanh pho') ||
+      t.includes('toan tinh') ||
+      t.startsWith('truc ban cong an') ||
+      t.endsWith('@sos.gov.vn') ||
+      t === '0292 3899 113' ||
+      t === '0988 113 113'
+    );
+  }
+
+  extractWardFromAgencyTitle(text) {
+    if (!text) return '';
+    const m = String(text).match(/(?:Phường|Xã|Thị trấn|Đặc khu|phường|xã|thị trấn|đặc khu)\s+([^,(\n\-]+)/i);
+    if (m && m[1]) {
+      const prefix = String(text).match(/(Phường|Xã|Thị trấn|Đặc khu)/i)?.[1] || 'Phường';
+      const capPrefix = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase();
+      return `${capPrefix} ${m[1].trim()}`;
+    }
+    return '';
+  }
+
+  parseStationOfficerRankAndName(station) {
+    const RANKS = [
+      'Đại tướng', 'Thượng tướng', 'Trung tướng', 'Thiếu tướng',
+      'Đại tá', 'Thượng tá', 'Trung tá', 'Thiếu tá',
+      'Đại úy', 'Thượng úy', 'Trung úy', 'Thiếu úy'
+    ];
+    const stripPhoneSuffix = (str) => String(str || '').replace(/\s*\((?:SĐT|SDT|ĐT|Trưởng|Phó)[^)]*\)/gi, '').trim();
+    let rawPos = String(station?.officer_rank || station?.officer_position || station?.officerRank || '').trim();
+    let rawName = stripPhoneSuffix(station?.officer_clean_name || station?.officer_name || station?.officerName || '');
+    const rawFull = stripPhoneSuffix(station?.officer || `${rawPos} ${rawName}`);
+
+    if (RANKS.includes(rawPos) && rawName && !/^(tướng|tá|úy)\b/i.test(rawName)) {
+      let cleaned = rawName.replace(/,\s*(Đại|Thượng|Trung|Thiếu)\s+(tướng|tá|úy).*$/i, '').trim();
+      for (const r2 of RANKS) {
+        const rx2 = new RegExp(`^${r2}\\s+`, 'i');
+        cleaned = cleaned.replace(rx2, '').trim();
+      }
+      return { rank: rawPos, name: cleaned };
+    }
+    // Check "Name, Rank"
+    const commaMatch = rawFull.match(/^([^,]+),\s*((?:Đại|Thượng|Trung|Thiếu)\s+(?:tướng|tá|úy))$/i);
+    if (commaMatch) {
+      const rFound = RANKS.find(r => r.toLowerCase() === commaMatch[2].trim().toLowerCase()) || commaMatch[2].trim();
+      return { rank: rFound, name: commaMatch[1].trim() };
+    }
+    for (const r of RANKS) {
+      const rx = new RegExp(`^(?:Đ/c\\s+)?${r}\\s+(.+)$`, 'i');
+      const m = rawFull.match(rx);
+      if (m) {
+        let cleaned = m[1].trim();
+        for (const r2 of RANKS) {
+          const rx2 = new RegExp(`^${r2}\\s+`, 'i');
+          cleaned = cleaned.replace(rx2, '').trim();
+        }
+        return { rank: r, name: cleaned };
+      }
+    }
+    return { rank: RANKS.includes(rawPos) ? rawPos : '', name: rawName || rawFull };
+  }
+
+  async ensureWardBoundaryListLoaded() {
+    if (Array.isArray(this.wardBoundaryList) && this.wardBoundaryList.length > 0) {
+      return this.wardBoundaryList;
+    }
+    try {
+      const res = await fetch('/api/geo/ward-list');
+      if (res.ok) {
+        const data = await res.json();
+        this.wardBoundaryList = Array.isArray(data) ? data : (data.list || data.wards || []);
+      }
+    } catch (e) {
+      console.warn('Could not load ward-list for account datalist:', e);
+    }
+    return this.wardBoundaryList || [];
+  }
+
+  populateAccountWardsDatalist(provinceName = 'Cần Thơ') {
+    const datalist = document.getElementById('listWards');
+    if (!datalist) return;
+    const targetProv = this.normalizeAdminGeoText(provinceName);
+    const wardSet = new Set();
+
+    if (Array.isArray(this.stationsList)) {
+      for (const st of this.stationsList) {
+        if (!st || !st.ward) continue;
+        if (st.ward === 'Toàn Thành Phố' || st.ward === 'Toàn Tỉnh') continue;
+        const stProv = this.normalizeAdminGeoText(st.province || '');
+        if (!targetProv || stProv === targetProv || stProv.includes(targetProv) || targetProv.includes(stProv)) {
+          wardSet.add(st.ward.trim());
+        }
+      }
+    }
+
+    if (Array.isArray(this.wardBoundaryList) && this.wardBoundaryList.length > 0) {
+      for (const w of this.wardBoundaryList) {
+        if (!w || !w.ward) continue;
+        const wProv = this.normalizeAdminGeoText(w.province || '');
+        if (!targetProv || wProv === targetProv || wProv.includes(targetProv) || targetProv.includes(wProv)) {
+          wardSet.add(w.ward.trim());
+        }
+      }
+    } else if (!this._loadingWardListForDatalist) {
+      this._loadingWardListForDatalist = true;
+      this.ensureWardBoundaryListLoaded().then(() => {
+        this._loadingWardListForDatalist = false;
+        const curProv = document.getElementById('editAccProvince')?.value.trim() || provinceName;
+        this.populateAccountWardsDatalist(curProv);
+      });
+    }
+
+    const sortedWards = Array.from(wardSet).sort((a, b) => a.localeCompare(b, 'vi'));
+    datalist.innerHTML = sortedWards.map(w => `<option value="${this.escapeHtml(w)}">${this.escapeHtml(w)}</option>`).join('');
+  }
+
+  findMatchingStationForAccount({ username, agencyName, ward, province, agency }) {
+    if (!Array.isArray(this.stationsList) || this.stationsList.length === 0) return null;
+    const provNorm = this.normalizeAdminGeoText(province || 'Cần Thơ');
+    let wardCandidate = ward && !this.isPlaceholderAccountValue(ward) ? ward : this.extractWardFromAgencyTitle(agencyName);
+    const wardNorm = this.normalizeAdminGeoText(wardCandidate);
+    const nameNorm = this.normalizeAdminGeoText(agencyName);
+
+    const provPool = this.stationsList.filter(st => {
+      if (!st || !st.lat || !st.lng) return false;
+      const stProv = this.normalizeAdminGeoText(st.province || '');
+      return !provNorm || stProv === provNorm || stProv.includes(provNorm) || provNorm.includes(stProv);
+    });
+    const pool = provPool.length > 0 ? provPool : this.stationsList;
+
+    if (username) {
+      const byId = pool.find(st => String(st.id || '').toLowerCase() === `st-${String(username).toLowerCase()}`);
+      if (byId && !this.isPlaceholderAccountValue(byId.address)) return byId;
+    }
+
+    if (wardNorm) {
+      if (agency) {
+        const byExactWardAndAgency = pool.find(st =>
+          st.agency === agency && this.normalizeAdminGeoText(st.ward || '') === wardNorm
+        );
+        if (byExactWardAndAgency) return byExactWardAndAgency;
+      }
+      const byExactWard = pool.find(st =>
+        this.normalizeAdminGeoText(st.ward || '') === wardNorm
+      );
+      if (byExactWard) return byExactWard;
+
+      if (agency) {
+        const byPartialWardAndAgency = pool.find(st => {
+          if (st.agency !== agency) return false;
+          const stW = this.normalizeAdminGeoText(st.ward || '');
+          return stW && stW.length >= 3 && (stW.includes(wardNorm) || wardNorm.includes(stW));
+        });
+        if (byPartialWardAndAgency) return byPartialWardAndAgency;
+      }
+
+      const byPartialWard = pool.find(st => {
+        const stW = this.normalizeAdminGeoText(st.ward || '');
+        return stW && stW.length >= 3 && (stW.includes(wardNorm) || wardNorm.includes(stW));
+      });
+      if (byPartialWard) return byPartialWard;
+    }
+
+    if (nameNorm && nameNorm.length >= 3) {
+      const byName = pool.find(st => {
+        const stN = this.normalizeAdminGeoText(st.name || st.unit_name || '');
+        return stN && (stN === nameNorm || stN.includes(nameNorm) || nameNorm.includes(stN));
+      });
+      if (byName) return byName;
+    }
+
+    return null;
+  }
+
+  async syncAccountModalWithStation({ forceOverwrite = false, triggerSource = 'open' } = {}) {
+    if (!Array.isArray(this.stationsList) || this.stationsList.length === 0) {
+      await this.loadStationsDirectory();
+    }
+
+    const inputUsername = document.getElementById('editAccUsername');
+    const selectAgency = document.getElementById('editAccAgency');
+    const selectLevel = document.getElementById('editAccLevel');
+    const inputAgencyName = document.getElementById('editAccAgencyName');
+    const inputProvince = document.getElementById('editAccProvince');
+    const inputWard = document.getElementById('editAccWard');
+    const inputAddress = document.getElementById('editAccAddress');
+    const inputLat = document.getElementById('editAccLat');
+    const inputLng = document.getElementById('editAccLng');
+    const inputRank = document.getElementById('editAccRank');
+    const inputOfficerName = document.getElementById('editAccOfficerName');
+    const inputPhone = document.getElementById('editAccPhone');
+    const inputSms = document.getElementById('editAccSms');
+    const inputEmail = document.getElementById('editAccEmail');
+
+    const username = inputUsername?.value.trim() || '';
+    const agency = selectAgency?.value || 'police';
+    const level = selectLevel?.value || 'ward';
+    const agencyName = inputAgencyName?.value.trim() || '';
+    const province = inputProvince?.value.trim() || 'Cần Thơ';
+    let ward = inputWard?.value.trim() || '';
+
+    if ((!ward || ward === 'Toàn Thành Phố' || ward === 'Toàn Tỉnh') && level === 'ward') {
+      const extracted = this.extractWardFromAgencyTitle(agencyName);
+      if (extracted && inputWard) {
+        ward = extracted;
+        inputWard.value = extracted;
+      }
+    }
+
+    const matched = this.findMatchingStationForAccount({
+      username,
+      agencyName,
+      ward,
+      province,
+      agency
+    });
+
+    if (matched) {
+      if (inputWard && matched.ward && matched.ward !== 'Toàn Thành Phố' && (forceOverwrite || !ward || this.isPlaceholderAccountValue(ward))) {
+        inputWard.value = matched.ward;
+      }
+      if (inputProvince && matched.province && (forceOverwrite || !province)) {
+        inputProvince.value = matched.province;
+      }
+      if (inputAgencyName && (matched.name || matched.unit_name) && (!agencyName || triggerSource === 'ward')) {
+        inputAgencyName.value = matched.name || matched.unit_name;
+      }
+      if (inputAddress && matched.address && !this.isPlaceholderAccountValue(matched.address)) {
+        if (forceOverwrite || this.isPlaceholderAccountValue(inputAddress.value)) {
+          inputAddress.value = matched.address;
+        }
+      }
+      if (matched.lat && matched.lng) {
+        const curLat = parseFloat(inputLat?.value);
+        const curLng = parseFloat(inputLng?.value);
+        const isGenericCoord = isNaN(curLat) || isNaN(curLng) ||
+          (Math.abs(curLat - 10.033333) < 0.0005 && Math.abs(curLng - 105.783333) < 0.0005) ||
+          (Math.abs(curLat - 10.0355) < 0.0005 && Math.abs(curLng - 105.7788) < 0.0005);
+        if (forceOverwrite || isGenericCoord) {
+          if (inputLat) inputLat.value = Number(matched.lat).toFixed(6);
+          if (inputLng) inputLng.value = Number(matched.lng).toFixed(6);
+        }
+      }
+
+      const parsedOfficer = this.parseStationOfficerRankAndName(matched);
+      if (inputRank && parsedOfficer.rank) {
+        const curRank = inputRank.value.trim();
+        const isBrokenRank = !curRank || ['Đại', 'Thượng', 'Trung', 'Thiếu'].includes(curRank) || this.isPlaceholderAccountValue(inputOfficerName?.value);
+        if (forceOverwrite || isBrokenRank) {
+          inputRank.value = parsedOfficer.rank;
+        }
+      }
+      if (inputOfficerName && parsedOfficer.name && !this.isPlaceholderAccountValue(parsedOfficer.name)) {
+        if (forceOverwrite || this.isPlaceholderAccountValue(inputOfficerName.value) || /^(tướng|tá|úy)\b/i.test(inputOfficerName.value.trim())) {
+          inputOfficerName.value = parsedOfficer.name;
+        }
+      }
+
+      const stPhone = (matched.phone || matched.duty_phone || '').replace(/\s*\(Số ảo test\)/gi, '').trim();
+      if (inputPhone && stPhone && !this.isPlaceholderAccountValue(stPhone)) {
+        if (forceOverwrite || this.isPlaceholderAccountValue(inputPhone.value)) {
+          inputPhone.value = stPhone;
+        }
+      }
+
+      const stSms = (matched.officerPhone || matched.officer_phone || matched.sms || matched.sms_phone || stPhone).replace(/\s*\(Số ảo test\)/gi, '').trim();
+      if (inputSms && stSms && !this.isPlaceholderAccountValue(stSms)) {
+        if (forceOverwrite || this.isPlaceholderAccountValue(inputSms.value)) {
+          inputSms.value = stSms;
+        }
+      }
+
+      const stEmail = (matched.email || '').trim();
+      if (inputEmail && stEmail && !this.isPlaceholderAccountValue(stEmail)) {
+        if (forceOverwrite || this.isPlaceholderAccountValue(inputEmail.value)) {
+          inputEmail.value = stEmail;
+        }
+      }
+      return matched;
+    }
+
+    // If user selected a ward that is only in the 3,321 ward boundaries (no station record yet), geocode ward center
+    if (triggerSource === 'ward' && ward && !this.isPlaceholderAccountValue(ward)) {
+      try {
+        const res = await fetch(`/api/geocode/search?ward=${encodeURIComponent(ward)}&province=${encodeURIComponent(province)}`);
+        const d = await res.json();
+        if (d && d.ok && d.lat && d.lng) {
+          if (inputLat) inputLat.value = Number(d.lat).toFixed(6);
+          if (inputLng) inputLng.value = Number(d.lng).toFixed(6);
+          if (inputAddress && (!inputAddress.value || this.isPlaceholderAccountValue(inputAddress.value))) {
+            inputAddress.value = d.address || `${ward}, ${province}`;
+          }
+          if (inputAgencyName && !inputAgencyName.value.trim() && agency === 'police') {
+            inputAgencyName.value = `Công an ${ward}`;
+          }
+        }
+      } catch (err) {
+        console.warn('Ward auto-geocode fallback error:', err);
+      }
+    }
+    return null;
   }
 
   openEditAccountModal(acc) {
@@ -1909,11 +2291,14 @@ class DispatcherApp {
     const uStatus = document.getElementById('accUsernameStatusMsg');
     if (uStatus) uStatus.style.display = 'none';
 
+    const provVal = acc.province || 'Cần Thơ';
+    this.populateAccountWardsDatalist(provVal);
+
     setVal('editAccPassword', acc.password || acc.initialPassword || '');
     setVal('editAccAgency', acc.agency || 'police');
     setVal('editAccLevel', acc.level || (acc.agency === 'traffic-rescue' ? 'enterprise' : 'ward'));
     setVal('editAccAgencyName', acc.agencyName || acc.unitName || '');
-    setVal('editAccProvince', acc.province || 'Cần Thơ');
+    setVal('editAccProvince', provVal);
     setVal('editAccWard', acc.ward || '');
     setVal('editAccAddress', acc.address || acc.stationAddress || '');
     setVal('editAccLat', acc.lat !== undefined && acc.lat !== null ? (typeof acc.lat === 'number' ? acc.lat.toFixed(6) : acc.lat) : '');
@@ -1928,11 +2313,21 @@ class DispatcherApp {
       verifiedCheckbox.checked = acc.contactVerification === 'official' || acc.contactVerification === 'manual';
     }
 
+    const btnPickAcc = document.getElementById('btnPickAccLocationOnMap');
+    if (btnPickAcc) {
+      btnPickAcc.innerHTML = `<svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Chọn Trên Map`;
+      btnPickAcc.style.borderColor = '#eab308';
+      btnPickAcc.style.color = '#fde047';
+    }
+
     try {
       this.updateAdminAccountFormDynamicFields(acc.agency || 'police', true);
     } catch (e) {
       console.warn('updateAdminAccountFormDynamicFields error:', e);
     }
+
+    // Automatically repair any placeholder or out-of-sync fields from the verified station directory
+    this.syncAccountModalWithStation({ forceOverwrite: false, triggerSource: 'open' });
 
     if (editModal) {
       editModal.style.zIndex = '1000020';
@@ -4069,52 +4464,177 @@ class DispatcherApp {
     this.btnCloseLocationPickerModal = document.getElementById('btnCloseLocationPickerModal');
     this.btnConfirmLocationPicker = document.getElementById('btnConfirmLocationPicker');
     this.inputLocationPickerSearch = document.getElementById('inputLocationPickerSearch');
+    this.locationPickerSearchDropdown = document.getElementById('locationPickerSearchDropdown');
     this.btnLocationPickerSearch = document.getElementById('btnLocationPickerSearch');
     this.btnLocationPickerGps = document.getElementById('btnLocationPickerGps');
     this.locationPickerAddressDisplay = document.getElementById('locationPickerAddressDisplay');
     this.locationPickerCoordsDisplay = document.getElementById('locationPickerCoordsDisplay');
 
+    const hideSuggestions = () => {
+      if (this.locationPickerSearchDropdown) {
+        this.locationPickerSearchDropdown.style.display = 'none';
+      }
+    };
+
     if (this.btnCloseLocationPickerModal) {
       this.btnCloseLocationPickerModal.addEventListener('click', () => {
+        hideSuggestions();
         if (this.modalLocationPicker) this.modalLocationPicker.style.display = 'none';
       });
     }
 
     if (this.btnLocationPickerGps) {
       this.btnLocationPickerGps.addEventListener('click', () => {
+        hideSuggestions();
         if (!navigator.geolocation) {
           alert('Thiết bị không hỗ trợ GPS');
           return;
         }
         this.btnLocationPickerGps.textContent = '⏳ Đang định vị...';
         navigator.geolocation.getCurrentPosition(async (pos) => {
-          this.btnLocationPickerGps.textContent = '📡 Vị trí GPS hiện tại';
+          this.btnLocationPickerGps.textContent = 'GPS';
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           this.setLocationPickerPoint(lat, lng, true);
         }, (err) => {
-          this.btnLocationPickerGps.textContent = '📡 Vị trí GPS hiện tại';
+          this.btnLocationPickerGps.textContent = 'GPS';
           alert('Lỗi GPS: ' + err.message);
         }, { enableHighAccuracy: true });
       });
     }
 
-    const doSearch = async () => {
-      const q = this.inputLocationPickerSearch?.value.trim();
-      if (!q) return;
-      this.btnLocationPickerSearch.textContent = '⏳';
+    const renderSuggestions = async (rawQ) => {
+      if (!this.locationPickerSearchDropdown) return;
+      const q = (rawQ || '').trim();
+      const provContext = (this.locationPickerTarget === 'account'
+        ? document.getElementById('editAccProvince')?.value.trim()
+        : this.selectedStationRegion !== 'all' ? this.selectedStationRegion : '') || 'Cần Thơ';
+
       try {
-        const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(q)}`);
+        const params = new URLSearchParams({
+          q: this.isPlaceholderAccountValue(q) ? '' : q,
+          province: provContext
+        });
+        const res = await fetch(`/api/geocode/suggest?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if (items.length === 0) {
+          hideSuggestions();
+          return;
+        }
+
+        this.locationPickerSearchDropdown.innerHTML = items.map((it, idx) => {
+          const isSt = it.type === 'station';
+          const badgeBg = isSt ? 'rgba(56,189,248,0.18)' : 'rgba(250,204,21,0.16)';
+          const badgeColor = isSt ? '#38bdf8' : '#fde047';
+          const badgeText = isSt ? '🏛️ TRỤ SỞ CHÍNH THỨC' : '🗺️ ĐỊA GIỚI XÃ/PHƯỜNG';
+          const coordText = `[${Number(it.lat).toFixed(5)}, ${Number(it.lng).toFixed(5)}]`;
+          return `
+            <div class="loc-picker-suggest-item" data-idx="${idx}" style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: background 0.15s;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <span style="font-size: 12px; font-weight: 800; color: #f8fafc;">${this.escapeHtml(it.label || '')}</span>
+                <span style="font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor}; white-space: nowrap;">${badgeText}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <span style="font-size: 11px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📍 ${this.escapeHtml(it.sublabel || it.address || '')}</span>
+                <span style="font-size: 10px; font-family: monospace; color: #34d399; white-space: nowrap;">${coordText}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        this.locationPickerSearchDropdown.querySelectorAll('.loc-picker-suggest-item').forEach((el) => {
+          el.addEventListener('mouseenter', () => { el.style.background = 'rgba(56,189,248,0.15)'; });
+          el.addEventListener('mouseleave', () => { el.style.background = 'transparent'; });
+          el.addEventListener('mousedown', (ev) => {
+            ev.preventDefault();
+            const idx = Number(el.dataset.idx);
+            const item = items[idx];
+            if (!item) return;
+            hideSuggestions();
+            if (this.inputLocationPickerSearch) {
+              this.inputLocationPickerSearch.value = item.address || item.label || '';
+            }
+            this.setLocationPickerPoint(
+              Number(item.lat),
+              Number(item.lng),
+              true,
+              item.address || item.sublabel || item.label,
+              item.ward || '',
+              item.province || provContext,
+              item
+            );
+          });
+        });
+
+        this.locationPickerSearchDropdown.style.display = 'block';
+      } catch (err) {
+        console.warn('Suggest fetch error:', err);
+      }
+    };
+
+    let suggestTimer = null;
+    if (this.inputLocationPickerSearch) {
+      this.inputLocationPickerSearch.addEventListener('input', () => {
+        clearTimeout(suggestTimer);
+        suggestTimer = setTimeout(() => {
+          renderSuggestions(this.inputLocationPickerSearch.value);
+        }, 160);
+      });
+      this.inputLocationPickerSearch.addEventListener('focus', () => {
+        renderSuggestions(this.inputLocationPickerSearch.value);
+      });
+      this.inputLocationPickerSearch.addEventListener('blur', () => {
+        setTimeout(hideSuggestions, 200);
+      });
+    }
+
+    const doSearch = async () => {
+      hideSuggestions();
+      const rawQ = this.inputLocationPickerSearch?.value.trim() || '';
+      const cleanQ = this.isPlaceholderAccountValue(rawQ) ? '' : rawQ;
+      const wardCtx = this.locationPickerTarget === 'account'
+        ? (document.getElementById('editAccWard')?.value.trim() || '')
+        : '';
+      const provCtx = this.locationPickerTarget === 'account'
+        ? (document.getElementById('editAccProvince')?.value.trim() || 'Cần Thơ')
+        : 'Cần Thơ';
+      const agencyNameCtx = this.locationPickerTarget === 'account'
+        ? (document.getElementById('editAccAgencyName')?.value.trim() || '')
+        : '';
+
+      if (!cleanQ && !wardCtx && !agencyNameCtx) return;
+      if (this.btnLocationPickerSearch) this.btnLocationPickerSearch.textContent = '⏳';
+      try {
+        const params = new URLSearchParams({
+          q: cleanQ || wardCtx || agencyNameCtx,
+          ward: this.isPlaceholderAccountValue(wardCtx) ? '' : wardCtx,
+          province: provCtx,
+          agencyName: agencyNameCtx
+        });
+        const res = await fetch(`/api/geocode/search?${params.toString()}`);
         const data = await res.json();
         if (data.ok && data.lat && data.lng) {
-          this.setLocationPickerPoint(data.lat, data.lng, true, data.address, data.ward, data.province);
+          if (this.inputLocationPickerSearch && data.address && !this.isPlaceholderAccountValue(data.address)) {
+            this.inputLocationPickerSearch.value = data.address;
+          }
+          this.setLocationPickerPoint(
+            Number(data.lat),
+            Number(data.lng),
+            true,
+            data.address,
+            data.ward,
+            data.province,
+            data
+          );
         } else {
           alert('Không tìm thấy địa chỉ này trên bản đồ');
         }
       } catch (e) {
         alert('Lỗi tìm kiếm: ' + e.message);
       } finally {
-        this.btnLocationPickerSearch.textContent = '🔍 Tìm';
+        if (this.btnLocationPickerSearch) this.btnLocationPickerSearch.textContent = '🔍 Tìm';
       }
     };
 
@@ -4126,12 +4646,15 @@ class DispatcherApp {
         if (e.key === 'Enter') {
           e.preventDefault();
           doSearch();
+        } else if (e.key === 'Escape') {
+          hideSuggestions();
         }
       });
     }
 
     if (this.btnConfirmLocationPicker) {
       this.btnConfirmLocationPicker.addEventListener('click', () => {
+        hideSuggestions();
         if (!this.pickedLocation || typeof this.pickedLocation.lat !== 'number' || typeof this.pickedLocation.lng !== 'number') {
           alert('Vui lòng nhấp vào bản đồ để chọn một vị trí trước khi xác nhận!');
           return;
@@ -4142,6 +4665,11 @@ class DispatcherApp {
           const addrInput = document.getElementById('editAccAddress');
           const wardInput = document.getElementById('editAccWard');
           const provInput = document.getElementById('editAccProvince');
+          const rankInput = document.getElementById('editAccRank');
+          const officerInput = document.getElementById('editAccOfficerName');
+          const phoneInput = document.getElementById('editAccPhone');
+          const smsInput = document.getElementById('editAccSms');
+          const emailInput = document.getElementById('editAccEmail');
 
           if (latInput) {
             latInput.value = this.pickedLocation.lat.toFixed(6);
@@ -4151,12 +4679,35 @@ class DispatcherApp {
             lngInput.value = this.pickedLocation.lng.toFixed(6);
             lngInput.style.borderColor = '#10b981';
           }
-          if (addrInput && this.pickedLocation.address) {
+          if (addrInput && this.pickedLocation.address && !this.isPlaceholderAccountValue(this.pickedLocation.address)) {
             addrInput.value = this.pickedLocation.address;
             addrInput.style.borderColor = '#10b981';
           }
-          if (wardInput && this.pickedLocation.ward) wardInput.value = this.pickedLocation.ward;
-          if (provInput && this.pickedLocation.province) provInput.value = this.pickedLocation.province;
+          if (wardInput && this.pickedLocation.ward && !this.isPlaceholderAccountValue(this.pickedLocation.ward)) {
+            wardInput.value = this.pickedLocation.ward;
+          }
+          if (provInput && this.pickedLocation.province) {
+            provInput.value = this.pickedLocation.province;
+          }
+
+          const meta = this.pickedLocation.meta;
+          if (meta) {
+            if (rankInput && meta.officerRank && (!rankInput.value || ['Đại', 'Thượng', 'Trung', 'Thiếu'].includes(rankInput.value.trim()))) {
+              rankInput.value = meta.officerRank;
+            }
+            if (officerInput && meta.officerName && (!officerInput.value || this.isPlaceholderAccountValue(officerInput.value))) {
+              officerInput.value = meta.officerName;
+            }
+            if (phoneInput && meta.phone && (!phoneInput.value || this.isPlaceholderAccountValue(phoneInput.value))) {
+              phoneInput.value = meta.phone;
+            }
+            if (smsInput && (meta.officerPhone || meta.sms) && (!smsInput.value || this.isPlaceholderAccountValue(smsInput.value))) {
+              smsInput.value = meta.officerPhone || meta.sms;
+            }
+            if (emailInput && meta.email && (!emailInput.value || this.isPlaceholderAccountValue(emailInput.value))) {
+              emailInput.value = meta.email;
+            }
+          }
 
           const btnPickAcc = document.getElementById('btnPickAccLocationOnMap');
           if (btnPickAcc) {
@@ -4167,15 +4718,73 @@ class DispatcherApp {
         } else if (this.locationPickerTarget === 'station') {
           if (this.editStationLat) this.editStationLat.value = this.pickedLocation.lat.toFixed(6);
           if (this.editStationLng) this.editStationLng.value = this.pickedLocation.lng.toFixed(6);
-          if (this.editStationAddress && this.pickedLocation.address) this.editStationAddress.value = this.pickedLocation.address;
+          if (this.editStationAddress && this.pickedLocation.address && !this.isPlaceholderAccountValue(this.pickedLocation.address)) {
+            this.editStationAddress.value = this.pickedLocation.address;
+          }
         }
         if (this.modalLocationPicker) this.modalLocationPicker.style.display = 'none';
       });
     }
   }
 
-  openLocationPicker(target = 'account') {
+  async openLocationPicker(target = 'account') {
     this.locationPickerTarget = target;
+    if (this.locationPickerSearchDropdown) {
+      this.locationPickerSearchDropdown.style.display = 'none';
+    }
+
+    let initialLat = 10.043366;
+    let initialLng = 105.773396;
+    let initialAddr = '';
+    let initialWard = '';
+    let initialProv = 'Cần Thơ';
+    let matchedStationMeta = null;
+
+    if (target === 'account') {
+      // Ensure account modal is synced with verified station data before opening map picker
+      const matchedSt = await this.syncAccountModalWithStation({ forceOverwrite: false, triggerSource: 'openPicker' });
+      matchedStationMeta = matchedSt;
+
+      const curLat = parseFloat(document.getElementById('editAccLat')?.value);
+      const curLng = parseFloat(document.getElementById('editAccLng')?.value);
+      const rawAddr = document.getElementById('editAccAddress')?.value.trim() || '';
+      const rawWard = document.getElementById('editAccWard')?.value.trim() || '';
+      const rawProv = document.getElementById('editAccProvince')?.value.trim() || 'Cần Thơ';
+      const rawAgencyName = document.getElementById('editAccAgencyName')?.value.trim() || '';
+
+      initialProv = rawProv;
+      initialWard = !this.isPlaceholderAccountValue(rawWard)
+        ? rawWard
+        : (matchedSt?.ward || this.extractWardFromAgencyTitle(rawAgencyName) || '');
+      initialAddr = !this.isPlaceholderAccountValue(rawAddr)
+        ? rawAddr
+        : (!this.isPlaceholderAccountValue(matchedSt?.address) ? matchedSt.address : '');
+
+      if (!isNaN(curLat) && !isNaN(curLng) && curLat !== 0) {
+        initialLat = curLat;
+        initialLng = curLng;
+      } else if (matchedSt && matchedSt.lat && matchedSt.lng) {
+        initialLat = Number(matchedSt.lat);
+        initialLng = Number(matchedSt.lng);
+      }
+
+      if (this.inputLocationPickerSearch) {
+        this.inputLocationPickerSearch.value = initialAddr || [initialWard, initialProv].filter(Boolean).join(', ');
+      }
+    } else if (target === 'station') {
+      const curLat = parseFloat(this.editStationLat?.value);
+      const curLng = parseFloat(this.editStationLng?.value);
+      const rawAddr = this.editStationAddress?.value.trim() || '';
+      if (!isNaN(curLat) && !isNaN(curLng) && curLat !== 0) {
+        initialLat = curLat;
+        initialLng = curLng;
+      }
+      initialAddr = !this.isPlaceholderAccountValue(rawAddr) ? rawAddr : '';
+      if (this.inputLocationPickerSearch) {
+        this.inputLocationPickerSearch.value = initialAddr;
+      }
+    }
+
     const modal = this.modalLocationPicker || document.getElementById('modalLocationPicker');
     if (modal) {
       modal.style.zIndex = '1000050';
@@ -4183,33 +4792,21 @@ class DispatcherApp {
       modal.style.setProperty('display', 'flex', 'important');
     }
 
-    let initialLat = 10.0355;
-    let initialLng = 105.7788;
-
-    if (target === 'account') {
-      const curLat = parseFloat(document.getElementById('editAccLat')?.value);
-      const curLng = parseFloat(document.getElementById('editAccLng')?.value);
-      if (!isNaN(curLat) && !isNaN(curLng) && curLat !== 0) {
-        initialLat = curLat;
-        initialLng = curLng;
-      }
-      const curAddr = document.getElementById('editAccAddress')?.value;
-      if (this.inputLocationPickerSearch && curAddr) this.inputLocationPickerSearch.value = curAddr;
-    }
-
     const initMap = () => {
       if (!this.pickerMapController) {
-        this.pickerMapController = new MapController('locationPickerMap', { disableStations: true });
-        this.pickerMapController.init([initialLng, initialLat], 15);
+        // Enable station markers on picker map so user sees exact CAND pins just like the main tactical map
+        this.pickerMapController = new MapController('locationPickerMap', { disableStations: false });
+        this.pickerMapController.init([initialLng, initialLat], 16);
         this.pickerMapInstance = this.pickerMapController.map;
 
         if (this.pickerMapInstance) {
           this.pickerMapInstance.on('load', () => {
             this.pickerMapInstance.resize();
+            this.pickerMapController.loadAllStationsMarkers('all', 'all', true);
           });
           this.pickerMapInstance.on('click', (e) => {
             const { lng, lat } = e.lngLat;
-            this.setLocationPickerPoint(lat, lng, false);
+            this.setLocationPickerPoint(lat, lng, false, null, initialWard, initialProv);
           });
           const canvas = this.pickerMapInstance.getCanvas();
           if (canvas) canvas.style.cursor = 'crosshair';
@@ -4217,11 +4814,19 @@ class DispatcherApp {
       } else {
         if (this.pickerMapInstance) {
           this.pickerMapInstance.resize();
-          this.pickerMapInstance.flyTo({ center: [initialLng, initialLat], zoom: 15 });
+          this.pickerMapInstance.flyTo({ center: [initialLng, initialLat], zoom: 16 });
         }
       }
 
-      this.setLocationPickerPoint(initialLat, initialLng, false);
+      this.setLocationPickerPoint(
+        initialLat,
+        initialLng,
+        false,
+        initialAddr || null,
+        initialWard || null,
+        initialProv || 'Cần Thơ',
+        matchedStationMeta
+      );
 
       // Multiple resize cycles to guarantee full interactive viewport
       setTimeout(() => this.pickerMapInstance?.resize(), 60);
@@ -4232,68 +4837,103 @@ class DispatcherApp {
     setTimeout(initMap, 80);
   }
 
-  async setLocationPickerPoint(lat, lng, fly = true, knownAddress = null, knownWard = null, knownProv = null) {
+  async setLocationPickerPoint(lat, lng, fly = true, knownAddress = null, knownWard = null, knownProv = null, stationMeta = null) {
+    const cleanKnownAddress = knownAddress && !this.isPlaceholderAccountValue(knownAddress) ? knownAddress : null;
+    const cleanKnownWard = knownWard && !this.isPlaceholderAccountValue(knownWard) ? knownWard : '';
+    const cleanKnownProv = knownProv || 'Cần Thơ';
+
     this.pickedLocation = {
-      lat,
-      lng,
-      address: knownAddress || '',
-      ward: knownWard || '',
-      province: knownProv || 'Cần Thơ'
+      lat: Number(lat),
+      lng: Number(lng),
+      address: cleanKnownAddress || '',
+      ward: cleanKnownWard,
+      province: cleanKnownProv,
+      meta: stationMeta || null
     };
 
     if (fly && this.pickerMapInstance) {
-      this.pickerMapInstance.flyTo({ center: [lng, lat], zoom: 16 });
+      this.pickerMapInstance.flyTo({ center: [lng, lat], zoom: 16.5 });
     }
 
     // Move or create marker with pointer-events: none to avoid blocking clicks
-    if (!this.pickerMarkerOverlay) {
-      const el = document.createElement('div');
-      el.className = 'custom-map-pin';
-      el.style.pointerEvents = 'none';
-      el.innerHTML = `
-        <div class="pin-core picker" style="background: linear-gradient(135deg, #0284c7, #38bdf8); box-shadow: 0 0 20px #38bdf8; width: 36px; height: 36px; font-size: 20px; pointer-events: none;">
-          <span>📍</span>
-        </div>
-      `;
-      this.pickerMarkerOverlay = new window.maplibregl.Marker({ element: el })
-        .setLngLat([lng, lat])
-        .addTo(this.pickerMapInstance);
-    } else {
-      this.pickerMarkerOverlay.setLngLat([lng, lat]);
+    if (this.pickerMapInstance) {
+      if (!this.pickerMarkerOverlay) {
+        const el = document.createElement('div');
+        el.className = 'custom-map-pin';
+        el.style.pointerEvents = 'none';
+        el.innerHTML = `
+          <div class="pin-core picker" style="background: linear-gradient(135deg, #0284c7, #38bdf8); box-shadow: 0 0 20px #38bdf8; width: 36px; height: 36px; font-size: 20px; pointer-events: none;">
+            <span>📍</span>
+          </div>
+        `;
+        this.pickerMarkerOverlay = new window.maplibregl.Marker({ element: el })
+          .setLngLat([lng, lat])
+          .addTo(this.pickerMapInstance);
+      } else {
+        this.pickerMarkerOverlay.setLngLat([lng, lat]);
+      }
+    }
+
+    // Highlight ward boundary polygon on the picker map just like Image 4
+    if (this.pickerMapController) {
+      try {
+        const qParams = new URLSearchParams({
+          lat: String(lat),
+          lng: String(lng),
+          ward: cleanKnownWard,
+          province: cleanKnownProv,
+          address: cleanKnownAddress || ''
+        });
+        fetch(`/api/geo/locate-ward?${qParams.toString()}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d && d.ok && d.boundary && this.pickerMapController) {
+              this.pickerMapController.highlightWardBoundary(d.boundary, { fitBounds: false });
+              if (!this.pickedLocation.ward && d.boundary.properties?.ward) {
+                this.pickedLocation.ward = d.boundary.properties.ward;
+              }
+            }
+          })
+          .catch(() => {});
+      } catch (e) {}
     }
 
     if (this.locationPickerCoordsDisplay) {
-      this.locationPickerCoordsDisplay.textContent = `Tọa độ GPS: Vĩ độ (Lat): ${lat.toFixed(6)} | Kinh độ (Lng): ${lng.toFixed(6)}`;
+      this.locationPickerCoordsDisplay.textContent = `[${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}]`;
     }
     if (this.locationPickerAddressDisplay) {
-      this.locationPickerAddressDisplay.textContent = knownAddress || '⏳ Đang tra cứu số nhà & tên đường...';
+      this.locationPickerAddressDisplay.textContent = cleanKnownAddress || '⏳ Đang tra cứu số nhà & tên đường...';
     }
 
-    if (!knownAddress) {
+    if (!cleanKnownAddress) {
       try {
         const res = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lng}`);
         const data = await res.json();
-        if (data.ok && data.address) {
+        if (data.ok && data.address && !this.isPlaceholderAccountValue(data.address)) {
           this.pickedLocation.address = data.address;
-          if (data.ward) this.pickedLocation.ward = data.ward;
+          if (data.ward && !this.isPlaceholderAccountValue(data.ward)) this.pickedLocation.ward = data.ward;
           if (data.province) this.pickedLocation.province = data.province;
           if (this.locationPickerAddressDisplay) {
-            const locDetails = [data.ward, data.district, data.province].filter(Boolean).join(' · ');
-            this.locationPickerAddressDisplay.innerHTML = `<div style="font-weight: 700; color: #38bdf8;">📍 ${this.escapeHtml(data.address)}</div>${locDetails ? `<div style="font-size: 11px; color: #a78bfa; margin-top: 2px;">🏛️ ${this.escapeHtml(locDetails)}</div>` : ''}`;
+            const locDetails = [this.pickedLocation.ward, data.district, this.pickedLocation.province].filter(Boolean).join(' · ');
+            this.locationPickerAddressDisplay.textContent = `📍 ${data.address}${locDetails ? ` (${locDetails})` : ''}`;
           }
         } else {
           if (this.locationPickerAddressDisplay) {
-            this.locationPickerAddressDisplay.textContent = `Tọa độ: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            this.locationPickerAddressDisplay.textContent = `Tọa độ: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
           }
         }
       } catch (err) {
         if (this.locationPickerAddressDisplay) {
-          this.locationPickerAddressDisplay.textContent = `Tọa độ: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+          this.locationPickerAddressDisplay.textContent = `Tọa độ: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`;
         }
       }
     } else {
       if (this.locationPickerAddressDisplay) {
-        this.locationPickerAddressDisplay.textContent = `🏢 ${knownAddress}`;
+        const areaSuffix = [cleanKnownWard, cleanKnownProv].filter(Boolean).join(', ');
+        const displayStr = cleanKnownAddress.toLowerCase().includes((cleanKnownProv || '').toLowerCase())
+          ? cleanKnownAddress
+          : `${cleanKnownAddress}${areaSuffix ? `, ${areaSuffix}` : ''}`;
+        this.locationPickerAddressDisplay.textContent = `🏢 ${displayStr}`;
       }
     }
   }
@@ -13445,6 +14085,14 @@ class DispatcherApp {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  window.dispatcher = window.dispatcherApp = new DispatcherApp();
-});
+const bootDispatcherApp = () => {
+  if (!window.dispatcherApp) {
+    window.dispatcher = window.dispatcherApp = new DispatcherApp();
+  }
+};
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', bootDispatcherApp);
+} else {
+  bootDispatcherApp();
+}
+

@@ -1091,54 +1091,49 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
-            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Tỉnh / Thành phố *</label>
-            <input type="text" id="editAccProvince" list="listProvinces" class="input-field" placeholder="Chọn hoặc nhập tỉnh (ví dụ: Đồng Nai, Cần Thơ...)" value="Cần Thơ" required>
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Tỉnh / Thành phố * (34 Tỉnh/TP)</label>
+            <input type="text" id="editAccProvince" list="listProvinces" class="input-field" placeholder="Chọn hoặc nhập Tỉnh/TP (ví dụ: Cần Thơ, Hà Nội...)" value="Cần Thơ" required>
             <datalist id="listProvinces">
-              <option value="Đồng Nai">Đồng Nai</option>
               <option value="Cần Thơ">Cần Thơ</option>
               <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
               <option value="Hà Nội">Hà Nội</option>
               <option value="Đà Nẵng">Đà Nẵng</option>
               <option value="Hải Phòng">Hải Phòng</option>
               <option value="Huế">Huế</option>
-              <option value="Bình Dương">Bình Dương</option>
-              <option value="Bà Rịa - Vũng Tàu">Bà Rịa - Vũng Tàu</option>
-              <option value="Long An">Long An</option>
-              <option value="Tiền Giang">Tiền Giang</option>
-              <option value="Bến Tre">Bến Tre</option>
+              <option value="An Giang">An Giang</option>
               <option value="Đồng Tháp">Đồng Tháp</option>
               <option value="Vĩnh Long">Vĩnh Long</option>
-              <option value="An Giang">An Giang</option>
-              <option value="Kiên Giang">Kiên Giang</option>
               <option value="Cà Mau">Cà Mau</option>
-              <option value="Sóc Trăng">Sóc Trăng</option>
-              <option value="Trà Vinh">Trà Vinh</option>
-              <option value="Hậu Giang">Hậu Giang</option>
-              <option value="Bạc Liêu">Bạc Liêu</option>
               <option value="Tây Ninh">Tây Ninh</option>
-              <option value="Bình Phước">Bình Phước</option>
+              <option value="Đồng Nai">Đồng Nai</option>
               <option value="Lâm Đồng">Lâm Đồng</option>
-              <option value="Đắk Lắk">Đắk Lắk</option>
-              <option value="Đắk Nông">Đắk Nông</option>
-              <option value="Gia Lai">Gia Lai</option>
-              <option value="Kon Tum">Kon Tum</option>
               <option value="Khánh Hòa">Khánh Hòa</option>
-              <option value="Ninh Thuận">Ninh Thuận</option>
-              <option value="Bình Thuận">Bình Thuận</option>
-              <option value="Phú Yên">Phú Yên</option>
-              <option value="Bình Định">Bình Định</option>
+              <option value="Đắk Lắk">Đắk Lắk</option>
+              <option value="Gia Lai">Gia Lai</option>
               <option value="Quảng Ngãi">Quảng Ngãi</option>
-              <option value="Quảng Nam">Quảng Nam</option>
               <option value="Quảng Trị">Quảng Trị</option>
-              <option value="Quảng Bình">Quảng Bình</option>
               <option value="Hà Tĩnh">Hà Tĩnh</option>
               <option value="Nghệ An">Nghệ An</option>
               <option value="Thanh Hóa">Thanh Hóa</option>
+              <option value="Ninh Bình">Ninh Bình</option>
+              <option value="Hưng Yên">Hưng Yên</option>
+              <option value="Bắc Ninh">Bắc Ninh</option>
+              <option value="Quảng Ninh">Quảng Ninh</option>
+              <option value="Lạng Sơn">Lạng Sơn</option>
+              <option value="Cao Bằng">Cao Bằng</option>
+              <option value="Thái Nguyên">Thái Nguyên</option>
+              <option value="Tuyên Quang">Tuyên Quang</option>
+              <option value="Phú Thọ">Phú Thọ</option>
+              <option value="Lào Cai">Lào Cai</option>
+              <option value="Lai Châu">Lai Châu</option>
+              <option value="Điện Biên">Điện Biên</option>
+              <option value="Sơn La">Sơn La</option>
             </datalist>
           </div>
           <div id="wrapEditAccWard">
-            <label id="lblEditAccWard" style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Xã / Phường</label>
-            <input type="text" id="editAccWard" class="input-field" placeholder="Phường Lê Bình / Xã Mỹ Khánh">
+            <label id="lblEditAccWard" style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Xã / Phường (Tự động đồng bộ trụ sở)</label>
+            <input type="text" id="editAccWard" list="listWards" class="input-field" placeholder="Phường Cái Khế / Phường Lê Bình / Xã Mỹ Khánh">
+            <datalist id="listWards"></datalist>
           </div>
         </div>
 
@@ -1147,9 +1142,9 @@
             Địa chỉ trụ sở công tác (Tự nhận dạng hoặc ghim map) *
           </label>
           <div style="display: flex; gap: 6px;">
-            <input type="text" id="editAccAddress" class="input-field" placeholder="ví dụ: Số 26 Đường Lê Hồng Phong, Phường Trà Nóc, TP. Cần Thơ" style="flex: 1;" required>
+            <input type="text" id="editAccAddress" class="input-field" placeholder="ví dụ: 234 Phạm Ngũ Lão, phường Cái Khế, thành phố Cần Thơ" style="flex: 1;" required>
             <button type="button" id="btnGeocodeAccAddress" class="btn-refresh-loc" style="padding: 0 10px; font-size: 11px; background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8; white-space: nowrap; display: flex; align-items: center; gap: 4px;" title="Tự động nhận dạng địa chỉ và lấy tọa độ GPS">
-              <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Tự Nhận Dạng
+              <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> 📍 Tìm GPS Từ Địa Chỉ
             </button>
             <button type="button" id="btnPickAccLocationOnMap" class="btn-refresh-loc" style="padding: 0 10px; font-size: 11px; background: rgba(234, 179, 8, 0.15); border-color: #eab308; color: #fde047; white-space: nowrap; display: flex; align-items: center; gap: 4px;" title="Chọn vị trí chính xác trực tiếp trên bản đồ">
               <svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Chọn Trên Map
@@ -1160,39 +1155,55 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
             <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Tọa độ GPS Vĩ độ (Lat)</label>
-            <input type="text" id="editAccLat" class="input-field" placeholder="ví dụ: 10.082500">
+            <input type="text" id="editAccLat" class="input-field" placeholder="ví dụ: 10.043366">
           </div>
           <div>
             <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Tọa độ GPS Kinh độ (Lng)</label>
-            <input type="text" id="editAccLng" class="input-field" placeholder="ví dụ: 105.735000">
+            <input type="text" id="editAccLng" class="input-field" placeholder="ví dụ: 105.773396">
           </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
             <label id="lblEditAccRank" style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Cấp bậc cán bộ</label>
-            <input type="text" id="editAccRank" class="input-field" placeholder="Đại úy / Thiếu tá...">
+            <input type="text" id="editAccRank" list="listOfficerRanks" class="input-field" placeholder="Trung tá / Thượng tá / Đại úy...">
+            <datalist id="listOfficerRanks">
+              <option value="Đại tướng">Đại tướng</option>
+              <option value="Thượng tướng">Thượng tướng</option>
+              <option value="Trung tướng">Trung tướng</option>
+              <option value="Thiếu tướng">Thiếu tướng</option>
+              <option value="Đại tá">Đại tá</option>
+              <option value="Thượng tá">Thượng tá</option>
+              <option value="Trung tá">Trung tá</option>
+              <option value="Thiếu tá">Thiếu tá</option>
+              <option value="Đại úy">Đại úy</option>
+              <option value="Thượng úy">Thượng úy</option>
+              <option value="Trung úy">Trung úy</option>
+              <option value="Thiếu úy">Thiếu úy</option>
+              <option value="BS.CKII">BS.CKII</option>
+              <option value="ThS. Bác sĩ">ThS. Bác sĩ</option>
+            </datalist>
           </div>
           <div>
             <label id="lblEditAccOfficerName" style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Họ và tên Cán bộ trực ban *</label>
-            <input type="text" id="editAccOfficerName" class="input-field" placeholder="Lê Văn Hòa" required>
+            <input type="text" id="editAccOfficerName" class="input-field" placeholder="Trần Sơn Lam" required>
           </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
             <label id="lblEditAccPhone" style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">SĐT Bàn Trực ban *</label>
-            <input type="text" id="editAccPhone" class="input-field" placeholder="0292 3899 113" required>
+            <input type="text" id="editAccPhone" class="input-field" placeholder="02923890379" required>
           </div>
           <div>
-            <label id="lblEditAccSms" style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Hotline / SMS Tiếp Nhận</label>
-            <input type="text" id="editAccSms" class="input-field" placeholder="0988 113 113" value="0988 113 113">
+            <label id="lblEditAccSms" style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Hotline / SĐT Trưởng Công An</label>
+            <input type="text" id="editAccSms" class="input-field" placeholder="0903101070" value="0988 113 113">
           </div>
         </div>
 
         <div>
           <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 2px;">Email công vụ / liên hệ</label>
-          <input type="email" id="editAccEmail" class="input-field" placeholder="trucban@sos.gov.vn">
+          <input type="email" id="editAccEmail" class="input-field" placeholder="phuongcaikhe@cantho.gov.vn">
         </div>
 
         <label for="editAccVerified" style="display: flex; align-items: flex-start; gap: 9px; padding: 10px 12px; border: 1px solid rgba(16,185,129,0.42); border-radius: 9px; background: rgba(16,185,129,0.09); cursor: pointer;">
@@ -1223,7 +1234,7 @@
           <svg class="svg-ico ico-lg ico-blue" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
           <div>
             <div style="font-size: 15px; font-weight: 800; color: #38bdf8; letter-spacing: 0.3px;">GHIM VỊ TRÍ TRỤ SỞ TRỰC TIẾP TRÊN BẢN ĐỒ</div>
-            <div style="font-size: 11px; color: #94a3b8;">Nhấp chuột vào bất kỳ điểm nào trên bản đồ để chọn tọa độ</div>
+            <div style="font-size: 11px; color: #94a3b8;">Nhấp chuột vào bất kỳ điểm nào hoặc chọn trụ sở Công an trên bản đồ để lấy tọa độ chính xác</div>
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1235,10 +1246,13 @@
       </div>
 
       <!-- Quick Search Toolbar + 1-Line Live Address Badge -->
-      <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-shrink: 0; align-items: center;">
-        <input type="text" id="inputLocationPickerSearch" class="input-field" placeholder="Gõ số nhà, tên đường, phường/xã để bay tới..." style="width: 320px; font-size: 12px; padding: 6px 12px;">
+      <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-shrink: 0; align-items: center; position: relative; z-index: 20;">
+        <div style="position: relative; width: 340px; flex-shrink: 0;">
+          <input type="text" id="inputLocationPickerSearch" class="input-field" autocomplete="off" placeholder="Gõ tên phường/xã, trụ sở công an, số nhà, tên đường..." style="width: 100%; font-size: 12px; padding: 6px 12px; box-sizing: border-box;">
+          <div id="locationPickerSearchDropdown" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 460px; max-width: 90vw; max-height: 290px; overflow-y: auto; background: #0f172a; border: 1px solid #38bdf8; border-radius: 8px; box-shadow: 0 14px 36px rgba(0,0,0,0.92); z-index: 1000099;"></div>
+        </div>
         <button type="button" id="btnLocationPickerSearch" class="btn-refresh-loc" style="padding: 0 14px; font-size: 12px; background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8; font-weight: 700; white-space: nowrap; height: 34px; display: flex; align-items: center; gap: 4px;">
-          <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Tìm
+          <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> 🔍 Tìm
         </button>
         <button type="button" id="btnLocationPickerGps" class="btn-refresh-loc" style="padding: 0 12px; font-size: 12px; background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #34d399; font-weight: 700; white-space: nowrap; height: 34px; display: flex; align-items: center; gap: 4px;">
           <svg class="svg-ico ico-xs ico-emerald" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"></path></svg> GPS
@@ -3332,7 +3346,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20260921_full_accounts_v4"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261011_account_map_sync_v3"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {

@@ -363,8 +363,17 @@ function syncAllDirectoriesFromAgencyAccounts() {
       } else {
         // police, csgt, fire
         const stId = `st-${u}`;
-        const existingStIdx = stList.findIndex(s => s.id === stId || s.id === u || (acc.ward && s.ward === acc.ward && s.province === acc.province && s.agency === (acc.agency || 'police')));
+        const normW = removeVietnameseTones(String(acc.ward || '').toLowerCase()).replace(/^(cong an\s+)?(phuong|xa|thi tran|dac khu|p\.|x\.|tt\.)\s*/i, '').replace(/[^a-z0-9]/g, '');
+        const normP = removeVietnameseTones(String(acc.province || '').toLowerCase()).replace(/^(tinh|thanh pho|tp\.?)\s*/i, '').replace(/[^a-z0-9]/g, '');
+        const existingStIdx = stList.findIndex(s => {
+          if (s.id === stId || s.id === u) return true;
+          if (!normW || normW === 'toanthanhpho' || normW === 'toantinh') return false;
+          const sW = removeVietnameseTones(String(s.ward || s.unit_title || s.name || '').toLowerCase()).replace(/^(cong an\s+)?(phuong|xa|thi tran|dac khu|p\.|x\.|tt\.)\s*/i, '').replace(/[^a-z0-9]/g, '');
+          const sP = removeVietnameseTones(String(s.province || '').toLowerCase()).replace(/^(tinh|thanh pho|tp\.?)\s*/i, '').replace(/[^a-z0-9]/g, '');
+          return sW === normW && sP === normP && (s.agency || 'police') === (acc.agency || 'police');
+        });
         const existingSt = existingStIdx !== -1 ? stList[existingStIdx] : null;
+        const isCleanText = (val) => val && !String(val).toLowerCase().includes('cập nhật') && !String(val).toLowerCase().includes('chưa công bố');
         const stData = {
           id: existingSt ? existingSt.id : stId,
           raw_id: existingSt?.raw_id,
@@ -376,15 +385,17 @@ function syncAllDirectoriesFromAgencyAccounts() {
           level: acc.level || 'ward',
           province: acc.province || 'Cần Thơ',
           district: acc.district || '',
-          ward: acc.ward || '',
-          address: (existingSt?.address && !existingSt.address.includes('cập nhật')) ? existingSt.address : (acc.address || `Trụ sở ${acc.agencyName}`),
-          phone: (existingSt?.phone && !existingSt.phone.includes('cập nhật')) ? existingSt.phone : (acc.officerPhone || ''),
-          sms: (existingSt?.sms && !existingSt.sms.includes('cập nhật')) ? existingSt.sms : (acc.officerSms || '0988 113 113'),
-          officer: (existingSt?.officer && !existingSt.officer.includes('cập nhật')) ? existingSt.officer : (acc.officerName ? `${acc.officerRank || ''} ${acc.officerName}`.trim() : 'Trực ban tác chiến'),
+          ward: (existingSt?.ward && existingSt.ward !== 'Toàn Thành Phố') ? existingSt.ward : (acc.ward || ''),
+          address: isCleanText(existingSt?.address) ? existingSt.address : (isCleanText(acc.address) ? acc.address : `Trụ sở ${acc.agencyName}`),
+          phone: isCleanText(existingSt?.phone) ? existingSt.phone : (acc.officerPhone || ''),
+          sms: isCleanText(existingSt?.sms) ? existingSt.sms : (acc.officerSms || '0988 113 113'),
+          officer: isCleanText(existingSt?.officer) ? existingSt.officer : (acc.officerName ? `${acc.officerRank || ''} ${acc.officerName}`.trim() : 'Trực ban tác chiến'),
           officer_name: existingSt?.officer_name || acc.officerName || '',
+          officer_rank: existingSt?.officer_rank || acc.officerRank || '',
+          officer_clean_name: existingSt?.officer_clean_name || acc.officerName || '',
           officer_phone: existingSt?.officer_phone || acc.officerSms || '',
-          email: (existingSt?.email && !existingSt.email.includes('cập nhật')) ? existingSt.email : (acc.officerEmail || ''),
-          services: existingSt?.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
+          email: isCleanText(existingSt?.email) ? existingSt.email : (acc.officerEmail || ''),
+          services: existingSt?.services || acc.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
           lat: (existingSt?.lat && existingSt.lat !== 0) ? existingSt.lat : (acc.lat || null),
           lng: (existingSt?.lng && existingSt.lng !== 0) ? existingSt.lng : (acc.lng || null),
           isGpsVerified: true
@@ -398,10 +409,8 @@ function syncAllDirectoriesFromAgencyAccounts() {
     }
 
     // Clean duplicate station IDs
-    stationsDirectory.stations = stList.filter(s => {
-      if (s.id === 'st-captananca' && stList.some(other => other.id === 'st-ct-30-ph-ng-t-n-an')) return false;
-      return true;
-    });
+    const dupeIds = new Set(['st-captananca', 'st-capcaikhect', 'st-capanbinhct', 'st-capbinhthuyct', 'st-caphungphuct']);
+    stationsDirectory.stations = stList.filter(s => !dupeIds.has(s.id));
     hospitalsDB.hospitals = hospList;
     rescueEnterprises.enterprises = resList;
 
@@ -5533,205 +5542,490 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
+  // API: Geocode Autocomplete Suggestions (Stations + 3321 Wards)
+  // -------------------------------------------------------------
+  if (urlPath === '/api/geocode/suggest' && req.method === 'GET') {
+    const rawQ = (urlObj.searchParams.get('q') || '').trim();
+    const rawProv = (urlObj.searchParams.get('province') || urlObj.searchParams.get('prov') || '').trim();
+    const normSuggestText = (val) => removeVietnameseTones(String(val || ''))
+      .toLowerCase()
+      .replace(/\b(tp\.?|thanh pho|tinh|phuong|xa|thi tran|dac khu|cong an|ubnd|tru so)\b/g, ' ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const qClean = normSuggestText(rawQ);
+    const qFull = removeVietnameseTones(rawQ).toLowerCase().trim();
+    const provClean = normSuggestText(rawProv);
+    const results = [];
+    const seenKeys = new Set();
+
+    // 1. Search verified stationsDirectory first
+    if (stationsDirectory && Array.isArray(stationsDirectory.stations)) {
+      for (const st of stationsDirectory.stations) {
+        if (!st || !st.lat || !st.lng) continue;
+        const stProvClean = normSuggestText(st.province || '');
+        if (provClean && stProvClean && stProvClean !== provClean && !stProvClean.includes(provClean) && !provClean.includes(stProvClean)) {
+          // Still allow if user explicitly typed another province in rawQ
+          if (!qFull.includes(stProvClean)) continue;
+        }
+        const stWardClean = normSuggestText(st.ward || '');
+        const stNameFull = removeVietnameseTones(`${st.name || st.unit_name || ''} ${st.ward || ''} ${st.address || ''} ${st.province || ''}`).toLowerCase();
+        let score = 0;
+        if (!qFull) {
+          score = (provClean && stProvClean === provClean) ? 50 : 10;
+        } else {
+          if (stWardClean && qClean && stWardClean === qClean) score += 100;
+          else if (stWardClean && qClean && (stWardClean.includes(qClean) || qClean.includes(stWardClean))) score += 75;
+          if (stNameFull.includes(qFull)) score += 60;
+          else if (qClean && stNameFull.includes(qClean)) score += 45;
+          if (provClean && stProvClean === provClean) score += 25;
+        }
+        if (score > 0) {
+          const dedupKey = `${Number(st.lat).toFixed(4)}_${Number(st.lng).toFixed(4)}_${stWardClean}`;
+          if (seenKeys.has(dedupKey)) continue;
+          seenKeys.add(dedupKey);
+          const rawOfficer = String(st.officer || '').trim();
+          const rankMatch = rawOfficer.match(/^(Đại tướng|Thượng tướng|Trung tướng|Thiếu tướng|Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy)\s+(.+)$/i);
+          results.push({
+            score,
+            type: 'station',
+            id: st.id,
+            label: st.name || st.unit_name || `Công an ${st.ward || st.province}`,
+            sublabel: st.address || `${st.ward ? st.ward + ', ' : ''}${st.province || ''}`,
+            lat: Number(st.lat),
+            lng: Number(st.lng),
+            address: st.address || '',
+            ward: st.ward || '',
+            province: st.province || rawProv || 'Cần Thơ',
+            phone: st.phone || st.duty_phone || '',
+            sms: st.sms || st.sms_phone || st.officer_phone || st.duty_phone || st.phone || '',
+            email: st.email || '',
+            officerRank: st.officer_position || (rankMatch ? rankMatch[1] : ''),
+            officerName: st.officer_name || (rankMatch ? rankMatch[2] : rawOfficer),
+            officerPhone: st.sms || st.officer_phone || '',
+            services: st.services || ''
+          });
+        }
+      }
+    }
+
+    // 2. Search vnWardBoundaries (3,321 wards)
+    if (vnWardBoundaries && Array.isArray(vnWardBoundaries.features) && qClean.length >= 2) {
+      for (const f of vnWardBoundaries.features) {
+        if (!f || !f.properties) continue;
+        const fProv = f.properties.province || '';
+        const fWard = f.properties.ward || f.properties.name || '';
+        const fProvClean = normSuggestText(fProv);
+        const fWardClean = normSuggestText(fWard);
+        if (provClean && fProvClean && fProvClean !== provClean && !fProvClean.includes(provClean)) {
+          if (!qFull.includes(fProvClean)) continue;
+        }
+        if (fWardClean && (fWardClean.includes(qClean) || qClean.includes(fWardClean))) {
+          const center = computeFeatureCenter(f);
+          const lat = parseFloat(center[1].toFixed(6));
+          const lng = parseFloat(center[0].toFixed(6));
+          const dedupKey = `${lat.toFixed(4)}_${lng.toFixed(4)}_${fWardClean}`;
+          if (seenKeys.has(dedupKey)) continue;
+          seenKeys.add(dedupKey);
+          results.push({
+            score: fWardClean === qClean ? 70 : 40,
+            type: 'ward',
+            label: `${fWard}, ${fProv}`,
+            sublabel: `Địa giới hành chính ${fWard} — ${fProv}`,
+            lat,
+            lng,
+            address: `${fWard}, ${fProv}`,
+            ward: fWard,
+            province: fProv
+          });
+        }
+      }
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    return res.end(JSON.stringify({
+      ok: true,
+      items: results.slice(0, 12)
+    }));
+  }
+
+  // -------------------------------------------------------------
   // API: Forward Geocode / Auto Address Recognition Proxy
   // -------------------------------------------------------------
   if (urlPath === '/api/geocode/search' || urlPath === '/api/geocode/forward') {
-    const q = (urlObj.searchParams.get('q') || '').trim();
-    const addr = (urlObj.searchParams.get('address') || urlObj.searchParams.get('addr') || '').trim();
-    const ward = (urlObj.searchParams.get('ward') || '').trim();
-    const prov = (urlObj.searchParams.get('province') || urlObj.searchParams.get('prov') || '').trim() || 'Cần Thơ';
-    const searchQuery = [addr, ward, prov, 'Việt Nam'].filter(Boolean).join(', ') || q || 'Cần Thơ, Việt Nam';
+    const isPlaceholderGeoText = (txt) => {
+      if (!txt) return true;
+      const t = removeVietnameseTones(String(txt)).toLowerCase().trim();
+      return (
+        !t ||
+        t.includes('chua cong bo') ||
+        t.includes('dang cap nhat') ||
+        t.includes('toan thanh pho') ||
+        t.includes('toan tinh') ||
+        t === 'trung tam'
+      );
+    };
 
-    // Province center reference dictionary for Vietnam
+    const normGeoText = (val) => removeVietnameseTones(String(val || ''))
+      .toLowerCase()
+      .replace(/\b(tp\.?|thanh pho|tinh|phuong|xa|thi tran|dac khu|cong an|ubnd|tru so)\b/g, ' ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const rawQ = (urlObj.searchParams.get('q') || '').trim();
+    const rawAddr = (urlObj.searchParams.get('address') || urlObj.searchParams.get('addr') || '').trim();
+    const rawWard = (urlObj.searchParams.get('ward') || '').trim();
+    const rawAgency = (urlObj.searchParams.get('agencyName') || urlObj.searchParams.get('unitName') || '').trim();
+    const prov = (urlObj.searchParams.get('province') || urlObj.searchParams.get('prov') || '').trim() || 'Cần Thơ';
+
+    const q = isPlaceholderGeoText(rawQ) ? '' : rawQ;
+    const addr = isPlaceholderGeoText(rawAddr) ? '' : rawAddr;
+    let ward = isPlaceholderGeoText(rawWard) ? '' : rawWard;
+
+    // Extract ward name from agencyName, q, or addr if ward is empty
+    const extractWardHint = (text) => {
+      if (!text) return '';
+      const m = String(text).match(/(?:Phường|Xã|Thị trấn|Đặc khu|phường|xã|thị trấn|đặc khu)\s+([^,(\n\-]+)/i);
+      if (m && m[1]) {
+        const prefix = String(text).match(/(Phường|Xã|Thị trấn|Đặc khu)/i)?.[1] || 'Phường';
+        const capPrefix = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase();
+        return `${capPrefix} ${m[1].trim()}`;
+      }
+      return '';
+    };
+    if (!ward) {
+      ward = extractWardHint(rawAgency) || extractWardHint(q) || extractWardHint(addr) || '';
+    }
+
+    const searchQuery = [q, addr, ward, prov, 'Việt Nam']
+      .filter(Boolean)
+      .filter((item, idx, arr) => arr.indexOf(item) === idx)
+      .join(', ') || `${prov}, Việt Nam`;
+
+    // Province center reference dictionary for All 34 Vietnam Provinces
     const PROVINCE_CENTERS = {
       'can tho': { lat: 10.0355, lng: 105.7788, prov: 'Cần Thơ' },
       'ha noi': { lat: 21.0285, lng: 105.8542, prov: 'Hà Nội' },
-      'tp. ho chi minh': { lat: 10.8231, lng: 106.6297, prov: 'TP. Hồ Chí Minh' },
-      'ho chi minh': { lat: 10.8231, lng: 106.6297, prov: 'TP. Hồ Chí Minh' },
+      'tp ho chi minh': { lat: 10.7769, lng: 106.7009, prov: 'TP. Hồ Chí Minh' },
+      'ho chi minh': { lat: 10.7769, lng: 106.7009, prov: 'TP. Hồ Chí Minh' },
       'da nang': { lat: 16.0544, lng: 108.2022, prov: 'Đà Nẵng' },
       'hai phong': { lat: 20.8449, lng: 106.6881, prov: 'Hải Phòng' },
       'hue': { lat: 16.4637, lng: 107.5909, prov: 'Huế' },
-      'an giang': { lat: 10.5216, lng: 105.1259, prov: 'An Giang' },
+      'an giang': { lat: 10.3864, lng: 105.4352, prov: 'An Giang' },
       'dong thap': { lat: 10.4578, lng: 105.6322, prov: 'Đồng Tháp' },
       'vinh long': { lat: 10.2537, lng: 105.9722, prov: 'Vĩnh Long' },
-      'hau giang': { lat: 9.7844, lng: 105.4701, prov: 'Hậu Giang' },
-      'soc trang': { lat: 9.6033, lng: 105.9800, prov: 'Sóc Trăng' },
-      'kien giang': { lat: 9.9576, lng: 105.1324, prov: 'Kiên Giang' },
       'ca mau': { lat: 9.1769, lng: 105.1524, prov: 'Cà Mau' },
-      'bac lieu': { lat: 9.2941, lng: 105.7278, prov: 'Bạc Liêu' }
+      'tay ninh': { lat: 11.3100, lng: 106.0983, prov: 'Tây Ninh' },
+      'dong nai': { lat: 10.9574, lng: 106.8427, prov: 'Đồng Nai' },
+      'lam dong': { lat: 11.9404, lng: 108.4583, prov: 'Lâm Đồng' },
+      'khanh hoa': { lat: 12.2388, lng: 109.1967, prov: 'Khánh Hòa' },
+      'dak lak': { lat: 12.6667, lng: 108.0500, prov: 'Đắk Lắk' },
+      'gia lai': { lat: 13.9833, lng: 108.0000, prov: 'Gia Lai' },
+      'quang ngai': { lat: 15.1205, lng: 108.7923, prov: 'Quảng Ngãi' },
+      'quang tri': { lat: 16.8163, lng: 107.1003, prov: 'Quảng Trị' },
+      'ha tinh': { lat: 18.3428, lng: 105.9057, prov: 'Hà Tĩnh' },
+      'nghe an': { lat: 18.6796, lng: 105.6813, prov: 'Nghệ An' },
+      'thanh hoa': { lat: 19.8067, lng: 105.7852, prov: 'Thanh Hóa' },
+      'ninh binh': { lat: 20.2506, lng: 105.9745, prov: 'Ninh Bình' },
+      'hung yen': { lat: 20.6464, lng: 106.0511, prov: 'Hưng Yên' },
+      'bac ninh': { lat: 21.1861, lng: 106.0763, prov: 'Bắc Ninh' },
+      'quang ninh': { lat: 20.9599, lng: 107.0425, prov: 'Quảng Ninh' },
+      'lang son': { lat: 21.8537, lng: 106.7615, prov: 'Lạng Sơn' },
+      'cao bang': { lat: 22.6657, lng: 106.2579, prov: 'Cao Bằng' },
+      'thai nguyen': { lat: 21.5942, lng: 105.8482, prov: 'Thái Nguyên' },
+      'tuyen quang': { lat: 21.8236, lng: 105.2142, prov: 'Tuyên Quang' },
+      'phu tho': { lat: 21.3227, lng: 105.4020, prov: 'Phú Thọ' },
+      'lao cai': { lat: 22.4856, lng: 103.9707, prov: 'Lào Cai' },
+      'lai chau': { lat: 22.3964, lng: 103.4582, prov: 'Lai Châu' },
+      'dien bien': { lat: 21.3860, lng: 103.0230, prov: 'Điện Biên' },
+      'son la': { lat: 21.3256, lng: 103.9188, prov: 'Sơn La' }
     };
 
-    const cleanProvKey = removeVietnameseTones(prov).toLowerCase();
+    const cleanProvKey = normGeoText(prov);
     const fallbackCoord = PROVINCE_CENTERS[cleanProvKey] || PROVINCE_CENTERS['can tho'];
 
     try {
-      // 1. Try matching known agency accounts / stations database first
-      if (typeof AGENCY_ACCOUNTS !== 'undefined' && AGENCY_ACCOUNTS) {
-        const cWard = removeVietnameseTones(ward || q).toLowerCase();
-        const cAddr = removeVietnameseTones(addr || q).toLowerCase();
-        for (const [key, acc] of Object.entries(AGENCY_ACCOUNTS)) {
+      const cWard = normGeoText(ward || q || rawAgency);
+      const cAddr = removeVietnameseTones(addr || q).toLowerCase().trim();
+      const cFullQ = removeVietnameseTones(q || addr || ward || rawAgency).toLowerCase().trim();
+
+      // 1A. Search verified stationsDirectory.stations FIRST (authoritative 845 stations)
+      if (stationsDirectory && Array.isArray(stationsDirectory.stations) && (cWard || cAddr || cFullQ)) {
+        const provStations = stationsDirectory.stations.filter(st => {
+          if (!st || !st.lat || !st.lng) return false;
+          const stProv = normGeoText(st.province || '');
+          return !cleanProvKey || stProv === cleanProvKey || stProv.includes(cleanProvKey) || cleanProvKey.includes(stProv);
+        });
+        const stationPool = provStations.length > 0 ? provStations : stationsDirectory.stations;
+
+        let bestSt = null;
+        let bestScore = 0;
+        for (const st of stationPool) {
+          if (!st || !st.lat || !st.lng) continue;
+          const stWard = normGeoText(st.ward || '');
+          const stAddr = removeVietnameseTones(st.address || '').toLowerCase().trim();
+          const stUnit = removeVietnameseTones(st.name || st.unit_name || '').toLowerCase().trim();
+          let score = 0;
+
+          if (cWard && stWard && stWard === cWard) score += 100;
+          else if (cWard && stWard && stWard.length >= 3 && (stWard.includes(cWard) || cWard.includes(stWard))) score += 70;
+
+          if (cAddr && stAddr && !isPlaceholderGeoText(st.address)) {
+            if (stAddr === cAddr) score += 95;
+            else if (cAddr.length >= 5 && (stAddr.includes(cAddr) || cAddr.includes(stAddr))) score += 80;
+          }
+
+          if (cFullQ && stUnit && (stUnit === cFullQ || (cFullQ.length >= 5 && stUnit.includes(cFullQ)))) {
+            score += 65;
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestSt = st;
+          }
+        }
+
+        if (bestSt && bestScore >= 65) {
+          const cleanAddress = !isPlaceholderGeoText(bestSt.address)
+            ? bestSt.address
+            : `${bestSt.ward ? bestSt.ward + ', ' : ''}${bestSt.province || prov}`;
+          const rawOfficer = String(bestSt.officer || '').trim();
+          const rankMatch = rawOfficer.match(/^(Đại tướng|Thượng tướng|Trung tướng|Thiếu tướng|Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy)\s+(.+)$/i);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({
+            ok: true,
+            lat: Number(bestSt.lat),
+            lng: Number(bestSt.lng),
+            address: cleanAddress,
+            ward: bestSt.ward || ward,
+            province: bestSt.province || prov,
+            unitName: bestSt.name || bestSt.unit_name || '',
+            phone: bestSt.phone || bestSt.duty_phone || '',
+            sms: bestSt.sms || bestSt.sms_phone || bestSt.officer_phone || bestSt.duty_phone || bestSt.phone || '',
+            email: bestSt.email || '',
+            officerRank: bestSt.officer_position || (rankMatch ? rankMatch[1] : ''),
+            officerName: bestSt.officer_name || (rankMatch ? rankMatch[2] : rawOfficer),
+            officerPhone: bestSt.sms || bestSt.officer_phone || '',
+            services: bestSt.services || '',
+            source: 'stations-directory'
+          }));
+        }
+      }
+
+      // 1B. Try matching verified agency accounts database SECOND (skipping placeholders)
+      if (typeof AGENCY_ACCOUNTS !== 'undefined' && AGENCY_ACCOUNTS && (cWard || cAddr)) {
+        for (const [, acc] of Object.entries(AGENCY_ACCOUNTS)) {
           if (!acc || !acc.lat || !acc.lng) continue;
-          const aWard = removeVietnameseTones(acc.ward || '').toLowerCase();
-          const aAddr = removeVietnameseTones(acc.address || '').toLowerCase();
-          const aName = removeVietnameseTones(acc.agencyName || acc.unitName || '').toLowerCase();
-          const wardMatch = ward && aWard && (aWard.includes(cWard) || cWard.includes(aWard));
-          const addrMatch = addr && aAddr && (aAddr.includes(cAddr) || cAddr.includes(aAddr));
-          const nameMatch = q && aName && (aName.includes(cWard) || cWard.includes(aName));
-          if ((wardMatch && (addrMatch || !addr)) || (addrMatch && wardMatch) || nameMatch) {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+          const accProv = normGeoText(acc.province || '');
+          if (cleanProvKey && accProv && accProv !== cleanProvKey && !accProv.includes(cleanProvKey)) continue;
+
+          const aWard = normGeoText(acc.ward || '');
+          const aAddr = isPlaceholderGeoText(acc.address) ? '' : removeVietnameseTones(acc.address || '').toLowerCase();
+          const aName = normGeoText(acc.agencyName || acc.unitName || '');
+
+          const wardExact = cWard && aWard && aWard === cWard;
+          const addrMatch = cAddr && aAddr && cAddr.length >= 5 && (aAddr.includes(cAddr) || cAddr.includes(aAddr));
+          const nameExact = cWard && aName && aName === cWard;
+
+          if (wardExact || addrMatch || nameExact) {
+            const cleanAccAddr = !isPlaceholderGeoText(acc.address)
+              ? acc.address
+              : `${acc.ward && !isPlaceholderGeoText(acc.ward) ? acc.ward + ', ' : ''}${acc.province || prov}`;
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
             return res.end(JSON.stringify({
               ok: true,
-              lat: acc.lat,
-              lng: acc.lng,
-              address: acc.address || searchQuery,
-              ward: acc.ward || ward,
+              lat: Number(acc.lat),
+              lng: Number(acc.lng),
+              address: cleanAccAddr,
+              ward: !isPlaceholderGeoText(acc.ward) ? acc.ward : ward,
               province: acc.province || prov,
+              unitName: acc.agencyName || acc.unitName || '',
+              phone: acc.officerPhone || '',
+              sms: acc.officerSms || acc.officerPhone || '',
+              email: acc.officerEmail || '',
+              officerRank: acc.officerRank || '',
+              officerName: acc.officerName || '',
+              officerPhone: acc.officerSms || acc.officerPhone || '',
               source: 'agency-database'
             }));
           }
         }
       }
 
-      // 2. Try Photon Komoot (High accuracy for Vietnam streets & numbers)
-      try {
-        const cleanQuery = searchQuery.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
-        const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanQuery)}&limit=5`;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3500);
-        const response = await fetch(photonUrl, {
-          headers: { 'User-Agent': 'SOSEmergencyVietnam/1.0' },
-          signal: controller.signal
-        });
-        clearTimeout(timeout);
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data && Array.isArray(data.features) && data.features.length > 0) {
-            // Find best matching feature (prefer same province if possible)
-            let best = data.features[0];
-            if (data.features.length > 1) {
-              const matchedProvFeature = data.features.find(f => {
-                const stateStr = removeVietnameseTones(f.properties?.state || f.properties?.city || '').toLowerCase();
-                return stateStr && (stateStr.includes(cleanProvKey) || cleanProvKey.includes(stateStr));
-              });
-              if (matchedProvFeature) best = matchedProvFeature;
-            }
-
-            const [lng, lat] = best.geometry.coordinates;
-            const p = best.properties || {};
-            const parts = [
-              p.housenumber ? `Số ${p.housenumber}` : '',
-              p.street || p.name || '',
-              p.district || p.suburb || ward,
-              p.city || p.state || prov
-            ].filter(Boolean);
-            const resolvedAddress = parts.join(', ') || searchQuery;
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({
-              ok: true,
-              lat: parseFloat(lat.toFixed(6)),
-              lng: parseFloat(lng.toFixed(6)),
-              address: resolvedAddress,
-              ward: p.district || p.suburb || ward,
-              province: p.city || p.state || prov,
-              source: 'photon'
-            }));
-          }
-        }
-      } catch (err) {
-        console.warn('Photon geocode fallback:', err.message);
-      }
-
-      // 3. Try Nominatim OpenStreetMap (with fast timeout)
-      try {
-        const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1&addressdetails=1`;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2500);
-        const response = await fetch(nomUrl, {
-          headers: { 'User-Agent': 'SOSEmergencyVietnam/1.0 (contact@sos.gov.vn)' },
-          signal: controller.signal
-        });
-        clearTimeout(timeout);
-
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data) && data.length > 0) {
-            const item = data[0];
-            const lat = parseFloat(item.lat);
-            const lng = parseFloat(item.lon);
-            const addrObj = item.address || {};
-            const resWard = addrObj.suburb || addrObj.quarter || addrObj.neighbourhood || addrObj.village || addrObj.town || ward;
-            const resProv = addrObj.city || addrObj.state || addrObj.province || prov;
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({
-              ok: true,
-              lat: parseFloat(lat.toFixed(6)),
-              lng: parseFloat(lng.toFixed(6)),
-              address: item.display_name || searchQuery,
-              ward: resWard,
-              province: resProv,
-              source: 'nominatim'
-            }));
-          }
-        }
-      } catch (err) {
-        console.warn('Nominatim forward geocode warning:', err.message);
-      }
-
-      // 4. Try local polygon centroid matching from vnWardBoundaries
-      if (vnWardBoundaries && Array.isArray(vnWardBoundaries.features)) {
-        const targetWard = removeVietnameseTones(ward || addr || q).toLowerCase();
-        const targetProv = cleanProvKey;
-
-        // Filter features matching province first
+      // 2. Try local polygon centroid matching from vnWardBoundaries when user searches a ward name without street address
+      if (!addr && vnWardBoundaries && Array.isArray(vnWardBoundaries.features) && cWard) {
         const provFeatures = vnWardBoundaries.features.filter(f => {
           if (!f || !f.properties) return false;
-          const fProv = removeVietnameseTones(f.properties.province || '').toLowerCase();
-          return !targetProv || fProv.includes(targetProv) || targetProv.includes(fProv);
+          const fProv = normGeoText(f.properties.province || '');
+          return !cleanProvKey || fProv.includes(cleanProvKey) || cleanProvKey.includes(fProv);
         });
-
         const pool = provFeatures.length > 0 ? provFeatures : vnWardBoundaries.features;
         const matched = pool.find(f => {
-          const fWard = removeVietnameseTones(f.properties.ward || f.properties.name || '').toLowerCase();
-          if (!fWard || fWard.length < 3) return false;
-          return targetWard.includes(fWard) || fWard.includes(targetWard);
+          const fWard = normGeoText(f.properties.ward || f.properties.name || '');
+          return fWard && (fWard === cWard || (cWard.length >= 4 && (fWard.includes(cWard) || cWard.includes(fWard))));
         });
-
         if (matched) {
           const center = computeFeatureCenter(matched);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
+          const mWard = matched.properties.ward || matched.properties.name || ward;
+          const mProv = matched.properties.province || prov;
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
           return res.end(JSON.stringify({
             ok: true,
             lat: parseFloat(center[1].toFixed(6)),
             lng: parseFloat(center[0].toFixed(6)),
-            address: searchQuery,
-            ward: matched.properties.ward || matched.properties.name || ward,
-            province: matched.properties.province || prov,
+            address: `${mWard}, ${mProv}`,
+            ward: mWard,
+            province: mProv,
             source: 'local-ward-boundaries'
           }));
         }
       }
 
-      // 5. Default safe fallback to target province center
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      // 3. Try Photon Komoot (High accuracy for Vietnam streets & numbers)
+      if (q || addr || ward) {
+        try {
+          const cleanQuery = searchQuery.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+          const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(cleanQuery)}&limit=5`;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3500);
+          const response = await fetch(photonUrl, {
+            headers: { 'User-Agent': 'SOSEmergencyVietnam/1.0' },
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data && Array.isArray(data.features) && data.features.length > 0) {
+              let best = data.features[0];
+              if (data.features.length > 1) {
+                const matchedProvFeature = data.features.find(f => {
+                  const stateStr = normGeoText(f.properties?.state || f.properties?.city || '');
+                  return stateStr && (stateStr.includes(cleanProvKey) || cleanProvKey.includes(stateStr));
+                });
+                if (matchedProvFeature) best = matchedProvFeature;
+              }
+
+              const [lng, lat] = best.geometry.coordinates;
+              const p = best.properties || {};
+              const parts = [
+                p.housenumber ? `Số ${p.housenumber}` : '',
+                p.street || p.name || '',
+                p.district || p.suburb || ward,
+                p.city || p.state || prov
+              ].filter(Boolean);
+              const resolvedAddress = parts.join(', ') || searchQuery;
+
+              res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+              return res.end(JSON.stringify({
+                ok: true,
+                lat: parseFloat(lat.toFixed(6)),
+                lng: parseFloat(lng.toFixed(6)),
+                address: resolvedAddress,
+                ward: ward || p.district || p.suburb || '',
+                province: p.city || p.state || prov,
+                source: 'photon'
+              }));
+            }
+          }
+        } catch (err) {
+          console.warn('Photon geocode fallback:', err.message);
+        }
+      }
+
+      // 4. Try Nominatim OpenStreetMap (with fast timeout)
+      if (q || addr || ward) {
+        try {
+          const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1&addressdetails=1`;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2500);
+          const response = await fetch(nomUrl, {
+            headers: { 'User-Agent': 'SOSEmergencyVietnam/1.0 (contact@sos.gov.vn)' },
+            signal: controller.signal
+          });
+          clearTimeout(timeout);
+
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+              const item = data[0];
+              const lat = parseFloat(item.lat);
+              const lng = parseFloat(item.lon);
+              const addrObj = item.address || {};
+              const resWard = ward || addrObj.suburb || addrObj.quarter || addrObj.neighbourhood || addrObj.village || addrObj.town || '';
+              const resProv = addrObj.city || addrObj.state || addrObj.province || prov;
+
+              res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+              return res.end(JSON.stringify({
+                ok: true,
+                lat: parseFloat(lat.toFixed(6)),
+                lng: parseFloat(lng.toFixed(6)),
+                address: item.display_name || searchQuery,
+                ward: resWard,
+                province: resProv,
+                source: 'nominatim'
+              }));
+            }
+          }
+        } catch (err) {
+          console.warn('Nominatim forward geocode warning:', err.message);
+        }
+      }
+
+      // 5. Try local polygon centroid matching from vnWardBoundaries as fallback
+      if (vnWardBoundaries && Array.isArray(vnWardBoundaries.features) && (cWard || cFullQ)) {
+        const targetWard = cWard || normGeoText(q || addr);
+        const provFeatures = vnWardBoundaries.features.filter(f => {
+          if (!f || !f.properties) return false;
+          const fProv = normGeoText(f.properties.province || '');
+          return !cleanProvKey || fProv.includes(cleanProvKey) || cleanProvKey.includes(fProv);
+        });
+
+        const pool = provFeatures.length > 0 ? provFeatures : vnWardBoundaries.features;
+        const matched = pool.find(f => {
+          const fWard = normGeoText(f.properties.ward || f.properties.name || '');
+          if (!fWard || fWard.length < 2) return false;
+          return targetWard.includes(fWard) || fWard.includes(targetWard);
+        });
+
+        if (matched) {
+          const center = computeFeatureCenter(matched);
+          const mWard = matched.properties.ward || matched.properties.name || ward;
+          const mProv = matched.properties.province || prov;
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({
+            ok: true,
+            lat: parseFloat(center[1].toFixed(6)),
+            lng: parseFloat(center[0].toFixed(6)),
+            address: `${mWard}, ${mProv}`,
+            ward: mWard,
+            province: mProv,
+            source: 'local-ward-boundaries'
+          }));
+        }
+      }
+
+      // 6. Default safe fallback to target province center
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({
         ok: true,
         lat: fallbackCoord.lat,
         lng: fallbackCoord.lng,
-        address: searchQuery,
+        address: addr || (ward ? `${ward}, ${fallbackCoord.prov || prov}` : `${fallbackCoord.prov || prov}, Việt Nam`),
         ward: ward || 'Trung tâm',
         province: fallbackCoord.prov || prov,
         source: 'province-fallback'
       }));
     } catch (err) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({
         ok: true,
         lat: fallbackCoord.lat,
         lng: fallbackCoord.lng,
-        address: searchQuery,
+        address: addr || `${fallbackCoord.prov || prov}, Việt Nam`,
         ward: ward || 'Trung tâm',
         province: fallbackCoord.prov || prov,
         source: 'error-fallback'
