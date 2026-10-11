@@ -7744,16 +7744,38 @@ class DispatcherApp {
     const btnReject = document.getElementById('btnRejectIncomingCallFromCitizen');
 
     const isVideo = (signal.callType === 'video');
-    const citizenName = (inc && inc.reporterName) || 'Người dân';
-    const citizenPhone = (inc && inc.reporterPhone) || 'Chưa có SĐT';
-    const incidentAddress = (inc && (inc.address || inc.ward)) || 'Địa bàn phụ trách';
+    const isInterUnit = (signal.callScope === 'inter_unit' || signal.sender === 'dispatcher');
+    let callerTitle = 'Người dân';
+    let callerPhone = 'Chưa có SĐT';
+    let incidentAddress = (inc && (inc.address || inc.ward)) || 'Địa bàn phụ trách';
+
+    if (isInterUnit) {
+      callerTitle = signal.senderName || signal.senderUsername || (signal.targetUnit ? (signal.targetUnit.name || 'Chỉ huy đơn vị phối hợp') : 'Cán bộ trực ban tác chiến');
+      callerPhone = signal.senderPhone || 'Kênh tác chiến nội bộ';
+      if (signal.targetUnit && (signal.targetUnit.name || signal.targetUnit.address)) {
+        incidentAddress = `Đơn vị: ${signal.targetUnit.name || signal.targetUnit.address}`;
+      }
+    } else {
+      callerTitle = (inc && inc.reporterName) || 'Người dân';
+      callerPhone = (inc && inc.reporterPhone) || 'Chưa có SĐT';
+    }
 
     if (sosId) sosId.textContent = `#${signal.incidentId}`;
-    if (nameEl) nameEl.textContent = citizenName;
-    if (phoneEl) phoneEl.textContent = `(${citizenPhone})`;
+    if (nameEl) nameEl.textContent = callerTitle;
+    if (phoneEl) phoneEl.textContent = `(${callerPhone})`;
     if (addrEl) addrEl.textContent = incidentAddress;
 
-    if (isVideo) {
+    if (isInterUnit) {
+      if (heading) heading.textContent = isVideo ? 'YÊU CẦU ĐÀM THOẠI HÌNH LIÊN ĐƠN VỊ' : 'CUỘC GỌI TÁC CHIẾN LIÊN ĐƠN VỊ';
+      if (icon) {
+        icon.textContent = isVideo ? '📹' : '📞';
+        icon.style.background = isVideo ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)';
+        icon.style.borderColor = isVideo ? '#ef4444' : '#3b82f6';
+      }
+      if (descEl) descEl.textContent = `Cán bộ ${callerTitle} đang yêu cầu kết nối đàm thoại tác chiến trực tiếp về sự cố #${signal.incidentId}.`;
+      if (acceptIcon) acceptIcon.textContent = isVideo ? '📹' : '📞';
+      if (acceptText) acceptText.textContent = isVideo ? 'TIẾP NHẬN VIDEO TÁC CHIẾN' : 'TIẾP NHẬN ĐÀM THOẠI TÁC CHIẾN';
+    } else if (isVideo) {
       if (heading) heading.textContent = 'YÊU CẦU CUỘC GỌI VIDEO TỪ NGƯỜI DÂN';
       if (icon) {
         icon.textContent = '📹';
@@ -7799,7 +7821,7 @@ class DispatcherApp {
         if (isVideo) {
           this.startDispatcherVideoCall(signal.incidentId, true);
         } else {
-          this.openDispatcherVoiceCall(signal.incidentId, true);
+          this.openDispatcherVoiceCall(signal.incidentId, true, signal.targetUnit || null);
         }
       };
     }
@@ -7818,6 +7840,9 @@ class DispatcherApp {
             id: signal.incidentId,
             action: 'reject',
             sender: 'dispatcher',
+            senderUsername: this.currentOfficer?.username,
+            callScope: signal.callScope || (signal.sender === 'dispatcher' ? 'inter_unit' : 'citizen_dispatcher'),
+            targetUnit: signal.targetUnit || null,
             callType: signal.callType || 'voice',
             token: this.currentOfficer?.token
           })
@@ -7888,7 +7913,12 @@ class DispatcherApp {
       try { this.dispatcherVoicePeerConnection.close(); } catch (e) {}
     }
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
     });
     this.dispatcherVoicePeerConnection = pc;
     this._dispatcherHandlingVoiceOffer = false;
@@ -7903,7 +7933,13 @@ class DispatcherApp {
     };
 
     try {
-      this.dispatcherVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.dispatcherVoiceStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
       this.dispatcherVoiceStream.getTracks().forEach(track => pc.addTrack(track, this.dispatcherVoiceStream));
     } catch (err) {
       console.warn('Dispatcher microphone access fallback on voice call:', err);
@@ -7916,7 +7952,12 @@ class DispatcherApp {
       const remoteAudioEl = document.getElementById('dispatcherRemoteVoiceAudio');
       if (remoteAudioEl) {
         remoteAudioEl.srcObject = remoteStream;
-        remoteAudioEl.play().catch(() => {});
+        remoteAudioEl.muted = false;
+        remoteAudioEl.volume = 1.0;
+        remoteAudioEl.play().catch(e => console.warn('Dispatcher remote audio play:', e));
+      }
+      if (this.voiceCallRecorder && this.voiceCallRecorder.isRecording) {
+        this.voiceCallRecorder.attachRemoteStream(remoteStream);
       }
     };
 
@@ -7927,33 +7968,66 @@ class DispatcherApp {
           credentials: 'same-origin',
           headers: this.getAuthHeaders(),
           body: JSON.stringify({
-            id: inc.id, action: 'webrtc-ice', sender: 'dispatcher', callType: 'voice',
-            token: this.currentOfficer?.token, candidate: event.candidate.toJSON()
+            id: inc.id,
+            action: 'webrtc-ice',
+            sender: 'dispatcher',
+            senderUsername: this.currentOfficer?.username,
+            callType: 'voice',
+            callScope: targetUnit ? 'inter_unit' : 'citizen_dispatcher',
+            targetUnit: targetUnit,
+            token: this.currentOfficer?.token,
+            candidate: event.candidate.toJSON()
           })
         }).catch(() => {});
       }
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-        showVoiceCallFailure('Mất kết nối mạng với người dân');
+      console.log('📡 [DISPATCHER ICE STATE]:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        if (hint) {
+          hint.textContent = targetUnit
+            ? `🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI ${targetUnit.name || 'ĐƠN VỊ TÁC CHIẾN'}`
+            : '🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI NGƯỜI DÂN';
+          hint.style.color = '#34d399';
+        }
+      } else if (pc.iceConnectionState === 'failed') {
+        if (typeof pc.restartIce === 'function') {
+          console.log('🔄 Dispatcher thử khởi động lại ICE (restartIce)...');
+          pc.restartIce();
+        } else {
+          showVoiceCallFailure('Mất kết nối mạng P2P với người đối thoại');
+        }
+      } else if (pc.iceConnectionState === 'disconnected') {
+        showVoiceCallFailure('Đang kết nối lại mạng P2P...');
       }
     };
 
     if (isIncomingFromCitizen) {
-      // Citizen is calling Dispatcher -> Dispatcher answers by sending 'accept' signal.
+      // Incoming call answered -> send 'accept' signal
       if (hint) {
-        hint.textContent = '🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI NGƯỜI DÂN';
+        hint.textContent = targetUnit
+          ? `🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI ${targetUnit.name || 'ĐƠN VỊ TÁC CHIẾN'}`
+          : '🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI NGƯỜI DÂN';
         hint.style.color = '#34d399';
       }
       fetch('/api/sos/videocall/signal', {
         method: 'POST',
         credentials: 'same-origin',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify({ id: inc.id, action: 'accept', sender: 'dispatcher', callType: 'voice', token: this.currentOfficer?.token })
+        body: JSON.stringify({
+          id: inc.id,
+          action: 'accept',
+          sender: 'dispatcher',
+          senderUsername: this.currentOfficer?.username,
+          callType: 'voice',
+          callScope: targetUnit ? 'inter_unit' : 'citizen_dispatcher',
+          targetUnit: targetUnit,
+          token: this.currentOfficer?.token
+        })
       }).catch(e => console.warn('Voice call accept signal error:', e));
     } else {
-      // Dispatcher calls Citizen -> Send voice call request signal, then our own SDP offer.
+      // Outgoing call -> send 'request' signal, then SDP offer
       if (hint) {
         if (targetUnit) {
           hint.textContent = `📞 Đang kết nối kênh thoại tác chiến tới ${targetUnit.name || 'đơn vị địa bàn'}...`;
@@ -7967,7 +8041,16 @@ class DispatcherApp {
         method: 'POST',
         credentials: 'same-origin',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify({ id: inc.id, action: 'request', sender: 'dispatcher', callType: 'voice', token: this.currentOfficer?.token })
+        body: JSON.stringify({
+          id: inc.id,
+          action: 'request',
+          sender: 'dispatcher',
+          senderUsername: this.currentOfficer?.username,
+          callType: 'voice',
+          callScope: targetUnit ? 'inter_unit' : 'citizen_dispatcher',
+          targetUnit: targetUnit,
+          token: this.currentOfficer?.token
+        })
       }).catch(e => console.warn('Voice call request signal error:', e));
 
       try {
@@ -7978,8 +8061,15 @@ class DispatcherApp {
           credentials: 'same-origin',
           headers: this.getAuthHeaders(),
           body: JSON.stringify({
-            id: inc.id, action: 'webrtc-offer', sender: 'dispatcher', callType: 'voice',
-            token: this.currentOfficer?.token, sdp: offer
+            id: inc.id,
+            action: 'webrtc-offer',
+            sender: 'dispatcher',
+            senderUsername: this.currentOfficer?.username,
+            callType: 'voice',
+            callScope: targetUnit ? 'inter_unit' : 'citizen_dispatcher',
+            targetUnit: targetUnit,
+            token: this.currentOfficer?.token,
+            sdp: offer
           })
         }).catch(e => console.warn('WebRTC offer signal error:', e));
       } catch (err) {
@@ -7997,6 +8087,8 @@ class DispatcherApp {
       const s = String(sec % 60).padStart(2, '0');
       if (timer) timer.textContent = `⏱️ ${m}:${s}`;
     }, 1000);
+
+    this.startVoiceCallLevelMeterLoop();
   }
 
   // Toggle 2-Channel Audio Recording during Voice Call
@@ -8019,11 +8111,15 @@ class DispatcherApp {
     if (!this.voiceCallRecorder.isRecording) {
       try {
         if (hint) hint.style.display = 'none';
-        await this.voiceCallRecorder.startRecording(null, null, canvas);
+        const localStream = this.dispatcherVoiceStream;
+        const remoteStream = this.dispatcherVoiceRemoteStream || document.getElementById('dispatcherRemoteVoiceAudio');
+        await this.voiceCallRecorder.startRecording(localStream, remoteStream, canvas);
         if (badge) badge.style.display = 'inline-flex';
         if (icon) icon.textContent = '⏹️';
         if (text) text.textContent = 'DỪNG GHI ÂM & TẢI MP3 (00:00)';
         if (btn) btn.style.background = 'linear-gradient(135deg, #dc2626, #991b1b)';
+
+        this.startVoiceCallLevelMeterLoop();
       } catch (err) {
         alert('Không thể bắt đầu ghi âm cuộc gọi: ' + err.message);
       }
@@ -8034,6 +8130,7 @@ class DispatcherApp {
       if (text) text.textContent = 'BẮT ĐẦU GHI ÂM (2 BÊN)';
       if (btn) btn.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
       if (hint) hint.style.display = 'flex';
+      this.stopVoiceCallLevelMeterLoop();
 
       if (res && res.success) {
         this.showFloatingToast(`✓ Đã tải tệp MP3 "${res.filename}" (${Math.round(res.size / 1024)} KB). Dữ liệu ghi âm đã tự hủy khỏi bộ nhớ (Tuân thủ NĐ 13/2023/NĐ-CP).`);
@@ -8042,8 +8139,9 @@ class DispatcherApp {
   }
 
   toggleVoiceCallMic() {
-    if (this.voiceCallRecorder && this.voiceCallRecorder.localStream) {
-      const audioTrack = this.voiceCallRecorder.localStream.getAudioTracks()[0];
+    const stream = this.dispatcherVoiceStream || (this.voiceCallRecorder && this.voiceCallRecorder.localStream);
+    if (stream) {
+      const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         const btnMic = document.getElementById('btnToggleVoiceMic');
@@ -8053,6 +8151,38 @@ class DispatcherApp {
         }
       }
     }
+  }
+
+  startVoiceCallLevelMeterLoop() {
+    this.stopVoiceCallLevelMeterLoop();
+    const localBar = document.getElementById('voiceCallLocalLevelBar');
+    const localText = document.getElementById('voiceCallLocalLevelText');
+    const remoteBar = document.getElementById('voiceCallRemoteLevelBar');
+    const remoteText = document.getElementById('voiceCallRemoteLevelText');
+
+    this._voiceCallLevelMeterInterval = setInterval(() => {
+      if (!this.voiceCallRecorder) return;
+      const { localLevel, remoteLevel } = this.voiceCallRecorder.getAudioLevels();
+      if (localBar) localBar.style.width = `${localLevel}%`;
+      if (localText) localText.textContent = `${localLevel}%`;
+      if (remoteBar) remoteBar.style.width = `${remoteLevel}%`;
+      if (remoteText) remoteText.textContent = `${remoteLevel}%`;
+    }, 100);
+  }
+
+  stopVoiceCallLevelMeterLoop() {
+    if (this._voiceCallLevelMeterInterval) {
+      clearInterval(this._voiceCallLevelMeterInterval);
+      this._voiceCallLevelMeterInterval = null;
+    }
+    const localBar = document.getElementById('voiceCallLocalLevelBar');
+    const localText = document.getElementById('voiceCallLocalLevelText');
+    const remoteBar = document.getElementById('voiceCallRemoteLevelBar');
+    const remoteText = document.getElementById('voiceCallRemoteLevelText');
+    if (localBar) localBar.style.width = '0%';
+    if (localText) localText.textContent = '0%';
+    if (remoteBar) remoteBar.style.width = '0%';
+    if (remoteText) remoteText.textContent = '0%';
   }
 
   endDispatcherVoiceCall(notify = true) {
@@ -8078,6 +8208,8 @@ class DispatcherApp {
       clearInterval(this._voiceCallTimerInterval);
       this._voiceCallTimerInterval = null;
     }
+
+    this.stopVoiceCallLevelMeterLoop();
 
     if (this.voiceCallRecorder && this.voiceCallRecorder.isRecording) {
       this.voiceCallRecorder.stopAndDownload(this.selectedIncidentId || 'VOICE');
@@ -9386,7 +9518,12 @@ class DispatcherApp {
 
     const handleCallSignal = async (signal) => {
       if (!signal) return;
-      if (signal.sender === 'dispatcher') return;
+      // Do not process our own signals (prevent self-echo loop)
+      const isSelfEcho = (signal.sender === 'dispatcher' && signal.senderUsername && this.currentOfficer?.username && signal.senderUsername === this.currentOfficer.username);
+      if (isSelfEcho) return;
+      // For ordinary citizen calls, if another dispatcher initiates a call that is NOT inter-unit and NOT for us, ignore request
+      if (signal.sender === 'dispatcher' && signal.callScope !== 'inter_unit' && !signal.targetUnit && signal.action === 'request') return;
+
       // Deduplicate signals broadcast over both videocall_signal and voicecall_signal
       const sigKey = `${signal.action}:${signal.callType}:${signal.sender}:${signal.incidentId}:${signal.timestamp || ''}:${signal.sdp ? signal.sdp.type : ''}:${signal.candidate ? signal.candidate.candidate : ''}`;
       if (this._recentDispatcherSignals && this._recentDispatcherSignals.has(sigKey)) return;
@@ -9394,54 +9531,60 @@ class DispatcherApp {
       this._recentDispatcherSignals.add(sigKey);
       setTimeout(() => this._recentDispatcherSignals && this._recentDispatcherSignals.delete(sigKey), 2500);
 
-      // 1. Citizen is calling dispatcher (either Voice or Video)
-      if (signal.action === 'request' && signal.sender === 'citizen') {
+      // 1. Incoming Call Request (Citizen or Inter-Unit Dispatcher)
+      const isIncomingCall = (signal.action === 'request') && (
+        signal.sender === 'citizen' ||
+        (signal.sender === 'dispatcher' && signal.callScope === 'inter_unit')
+      );
+      if (isIncomingCall) {
         const inc = this.incidents.get(signal.incidentId);
         const isEscalated = (inc && inc.status === 'escalated') || signal.isEscalated === true;
         const myLevel = this.currentOfficer?.level || 'ward';
 
         // NẾU CA ĐÃ VƯỢT CẤP LÊN TUYẾN TỈNH/TP:
         // Cấp Xã/Phường tuyệt đối KHÔNG MỞ MODAL nhận cuộc gọi nữa!
-        if (isEscalated && myLevel === 'ward') {
+        if (signal.sender === 'citizen' && isEscalated && myLevel === 'ward') {
           console.log(`⚡ Ca #${signal.incidentId} đã vượt cấp lên tuyến Tỉnh/TP chỉ đạo: Cấp Xã không nhận cuộc gọi.`);
           return;
         }
 
-        const citizenName = (inc && inc.reporterName) || 'Người dân';
-        this.showToast?.(`📞 Cuộc gọi khẩn cấp từ ${citizenName} (#${signal.incidentId})`, 'warning');
+        const callerTitle = signal.sender === 'citizen'
+          ? ((inc && inc.reporterName) || 'Người dân')
+          : (signal.senderName || signal.senderUsername || (signal.targetUnit?.name ? `Chỉ huy ${signal.targetUnit.name}` : 'Cán bộ chỉ huy liên đơn vị'));
+        this.showToast?.(`📞 Cuộc gọi khẩn cấp từ ${callerTitle} (#${signal.incidentId})`, 'warning');
         this.showDispatcherIncomingCallModal(signal);
         return;
       }
 
       // 2. Voice Call signal
       if (signal.callType === 'voice') {
-        if (signal.incidentId === this.selectedIncidentId) {
+        const isCurrentVoiceIncident = (signal.incidentId === this.dispatcherVoiceIncidentId || signal.incidentId === this.selectedIncidentId);
+        if (isCurrentVoiceIncident) {
           if (signal.action === 'accept') {
             const hint = document.getElementById('voiceCallVisualizerHint');
             if (hint) {
-              hint.textContent = '🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI NGƯỜI DÂN';
+              const otherParty = (signal.callScope === 'inter_unit' || signal.sender === 'dispatcher')
+                ? (signal.senderName || signal.senderUsername || (signal.targetUnit?.name || 'ĐƠN VỊ TÁC CHIẾN'))
+                : 'NGƯỜI DÂN';
+              hint.textContent = `🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI ${otherParty.toUpperCase()}`;
               hint.style.color = '#34d399';
             }
-            this.showToast?.('🟢 Người dân đã nhấc máy đàm thoại!', 'success');
+            this.showToast?.('🟢 Đầu bên kia đã nhấc máy đàm thoại!', 'success');
           } else if (signal.action === 'reject') {
             const hint = document.getElementById('voiceCallVisualizerHint');
             if (hint) {
-              hint.textContent = '🔴 Người dân đã từ chối hoặc bận';
+              hint.textContent = '🔴 Đầu bên kia đã từ chối hoặc bận';
               hint.style.color = '#f87171';
             }
-            this.showToast?.('🔴 Người dân đã từ chối cuộc gọi đàm thoại.', 'danger');
+            this.showToast?.('🔴 Cuộc gọi đàm thoại đã bị từ chối.', 'danger');
           } else if (signal.action === 'end') {
             this.endDispatcherVoiceCall(false);
             this.showToast?.('Cuộc gọi thoại đã kết thúc.', 'info');
           } else if (signal.action === 'webrtc-offer') {
-            // Citizen-initiated voice call: citizen sends its SDP offer once
-            // openDispatcherVoiceCall(id, true) has already created our
-            // dispatcherVoicePeerConnection via the incoming-call 'accept' path.
-            // That path can race against this SSE delivery, so briefly poll
-            // rather than drop a legitimate offer.
+            // Incoming offer from citizen or inter-unit officer
             (async () => {
               let pc = this.dispatcherVoicePeerConnection;
-              for (let attempt = 0; !pc && attempt < 20; attempt++) {
+              for (let attempt = 0; !pc && attempt < 50; attempt++) {
                 await new Promise(r => setTimeout(r, 100));
                 pc = this.dispatcherVoicePeerConnection;
               }
@@ -9449,33 +9592,33 @@ class DispatcherApp {
                 console.warn('Received a WebRTC offer with no active dispatcher peer connection after waiting; ignoring.');
                 return;
               }
-              // Server relays each call signal over both 'videocall_signal'
-              // and 'voicecall_signal' SSE events, so the same offer arrives
-              // twice nearly simultaneously. Guard with a synchronous flag
-              // set before any await, not just signalingState (which only
-              // transitions after the first call's own await completes).
               if (this._dispatcherHandlingVoiceOffer) return;
               this._dispatcherHandlingVoiceOffer = true;
-                try {
-                  await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                  const answer = await pc.createAnswer();
-                  await pc.setLocalDescription(answer);
-                  fetch('/api/sos/videocall/signal', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: this.getAuthHeaders(),
-                    body: JSON.stringify({
-                      id: signal.incidentId, action: 'webrtc-answer', sender: 'dispatcher', callType: 'voice',
-                      token: this.currentOfficer?.token, sdp: answer
-                    })
-                  }).catch(e => console.warn('WebRTC answer signal error:', e));
-                } catch (err) {
-                  console.warn('Failed to answer incoming WebRTC offer (dispatcher):', err);
-                }
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                fetch('/api/sos/videocall/signal', {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: this.getAuthHeaders(),
+                  body: JSON.stringify({
+                    id: signal.incidentId,
+                    action: 'webrtc-answer',
+                    sender: 'dispatcher',
+                    senderUsername: this.currentOfficer?.username,
+                    callScope: signal.callScope || (signal.sender === 'dispatcher' ? 'inter_unit' : 'citizen_dispatcher'),
+                    targetUnit: signal.targetUnit || null,
+                    callType: 'voice',
+                    token: this.currentOfficer?.token,
+                    sdp: answer
+                  })
+                }).catch(e => console.warn('WebRTC answer signal error:', e));
+              } catch (err) {
+                console.warn('Failed to answer incoming WebRTC offer (dispatcher):', err);
+              }
             })();
           } else if (signal.action === 'webrtc-answer') {
-            // Dispatcher-initiated voice call: citizen answers our earlier
-            // offer. Guard with a synchronous flag (duplicate SSE events).
             const pc = this.dispatcherVoicePeerConnection;
             if (pc && signal.sdp && !this._dispatcherHandlingVoiceAnswer) {
               this._dispatcherHandlingVoiceAnswer = true;

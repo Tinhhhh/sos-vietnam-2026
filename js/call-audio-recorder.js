@@ -80,11 +80,21 @@ class CallAudioRecorder {
       await this.audioCtx.resume();
     }
 
-    // 4. Tạo Mixer Destination và Analyser
+    // 4. Tạo Mixer Destination và Analysers (chung, local, remote)
     this.mixedDestination = this.audioCtx.createMediaStreamDestination();
     this.analyser = this.audioCtx.createAnalyser();
     this.analyser.fftSize = 256;
     this.analyser.smoothingTimeConstant = 0.8;
+
+    this.localAnalyser = this.audioCtx.createAnalyser();
+    this.localAnalyser.fftSize = 128;
+    this.localAnalyser.smoothingTimeConstant = 0.7;
+
+    this.remoteAnalyser = this.audioCtx.createAnalyser();
+    this.remoteAnalyser.fftSize = 128;
+    this.remoteAnalyser.smoothingTimeConstant = 0.7;
+
+    this.localStream = ownLocalStream;
 
     // 5. Nối Local Stream (Micro của ta)
     try {
@@ -93,34 +103,15 @@ class CallAudioRecorder {
       localGain.gain.value = 1.0;
       this.localSource.connect(localGain);
       localGain.connect(this.mixedDestination);
+      localGain.connect(this.localAnalyser);
       localGain.connect(this.analyser);
     } catch (e) {
       console.warn('[CallAudioRecorder] Local stream connect warning:', e);
     }
 
-    // 6. Nối Remote Stream (Âm thanh đối phương) nếu có
+    // 6. Nối Remote Stream (Âm thanh đối phương) nếu có sẵn
     if (remoteSource) {
-      try {
-        let remoteStreamToConnect = null;
-        if (remoteSource instanceof MediaStream) {
-          remoteStreamToConnect = remoteSource;
-        } else if (remoteSource.srcObject instanceof MediaStream) {
-          remoteStreamToConnect = remoteSource.srcObject;
-        } else if (typeof remoteSource.captureStream === 'function') {
-          remoteStreamToConnect = remoteSource.captureStream();
-        }
-
-        if (remoteStreamToConnect && remoteStreamToConnect.getAudioTracks().length > 0) {
-          this.remoteSource = this.audioCtx.createMediaStreamSource(remoteStreamToConnect);
-          const remoteGain = this.audioCtx.createGain();
-          remoteGain.gain.value = 1.2; // Khuếch đại nhẹ âm thanh đối phương cho cân bằng
-          this.remoteSource.connect(remoteGain);
-          remoteGain.connect(this.mixedDestination);
-          remoteGain.connect(this.analyser);
-        }
-      } catch (e) {
-        console.warn('[CallAudioRecorder] Remote stream connect warning:', e);
-      }
+      this.attachRemoteStream(remoteSource);
     }
 
     // 7. Khởi tạo MP3 Encoder và ScriptProcessorNode (bộ đệm 4096 mẫu)
@@ -149,10 +140,18 @@ class CallAudioRecorder {
       }
     };
 
-    // Kết nối mixer vào scriptProcessor và nối ra destination để kích hoạt luồng xử lý
+    // Kết nối mixer vào scriptProcessor
     const mixedAudioSource = this.audioCtx.createMediaStreamSource(this.mixedDestination.stream);
     mixedAudioSource.connect(this.scriptProcessor);
-    this.scriptProcessor.connect(this.audioCtx.destination);
+
+    // CHỐNG DỘI ÂM MICRO (FEEDBACK ISOLATION):
+    // Kết nối scriptProcessor qua một GainNode bằng 0 (Muted) trước khi ra loa (audioCtx.destination).
+    // Điều này giữ cho Web Audio API liên tục xử lý onaudioprocess để ghi âm MP3 nhưng
+    // tuyệt đối KHÔNG phát tiếng micro của chính mình ra loa gây hú/dội tiếng (acoustic feedback loop).
+    this.muteGain = this.audioCtx.createGain();
+    this.muteGain.gain.value = 0.0;
+    this.scriptProcessor.connect(this.muteGain);
+    this.muteGain.connect(this.audioCtx.destination);
 
     // 8. Bật đồng hồ đếm thời gian
     this.isRecording = true;
@@ -175,6 +174,77 @@ class CallAudioRecorder {
     if (this.onStateChange) {
       this.onStateChange({ isRecording: true, state: 'recording' });
     }
+  }
+
+  /**
+   * Gắn luồng âm thanh đối phương vào mixer (hỗ trợ gọi động khi ontrack đến sau)
+   * @param {MediaStream|HTMLMediaElement} remoteSource
+   */
+  attachRemoteStream(remoteSource) {
+    if (!this.audioCtx || this.audioCtx.state === 'closed' || !this.mixedDestination) {
+      this._pendingRemoteSource = remoteSource;
+      return;
+    }
+    try {
+      let streamToConnect = null;
+      if (remoteSource instanceof MediaStream) {
+        streamToConnect = remoteSource;
+      } else if (remoteSource && remoteSource.srcObject instanceof MediaStream) {
+        streamToConnect = remoteSource.srcObject;
+      } else if (remoteSource && typeof remoteSource.captureStream === 'function') {
+        streamToConnect = remoteSource.captureStream();
+      }
+
+      if (streamToConnect && streamToConnect.getAudioTracks().length > 0) {
+        if (this.remoteSource) {
+          try { this.remoteSource.disconnect(); } catch (e) {}
+        }
+        this.remoteSource = this.audioCtx.createMediaStreamSource(streamToConnect);
+        const remoteGain = this.audioCtx.createGain();
+        remoteGain.gain.value = 1.25; // Khuếch đại nhẹ âm thanh đối phương cho cân bằng chuẩn
+
+        this.remoteSource.connect(remoteGain);
+        remoteGain.connect(this.mixedDestination);
+        if (this.remoteAnalyser) {
+          remoteGain.connect(this.remoteAnalyser);
+        }
+        if (this.analyser) {
+          remoteGain.connect(this.analyser);
+        }
+        console.log('🎙️ [CallAudioRecorder] Đã hòa trộn thành công luồng tiếng đối phương vào bộ ghi âm 2 bên.');
+      }
+    } catch (e) {
+      console.warn('[CallAudioRecorder] attachRemoteStream warning:', e);
+    }
+  }
+
+  /**
+   * Tính toán cường độ âm lượng (0 - 100%) của Micro của bạn và Giọng đối phương
+   * @returns {{localLevel: number, remoteLevel: number}}
+   */
+  getAudioLevels() {
+    let localLevel = 0;
+    let remoteLevel = 0;
+
+    if (this.localAnalyser) {
+      const data = new Uint8Array(this.localAnalyser.frequencyBinCount);
+      this.localAnalyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i];
+      const avg = sum / data.length;
+      localLevel = Math.min(100, Math.round((avg / 128) * 100));
+    }
+
+    if (this.remoteAnalyser) {
+      const data = new Uint8Array(this.remoteAnalyser.frequencyBinCount);
+      this.remoteAnalyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i];
+      const avg = sum / data.length;
+      remoteLevel = Math.min(100, Math.round((avg / 128) * 100));
+    }
+
+    return { localLevel, remoteLevel };
   }
 
   /**
@@ -286,6 +356,18 @@ class CallAudioRecorder {
       if (this.analyser) {
         this.analyser.disconnect();
         this.analyser = null;
+      }
+      if (this.localAnalyser) {
+        this.localAnalyser.disconnect();
+        this.localAnalyser = null;
+      }
+      if (this.remoteAnalyser) {
+        this.remoteAnalyser.disconnect();
+        this.remoteAnalyser = null;
+      }
+      if (this.muteGain) {
+        this.muteGain.disconnect();
+        this.muteGain = null;
       }
       if (this.audioCtx && this.audioCtx.state !== 'closed') {
         this.audioCtx.close().catch(() => {});

@@ -5477,14 +5477,16 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { id, action, sender, callType, streamData, accessToken, sdp, candidate } = JSON.parse(body || '{}');
+        const parsed = JSON.parse(body || '{}');
+        const { id, action, sender, callType, streamData, accessToken, sdp, candidate, targetUnit, senderUsername, callScope } = parsed;
         const cleanId = String(id || '').replace(/^[#\s]+/, '').trim();
         const incident = incidents.get(cleanId) || incidents.get(id);
-        const actor = requireIncidentActor(req, res, urlObj, incident, { accessToken });
+        const actor = requireIncidentActor(req, res, urlObj, incident, parsed);
         if (!actor) return;
 
         const targetId = incident.id;
         const resolvedCallType = callType || (urlPath.includes('voice') ? 'voice' : 'video');
+        const isInterUnitCall = Boolean(targetUnit || callScope === 'inter_unit' || parsed.targetUnitId);
 
         const signalPayload = {
           incidentId: targetId,
@@ -5494,6 +5496,9 @@ const server = http.createServer(async (req, res) => {
           callType: resolvedCallType, // 'voice' | 'video'
           agency: incident.agency,
           sender: actor.kind === 'citizen' ? 'citizen' : (sender === 'citizen' ? 'citizen' : 'dispatcher'),
+          senderUsername: senderUsername || actor.session?.username || null,
+          targetUnit: targetUnit || null,
+          callScope: isInterUnitCall ? 'inter_unit' : 'citizen_dispatcher',
           streamData,
           sdp, // RTCSessionDescriptionInit, only present for webrtc-offer/webrtc-answer
           candidate, // RTCIceCandidateInit, only present for webrtc-ice
@@ -5502,20 +5507,34 @@ const server = http.createServer(async (req, res) => {
           timestamp: new Date().toISOString()
         };
 
-        console.log(`📞 [CALL SIGNAL] #${targetId} | Type: ${resolvedCallType.toUpperCase()} | Action: ${action} | Sender: ${signalPayload.sender}`);
+        console.log(`📞 [CALL SIGNAL] #${targetId} | Type: ${resolvedCallType.toUpperCase()} | Action: ${action} | Sender: ${signalPayload.sender} | Scope: ${signalPayload.callScope}`);
 
-        // Route signals directionally: citizen→dispatcher, dispatcher→citizen.
-        // Never echo a citizen-sent signal back to the citizen (avoids false
-        // "incoming call from dispatcher" modal on the citizen's own screen).
+        // Route signals directionally:
+        // 1. Citizen initiated: only tell dispatchers
         if (signalPayload.sender === 'citizen') {
-          // Citizen initiated: only tell dispatchers
           broadcastToDispatchers('videocall_signal', signalPayload);
           broadcastToDispatchers('voicecall_signal', signalPayload);
         } else {
-          // Dispatcher initiated: only tell the citizen
-          notifyCitizen(targetId, 'videocall_signal', signalPayload);
-          notifyCitizen(targetId, 'voicecall_signal', signalPayload);
+          // 2. Dispatcher initiated:
+          if (isInterUnitCall) {
+            // Inter-unit call (Officer A calls Officer B / Target Unit station):
+            // Relay through dispatcher channel so the other workstation rings and connects!
+            broadcastToDispatchers('videocall_signal', signalPayload);
+            broadcastToDispatchers('voicecall_signal', signalPayload);
+          } else {
+            // Normal Dispatcher calling citizen: notify the citizen
+            notifyCitizen(targetId, 'videocall_signal', signalPayload);
+            notifyCitizen(targetId, 'voicecall_signal', signalPayload);
+            // Also synchronize call status transitions with other dispatchers
+            if (action === 'accept' || action === 'end' || action === 'reject') {
+              broadcastToDispatchers('voicecall_signal', signalPayload);
+            }
+          }
         }
+
+        if (!incident._recentCallSignals) incident._recentCallSignals = [];
+        incident._recentCallSignals.push({ action, sender: signalPayload.sender, callType: resolvedCallType, timestamp: Date.now() });
+        if (incident._recentCallSignals.length > 10) incident._recentCallSignals.shift();
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: true, signalPayload }));
@@ -5525,6 +5544,22 @@ const server = http.createServer(async (req, res) => {
       }
     });
     return;
+  }
+
+  // -------------------------------------------------------------
+  // API: Video & Voice Call Active Signals Polling Fallback
+  // -------------------------------------------------------------
+  if ((urlPath === '/api/sos/videocall/poll' || urlPath === '/api/sos/voicecall/poll') && req.method === 'GET') {
+    const cleanId = String(urlObj.searchParams.get('id') || '').replace(/^[#\s]+/, '').trim();
+    const incident = incidents.get(cleanId);
+    if (!incident) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy ca SOS' }));
+    }
+    const actor = requireIncidentActor(req, res, urlObj, incident, null);
+    if (!actor) return;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, signals: incident._recentCallSignals || [] }));
   }
 
   // -------------------------------------------------------------

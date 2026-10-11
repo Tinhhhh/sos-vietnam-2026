@@ -2013,7 +2013,7 @@ class SOSApp {
     // finishes creating citizenVoicePeerConnection - briefly poll for it
     // rather than dropping a legitimate offer due to this real race.
     let pc = this.citizenVoicePeerConnection;
-    for (let attempt = 0; !pc && attempt < 20; attempt++) {
+    for (let attempt = 0; !pc && attempt < 50; attempt++) {
       await new Promise(r => setTimeout(r, 100));
       pc = this.citizenVoicePeerConnection;
     }
@@ -2392,7 +2392,12 @@ class SOSApp {
       try { this.citizenVoicePeerConnection.close(); } catch (e) {}
     }
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
     });
     this.citizenVoicePeerConnection = pc;
     this._citizenHandlingVoiceOffer = false;
@@ -2408,12 +2413,13 @@ class SOSApp {
       const remoteAudioEl = document.getElementById('citizenRemoteVoiceAudio');
       if (remoteAudioEl) {
         remoteAudioEl.srcObject = remoteStream;
-        remoteAudioEl.play().catch(() => {});
+        remoteAudioEl.muted = false;
+        remoteAudioEl.volume = 1.0;
+        remoteAudioEl.play().catch(e => console.warn('Citizen remote audio play error:', e));
       }
-      // CallAudioRecorder.startRecording(localStream, remoteSource, canvas)
-      // only accepts the remote source as a constructor-time argument, not a
-      // post-hoc setter - citizenVoiceRemoteStream is read by the recording
-      // button's own click handler below once this track has arrived.
+      if (this.citizenVoiceRecorder && this.citizenVoiceRecorder.isRecording) {
+        this.citizenVoiceRecorder.attachRemoteStream(remoteStream);
+      }
     };
 
     pc.onicecandidate = (event) => {
@@ -2441,8 +2447,20 @@ class SOSApp {
     };
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-        showCallFailure('Mất kết nối mạng với trực ban');
+      console.log('📡 [CITIZEN ICE STATE]:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        if (statusTextEl) {
+          statusTextEl.innerHTML = '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34d399; animation: pulse 1s infinite;"></span> 🟢 Đang đàm thoại 2 bên & truyền âm thanh chất lượng cao';
+        }
+      } else if (pc.iceConnectionState === 'failed') {
+        if (typeof pc.restartIce === 'function') {
+          console.log('🔄 Citizen thử khởi động lại ICE (restartIce)...');
+          pc.restartIce();
+        } else {
+          showCallFailure('Mất kết nối mạng P2P với trực ban');
+        }
+      } else if (pc.iceConnectionState === 'disconnected') {
+        showCallFailure('Đang kết nối lại mạng P2P...');
       }
     };
 
@@ -2485,6 +2503,9 @@ class SOSApp {
       }
     }
 
+    // Start Level Meter Loop
+    this.startCitizenVoiceLevelMeterLoop();
+
     // End call button
     if (btnEnd) {
       btnEnd.onclick = () => {
@@ -2520,10 +2541,12 @@ class SOSApp {
 
         if (!this.citizenVoiceRecorder.isRecording) {
           try {
-            await this.citizenVoiceRecorder.startRecording(this.citizenVoiceStream, this.citizenVoiceRemoteStream || null);
+            const remoteSource = this.citizenVoiceRemoteStream || document.getElementById('citizenRemoteVoiceAudio');
+            await this.citizenVoiceRecorder.startRecording(this.citizenVoiceStream, remoteSource, canvas);
             if (recDot) recDot.style.animation = 'pulse 1s infinite';
             if (recText) recText.textContent = '⏹️ Dừng (00:00)';
             btnRec.style.background = 'rgba(239, 68, 68, 0.45)';
+            this.startCitizenVoiceLevelMeterLoop();
           } catch (err) {
             alert('Không thể ghi âm cuộc gọi: ' + err.message);
           }
@@ -2532,6 +2555,7 @@ class SOSApp {
           if (recDot) recDot.style.animation = 'none';
           if (recText) recText.textContent = 'Ghi Âm 2 Bên';
           btnRec.style.background = 'rgba(239, 68, 68, 0.2)';
+          this.stopCitizenVoiceLevelMeterLoop();
           if (res && res.success) {
             alert(`✓ Đã tải file ghi âm cuộc gọi "${res.filename}" về máy an toàn (Tuân thủ Nghị định 13/2023/NĐ-CP).`);
           }
@@ -2655,8 +2679,12 @@ class SOSApp {
       this.citizenVoiceAudioCtx = null;
     }
 
+    this.stopCitizenVoiceLevelMeterLoop();
+
     if (this.citizenVoiceRecorder && this.citizenVoiceRecorder.isRecording) {
       this.citizenVoiceRecorder.stopAndDownload(this.activeIncident ? this.activeIncident.id : 'CITIZEN_VOICE');
+    } else if (this.citizenVoiceRecorder) {
+      this.citizenVoiceRecorder.destroyAudioPipeline();
     }
 
     const recDot = document.getElementById('recDotCitizenVoice');
@@ -2671,6 +2699,38 @@ class SOSApp {
         body: JSON.stringify({ id: this.activeIncident.id, action: 'end', sender: 'citizen', callType: 'voice', accessToken: this.citizenAccessToken })
       }).catch(() => {});
     }
+  }
+
+  startCitizenVoiceLevelMeterLoop() {
+    this.stopCitizenVoiceLevelMeterLoop();
+    const localBar = document.getElementById('citizenVoiceLocalLevelBar');
+    const localText = document.getElementById('citizenVoiceLocalLevelText');
+    const remoteBar = document.getElementById('citizenVoiceRemoteLevelBar');
+    const remoteText = document.getElementById('citizenVoiceRemoteLevelText');
+
+    this._citizenVoiceLevelMeterInterval = setInterval(() => {
+      if (!this.citizenVoiceRecorder) return;
+      const { localLevel, remoteLevel } = this.citizenVoiceRecorder.getAudioLevels();
+      if (localBar) localBar.style.width = `${localLevel}%`;
+      if (localText) localText.textContent = `${localLevel}%`;
+      if (remoteBar) remoteBar.style.width = `${remoteLevel}%`;
+      if (remoteText) remoteText.textContent = `${remoteLevel}%`;
+    }, 100);
+  }
+
+  stopCitizenVoiceLevelMeterLoop() {
+    if (this._citizenVoiceLevelMeterInterval) {
+      clearInterval(this._citizenVoiceLevelMeterInterval);
+      this._citizenVoiceLevelMeterInterval = null;
+    }
+    const localBar = document.getElementById('citizenVoiceLocalLevelBar');
+    const localText = document.getElementById('citizenVoiceLocalLevelText');
+    const remoteBar = document.getElementById('citizenVoiceRemoteLevelBar');
+    const remoteText = document.getElementById('citizenVoiceRemoteLevelText');
+    if (localBar) localBar.style.width = '0%';
+    if (localText) localText.textContent = '0%';
+    if (remoteBar) remoteBar.style.width = '0%';
+    if (remoteText) remoteText.textContent = '0%';
   }
 
   updateIncidentUI(incident) {

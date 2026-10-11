@@ -713,6 +713,30 @@
           </div>
         </div>
 
+        <!-- Dual Audio Level VU Meters (Local Citizen & Remote Dispatcher) -->
+        <div style="width: 100%; max-width: 420px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px;">
+          <!-- Local Mic VU Meter -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px;">
+            <span style="color: #94a3b8; display: flex; align-items: center; gap: 4px; min-width: 105px;">
+              <span>🎤</span> Micro của bạn:
+            </span>
+            <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+              <div id="citizenVoiceLocalLevelBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399, #f59e0b); border-radius: 4px; transition: width 0.08s ease;"></div>
+            </div>
+            <span id="citizenVoiceLocalLevelText" style="font-family: monospace; font-size: 10px; color: #34d399; min-width: 32px; text-align: right;">0%</span>
+          </div>
+          <!-- Remote Audio VU Meter -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px;">
+            <span style="color: #94a3b8; display: flex; align-items: center; gap: 4px; min-width: 105px;">
+              <span>🔊</span> Cán bộ trực ban:
+            </span>
+            <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+              <div id="citizenVoiceRemoteLevelBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #60a5fa, #f59e0b); border-radius: 4px; transition: width 0.08s ease;"></div>
+            </div>
+            <span id="citizenVoiceRemoteLevelText" style="font-family: monospace; font-size: 10px; color: #38bdf8; min-width: 32px; text-align: right;">0%</span>
+          </div>
+        </div>
+
         <!-- Real WebRTC remote-audio sink: plays the dispatcher's voice. Non-visual. -->
         <audio id="citizenRemoteVoiceAudio" autoplay style="display: none;"></audio>
 

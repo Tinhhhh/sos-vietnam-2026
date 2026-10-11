@@ -1508,6 +1508,30 @@
           </div>
         </div>
 
+        <!-- Dual Audio Level VU Meters (Local Mic & Remote Voice) -->
+        <div style="width: 100%; max-width: 460px; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px;">
+          <!-- Local Mic VU Meter -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px;">
+            <span style="color: #94a3b8; display: flex; align-items: center; gap: 4px; min-width: 110px;">
+              <span>🎤</span> Micro cán bộ:
+            </span>
+            <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+              <div id="voiceCallLocalLevelBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399, #f59e0b); border-radius: 4px; transition: width 0.08s ease;"></div>
+            </div>
+            <span id="voiceCallLocalLevelText" style="font-family: monospace; font-size: 10px; color: #34d399; min-width: 32px; text-align: right;">0%</span>
+          </div>
+          <!-- Remote Audio VU Meter -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px;">
+            <span style="color: #94a3b8; display: flex; align-items: center; gap: 4px; min-width: 110px;">
+              <span>🔊</span> Giọng đối thoại:
+            </span>
+            <div style="flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative;">
+              <div id="voiceCallRemoteLevelBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #60a5fa, #f59e0b); border-radius: 4px; transition: width 0.08s ease;"></div>
+            </div>
+            <span id="voiceCallRemoteLevelText" style="font-family: monospace; font-size: 10px; color: #38bdf8; min-width: 32px; text-align: right;">0%</span>
+          </div>
+        </div>
+
         <!-- Privacy & Zero-Retention Notice (Decree 13/2023/ND-CP) -->
         <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 8px 12px; font-size: 11px; color: #a7f3d0; line-height: 1.4; text-align: left; max-width: 460px;">
           🛡️ <b>Bảo mật dữ liệu cá nhân (NĐ 13/2023/NĐ-CP):</b> Tệp âm thanh MP3 được mã hóa trực tiếp trên trình duyệt của cán bộ và tải thẳng về máy tính. Hệ thống máy chủ <b>tuyệt đối KHÔNG lưu trữ</b> cuộc gọi này.

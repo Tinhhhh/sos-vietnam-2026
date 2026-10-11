@@ -1,0 +1,175 @@
+{
+  "testName": "verify-cross-device-webrtc-voice-call",
+  "timestamp": "2026-10-11T11:46:09.216Z",
+  "baseUrl": "http://localhost:3000",
+  "steps": [
+    {
+      "step": "1. Navigate Citizen Page & Submit SOS",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:09.804Z"
+    },
+    {
+      "step": "1. Navigate Citizen Page & Submit SOS",
+      "status": "passed",
+      "details": {
+        "incidentId": "SOS-MV3RC17F-466"
+      },
+      "timestamp": "2026-10-11T11:46:12.285Z"
+    },
+    {
+      "step": "2. Dispatcher Login & Authenticate",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:12.285Z"
+    },
+    {
+      "step": "2. Dispatcher Login & Authenticate",
+      "status": "passed",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:17.102Z"
+    },
+    {
+      "step": "3. Dispatcher Initiates Voice Call",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:17.102Z"
+    },
+    {
+      "step": "3. Dispatcher Initiates Voice Call",
+      "status": "passed",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:17.252Z"
+    },
+    {
+      "step": "4. Citizen Accepts Incoming Call",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:17.253Z"
+    },
+    {
+      "step": "4. Citizen Accepts Incoming Call",
+      "status": "passed",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:17.266Z"
+    },
+    {
+      "step": "5. WebRTC P2P ICE Handshake Verification",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:17.266Z"
+    },
+    {
+      "step": "5. WebRTC P2P ICE Handshake Verification",
+      "status": "passed",
+      "details": {
+        "citizenPcState": "connected",
+        "dispatcherPcState": "connected"
+      },
+      "timestamp": "2026-10-11T11:46:21.286Z"
+    },
+    {
+      "step": "6. Dual-Way Audio Flow Measurement",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:21.286Z"
+    },
+    {
+      "step": "6. Dual-Way Audio Flow Measurement",
+      "status": "passed",
+      "details": {
+        "citizenLevel": 49.22265625,
+        "dispatcherLevel": 44.9453125
+      },
+      "timestamp": "2026-10-11T11:46:25.419Z"
+    },
+    {
+      "step": "7. Verify UI Audio Level Meters",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:25.419Z"
+    },
+    {
+      "step": "7. Verify UI Audio Level Meters",
+      "status": "passed",
+      "details": {
+        "dispatcherMeters": {
+          "hasLocalBar": true,
+          "hasRemoteBar": true
+        },
+        "citizenMeters": {
+          "hasLocalBar": true,
+          "hasRemoteBar": true
+        }
+      },
+      "timestamp": "2026-10-11T11:46:25.423Z"
+    },
+    {
+      "step": "8. Test 2-Way MP3 Recording & Local Download",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:25.423Z"
+    },
+    {
+      "step": "8. Test 2-Way MP3 Recording & Local Download",
+      "status": "passed",
+      "details": {
+        "recorderRan": true,
+        "recordedSeconds": 3,
+        "downloadName": "GhiAm_CuocGoi_SOS_SOS-MV3RC17F-466_20261011_184628.mp3",
+        "downloadSize": 48065
+      },
+      "timestamp": "2026-10-11T11:46:28.813Z"
+    },
+    {
+      "step": "9. Microphone Toggle Verification",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:28.813Z"
+    },
+    {
+      "step": "9. Microphone Toggle Verification",
+      "status": "passed",
+      "details": {
+        "initial": true,
+        "afterMute": false,
+        "afterUnmute": true
+      },
+      "timestamp": "2026-10-11T11:46:28.815Z"
+    },
+    {
+      "step": "10. Clean Call Teardown",
+      "status": "running",
+      "details": {},
+      "timestamp": "2026-10-11T11:46:28.815Z"
+    },
+    {
+      "step": "10. Clean Call Teardown",
+      "status": "passed",
+      "details": {
+        "pcClosed": true,
+        "streamStopped": true
+      },
+      "timestamp": "2026-10-11T11:46:29.829Z"
+    }
+  ],
+  "metrics": {
+    "citizenIceState": "connected",
+    "dispatcherIceState": "connected",
+    "citizenAudio": {
+      "hasStream": true,
+      "level": 49.22265625
+    },
+    "dispatcherAudio": {
+      "hasStream": true,
+      "level": 44.9453125
+    },
+    "recording": {
+      "recorderRan": true,
+      "recordedSeconds": 3,
+      "downloadName": "GhiAm_CuocGoi_SOS_SOS-MV3RC17F-466_20261011_184628.mp3",
+      "downloadSize": 48065
+    }
+  },
+  "passed": true
+}
