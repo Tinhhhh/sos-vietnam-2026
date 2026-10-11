@@ -8906,42 +8906,43 @@ class DispatcherApp {
                   stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
     }
 
-    // Priority 2: Exact match on ward and province (prefer grassroots ward police station)
-    if (!matchedSt && cleanTargetWard && stationsPool.length) {
-      matchedSt = stationsPool.find(s => {
+    // Priority 2: Match all ward facilities and select closest to incident / primary
+    let wardStations = [];
+    if (cleanTargetWard && stationsPool.length) {
+      wardStations = stationsPool.filter(s => {
         if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
         const sProv = (s.province || '').toLowerCase();
         const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
         if (!matchProv) return false;
         const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
         return sW === cleanTargetWard;
-      }) || stationsPool.find(s => {
-        if (!s || s.id === 'st-admin' || s.level === 'national') return false;
-        const sProv = (s.province || '').toLowerCase();
-        const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
-        if (!matchProv) return false;
-        const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
-        return sW === cleanTargetWard;
       });
+
+      if (!wardStations.length) {
+        wardStations = stationsPool.filter(s => {
+          if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
+          const sProv = (s.province || '').toLowerCase();
+          const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
+          if (!matchProv) return false;
+          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+          return sW.includes(cleanTargetWard) || cleanTargetWard.includes(sW);
+        });
+      }
     }
 
-    // Priority 3: Partial match on ward and province
-    if (!matchedSt && cleanTargetWard && stationsPool.length) {
-      matchedSt = stationsPool.find(s => {
-        if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
-        const sProv = (s.province || '').toLowerCase();
-        const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
-        if (!matchProv) return false;
-        const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
-        return sW.includes(cleanTargetWard) || cleanTargetWard.includes(sW);
-      }) || stationsPool.find(s => {
-        if (!s || s.id === 'st-admin' || s.level === 'national') return false;
-        const sProv = (s.province || '').toLowerCase();
-        const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
-        if (!matchProv) return false;
-        const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
-        return sW.includes(cleanTargetWard) || cleanTargetWard.includes(sW);
-      });
+    if (!matchedSt && wardStations.length) {
+      const incLat = this.activeIncident?.lat || props.center?.[1];
+      const incLng = this.activeIncident?.lng || props.center?.[0];
+      if (incLat && incLng) {
+        wardStations.sort((a, b) => {
+          const da = Math.hypot(Number(a.lat) - incLat, Number(a.lng) - incLng);
+          const db = Math.hypot(Number(b.lat) - incLat, Number(b.lng) - incLng);
+          return da - db;
+        });
+        matchedSt = wardStations[0];
+      } else {
+        matchedSt = wardStations.find(s => s.facility_type === 'Trụ sở chính' || s.name?.includes('Trụ sở chính')) || wardStations[0];
+      }
     }
 
     // Extract official values
@@ -8966,7 +8967,7 @@ class DispatcherApp {
 
     const stationLat = (matchedSt && matchedSt.lat && !isNaN(Number(matchedSt.lat))) ? Number(matchedSt.lat) : (props.center ? props.center[1] : 10.039822);
     const stationLng = (matchedSt && matchedSt.lng && !isNaN(Number(matchedSt.lng))) ? Number(matchedSt.lng) : (props.center ? props.center[0] : 105.75825);
-    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${stationLat},${stationLng}`;
+    const gmapsUrl = matchedSt?.maps_url || `https://www.google.com/maps/dir/?api=1&destination=${stationLat},${stationLng}`;
 
     // Populate HUD elements
     if (unitTitleEl) unitTitleEl.textContent = unitTitle;

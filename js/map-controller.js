@@ -661,8 +661,13 @@ export class MapController {
       try { this.activeWardStationMarker.remove(); } catch(e) {}
       this.activeWardStationMarker = null;
     }
+    if (this.activeWardAuxiliaryMarkers && Array.isArray(this.activeWardAuxiliaryMarkers)) {
+      this.activeWardAuxiliaryMarkers.forEach(m => { try { m.remove(); } catch(e) {} });
+      this.activeWardAuxiliaryMarkers = [];
+    }
     this.activeWardStationId = null;
     this.activeWardCoords = null;
+    this.activeWardAllStationIds = null;
   }
 
   showWardStationPin(wardFeature, overrideStation = null) {
@@ -670,8 +675,8 @@ export class MapController {
     this.clearActiveWardPin();
 
     const p = wardFeature.properties || {};
-    const wardName = (p.ward || p.name || '').trim();
-    const provName = (p.province || '').trim();
+    const wardName = (p.ward || p.name || p.ten_xa || p.ten || p.Name || '').trim();
+    const provName = (p.province || p.ten_tinh || p.tinh || p.Province || '').trim();
 
     // Compute polygon centroid / center
     let centerLng = null;
@@ -715,57 +720,71 @@ export class MapController {
       this.stationsData = stationsPool;
     }
 
-    if (!station && stationsPool.length > 0) {
+    let matchingWardStations = [];
+    if (stationsPool.length > 0) {
       const cleanW = wardName.toLowerCase().replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
       const cleanP = provName.toLowerCase().replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
 
-      // Helper to test if station is a grass-roots ward police station
       const isWardPolice = s => s && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency);
 
-      // Priority 1: match postal_code / ma_xa
-      const maXa = p.ma_xa || p.postal_code || p.postalCode || p.maDVHC;
-      if (maXa) {
-        station = stationsPool.find(s => s && isWardPolice(s) && String(s.postal_code || s.raw_id) === String(maXa)) ||
-                  stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
-      }
-
-      // Priority 2: exact match on ward name and province (prefer grassroots ward police station)
-      if (!station && cleanW) {
-        station = stationsPool.find(s => {
+      // Find all facilities belonging to this ward
+      if (cleanW) {
+        matchingWardStations = stationsPool.filter(s => {
           if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
           const sProv = (s.province || '').toLowerCase();
           const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
           if (!matchProv) return false;
           const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
           return sW === cleanW;
-        }) || stationsPool.find(s => {
-          if (!s || s.id === 'st-admin' || s.level === 'national') return false;
-          const sProv = (s.province || '').toLowerCase();
-          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
-          if (!matchProv) return false;
-          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
-          return sW === cleanW;
         });
+
+        if (!matchingWardStations.length) {
+          matchingWardStations = stationsPool.filter(s => {
+            if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
+            const sProv = (s.province || '').toLowerCase();
+            const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
+            if (!matchProv) return false;
+            const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+            return sW.includes(cleanW) || cleanW.includes(sW);
+          });
+        }
       }
 
-      // Priority 3: partial match on ward and province
-      if (!station && cleanW) {
-        station = stationsPool.find(s => {
-          if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
-          const sProv = (s.province || '').toLowerCase();
-          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
-          if (!matchProv) return false;
-          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
-          return sW.includes(cleanW) || cleanW.includes(sW);
-        }) || stationsPool.find(s => {
-          if (!s || s.id === 'st-admin' || s.level === 'national') return false;
-          const sProv = (s.province || '').toLowerCase();
-          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
-          if (!matchProv) return false;
-          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
-          return sW.includes(cleanW) || cleanW.includes(sW);
-        });
+      if (!station && matchingWardStations.length > 0) {
+        // Nearest facility selection based on citizen/dispatcher GPS position
+        const citLat = window.app?.currentLocation?.lat || window.dispatcherApp?.currentLocation?.lat || window.app?.citizenCoords?.lat;
+        const citLng = window.app?.currentLocation?.lng || window.dispatcherApp?.currentLocation?.lng || window.app?.citizenCoords?.lng;
+
+        if (citLat && citLng) {
+          matchingWardStations.sort((a, b) => {
+            const da = Math.hypot(Number(a.lat) - citLat, Number(a.lng) - citLng);
+            const db = Math.hypot(Number(b.lat) - citLat, Number(b.lng) - citLng);
+            return da - db;
+          });
+          station = matchingWardStations[0];
+        } else {
+          // Prefer Trụ sở chính or closest to ward centroid
+          station = matchingWardStations.find(s => s.facility_type === 'Trụ sở chính' || s.name?.includes('Trụ sở chính')) || matchingWardStations[0];
+        }
       }
+    }
+
+    if (!station) {
+      station = {
+        name: 'Công An ' + wardName,
+        unit_title: wardName,
+        ward: wardName,
+        province: provName,
+        address: p.trungTamHanhChinh || p.address || ('Trụ sở Công An ' + wardName),
+        phone: p.phone || '024 3939 6789',
+        officer: p.officer || 'Trực ban CAX/CAP',
+        officer_name: p.officer_name || '',
+        officer_phone: p.officer_phone || '',
+        email: p.email || '',
+        services: p.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
+        lat: centerLat,
+        lng: centerLng
+      };
     }
 
     const hasGps = Boolean(station && station.lat && station.lng && !isNaN(Number(station.lat)) && !isNaN(Number(station.lng)) && Number(station.lat) !== 0);
@@ -786,28 +805,16 @@ export class MapController {
       </div>
     `;
 
-    const popupHtml = this.createPoliceStationPopupHtml(station || {
-      name: 'Công An ' + wardName,
-      unit_title: wardName,
-      ward: wardName,
-      province: provName,
-      address: p.trungTamHanhChinh || p.address || ('Trụ sở Công An ' + wardName),
-      phone: p.phone || '02923894939',
-      officer: p.officer || 'Trực ban CAX/CAP',
-      officer_name: p.officer_name || '',
-      officer_phone: p.officer_phone || '',
-      email: p.email || '',
-      services: p.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
-      lat: pinLat,
-      lng: pinLng
-    }, wardFeature);
+    const popupHtml = this.createPoliceStationPopupHtml(station, wardFeature, matchingWardStations);
 
     const popup = new window.maplibregl.Popup({
       offset: [0, -20],
       closeButton: true,
       closeOnClick: false,
       className: 'cantho-official-station-popup'
-    }).setHTML(popupHtml);
+    })
+      .setLngLat([pinLng, pinLat])
+      .setHTML(popupHtml);
 
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -823,6 +830,8 @@ export class MapController {
 
     this.activeWardStationId = station?.id || null;
     this.activeWardCoords = [pinLng, pinLat];
+    this.activeWardAllStationIds = new Set(matchingWardStations.map(s => s.id));
+    if (this.activeWardStationId) this.activeWardAllStationIds.add(this.activeWardStationId);
 
     this.activeWardStationMarker = new window.maplibregl.Marker({ element: el, anchor: 'center' })
       .setLngLat([pinLng, pinLat])
@@ -830,10 +839,55 @@ export class MapController {
       .addTo(this.map);
 
     try {
-      popup.addTo(this.map);
+      this.activeWardStationMarker.togglePopup();
     } catch (e) {}
 
-    // Synchronize visible pins to remove duplicate overlay at the same coordinates
+    // Mount auxiliary pins for any other facilities in this ward so all facilities are visible simultaneously
+    this.activeWardAuxiliaryMarkers = [];
+    const otherFacilities = matchingWardStations.filter(s => s.id !== station.id);
+    otherFacilities.forEach(auxStation => {
+      if (!auxStation.lat || !auxStation.lng) return;
+      const auxEl = document.createElement('div');
+      auxEl.className = 'custom-map-pin congan-station-pin permanent-station auxiliary-ward-pin';
+      auxEl.innerHTML = `
+        <div class="congan-pin-emblem-wrap" style="width: 36px !important; height: 36px !important; max-width: 36px !important; max-height: 36px !important; overflow: hidden !important; border-radius: 50% !important; flex-shrink: 0 !important; border: 1.5px solid #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);">
+          <img src="/assets/iconcongan.png" width="28" height="28" class="congan-pin-emblem" style="width: 28px !important; height: 28px !important; max-width: 28px !important; max-height: 28px !important; object-fit: contain !important; display: block !important;" alt="Huy hiệu CAND" />
+        </div>
+        <div class="congan-pin-label" style="background: rgba(15, 23, 42, 0.95); border: 1.5px solid #38bdf8; color: #38bdf8; font-weight: 700; font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.7);">
+          ${auxStation.facility_type || auxStation.name}
+        </div>
+      `;
+
+      const auxPopup = new window.maplibregl.Popup({
+        offset: [0, -20],
+        closeButton: true,
+        closeOnClick: false,
+        className: 'cantho-official-station-popup'
+      })
+        .setLngLat([Number(auxStation.lng), Number(auxStation.lat)])
+        .setHTML(this.createPoliceStationPopupHtml(auxStation, wardFeature, matchingWardStations));
+
+      auxEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (auxPopup.isOpen()) {
+          auxPopup.remove();
+        } else {
+          auxPopup.addTo(this.map);
+        }
+        if (window.dispatcherApp && typeof window.dispatcherApp.showWardHud === 'function') {
+          window.dispatcherApp.showWardHud(wardFeature, auxStation);
+        }
+      });
+
+      const auxMarker = new window.maplibregl.Marker({ element: auxEl, anchor: 'center' })
+        .setLngLat([Number(auxStation.lng), Number(auxStation.lat)])
+        .setPopup(auxPopup)
+        .addTo(this.map);
+
+      this.activeWardAuxiliaryMarkers.push(auxMarker);
+    });
+
+    // Synchronize visible pins to remove duplicate overlay
     this.updateVisibleStationPins();
   }
 
@@ -900,11 +954,12 @@ export class MapController {
     });
   }
 
-  createPoliceStationPopupHtml(st, wardFeature = null) {
+  createPoliceStationPopupHtml(st, wardFeature = null, allWardStations = []) {
     const p = wardFeature?.properties || {};
-    const unitTitle = st.unit_title || (st.ward ? st.ward : (st.name || 'Phường Tân An'));
-    const address = st.address || p.address || p.trungTamHanhChinh || '02 Nguyễn Tri Phương, Kv.10, phường Tân An, thành phố Cần Thơ';
-    const phone = (st.phone && !st.phone.includes('cập nhật')) ? st.phone : (p.phone || '02923894939');
+    const unitTitle = st.name || st.unit_title || (st.ward ? ('Công An ' + st.ward) : (p.ward ? ('Công An ' + p.ward) : 'Công An Địa Bàn'));
+    const facilityType = st.facility_type || 'Trụ sở chính';
+    const address = st.address || p.address || p.trungTamHanhChinh || 'Trụ sở Công An';
+    const phone = (st.phone && !st.phone.includes('cập nhật')) ? st.phone : (p.phone || '024 3939 6789');
     const cleanPhone = phone.replace(/[^0-9+]/g, '');
 
     let officerDisplay = st.officer || st.truongca || '';
@@ -919,27 +974,32 @@ export class MapController {
     }
 
     const email = st.email || p.email || 'phuongtanan@cantho.gov.vn';
-    const services = st.services || st.description_2 || p.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT';
+    const services = st.services || st.description_2 || p.services || 'Đăng ký cư trú, tiếp nhận tin báo, ANTT';
     const lat = (st.lat && !isNaN(Number(st.lat))) ? Number(st.lat) : (p.center?.[1] || 10.039822);
     const lng = (st.lng && !isNaN(Number(st.lng))) ? Number(st.lng) : (p.center?.[0] || 105.75825);
-    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    const gmapsUrl = st.maps_url || `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 
-    // Area info optional expansion (Matching 34 provinces & 3,321 wards)
+    // Area info optional expansion
     const sapNhap = p.sapNhapTu || p.sap_nhap || '';
     const dienTich = p.dienTich || (p.dtich_km2 ? (String(p.dtich_km2).replace('.', ',') + ' (km²)') : '');
     const danSo = p.danSo || (p.dan_so ? (Number(p.dan_so).toLocaleString('vi-VN') + ' (người)') : '');
     const maDVHC = p.maDVHC || p.ma_xa || '';
     const hasAreaInfo = Boolean(sapNhap || dienTich || danSo || maDVHC);
 
+    const otherFacilities = Array.isArray(allWardStations) ? allWardStations.filter(f => f && f.id !== st.id) : [];
+
     return `
-      <div class="cantho-official-popup-card" style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 310px; max-width: 370px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
+      <div class="cantho-official-popup-card" style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 320px; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
         <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;">
           <img src="/assets/iconcongan.png" style="width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));" alt="Huy hiệu CAND" />
           <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 18px; font-weight: 800; color: #ea580c; line-height: 1.25; margin-bottom: 3px;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
+              <span style="background: #ea580c; color: #ffffff; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; font-weight: 800; text-transform: uppercase;">${facilityType}</span>
+            </div>
+            <div style="font-size: 16px; font-weight: 800; color: #facc15; line-height: 1.25; margin-bottom: 3px;">
               ${unitTitle}
             </div>
-            <div style="font-size: 12.5px; color: #f4f4f5; line-height: 1.45; word-break: break-word;">
+            <div style="font-size: 12px; color: #f4f4f5; line-height: 1.45; word-break: break-word;">
               ${address}
             </div>
           </div>
@@ -950,7 +1010,7 @@ export class MapController {
             Số điện thoại trực ban
           </div>
           <a href="tel:${cleanPhone}" style="text-decoration: none; display: inline-block;">
-            <div style="color: #22c55e; font-size: 24px; font-weight: 900; letter-spacing: 0.5px; text-shadow: 0 0 10px rgba(34, 197, 94, 0.35);">
+            <div style="color: #22c55e; font-size: 22px; font-weight: 900; letter-spacing: 0.5px; text-shadow: 0 0 10px rgba(34, 197, 94, 0.35);">
               ${phone}
             </div>
           </a>
@@ -958,26 +1018,36 @@ export class MapController {
 
         <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.15); margin: 8px 0 10px 0;" />
 
-        <div style="font-size: 12.5px; color: #f4f4f5; line-height: 1.6; margin-bottom: 12px;">
+        <div style="font-size: 12px; color: #f4f4f5; line-height: 1.6; margin-bottom: 12px;">
           <div style="margin-bottom: 4px;">
-            <b>- Trưởng CA:</b> <span>${officerDisplay}</span>
+            <b>- Trực ban/Chỉ huy:</b> <span>${officerDisplay}</span>
           </div>
           <div style="margin-bottom: 4px;">
-            <b>- Email:</b> <a href="mailto:${email}" style="color: #60a5fa; text-decoration: none;">${email}</a>
-          </div>
-          <div>
-            <b>- Lĩnh vực:</b> <span>${services}</span>
+            <b>- Thủ tục, giải quyết:</b> <span style="color: #93c5fd;">${services}</span>
           </div>
         </div>
 
-        <div style="margin-top: 12px;">
+        <div style="margin-top: 10px; margin-bottom: 6px;">
           <a href="${gmapsUrl}" target="_blank" rel="noopener" style="display: block; width: 100%; text-align: center; background: #c2410c; color: #ffffff; padding: 9px 0; border-radius: 6px; font-size: 13.5px; font-weight: 800; text-decoration: none; box-shadow: 0 4px 12px rgba(194, 65, 12, 0.45); transition: all 0.2s ease;">
-            Chỉ đường
+            📍 Xem Bản Đồ (Chỉ đường Google Maps)
           </a>
         </div>
 
-        ${hasAreaInfo ? `
-        <div style="margin-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;">
+        ${otherFacilities.length > 0 ? `
+        <div style="margin-top: 10px; padding: 8px 10px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25);">
+          <div style="font-size: 11px; font-weight: 800; color: #38bdf8; margin-bottom: 6px; text-transform: uppercase;">
+            🏢 Toàn bộ cơ sở thuộc địa bàn (${allWardStations.length} cơ sở):
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 5px; max-height: 130px; overflow-y: auto;">
+            ${allWardStations.map(fac => `
+              <div style="font-size: 11px; padding: 4px 6px; border-radius: 4px; background: ${fac.id === st.id ? 'rgba(234, 88, 12, 0.25)' : 'rgba(15, 23, 42, 0.6)'}; border: 1px solid ${fac.id === st.id ? '#ea580c' : 'rgba(255,255,255,0.08)'};">
+                <div style="font-weight: 700; color: ${fac.id === st.id ? '#ea580c' : '#38bdf8'};">${fac.name}</div>
+                <div style="color: #cbd5e1; font-size: 10px; margin-top: 1px;">📍 ${fac.address}</div>
+                <div style="color: #22c55e; font-size: 10px; font-weight: 700; margin-top: 1px;">📞 ${fac.phone || '024 3939 6789'}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
           <details style="font-size: 11px; color: #94a3b8; cursor: pointer;">
             <summary style="color: #fbbf24; font-weight: 700; outline: none;">THÔNG TIN ĐỊA BÀN (Xem thêm)</summary>
             <div style="margin-top: 5px; line-height: 1.5; color: #cbd5e1; padding-left: 6px;">
@@ -986,7 +1056,7 @@ export class MapController {
               ${maDVHC ? `<div style="color: #cbd5e1; margin-bottom: 2px;">- <b>Mã số ĐVHC:</b> <span style="color: #38bdf8; font-weight: 800;">${maDVHC}</span></div>` : ''}
             </div>
           </details>
-        </div>` : ''}
+        </div>
       </div>
     `;
   }
@@ -1268,9 +1338,10 @@ export class MapController {
     // 2. Mount markers that have entered the viewport
     visibleStations.forEach(st => {
       const id = String(st.id || `${st.name}_${st.lat}_${st.lng}`);
-      // Skip mounting if this station is already rendered by activeWardStationMarker
+      // Skip mounting if this station is already rendered by activeWardStationMarker or auxiliary pins
       if (this.activeWardStationMarker && (
         (this.activeWardStationId && (st.id === this.activeWardStationId || st.raw_id === this.activeWardStationId)) ||
+        (this.activeWardAllStationIds && (this.activeWardAllStationIds.has(st.id) || this.activeWardAllStationIds.has(st.raw_id))) ||
         (this.activeWardCoords && Math.abs(Number(st.lng || st.stationLng) - this.activeWardCoords[0]) < 0.0001 && Math.abs(Number(st.lat || st.stationLat) - this.activeWardCoords[1]) < 0.0001)
       )) {
         if (this.activeStationMarkersMap.has(id)) {

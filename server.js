@@ -400,20 +400,36 @@ function syncAllDirectoriesFromAgencyAccounts() {
         }
 
         const stId = `st-${u}`;
+        const normU = u.replace(/[^a-z0-9]/g, '');
         const normW = removeVietnameseTones(String(acc.ward || '').toLowerCase()).replace(/^(cong an\s+)?(phuong|xa|thi tran|dac khu|p\.|x\.|tt\.)\s*/i, '').replace(/[^a-z0-9]/g, '');
         const normP = removeVietnameseTones(String(acc.province || '').toLowerCase()).replace(/^(tinh|thanh pho|tp\.?)\s*/i, '').replace(/[^a-z0-9]/g, '');
         const existingStIdx = stList.findIndex(s => {
-          if (s.id === stId || s.id === u) return true;
+          const sNormId = (s.id || '').replace(/[^a-z0-9]/g, '');
+          if (s.id === stId || s.id === u || sNormId === normU || sNormId === `st${normU}`) return true;
+          if (s.name && acc.unitName && s.name.trim().toLowerCase() === acc.unitName.trim().toLowerCase()) return true;
           if (!normW || normW === 'toanthanhpho' || normW === 'toantinh') return false;
           const sW = removeVietnameseTones(String(s.ward || s.unit_title || s.name || '').toLowerCase()).replace(/^(cong an\s+)?(phuong|xa|thi tran|dac khu|p\.|x\.|tt\.)\s*/i, '').replace(/[^a-z0-9]/g, '');
           const sP = removeVietnameseTones(String(s.province || '').toLowerCase()).replace(/^(tinh|thanh pho|tp\.?)\s*/i, '').replace(/[^a-z0-9]/g, '');
-          return sW === normW && sP === normP && (s.agency || 'police') === (acc.agency || 'police');
+          const wardMatches = sW === normW && sP === normP && (s.agency || 'police') === (acc.agency || 'police');
+          if (wardMatches) {
+            const allInWard = stList.filter(item => {
+              const iw = removeVietnameseTones(String(item.ward || '').toLowerCase()).replace(/^(cong an\s+)?(phuong|xa|thi tran|dac khu|p\.|x\.|tt\.)\s*/i, '').replace(/[^a-z0-9]/g, '');
+              const ip = removeVietnameseTones(String(item.province || '').toLowerCase()).replace(/^(tinh|thanh pho|tp\.?)\s*/i, '').replace(/[^a-z0-9]/g, '');
+              return iw === normW && ip === normP && (item.agency || 'police') === (acc.agency || 'police');
+            });
+            if (allInWard.length > 1) {
+              return s.name === acc.unitName || (acc.facilityType && s.facility_type === acc.facilityType);
+            }
+            return true;
+          }
+          return false;
         });
         const existingSt = existingStIdx !== -1 ? stList[existingStIdx] : null;
         const isCleanText = (val) => val && !String(val).toLowerCase().includes('cập nhật') && !String(val).toLowerCase().includes('chưa công bố');
         const stData = {
           id: existingSt ? existingSt.id : stId,
           raw_id: existingSt?.raw_id,
+          stt: existingSt?.stt || acc.stt,
           postal_code: existingSt?.postal_code || (acc.postal_code || ''),
           name: existingSt?.name || acc.agencyName || acc.unitName,
           unit_title: existingSt?.unit_title || acc.unit_title || acc.ward || acc.unitName,
@@ -423,6 +439,8 @@ function syncAllDirectoriesFromAgencyAccounts() {
           province: acc.province || 'Cần Thơ',
           district: acc.district || '',
           ward: (existingSt?.ward && existingSt.ward !== 'Toàn Thành Phố') ? existingSt.ward : (acc.ward || ''),
+          facility_type: existingSt?.facility_type || acc.facilityType || 'Trụ sở chính',
+          maps_url: existingSt?.maps_url || acc.maps_url || '',
           address: isCleanText(existingSt?.address) ? existingSt.address : (isCleanText(acc.address) ? acc.address : `Trụ sở ${acc.agencyName}`),
           phone: isCleanText(existingSt?.phone) ? existingSt.phone : (acc.officerPhone || ''),
           sms: isCleanText(existingSt?.sms) ? existingSt.sms : (acc.officerSms || '0988 113 113'),
@@ -1055,7 +1073,17 @@ function resolveJurisdiction(address, lat, lng) {
 
   // 1. Try GPS coordinate resolution
   if (Number.isFinite(cleanLat) && Number.isFinite(cleanLng) && vnWardBoundaries.features) {
-    if (isHanoiCoords) {
+    for (const f of vnWardBoundaries.features) {
+      if (isPointInFeature([cleanLng, cleanLat], f)) {
+        matchedBoundary = f;
+        wardName = f.properties.ward;
+        districtName = f.properties.district || '';
+        provinceName = f.properties.province || (isCanThoCoords ? 'Cần Thơ' : (isHanoiCoords ? 'Hà Nội' : ''));
+        break;
+      }
+    }
+
+    if (!matchedBoundary && isHanoiCoords) {
       provinceName = 'Hà Nội';
       let closestFeature = null;
       let closestDist = Infinity;
@@ -1076,16 +1104,6 @@ function resolveJurisdiction(address, lat, lng) {
         matchedBoundary = closestFeature;
         wardName = closestFeature.properties.ward;
         districtName = closestFeature.properties.district || '';
-      }
-    } else {
-      for (const f of vnWardBoundaries.features) {
-        if (isPointInFeature([cleanLng, cleanLat], f)) {
-          matchedBoundary = f;
-          wardName = f.properties.ward;
-          districtName = f.properties.district || '';
-          provinceName = f.properties.province || (isCanThoCoords ? 'Cần Thơ' : '');
-          break;
-        }
       }
     }
   }
@@ -1159,6 +1177,7 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
   // 1. First priority: Check if there is an exact station matching jurisdiction.ward (and province)
   let matchedStation = null;
   let minDistance = Infinity;
+  let matchedWardStations = [];
 
   if (ward) {
     const normWard = removeVietnameseTones(ward).toLowerCase().replace(/^(phuong|xa|thi tran|p\.|x\.)\s*/, '').trim();
@@ -1174,6 +1193,7 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     // the closest coordinate-bearing station so the assigned unit is truthful
     // to the citizen's GPS position.
     if (wardStations.length) {
+      matchedWardStations = wardStations;
       // Prioritize stations that have a verified/valid phone number
       const withValidPhone = wardStations.filter(st => st.phone && !st.phone.includes('cập nhật'));
       const candidateList = withValidPhone.length ? withValidPhone : wardStations;
@@ -1403,6 +1423,8 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
   const unitLevel = (agency === 'csgt' || agency === 'fire' || agency === 'hospital' || agency === 'ambulance') ? 'province' : (agency === 'traffic-rescue' ? 'enterprise' : 'ward');
 
   const localUnit = {
+    id: matchedStation?.id || null,
+    station_id: matchedStation?.id || null,
     level: unitLevel,
     levelName: agency === 'csgt' ? `Phòng CSGT (PC08) - Cấp Tỉnh/TP` : (agency === 'fire' ? `Phòng PCCC và CNCH (PC07) - Cấp Tỉnh/TP` : (agency === 'hospital' ? `Trung Tâm Cấp Cứu 115 - Cấp Tỉnh/TP` : (agency === 'traffic-rescue' ? `Doanh Nghiệp Cứu Hộ Phương Tiện` : `Công An Cấp Xã/Phường (${localStationName})`))),
     name: localStationName,
@@ -1432,6 +1454,21 @@ function createJurisdictionHierarchy(agency, jurisdiction, lat, lng) {
     lat: stationLat,
     lng: stationLng,
     distanceKm: realDistanceKm,
+    facility_type: matchedStation?.facility_type || 'Trụ sở chính',
+    maps_url: matchedStation?.maps_url || null,
+    wardFacilities: (matchedWardStations && matchedWardStations.length) ? matchedWardStations.map(st => ({
+      id: st.id,
+      name: st.name,
+      facility_type: st.facility_type || 'Trụ sở chính',
+      address: st.address,
+      phone: st.phone,
+      services: st.services,
+      maps_url: st.maps_url,
+      lat: Number(st.lat),
+      lng: Number(st.lng),
+      distanceKm: Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lng)) ? parseFloat(getDistanceKm(lat, lng, Number(st.lat), Number(st.lng)).toFixed(2)) : null
+    })).sort((a, b) => ((a.distanceKm !== null ? a.distanceKm : Infinity) - (b.distanceKm !== null ? b.distanceKm : Infinity))) : [],
+    isNearestFacilityInWard: Boolean(matchedWardStations && matchedWardStations.length > 1),
     isAutoRoutedNearest: Boolean(isAutoRoutedNearest),
     routingNotice: routingNotice || null,
     originalWard: ward || '',

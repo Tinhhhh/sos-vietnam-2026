@@ -2728,10 +2728,11 @@ class SOSApp {
       this.unitAvatar.innerHTML = '<svg class="svg-ico ico-2xl ico-blue" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><circle cx="12" cy="10" r="3"></circle></svg>';
       this.unitName.textContent = assigned.unitName || assigned.name;
       const officerTitle = assigned.officerFullTitle || (assigned.officerRank ? `${assigned.officerRank} ${assigned.officerName}` : assigned.officerName) || 'Kíp trực ban phản ứng nhanh';
-      const subInfo = incident.dispatchUnit
+      const baseSubInfo = incident.dispatchUnit
         ? `Chỉ huy: ${officerTitle} · SĐT: ${incident.dispatchUnit.officerPhone} (${incident.etaMinutes || 5}p)`
         : `Cán bộ tiếp nhận: ${officerTitle}`;
-      this.unitSub.textContent = subInfo;
+      const facilityBadge = (assigned.facility_type && assigned.facility_type !== 'Trụ sở chính') ? `[${assigned.facility_type}] ` : '';
+      this.unitSub.textContent = `${facilityBadge}${baseSubInfo}`;
 
       // Populate Detailed Station Box
       const addrEl = document.getElementById('unitStationAddress');
@@ -2758,7 +2759,7 @@ class SOSApp {
         btnGmapsMoto.href = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destCoords}&travelmode=two_wheeler`;
       }
       if (btnGmaps) {
-        btnGmaps.href = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destCoords}&travelmode=driving`;
+        btnGmaps.href = assigned.maps_url || `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destCoords}&travelmode=driving`;
       }
 
       if (assigned.officerPhone || assigned.phone) {
