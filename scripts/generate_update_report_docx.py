@@ -2,7 +2,7 @@
 """
 Script to generate a comprehensive, executive Word (.docx) report
 for the Cần Thơ & nationwide police station GIS update in SOS Vietnam 2026.
-Output: C:\\Users\\dienv\\Desktop\\BAO_CAO_CHI_TIET_CAP_NHAT_BAN_DO_SO_CONG_AN_SOS_VIETNAM_2026.docx
+Formatted strictly to eliminate awkward word stretching / excessive spaces (lỗi bị thưa chữ).
 """
 
 import os
@@ -88,6 +88,97 @@ def add_horizontal_shape_line(paragraph, width_cm=5.0, line_weight_pt=1.0):
         f'</w:r>'
     )
     paragraph._p.append(parse_xml(drawing_xml))
+
+def add_code_box(doc, code_lines):
+    """
+    Renders a dedicated, styled code/command box with light slate background,
+    subtle border, and Consolas monospace font. Never justifies.
+    """
+    tbl = doc.add_table(rows=1, cols=1)
+    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    tbl.autofit = False
+    cell = tbl.rows[0].cells[0]
+    cell.width = Cm(16.5)
+    set_cell_borders(cell, top='single', bottom='single', left='single', right='single', color='CBD5E1', sz='6')
+    set_cell_shading(cell, 'F8FAFC')
+    set_cell_margins(cell, top=80, bottom=80, left=140, right=140)
+    
+    for idx, line in enumerate(code_lines):
+        if idx == 0:
+            p = cell.paragraphs[0]
+        else:
+            p = cell.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.line_spacing = 1.15
+        r = p.add_run(line)
+        r.font.name = 'Consolas'
+        r.font.size = Pt(9.5)
+        r.font.color.rgb = RGBColor(30, 41, 59)
+    
+    # Spacing after code box
+    p_after = doc.add_paragraph()
+    p_after.paragraph_format.space_before = Pt(0)
+    p_after.paragraph_format.space_after = Pt(4)
+
+def add_bullet(doc, text, bold_prefix=None, space_after=3):
+    """
+    Strict left-aligned bullet items. Eliminates awkward word stretching.
+    """
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_before = Pt(1)
+    p.paragraph_format.space_after = Pt(space_after)
+    p.paragraph_format.line_spacing = 1.15
+    p.paragraph_format.left_indent = Inches(0.28)
+    p.paragraph_format.first_line_indent = Inches(-0.16)
+    
+    r_bullet = p.add_run("•  ")
+    r_bullet.font.name = 'Times New Roman'
+    r_bullet.font.size = Pt(11)
+    r_bullet.bold = True
+    r_bullet.font.color.rgb = RGBColor(16, 44, 87)
+    
+    if bold_prefix:
+        r_pre = p.add_run(bold_prefix)
+        r_pre.font.name = 'Times New Roman'
+        r_pre.font.size = Pt(12)
+        r_pre.bold = True
+    
+    r = p.add_run(text)
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(12)
+    return p
+
+def add_subhead(doc, text, space_before=8, space_after=3):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_before = Pt(space_before)
+    p.paragraph_format.space_after = Pt(space_after)
+    p.paragraph_format.keep_with_next = True
+    r = p.add_run(text)
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(12)
+    r.bold = True
+    r.font.color.rgb = RGBColor(16, 44, 87)
+    return p
+
+def add_body(doc, text, bold_prefix=None, space_after=4, align='justify'):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(space_after)
+    p.paragraph_format.line_spacing = 1.15
+    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY if align == 'justify' else WD_ALIGN_PARAGRAPH.LEFT
+    if bold_prefix:
+        r_pre = p.add_run(bold_prefix)
+        r_pre.font.name = 'Times New Roman'
+        r_pre.font.size = Pt(12)
+        r_pre.bold = True
+    r = p.add_run(text)
+    r.font.name = 'Times New Roman'
+    r.font.size = Pt(12)
+    return p
 
 def build_document():
     doc = Document()
@@ -207,6 +298,7 @@ def build_document():
         p.paragraph_format.space_before = Pt(14)
         p.paragraph_format.space_after = Pt(4)
         p.paragraph_format.keep_with_next = True
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         r = p.add_run(text)
         r.font.name = 'Times New Roman'
         r.font.size = Pt(13)
@@ -214,47 +306,21 @@ def build_document():
         r.font.color.rgb = RGBColor(16, 44, 87)
         return p
 
-    def add_h2(text):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(8)
-        p.paragraph_format.space_after = Pt(3)
-        p.paragraph_format.keep_with_next = True
-        r = p.add_run(text)
-        r.font.name = 'Times New Roman'
-        r.font.size = Pt(12.5)
-        r.bold = True
-        r.font.color.rgb = RGBColor(33, 37, 41)
-        return p
-
-    def add_body(text, bold_prefix=None, space_after=4):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(0)
-        p.paragraph_format.space_after = Pt(space_after)
-        p.paragraph_format.line_spacing = 1.15
-        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        if bold_prefix:
-            r_pre = p.add_run(bold_prefix)
-            r_pre.font.name = 'Times New Roman'
-            r_pre.font.size = Pt(12)
-            r_pre.bold = True
-        r = p.add_run(text)
-        r.font.name = 'Times New Roman'
-        r.font.size = Pt(12)
-        return p
-
     # ==========================================
     # I. CƠ SỞ & BỐI CẢNH THỰC HIỆN
     # ==========================================
     add_h1("I. CƠ SỞ VÀ BỐI CẢNH THỰC HIỆN")
     add_body(
+        doc,
         "Nhằm xây dựng nền tảng ứng cứu khẩn cấp quốc gia SOS Vietnam 2026 đạt chuẩn nghiệp vụ thực chiến, việc định vị chính xác "
         "từng trụ sở Công an cơ sở (xã, phường, thị trấn) và cung cấp đường dây nóng trực ban, thông tin cán bộ phụ trách là yếu tố sống còn. "
         "Khi người dân phát tín hiệu SOS trên ứng dụng di động hoặc cổng Web, hệ thống cần tính toán khoảng cách không gian (Spatial Distance) "
         "để tự động kết nối và hiển thị trạm công an, trung tâm y tế hoặc cứu hộ gần nhất trong bán kính tối ưu."
     )
     add_body(
+        doc,
         "Theo yêu cầu chỉ đạo từ Ban Dự án, Tổ Kỹ thuật đã triển khai khai thác nguồn dữ liệu bản đồ số GIS chính thức của "
-        "Công an TP. Cần Thơ tại địa chỉ https://bando-congan.cantho.gov.vn/, đồng thời khảo sát mở rộng toàn diện hệ thống bản đồ số "
+        "Công an TP. Cần Thơ (cổng thông tin bando-congan.cantho.gov.vn), đồng thời khảo sát mở rộng toàn diện hệ thống bản đồ số "
         "của Công an các tỉnh/thành phố khác trên toàn quốc để đồng bộ CSDL vào hệ thống SOS Vietnam 2026."
     )
 
@@ -262,40 +328,49 @@ def build_document():
     # II. KẾT QUẢ KHAI THÁC BẢN ĐỒ SỐ CÔNG AN TP. CẦN THƠ
     # ==========================================
     add_h1("II. KẾT QUẢ KHAI THÁC BẢN ĐỒ SỐ CÔNG AN TP. CẦN THƠ")
+    add_subhead(doc, "1. Nguồn dữ liệu và Giao thức khai thác:")
     add_body(
+        doc,
         "Hệ thống Bản đồ số Công an TP. Cần Thơ vận hành trên nền tảng WordPress tích hợp giải pháp bản đồ số Agile Store Locator (ASL). "
-        "Tổ Kỹ thuật đã bóc tách kiến trúc dịch vụ và khai thác thành công 2 điểm cuối API chính thức:",
-        bold_prefix="1. Nguồn dữ liệu & Giao thức: "
+        "Tổ Kỹ thuật đã bóc tách kiến trúc dịch vụ và khai thác thành công 2 điểm cuối API chính thức:"
     )
-    add_body("• Endpoint tải danh mục trụ sở: https://bando-congan.cantho.gov.vn/wp-admin/admin-ajax.php?action=asl_load_stores&load_all=1")
-    add_body("• GeoJSON ranh giới địa chính phường xã: https://bando-congan.cantho.gov.vn/canthophuongxa.geojson (103 xã/phường kèm thông tin sáp nhập đơn vị hành chính).")
+    add_bullet(
+        doc,
+        "https://bando-congan.cantho.gov.vn/wp-admin/admin-ajax.php?action=asl_load_stores&load_all=1",
+        bold_prefix="Endpoint tải danh mục trụ sở: "
+    )
+    add_bullet(
+        doc,
+        "https://bando-congan.cantho.gov.vn/canthophuongxa.geojson (103 xã/phường kèm thông tin sáp nhập đơn vị hành chính).",
+        bold_prefix="GeoJSON ranh giới địa chính phường xã: "
+    )
 
+    add_subhead(doc, "2. Khối lượng dữ liệu thu thập:")
     add_body(
+        doc,
         "Đã trích xuất và chuẩn hóa thành công 105 đơn vị Công an cấp xã, phường, thị trấn thuộc toàn bộ 9 quận/huyện của TP. Cần Thơ "
         "(Ninh Kiều, Cái Khế, Bình Thủy, Cái Răng, Ô Môn, Thốt Nốt, Phong Điền, Thới Lai, Cờ Đỏ, Vĩnh Thạnh) cùng 9 cơ quan chuyên trách cấp chỉ huy "
         "(Bộ Chỉ huy CATP tại 9B Trần Phú, Phòng CSGT PC08, Phòng Cảnh sát PCCC & CNCH PC07, Bệnh viện Đa khoa TP, Trung tâm Cấp cứu 115...). "
-        "Nâng tổng số đơn vị được lập chỉ mục tại TP. Cần Thơ lên 114 cơ sở, loại bỏ hoàn toàn các trường dữ liệu placeholder 'Đang cập nhật'.",
-        bold_prefix="2. Khối lượng dữ liệu: "
+        "Nâng tổng số đơn vị được lập chỉ mục tại TP. Cần Thơ lên 114 cơ sở, loại bỏ hoàn toàn các trường dữ liệu placeholder 'Đang cập nhật'."
     )
 
+    add_subhead(doc, "3. Quy chuẩn thông tin thu thập:")
     add_body(
-        "Mỗi đơn vị Công an cơ sở được chuẩn hóa đồng bộ 8 trường thông tin định danh và nghiệp vụ:",
-        bold_prefix="3. Quy chuẩn thông tin thu thập: "
+        doc,
+        "Mỗi đơn vị Công an cơ sở được chuẩn hóa đồng bộ 8 trường thông tin định danh và nghiệp vụ:"
     )
-
-    # Bullet items
-    add_body("• Tên đơn vị chính thức (VD: Công An Phường Ninh Kiều, Công An Phường Cái Khế, Công An Xã Phong Điền...).")
-    add_body("• Địa chỉ trụ sở thực tế cụ thể theo số nhà, tên đường.")
-    add_body("• Số điện thoại bàn đường dây nóng trực ban 24/7 (Đầu số 0292...).")
-    add_body("• Họ tên và chức vụ cán bộ Chỉ huy / Trưởng Công an (trường truongca).")
-    add_body("• Số điện thoại di động của Trưởng Công an (trường sdttruongca).")
-    add_body("• Hộp thư điện tử công vụ tiếp nhận tin báo (trường email, đuôi @cantho.gov.vn).")
-    add_body("• Tọa độ địa lý GPS WGS84 chính xác (kinh độ lng, vĩ độ lat).")
-    add_body("• Lĩnh vực tiếp nhận (An ninh trật tự, Cảnh sát khu vực, Tiếp dân...).")
+    add_bullet(doc, "Tên đơn vị chính thức (VD: Công An Phường Ninh Kiều, Công An Phường Cái Khế, Công An Xã Phong Điền...).")
+    add_bullet(doc, "Địa chỉ trụ sở thực tế cụ thể theo số nhà, tên đường.")
+    add_bullet(doc, "Số điện thoại bàn đường dây nóng trực ban 24/7 (Đầu số 0292...).")
+    add_bullet(doc, "Họ tên và chức vụ cán bộ Chỉ huy / Trưởng Công an (trường truongca).")
+    add_bullet(doc, "Số điện thoại di động của Trưởng Công an (trường sdttruongca).")
+    add_bullet(doc, "Hộp thư điện tử công vụ tiếp nhận tin báo (trường email, đuôi @cantho.gov.vn).")
+    add_bullet(doc, "Tọa độ địa lý GPS WGS84 chính xác (kinh độ lng, vĩ độ lat).")
+    add_bullet(doc, "Lĩnh vực tiếp nhận (An ninh trật tự, Cảnh sát khu vực, Tiếp dân...).")
 
     # Sample table for Can Tho
     p_tbl_lbl = doc.add_paragraph()
-    p_tbl_lbl.paragraph_format.space_before = Pt(6)
+    p_tbl_lbl.paragraph_format.space_before = Pt(8)
     p_tbl_lbl.paragraph_format.space_after = Pt(2)
     r_lbl = p_tbl_lbl.add_run("Bảng 1: Mẫu dữ liệu tiêu biểu các đơn vị Công an cơ sở tại TP. Cần Thơ sau chuẩn hóa")
     r_lbl.font.name = 'Times New Roman'
@@ -356,39 +431,49 @@ def build_document():
     # ==========================================
     add_h1("III. KHẢO SÁT & TÍCH HỢP BẢN ĐỒ SỐ CÔNG AN CÁC TỈNH THÀNH TOÀN QUỐC")
     add_body(
+        doc,
         "Tổ Kỹ thuật đã rà soát mạng lưới cổng thông tin và hạ tầng GIS của Công an 63 tỉnh/thành phố trên cả nước để tìm kiếm "
         "các hệ thống tương tự nhằm hợp nhất dữ liệu cho hệ thống SOS Vietnam 2026. Kết quả ghi nhận như sau:"
     )
 
+    add_subhead(doc, "1. Tỉnh Quảng Trị (Đột phá dữ liệu GIS cấp tỉnh):")
     add_body(
-        "Công an tỉnh Quảng Trị đã phối hợp cùng MobiFone xây dựng và đưa vào vận hành chính thức cổng GIS tại https://bando-congan.quangtri.gov.vn/. "
-        "Hệ thống phát triển trên kiến trúc hiện đại (.NET Web API kết hợp Angular). Tổ Kỹ thuật đã khai thác thành công qua REST API: "
-        "https://bando-congan.quangtri.gov.vn/api/Place/GetAll. Thu thập trọn vẹn 91 trạm Công an cơ sở (gồm Công an các phường thuộc TP. Đông Hà, "
-        "TX. Quảng Trị, các xã vùng ven và Đồn Công an Đảo Cồn Cỏ) với đầy đủ tọa độ kinh vĩ độ, hotline và dữ liệu sắp xếp hành chính.",
-        bold_prefix="1. Tỉnh Quảng Trị (Đột phá dữ liệu GIS cấp tỉnh): "
+        doc,
+        "Công an tỉnh Quảng Trị đã phối hợp cùng MobiFone xây dựng và đưa vào vận hành chính thức Cổng Bản đồ số GIS phục vụ công tác an ninh trật tự và phòng chống thiên tai."
+    )
+    add_bullet(doc, "https://bando-congan.quangtri.gov.vn/", bold_prefix="Cổng GIS chính thức: ")
+    add_bullet(doc, "Hệ thống phát triển trên kiến trúc hiện đại (.NET Web API kết hợp Angular).", bold_prefix="Kiến trúc công nghệ: ")
+    add_bullet(doc, "https://bando-congan.quangtri.gov.vn/api/Place/GetAll", bold_prefix="API REST trích xuất: ")
+    add_bullet(
+        doc,
+        "Thu thập trọn vẹn 91 trạm Công an cơ sở (gồm Công an các phường thuộc TP. Đông Hà, TX. Quảng Trị, các xã vùng ven và Đồn Công an Đảo Cồn Cỏ) với đầy đủ tọa độ kinh vĩ độ, hotline và dữ liệu sắp xếp hành chính.",
+        bold_prefix="Quy mô dữ liệu: "
     )
 
+    add_subhead(doc, "2. TP. Hồ Chí Minh:")
     add_body(
+        doc,
         "Công an TP. Hồ Chí Minh đã công bố mạng lưới số hóa trên nền tảng ứng dụng 'Công dân số TP.HCM'. "
-        "Hệ thống SOS Vietnam đã đồng bộ đầy đủ 339 trạm Công an phường/xã/thị trấn và trụ sở chỉ huy trên toàn bộ 21 quận/huyện và TP. Thủ Đức.",
-        bold_prefix="2. TP. Hồ Chí Minh: "
+        "Hệ thống SOS Vietnam đã đồng bộ đầy đủ 339 trạm Công an phường/xã/thị trấn và trụ sở chỉ huy trên toàn bộ 21 quận/huyện và TP. Thủ Đức."
     )
 
+    add_subhead(doc, "3. TP. Hà Nội:")
     add_body(
+        doc,
         "Công an TP. Hà Nội công bố danh mục 417 trụ sở và điểm tiếp công dân trên Cổng TTĐT congan.hanoi.gov.vn. "
-        "Hệ thống đã tích hợp 149 trạm nòng cốt tại các quận nội thành và các huyện trọng điểm.",
-        bold_prefix="3. TP. Hà Nội: "
+        "Hệ thống đã tích hợp 149 trạm nòng cốt tại các quận nội thành và các huyện trọng điểm."
     )
 
+    add_subhead(doc, "4. Các tỉnh thành khác trên toàn quốc:")
     add_body(
+        doc,
         "Tại Đồng Nai (15 trạm), Đà Nẵng (6 trạm) và 58 tỉnh thành còn lại (mỗi tỉnh tối thiểu 4 trụ sở đầu não: "
-        "Công an Tỉnh, Phòng CSGT PC08, Phòng Cảnh sát PCCC & CNCH PC07, Trung tâm Cấp cứu Y tế 115).",
-        bold_prefix="4. Các tỉnh thành khác: "
+        "Công an Tỉnh, Phòng CSGT PC08, Phòng Cảnh sát PCCC & CNCH PC07, Trung tâm Cấp cứu Y tế 115)."
     )
 
     # National stats table
     p_tbl_lbl2 = doc.add_paragraph()
-    p_tbl_lbl2.paragraph_format.space_before = Pt(6)
+    p_tbl_lbl2.paragraph_format.space_before = Pt(8)
     p_tbl_lbl2.paragraph_format.space_after = Pt(2)
     r_lbl2 = p_tbl_lbl2.add_run("Bảng 2: Thống kê cơ sở dữ liệu trạm cứu nạn / công an SOS Vietnam 2026 theo tỉnh thành")
     r_lbl2.font.name = 'Times New Roman'
@@ -451,36 +536,46 @@ def build_document():
     # ==========================================
     add_h1("IV. ĐỒNG BỘ CODEBASE VÀ HẠ TẦNG KỸ THUẬT")
     add_body(
+        doc,
         "Toàn bộ dữ liệu sau khi được bóc tách và chuẩn hóa đã được tích hợp đồng bộ vào cả 2 phân hệ của hệ thống SOS Vietnam 2026:"
     )
 
+    add_subhead(doc, "1. Phân hệ Web Hosting / Tác Chiến (sos_vietnam_2026_web_hosting):")
     add_body(
+        doc,
         "Đã cập nhật tệp danh bạ lõi assets/vn-stations-directory.json từ 759 lên 828 trạm. Đồng thời cấu hình hệ thống tài khoản "
-        "điều phối trực ban tại assets/agency-accounts.json, sẵn sàng cho các kíp trực ban công an cấp xã/phường đăng nhập xử lý tin báo tại cổng /dispatcher.",
-        bold_prefix="1. Phân hệ Web Hosting / Tác Chiến (sos_vietnam_2026_web_hosting): "
+        "điều phối trực ban tại assets/agency-accounts.json, sẵn sàng cho các kíp trực ban công an cấp xã/phường đăng nhập xử lý tin báo tại cổng /dispatcher."
     )
 
+    add_subhead(doc, "2. Phân hệ Backend Spring Boot v2 (sos-vietnam-2026-BE):")
     add_body(
+        doc,
         "Đã tạo tệp cơ sở dữ liệu hạt nhân src/main/resources/data/rescue_stations.json (kích thước 488 KB) chứa đầy đủ 825 trạm có tọa độ GPS. "
         "Đồng thời bổ sung logic tự động nạp dữ liệu (seedRescueStations) vào DataSeeder.java để hệ thống tự động kiểm tra và khởi tạo dữ liệu vào bảng rescue_stations "
-        "trong PostgreSQL 16 khi khởi động.",
-        bold_prefix="2. Phân hệ Backend Spring Boot v2 (sos-vietnam-2026-BE): "
+        "trong PostgreSQL 16 khi khởi động."
     )
 
+    add_subhead(doc, "3. Tối ưu hóa không gian PostGIS (GiST Index):")
     add_body(
-        "Đã thiết lập chỉ mục không gian chuyên dụng cho bảng rescue_stations:\n"
-        "CREATE INDEX IF NOT EXISTS idx_rescue_stations_location ON rescue_stations USING gist (location);\n"
-        "Chỉ mục GiST cho phép thực hiện truy vấn không gian phức tạp (ST_DWithin, ST_Distance, KNN operator <->) với tốc độ tức thời (< 10ms) "
-        "khi xử lý hàng nghìn yêu cầu định vị đồng thời.",
-        bold_prefix="3. Tối ưu hóa không gian PostGIS (GiST Index): "
+        doc,
+        "Đã thiết lập chỉ mục không gian chuyên dụng cho bảng rescue_stations nhằm tăng tốc độ truy vấn địa lý không gian:"
+    )
+    add_code_box(doc, [
+        "CREATE INDEX IF NOT EXISTS idx_rescue_stations_location",
+        "ON rescue_stations USING gist (location);"
+    ])
+    add_body(
+        doc,
+        "Chỉ mục GiST cho phép thực hiện truy vấn không gian phức tạp (ST_DWithin, ST_Distance, KNN operator <->) với tốc độ tức thời (< 10ms) khi xử lý hàng nghìn yêu cầu định vị đồng thời."
     )
 
+    add_subhead(doc, "4. Khắc phục lỗi đệ quy tuần hoàn Jackson Serialization:")
     add_body(
+        doc,
         "Trong quá trình kiểm thử API định vị, phát hiện ngoại lệ HttpMessageNotWritableException: Document nesting depth exceeds 1000 "
         "khi Jackson cố gắng serialize đối tượng hình học org.locationtech.jts.geom.Point của entity RescueStation. "
         "Tổ Kỹ thuật đã xử lý triệt để bằng cách gắn annotation @JsonIgnore lên thuộc tính location của RescueStation, Ward và Province. "
-        "Hai trường số thực latitude và longitude vẫn được tuần tự hóa ra JSON đầy đủ, vừa đảm bảo payload REST API nhẹ, an toàn, vừa giữ trọn tính năng PostGIS.",
-        bold_prefix="4. Khắc phục lỗi đệ quy tuần hoàn Jackson Serialization: "
+        "Hai trường số thực latitude và longitude vẫn được tuần tự hóa ra JSON đầy đủ, vừa đảm bảo payload REST API nhẹ, an toàn, vừa giữ trọn tính năng PostGIS."
     )
 
     # ==========================================
@@ -488,23 +583,31 @@ def build_document():
     # ==========================================
     add_h1("V. KẾT QUẢ KIỂM THỬ KHẢ NĂNG ĐỊNH VỊ KHÔNG GIAN (SPATIAL QUERY)")
     add_body(
+        doc,
         "Sau khi nạp CSDL và khởi động Spring Boot Backend v2, Tổ Kỹ thuật đã thực hiện kiểm thử truy vấn không gian thực tế với endpoint "
         "GET /api/stations/nearest trên các kịch bản định vị thực tế:"
     )
 
+    add_subhead(doc, "• Kịch bản 1: Người dân gặp sự cố tại trung tâm Q. Ninh Kiều, TP. Cần Thơ")
+    add_body(doc, "Thực hiện truy vấn tìm kiếm trạm Công an gần nhất trong bán kính 10 km:")
+    add_code_box(doc, [
+        "GET http://localhost:8080/api/stations/nearest?lat=10.0356&lng=105.7867&agency=POLICE&radius=10000&limit=5"
+    ])
     add_body(
-        "Truy vấn: GET http://localhost:8080/api/stations/nearest?lat=10.0356&lng=105.7867&agency=POLICE&radius=10000&limit=5\n"
-        "Kết quả trả về chính xác 5 trụ sở gần nhất: (1) Công an TP Cần Thơ (9A Trần Phú), (2) CAP Ninh Kiều (72 Phan Đình Phùng), "
-        "(3) Trụ sở Bộ Chỉ huy CATP (9B Trần Phú), (4) CAP Cái Khế (234 Phạm Ngũ Lão), (5) CAP Tân An (02 Nguyễn Tri Phương). "
-        "Thời gian phản hồi API: 22ms.",
-        bold_prefix="• Kịch bản 1 - Người dân gặp sự cố tại trung tâm Q. Ninh Kiều, TP. Cần Thơ: "
+        doc,
+        "Kết quả phản hồi (thời gian xử lý: 22ms): Hệ thống trả về chính xác 5 trụ sở gần nhất gồm: (1) Công an TP Cần Thơ (9A Trần Phú), "
+        "(2) CAP Ninh Kiều (72 Phan Đình Phùng), (3) Trụ sở Bộ Chỉ huy CATP (9B Trần Phú), (4) CAP Cái Khế (234 Phạm Ngũ Lão), "
+        "(5) CAP Tân An (02 Nguyễn Tri Phương)."
     )
 
+    add_subhead(doc, "• Kịch bản 2: Người dân gặp sự cố tại TP. Đông Hà, Tỉnh Quảng Trị")
+    add_body(doc, "Thực hiện truy vấn tìm kiếm trạm Công an gần nhất trong bán kính 10 km:")
+    add_code_box(doc, [
+        "GET http://localhost:8080/api/stations/nearest?lat=16.8114&lng=107.0910&agency=POLICE&radius=10000&limit=5"
+    ])
     add_body(
-        "Truy vấn: GET http://localhost:8080/api/stations/nearest?lat=16.8114&lng=107.0910&agency=POLICE&radius=10000&limit=5\n"
-        "Kết quả trả về chính xác các trạm Công an phường thuộc TP. Đông Hà và khu vực lân cận của tỉnh Quảng Trị. "
-        "Thời gian phản hồi API: 18ms.",
-        bold_prefix="• Kịch bản 2 - Người dân gặp sự cố tại TP. Đông Hà, Tỉnh Quảng Trị: "
+        doc,
+        "Kết quả phản hồi (thời gian xử lý: 18ms): Hệ thống trả về chính xác các trạm Công an phường thuộc TP. Đông Hà và khu vực lân cận của tỉnh Quảng Trị."
     )
 
     # ==========================================
@@ -512,38 +615,45 @@ def build_document():
     # ==========================================
     add_h1("VI. ĐỒNG BỘ TOÀN DIỆN LÊN HỆ THỐNG GIT (GITHUB)")
     add_body(
+        doc,
         "Tổ Kỹ thuật đã hoàn tất việc commit và push mã nguồn cùng toàn bộ CSDL lên các kho chứa GitHub của dự án, đảm bảo mọi thành viên "
         "và máy chủ triển khai có thể kéo dữ liệu về đồng bộ ngay lập tức:"
     )
 
-    add_body(
-        "Repository https://github.com/Tinhhhh/sos-vietnam-2026.git. Nhánh main. Commit 3dd77b3 (feat(stations): sync official police stations directory with Can Tho GIS and Quang Tri GIS data).",
-        bold_prefix="1. Web Hosting / Giao diện tác chiến: "
-    )
+    add_subhead(doc, "1. Web Hosting / Giao diện tác chiến:")
+    add_bullet(doc, "https://github.com/Tinhhhh/sos-vietnam-2026.git", bold_prefix="Repository: ")
+    add_bullet(doc, "main | Commit: 3dd77b3 & d799df7", bold_prefix="Nhánh & Commit: ")
+    add_bullet(doc, "Đồng bộ danh bạ 828 trạm (Can Tho GIS, Quang Tri GIS), kịch bản điều phối và báo cáo nghiệp vụ.", bold_prefix="Nội dung: ")
 
-    add_body(
-        "Repository https://github.com/Tinhhhh/sos-vietnam-2026-BE.git. Nhánh main. Commit 8b60595 (feat(stations): seed 825 rescue stations nationwide including Can Tho and Quang Tri with GIS coordinates).",
-        bold_prefix="2. Backend Spring Boot v2: "
-    )
+    add_subhead(doc, "2. Backend Spring Boot v2:")
+    add_bullet(doc, "https://github.com/Tinhhhh/sos-vietnam-2026-BE.git", bold_prefix="Repository: ")
+    add_bullet(doc, "main | Commit: 8b60595", bold_prefix="Nhánh & Commit: ")
+    add_bullet(doc, "Nạp 825 trạm CSDL PostGIS, cập nhật DataSeeder.java, cấu hình GiST Index và sửa lỗi Jackson Serialization.", bold_prefix="Nội dung: ")
 
-    add_body(
-        "Repository https://github.com/Tinhhhh/sos-vietnam-2026-FE.git. Nhánh main. Đã kiểm tra và đồng bộ sạch sẽ hoàn toàn với origin/main.",
-        bold_prefix="3. Frontend ReactJS v2: "
-    )
+    add_subhead(doc, "3. Frontend ReactJS v2:")
+    add_bullet(doc, "https://github.com/Tinhhhh/sos-vietnam-2026-FE.git", bold_prefix="Repository: ")
+    add_bullet(doc, "main | Đã kiểm tra và đồng bộ sạch sẽ hoàn toàn với origin/main.", bold_prefix="Trạng thái: ")
 
     # ==========================================
     # VII. ĐÁNH GIÁ & KIẾN NGHỊ TRIỂN KHAI
     # ==========================================
     add_h1("VII. ĐÁNH GIÁ HIỆU QUẢ VÀ KIẾN NGHỊ TIẾP THEO")
+    add_subhead(doc, "1. Hiệu quả đạt được:")
     add_body(
-        "1. Hiệu quả đạt được: Hệ thống SOS Vietnam 2026 đã giải quyết triệt để bài toán thiếu dữ liệu điều phối cấp cơ sở tại khu vực Đồng bằng sông Cửu Long "
+        doc,
+        "Hệ thống SOS Vietnam 2026 đã giải quyết triệt để bài toán thiếu dữ liệu điều phối cấp cơ sở tại khu vực Đồng bằng sông Cửu Long "
         "(trọng điểm TP. Cần Thơ) và miền Trung (tỉnh Quảng Trị). Người dân gửi yêu cầu cứu nạn tại các khu vực này sẽ được phân luồng tức thì tới đúng "
         "công an phường/xã phụ trách địa bàn thay vì chỉ báo chung về tổng đài cấp tỉnh."
     )
-    add_body(
-        "2. Kiến nghị tiếp theo:\n"
-        "• Tiếp tục kết nối API đồng bộ tự động theo chu kỳ với cổng bando-congan.cantho.gov.vn để cập nhật khi có biến động nhân sự Trưởng Công an.\n"
-        "• Mở rộng liên hệ và thu thập CSDL bản đồ số từ Công an các tỉnh Đà Nẵng, Hải Phòng, Nghệ An, Thừa Thiên Huế để đạt tỷ lệ phủ kín 100% xã/phường trên toàn quốc."
+
+    add_subhead(doc, "2. Kiến nghị tiếp theo:")
+    add_bullet(
+        doc,
+        "Tiếp tục kết nối API đồng bộ tự động theo chu kỳ với cổng bando-congan.cantho.gov.vn để cập nhật khi có biến động nhân sự Trưởng Công an."
+    )
+    add_bullet(
+        doc,
+        "Mở rộng liên hệ và thu thập CSDL bản đồ số từ Công an các tỉnh Đà Nẵng, Hải Phòng, Nghệ An, Thừa Thiên Huế để đạt tỷ lệ phủ kín 100% xã/phường trên toàn quốc."
     )
 
     # ==========================================
@@ -612,14 +722,41 @@ def build_document():
     r_name.font.size = Pt(12)
     r_name.bold = True
 
-    # Output path on Desktop
+    # Output paths on Desktop
     output_dir = r"C:\Users\dienv\Desktop"
-    output_filename = "BAO_CAO_CHI_TIET_CAP_NHAT_BAN_DO_SO_CONG_AN_SOS_VIETNAM_2026.docx"
-    full_output_path = os.path.join(output_dir, output_filename)
+    target_filename = "BAO_CAO_CHI_TIET_CAP_NHAT_BAN_DO_SO_CONG_AN_SOS_VIETNAM_2026.docx"
+    alt_filename = "BAO_CAO_CHI_TIET_CAP_NHAT_BAN_DO_SO_CONG_AN_SOS_VIETNAM_2026_BAN_CHUAN.docx"
     
-    doc.save(full_output_path)
-    print(f"SUCCESS: Report saved to {full_output_path}")
-    return full_output_path
+    target_path = os.path.join(output_dir, target_filename)
+    alt_path = os.path.join(output_dir, alt_filename)
+    
+    saved_paths = []
+    
+    # Try saving to primary target
+    try:
+        doc.save(target_path)
+        saved_paths.append(target_path)
+        print(f"SUCCESS: Saved primary report to {target_path}")
+    except PermissionError:
+        print(f"WARNING: Primary path is open/locked in Word. Saving to alternate path.")
+        doc.save(alt_path)
+        saved_paths.append(alt_path)
+        print(f"SUCCESS: Saved alternate report to {alt_path}")
+    except Exception as e:
+        print(f"Error saving to primary: {e}")
+        doc.save(alt_path)
+        saved_paths.append(alt_path)
+
+    # Always ensure alt_path is also saved so user can open immediately even if target was locked
+    if alt_path not in saved_paths:
+        try:
+            doc.save(alt_path)
+            saved_paths.append(alt_path)
+            print(f"SUCCESS: Also saved duplicate copy to {alt_path}")
+        except Exception:
+            pass
+
+    return saved_paths
 
 if __name__ == '__main__':
     build_document()
