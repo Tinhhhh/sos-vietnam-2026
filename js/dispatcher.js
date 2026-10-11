@@ -8896,15 +8896,26 @@ class DispatcherApp {
     const targetProv = (props.province || 'Cần Thơ').toLowerCase().trim();
     const cleanTargetProv = targetProv.replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
 
+    // Helper to test if station is a grass-roots ward police station
+    const isWardPolice = s => s && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency);
+
     // Priority 1: Match by postal code / ma_xa / maDVHC
     const maXa = props.ma_xa || props.postal_code || props.postalCode || props.maDVHC;
     if (!matchedSt && maXa && stationsPool.length) {
-      matchedSt = stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
+      matchedSt = stationsPool.find(s => s && isWardPolice(s) && String(s.postal_code || s.raw_id) === String(maXa)) ||
+                  stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
     }
 
-    // Priority 2: Exact match on ward and province
+    // Priority 2: Exact match on ward and province (prefer grassroots ward police station)
     if (!matchedSt && cleanTargetWard && stationsPool.length) {
       matchedSt = stationsPool.find(s => {
+        if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
+        const sProv = (s.province || '').toLowerCase();
+        const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
+        if (!matchProv) return false;
+        const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+        return sW === cleanTargetWard;
+      }) || stationsPool.find(s => {
         if (!s || s.id === 'st-admin' || s.level === 'national') return false;
         const sProv = (s.province || '').toLowerCase();
         const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
@@ -8917,6 +8928,13 @@ class DispatcherApp {
     // Priority 3: Partial match on ward and province
     if (!matchedSt && cleanTargetWard && stationsPool.length) {
       matchedSt = stationsPool.find(s => {
+        if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
+        const sProv = (s.province || '').toLowerCase();
+        const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);
+        if (!matchProv) return false;
+        const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+        return sW.includes(cleanTargetWard) || cleanTargetWard.includes(sW);
+      }) || stationsPool.find(s => {
         if (!s || s.id === 'st-admin' || s.level === 'national') return false;
         const sProv = (s.province || '').toLowerCase();
         const matchProv = !cleanTargetProv || sProv.includes(cleanTargetProv) || cleanTargetProv.includes(sProv);

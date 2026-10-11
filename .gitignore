@@ -63,6 +63,8 @@ blob-report/
 coverage/
 .nyc_output/
 Reports/
+!Reports/qa/
+!Reports/qa/**
 
 # ==========================================
 # 7. OS & Editor Artifacts
@@ -97,6 +99,7 @@ tur*
 
 # anvien:start
 # Anvien local index and generated AI context
+.gitignore
 .anvien/
 AGENTS.md
 CLAUDE.md

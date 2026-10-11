@@ -362,6 +362,43 @@ function syncAllDirectoriesFromAgencyAccounts() {
         }
       } else {
         // police, csgt, fire
+        const abolishedCanThoUsernames = new Set([
+          'caxkhuvucsotaica', 'capancuct', 'capthoibinhct', 'capxuankhanhct',
+          'capankhanhct', 'caphungloict', 'capanhoact', 'caxmykhanhct',
+          'captranocct', 'caplebinhct'
+        ]);
+        if (abolishedCanThoUsernames.has(u)) {
+          continue; // Skip abolished pre-merger or fake accounts
+        }
+
+        // Map provincial headquarters to their canonical stations
+        if (u === 'csgt') {
+          const pc08Idx = stList.findIndex(s => s.id === 'st-ct-csgt-pc08');
+          if (pc08Idx !== -1) {
+            stList[pc08Idx] = {
+              ...stList[pc08Idx],
+              accountId: u,
+              phone: acc.officerPhone || stList[pc08Idx].phone,
+              sms: acc.officerSms || stList[pc08Idx].sms,
+              officer: acc.officerName ? `${acc.officerRank || ''} ${acc.officerName}`.trim() : stList[pc08Idx].officer
+            };
+          }
+          continue;
+        }
+        if (u === 'cuuho') {
+          const pc07Idx = stList.findIndex(s => s.id === 'st-ct-pccc-pc07');
+          if (pc07Idx !== -1) {
+            stList[pc07Idx] = {
+              ...stList[pc07Idx],
+              accountId: u,
+              phone: acc.officerPhone || stList[pc07Idx].phone,
+              sms: acc.officerSms || stList[pc07Idx].sms,
+              officer: acc.officerName ? `${acc.officerRank || ''} ${acc.officerName}`.trim() : stList[pc07Idx].officer
+            };
+          }
+          continue;
+        }
+
         const stId = `st-${u}`;
         const normW = removeVietnameseTones(String(acc.ward || '').toLowerCase()).replace(/^(cong an\s+)?(phuong|xa|thi tran|dac khu|p\.|x\.|tt\.)\s*/i, '').replace(/[^a-z0-9]/g, '');
         const normP = removeVietnameseTones(String(acc.province || '').toLowerCase()).replace(/^(tinh|thanh pho|tp\.?)\s*/i, '').replace(/[^a-z0-9]/g, '');
@@ -382,7 +419,7 @@ function syncAllDirectoriesFromAgencyAccounts() {
           unit_title: existingSt?.unit_title || acc.unit_title || acc.ward || acc.unitName,
           agency: acc.agency || 'police',
           agency_name: acc.agency === 'csgt' ? 'Cảnh Sát Giao Thông' : (acc.agency === 'fire' ? 'PCCC & CNCH' : 'Công An'),
-          level: acc.level || 'ward',
+          level: u === 'congan' ? 'province' : (acc.level || 'ward'),
           province: acc.province || 'Cần Thơ',
           district: acc.district || '',
           ward: (existingSt?.ward && existingSt.ward !== 'Toàn Thành Phố') ? existingSt.ward : (acc.ward || ''),
@@ -408,8 +445,13 @@ function syncAllDirectoriesFromAgencyAccounts() {
       }
     }
 
-    // Clean duplicate station IDs
-    const dupeIds = new Set(['st-captananca', 'st-capcaikhect', 'st-capanbinhct', 'st-capbinhthuyct', 'st-caphungphuct']);
+    // Clean duplicate station IDs & abolished stations
+    const dupeIds = new Set([
+      'st-caxkhuvucsotaica', 'st-capancuct', 'st-capthoibinhct', 'st-capxuankhanhct',
+      'st-capankhanhct', 'st-caphungloict', 'st-capanhoact', 'st-caxmykhanhct',
+      'st-captranocct', 'st-caplebinhct', 'st-csgt', 'st-cuuho',
+      'st-captananca', 'st-capcaikhect', 'st-capanbinhct', 'st-capbinhthuyct', 'st-caphungphuct'
+    ]);
     stationsDirectory.stations = stList.filter(s => !dupeIds.has(s.id));
     hospitalsDB.hospitals = hospList;
     rescueEnterprises.enterprises = resList;

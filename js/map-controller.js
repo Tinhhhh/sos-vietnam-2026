@@ -661,6 +661,8 @@ export class MapController {
       try { this.activeWardStationMarker.remove(); } catch(e) {}
       this.activeWardStationMarker = null;
     }
+    this.activeWardStationId = null;
+    this.activeWardCoords = null;
   }
 
   showWardStationPin(wardFeature, overrideStation = null) {
@@ -717,15 +719,26 @@ export class MapController {
       const cleanW = wardName.toLowerCase().replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
       const cleanP = provName.toLowerCase().replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
 
+      // Helper to test if station is a grass-roots ward police station
+      const isWardPolice = s => s && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency);
+
       // Priority 1: match postal_code / ma_xa
       const maXa = p.ma_xa || p.postal_code || p.postalCode || p.maDVHC;
       if (maXa) {
-        station = stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
+        station = stationsPool.find(s => s && isWardPolice(s) && String(s.postal_code || s.raw_id) === String(maXa)) ||
+                  stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
       }
 
-      // Priority 2: exact match on ward name and province
+      // Priority 2: exact match on ward name and province (prefer grassroots ward police station)
       if (!station && cleanW) {
         station = stationsPool.find(s => {
+          if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
+          const sProv = (s.province || '').toLowerCase();
+          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
+          if (!matchProv) return false;
+          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+          return sW === cleanW;
+        }) || stationsPool.find(s => {
           if (!s || s.id === 'st-admin' || s.level === 'national') return false;
           const sProv = (s.province || '').toLowerCase();
           const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
@@ -738,6 +751,13 @@ export class MapController {
       // Priority 3: partial match on ward and province
       if (!station && cleanW) {
         station = stationsPool.find(s => {
+          if (!s || s.id === 'st-admin' || s.level === 'national' || !isWardPolice(s)) return false;
+          const sProv = (s.province || '').toLowerCase();
+          const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
+          if (!matchProv) return false;
+          const sW = (s.ward || s.unit_title || s.name || '').toLowerCase().replace(/^(phường|xã|thị trấn|công an phường|công an xã|p\.|x\.|tt\.)\s*/i, '').trim();
+          return sW.includes(cleanW) || cleanW.includes(sW);
+        }) || stationsPool.find(s => {
           if (!s || s.id === 'st-admin' || s.level === 'national') return false;
           const sProv = (s.province || '').toLowerCase();
           const matchProv = !cleanP || sProv.includes(cleanP) || cleanP.includes(sProv);
@@ -801,6 +821,9 @@ export class MapController {
       }
     });
 
+    this.activeWardStationId = station?.id || null;
+    this.activeWardCoords = [pinLng, pinLat];
+
     this.activeWardStationMarker = new window.maplibregl.Marker({ element: el, anchor: 'center' })
       .setLngLat([pinLng, pinLat])
       .setPopup(popup)
@@ -809,6 +832,9 @@ export class MapController {
     try {
       popup.addTo(this.map);
     } catch (e) {}
+
+    // Synchronize visible pins to remove duplicate overlay at the same coordinates
+    this.updateVisibleStationPins();
   }
 
   clearStationMarkers() {
@@ -1242,6 +1268,18 @@ export class MapController {
     // 2. Mount markers that have entered the viewport
     visibleStations.forEach(st => {
       const id = String(st.id || `${st.name}_${st.lat}_${st.lng}`);
+      // Skip mounting if this station is already rendered by activeWardStationMarker
+      if (this.activeWardStationMarker && (
+        (this.activeWardStationId && (st.id === this.activeWardStationId || st.raw_id === this.activeWardStationId)) ||
+        (this.activeWardCoords && Math.abs(Number(st.lng || st.stationLng) - this.activeWardCoords[0]) < 0.0001 && Math.abs(Number(st.lat || st.stationLat) - this.activeWardCoords[1]) < 0.0001)
+      )) {
+        if (this.activeStationMarkersMap.has(id)) {
+          try { this.activeStationMarkersMap.get(id).remove(); } catch(e) {}
+          this.activeStationMarkersMap.delete(id);
+        }
+        return;
+      }
+
       if (!this.activeStationMarkersMap.has(id)) {
         const marker = this.createStationMarker(st);
         if (marker) {
@@ -1703,6 +1741,7 @@ export class MapController {
   clearWardBoundary() {
     this.currentWardBoundary = null;
     this.clearActiveWardPin();
+    this.updateVisibleStationPins();
     if (!this.map) return;
     const sourceId = 'ward-boundary-source';
     if (this.map.getSource(sourceId)) {

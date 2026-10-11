@@ -1,0 +1,43 @@
+{
+  "testName": "Rà soát loại bỏ đồn công an giải thể và ghim trùng lặp tại Phường Ninh Kiều (Cần Thơ)",
+  "timestamp": "2026-10-11T07:29:50.798Z",
+  "steps": [
+    {
+      "step": "1. Tải trang dispatcher.html & Đăng nhập thành công",
+      "status": "SUCCESS"
+    },
+    {
+      "step": "2. Chọn và khoanh vùng Phường Ninh Kiều (Cần Thơ)",
+      "status": "SUCCESS"
+    },
+    {
+      "step": "4. Kiểm tra HUD & Xác nhận 10/10 assertions đạt chuẩn",
+      "status": "SUCCESS"
+    }
+  ],
+  "assertions": {
+    "hudTitleMatchesNinhKieu": true,
+    "hudAddressMatchesPhanDinhPhung": true,
+    "hudPhoneMatchesOfficial": true,
+    "hudOfficerMatchesPhamHienTai": true,
+    "noAbolishedAnCuPin": true,
+    "noAbolishedThoiBinhPin": true,
+    "noAbolishedXuanKhanhPin": true,
+    "noFakeKhuVucSoTaiPin": true,
+    "noMisplacedGenericConganAt10033": true,
+    "onlyOneWardPolicePinInNinhKieu": true
+  },
+  "passed": true,
+  "hudData": {
+    "unitTitle": "Phường Ninh Kiều",
+    "address": "Số 72, đường Phan Đình Phùng, phường Ninh Kiều, thành phố Cần Thơ",
+    "phone": "02923820938",
+    "officer": "Thượng tá Phạm Hiền Tài (SĐT: 0918357555)",
+    "email": "phuongninhkieu@cantho.gov.vn",
+    "sapNhap": "Tân An, Thới Bình, Xuân Khánh",
+    "dienTich": "5,42 (km²)",
+    "danSo": "119.547 (người)",
+    "maDVHC": "31135"
+  },
+  "screenshotPath": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-11-ninh-kieu-station-dedup.png"
+}
