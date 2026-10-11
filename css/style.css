@@ -7369,17 +7369,21 @@ textarea:focus {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-/* --- Khung Cảnh Báo Pháp Lý Liquid Glass Amber --- */
+/* --- Khung Cảnh Báo Pháp Lý Liquid Glass Amber (Pinned to Bottom) --- */
 .legal-warning-card {
-  width: 100%;
-  max-width: 580px;
-  margin: 18px auto 24px;
-  border-radius: 18px;
-  position: relative;
-  z-index: 10;
+  position: fixed;
+  bottom: calc(82px + var(--sa-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9990;
+  width: calc(100% - 32px);
+  max-width: 640px;
+  margin: 0 auto;
+  border-radius: 9999px;
   text-align: left;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 .liquid-glass-amber {

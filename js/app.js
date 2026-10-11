@@ -390,7 +390,7 @@ class SOSApp {
   }
 
   bindEvents() {
-    this.btnRefreshLoc.addEventListener('click', () => this.initLocation());
+    this.btnRefreshLoc?.addEventListener('click', () => this.initLocation());
 
     // Open Modal on Master SOS click with 3D Crystal Shockwave Explosion & Voice AI Prompt
     this.btnMasterSOS.addEventListener('click', (e) => {
@@ -973,10 +973,10 @@ class SOSApp {
   }
 
   async initLocation() {
-    this.locAddressEl.textContent = 'Đang định vị GPS vệ tinh...';
+    if (this.locAddressEl) this.locAddressEl.textContent = 'Đang định vị GPS vệ tinh...';
     const coords = await this.locationService.acquireLocation();
-    this.locAddressEl.textContent = this.locationService.currentAddress;
-    this.locCoordsEl.textContent = `Tọa độ: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)} (±${this.locationService.accuracy}m)`;
+    if (this.locAddressEl) this.locAddressEl.textContent = this.locationService.currentAddress;
+    if (this.locCoordsEl) this.locCoordsEl.textContent = `Tọa độ: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)} (±${this.locationService.accuracy}m)`;
 
     try {
       const res = await fetch(`/api/geo/locate-ward?lat=${coords.lat}&lng=${coords.lng}&address=${encodeURIComponent(this.locationService.currentAddress)}`);
@@ -1004,7 +1004,7 @@ class SOSApp {
           this.locationService.currentAddress = areaLabel;
         }
 
-        if (areaLabel) {
+        if (areaLabel && this.locAddressEl) {
           this.locAddressEl.innerHTML = `<span>📍</span> ${this.locationService.currentAddress} <span style="font-size: 10px; font-weight: 700; color: #fbbf24; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 1px 6px; border-radius: 4px; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px;">🛡️ Thuộc địa bàn: ${areaLabel}</span>`;
         }
       }
@@ -4460,6 +4460,18 @@ class SOSApp {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         toggle();
+      }
+    });
+    document.addEventListener('click', (e) => {
+      if (card.classList.contains('expanded') && !card.contains(e.target)) {
+        card.classList.remove('expanded');
+        card.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && card.classList.contains('expanded')) {
+        card.classList.remove('expanded');
+        card.setAttribute('aria-expanded', 'false');
       }
     });
   }

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
@@ -24,9 +24,9 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/logo-police-round-192.png">
   <link rel="shortcut icon" href="/assets/icons/favicon.png">
   <link rel="stylesheet" href="/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/css/style.css?v=20260915_responsive_audit_v1">
+  <link rel="stylesheet" href="/css/style.css?v=20261009_legal_bottom_v1">
   <link rel="stylesheet" href="/css/map.css?v=20260904_4">
-  <link rel="stylesheet" href="/css/tactical-responsive.css?v=20260915_responsive_audit_v2">
+  <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261009_legal_bottom_v1">
 </head>
 <body>
 
@@ -62,25 +62,6 @@
 
     <!-- View 1: Main SOS Trigger Screen -->
     <div id="sosTriggerView" class="view-section">
-      <!-- Live GPS Banner (Liquid Glass) -->
-      <div class="location-banner liquid-glass">
-        <div class="loc-info">
-          <div class="loc-icon-pulse"><svg class="svg-ico ico-lg ico-red" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
-          <div class="loc-texts">
-            <div class="loc-label">VỊ TRÍ GPS VỆ TINH CỦA BẠN</div>
-            <div class="loc-address" id="locAddress">Đang định vị GPS chính xác...</div>
-            <div class="loc-coords" id="locCoords">Độ chính xác: Đang dò tìm vệ tinh</div>
-            <div class="loc-network" id="networkStatus" role="status" aria-live="polite" title="Đang nhận diện kết nối">
-              <svg class="svg-ico ico-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-3M10 20v-6M15 20v-10M20 20V2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-              <span>Mạng hiện tại: Đang nhận diện…</span>
-            </div>
-          </div>
-        </div>
-        <button class="btn-refresh-loc liquid-glass" id="btnRefreshLoc" title="Làm mới vị trí GPS">
-          <svg class="svg-ico ico-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-          Làm mới
-        </button>
-      </div>
 
       <!-- Master Hero SOS Section (MotionSites Aesthetic) -->
       <section class="sos-hero">
@@ -133,55 +114,56 @@
         </div>
 
 
-        <!-- Khung Cảnh Báo Chế Tài Pháp Lý Chuẩn Hành Chính Sang Trọng (Liquid Glass Viền Vàng Amber) -->
-        <div class="legal-warning-card liquid-glass-amber" id="legalWarningHero" role="button" tabindex="0" aria-expanded="false" title="Nhấn để xem đầy đủ điều khoản Nghị định 144/2021/NĐ-CP">
-          <div class="legal-card-header" id="legalCardHeader">
-            <div class="legal-shield-badge">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(245, 158, 11, 0.25)" stroke="#f59e0b" stroke-width="2"/>
-                <path d="M12 8v5M12 16h.01" stroke="#fef3c7" stroke-width="2.2" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <div class="legal-header-text">
-              <div class="legal-title">
-                <span>CẢNH BÁO CHẾ TÀI PHÁP LÝ KHẨN CẤP</span>
-                <span class="legal-summary-inline">• Phạt 4-6 triệu VNĐ &amp; xử lý hình sự (NĐ 144)</span>
-              </div>
-              <div class="legal-subtitle">Căn cứ Nghị định số 144/2021/NĐ-CP của Chính phủ &amp; Bộ luật Hình sự</div>
-            </div>
-            <button type="button" class="legal-toggle-btn" id="btnToggleLegal" aria-label="Xem chi tiết điều khoản">
-              <span class="legal-toggle-label">Chi tiết</span>
-              <svg class="legal-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-          </div>
-          
-          <div class="legal-card-body">
-            <div class="legal-item">
-              <span class="legal-bullet">⚖️</span>
-              <div class="legal-item-content">
-                <strong>Xử phạt hành chính từ 4.000.000đ — 6.000.000đ:</strong> Áp dụng đối với mọi hành vi cố ý báo tin giả, gọi khẩn cấp sai sự thật, trêu đùa hoặc quấy rối đường dây cứu hộ theo <em>Khoản 3, Điều 7, Nghị định 144/2021/NĐ-CP</em>.
-              </div>
-            </div>
-            <div class="legal-item">
-              <span class="legal-bullet">🚨</span>
-              <div class="legal-item-content">
-                <strong>Truy cứu trách nhiệm hình sự:</strong> Các hành vi giả mạo gây hậu quả nghiêm trọng, cản trở phương tiện thi hành công vụ hoặc làm thiệt hại tài sản, tính mạng sẽ bị truy cứu theo Bộ luật Hình sự.
-              </div>
-            </div>
-            <div class="legal-item">
-              <span class="legal-bullet">📡</span>
-              <div class="legal-item-content">
-                <strong>Định danh số tự động:</strong> Hệ thống tự động ghi nhận địa chỉ IP mạng, số định danh thiết bị, tọa độ GPS vệ tinh thời gian thực và lưu trữ dữ liệu truyền tin phục vụ công tác xác minh của Cơ quan Công an.
-              </div>
-            </div>
-          </div>
+      </section>
 
-          <div class="legal-card-footer">
-            <span class="legal-footer-icon">💡</span>
-            <span>Vui lòng <strong>chỉ kích hoạt SOS</strong> trong tình huống thực sự nguy cấp đe dọa trực tiếp đến tính mạng, sức khỏe và an toàn trật tự.</span>
+      <!-- Khung Cảnh Báo Chế Tài Pháp Lý Chuẩn Hành Chính Sang Trọng (Liquid Glass Viền Vàng Amber) -->
+      <div class="legal-warning-card liquid-glass-amber" id="legalWarningHero" role="button" tabindex="0" aria-expanded="false" title="Nhấn để xem đầy đủ điều khoản Nghị định 144/2021/NĐ-CP">
+        <div class="legal-card-header" id="legalCardHeader">
+          <div class="legal-shield-badge">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(245, 158, 11, 0.25)" stroke="#f59e0b" stroke-width="2"/>
+              <path d="M12 8v5M12 16h.01" stroke="#fef3c7" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="legal-header-text">
+            <div class="legal-title">
+              <span>CẢNH BÁO CHẾ TÀI PHÁP LÝ KHẨN CẤP</span>
+              <span class="legal-summary-inline">• Phạt 4-6 triệu VNĐ &amp; xử lý hình sự (NĐ 144)</span>
+            </div>
+            <div class="legal-subtitle">Căn cứ Nghị định số 144/2021/NĐ-CP của Chính phủ &amp; Bộ luật Hình sự</div>
+          </div>
+          <button type="button" class="legal-toggle-btn" id="btnToggleLegal" aria-label="Xem chi tiết điều khoản">
+            <span class="legal-toggle-label">Chi tiết</span>
+            <svg class="legal-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+        
+        <div class="legal-card-body">
+          <div class="legal-item">
+            <span class="legal-bullet">⚖️</span>
+            <div class="legal-item-content">
+              <strong>Xử phạt hành chính từ 4.000.000đ — 6.000.000đ:</strong> Áp dụng đối với mọi hành vi cố ý báo tin giả, gọi khẩn cấp sai sự thật, trêu đùa hoặc quấy rối đường dây cứu hộ theo <em>Khoản 3, Điều 7, Nghị định 144/2021/NĐ-CP</em>.
+            </div>
+          </div>
+          <div class="legal-item">
+            <span class="legal-bullet">🚨</span>
+            <div class="legal-item-content">
+              <strong>Truy cứu trách nhiệm hình sự:</strong> Các hành vi giả mạo gây hậu quả nghiêm trọng, cản trở phương tiện thi hành công vụ hoặc làm thiệt hại tài sản, tính mạng sẽ bị truy cứu theo Bộ luật Hình sự.
+            </div>
+          </div>
+          <div class="legal-item">
+            <span class="legal-bullet">📡</span>
+            <div class="legal-item-content">
+              <strong>Định danh số tự động:</strong> Hệ thống tự động ghi nhận địa chỉ IP mạng, số định danh thiết bị, tọa độ GPS vệ tinh thời gian thực và lưu trữ dữ liệu truyền tin phục vụ công tác xác minh của Cơ quan Công an.
+            </div>
           </div>
         </div>
-      </section>
+
+        <div class="legal-card-footer">
+          <span class="legal-footer-icon">💡</span>
+          <span>Vui lòng <strong>chỉ kích hoạt SOS</strong> trong tình huống thực sự nguy cấp đe dọa trực tiếp đến tính mạng, sức khỏe và an toàn trật tự.</span>
+        </div>
+      </div>
     </div>
 
     <!-- View 2: Live Tracking Screen (Shown after SOS submitted) -->
