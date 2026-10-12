@@ -35,30 +35,38 @@ TEMPO_FACTOR = 1.20
 
 VOICE_CONFIGS = [
     {
-        "key": "thuy_dung",
+        "key": "tay_nam_bo",
+        "aliases": ["my_duyen"],
+        "voice_name": "Mỹ Duyên",
+        "region_title": "Tây Nam Bộ (Cần Thơ & ĐBSCL)",
+        "desc": "⭐ Mỹ Duyên — Nữ · Tây Nam Bộ (Đồng bằng sông Cửu Long / Cần Thơ) · Ngọt ngào, chất phác, gần gũi"
+    },
+    {
+        "key": "mien_nam",
+        "aliases": ["thuy_dung"],
         "voice_name": "Thùy Dung",
-        "desc": "⭐ Thùy Dung — Nữ · Nam Bộ · Phong cách tin tức, truyền cảm, ấm áp, dứt khoát"
+        "region_title": "Miền Nam (Sài Gòn & Đông Nam Bộ)",
+        "desc": "⭐ Thùy Dung — Nữ · Miền Nam (Đông Nam Bộ / Sài Gòn) · Tin tức hiện đại, dứt khoát, thanh thoát"
     },
     {
-        "key": "mai_anh",
+        "key": "mien_trung",
+        "aliases": ["ngoc_tran"],
+        "voice_name": "Ngọc Trân",
+        "region_title": "Miền Trung (Đà Nẵng, Huế & Miền Trung)",
+        "desc": "⭐ Ngọc Trân — Nữ · Miền Trung (Đà Nẵng / Huế) · Nồng ấm, chân phương, chuẩn ngữ điệu Trung Bộ"
+    },
+    {
+        "key": "mien_bac",
+        "aliases": ["mai_anh"],
         "voice_name": "Mai Anh",
-        "desc": "⭐ Mai Anh — Nữ · Bắc Bộ · Phong cách tin tức, dõng dạc, rõ câu từ, chuẩn phát thanh"
-    },
-    {
-        "key": "truc_ly",
-        "voice_name": "Trúc Ly",
-        "desc": "⭐ Trúc Ly — Nữ · Bắc Bộ · Phong cách tự nhiên, nhẹ nhàng, an ủi tâm lý người dân"
-    },
-    {
-        "key": "ngoc_huyen",
-        "voice_name": "Ngọc Huyền",
-        "desc": "⭐ Ngọc Huyền — Nữ · Bắc Bộ · Giọng chuẩn phổ thông, trong trẻo"
+        "region_title": "Miền Bắc (Hà Nội & Bắc Bộ)",
+        "desc": "⭐ Mai Anh — Nữ · Miền Bắc (Hà Nội) · Chuẩn phát thanh viên truyền hình, rõ ràng, dõng dạc"
     }
 ]
 
 def main():
     print("=" * 60)
-    print("🎙️ KHỞI TẠO BỘ GIỌNG NỮ VIENEU-TTS CHO NÚT BẤM SOS KHẨN CẤP")
+    print("🎙️ KHỞI TẠO BỘ 4 GIỌNG NỮ 4 MIỀN VIENEU-TTS CHO NÚT BẤM SOS KHẨN CẤP")
     print(f"Nội dung đọc: \"{PROMPT_TEXT}\"")
     print(f"Tốc độ đọc: {TEMPO_FACTOR}x (+0.2x nhanh hơn)")
     print(f"Thư mục xuất: {OUTPUT_DIR}")
@@ -124,9 +132,18 @@ def main():
 
         dur = len(padded) / sr
         raw_dur = len(raw_audio) / sr
+        print(f"    ✓ Vùng miền: {cfg.get('region_title')}")
         print(f"    ✓ Thời lượng gốc (1.0x): {raw_dur:.2f}s -> Tốc độ mới (1.2x): {dur:.2f}s (kèm 420ms padding)")
         print(f"    ✓ Đã xuất WAV: {wav_path} ({os.path.getsize(wav_path):,} bytes)")
         print(f"    ✓ Đã xuất MP3: {mp3_path} ({os.path.getsize(mp3_path):,} bytes)")
+
+        # Đồng bộ sang các tên alias
+        for alias in cfg.get("aliases", []):
+            alias_wav = os.path.join(OUTPUT_DIR, f"sos_prompt_{alias}.wav")
+            alias_mp3 = os.path.join(OUTPUT_DIR, f"sos_prompt_{alias}.mp3")
+            sf.write(alias_wav, padded, sr)
+            subprocess.run(["ffmpeg", "-y", "-i", alias_wav, "-b:a", "192k", "-ar", str(sr), alias_mp3], capture_output=True)
+            print(f"    ✓ Đã tạo alias tương thích: {alias} (WAV & MP3)")
 
         # Xóa file tạm
         try:

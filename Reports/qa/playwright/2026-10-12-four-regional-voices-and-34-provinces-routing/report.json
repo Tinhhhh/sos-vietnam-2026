@@ -1,0 +1,121 @@
+{
+  "testName": "4 Regional Voices & 34 Provinces Auto-Routing Suite",
+  "timestamp": "2026-10-12T11:37:43.385Z",
+  "baseUrl": "http://localhost:3000",
+  "assertions": [
+    {
+      "name": "Audio files exist for region 'tay_nam_bo' (Mỹ Duyên) at 1.2x speed",
+      "pass": true,
+      "details": {
+        "mp3Size": 329516,
+        "wavSize": 1311124
+      }
+    },
+    {
+      "name": "Audio files exist for region 'mien_nam' (Thùy Dung) at 1.2x speed",
+      "pass": true,
+      "details": {
+        "mp3Size": 215468,
+        "wavSize": 855694
+      }
+    },
+    {
+      "name": "Audio files exist for region 'mien_trung' (Ngọc Trân) at 1.2x speed",
+      "pass": true,
+      "details": {
+        "mp3Size": 271340,
+        "wavSize": 1079802
+      }
+    },
+    {
+      "name": "Audio files exist for region 'mien_bac' (Mai Anh) at 1.2x speed",
+      "pass": true,
+      "details": {
+        "mp3Size": 258668,
+        "wavSize": 1028902
+      }
+    },
+    {
+      "name": "Auto-route Cần Thơ to 'tay_nam_bo' (Giọng Mỹ Duyên / Đồng bằng sông Cửu Long)",
+      "pass": true,
+      "details": {
+        "ok": true,
+        "detected": "tay_nam_bo",
+        "province": "Cần Thơ"
+      }
+    },
+    {
+      "name": "Auto-route TP. Hồ Chí Minh to 'mien_nam' (Giọng Thùy Dung / Sài Gòn)",
+      "pass": true,
+      "details": {
+        "ok": true,
+        "detected": "mien_nam",
+        "province": "TP Hồ Chí Minh"
+      }
+    },
+    {
+      "name": "Auto-route Đà Nẵng to 'mien_trung' (Giọng Ngọc Trân / Miền Trung)",
+      "pass": true,
+      "details": {
+        "ok": true,
+        "detected": "mien_trung",
+        "province": "Đà Nẵng"
+      }
+    },
+    {
+      "name": "Auto-route Hà Nội to 'mien_bac' (Giọng Mai Anh / Miền Bắc)",
+      "pass": true,
+      "details": {
+        "ok": true,
+        "detected": "mien_bac",
+        "province": "Hà Nội"
+      }
+    },
+    {
+      "name": "GPS fallback routes (10.045, 105.746) to 'tay_nam_bo'",
+      "pass": true,
+      "details": {
+        "ok": true,
+        "detected": "tay_nam_bo"
+      }
+    }
+  ],
+  "audioFiles": [
+    {
+      "region": "tay_nam_bo",
+      "voice": "Mỹ Duyên",
+      "mp3Exists": true,
+      "wavExists": true,
+      "mp3Size": 329516,
+      "wavSize": 1311124
+    },
+    {
+      "region": "mien_nam",
+      "voice": "Thùy Dung",
+      "mp3Exists": true,
+      "wavExists": true,
+      "mp3Size": 215468,
+      "wavSize": 855694
+    },
+    {
+      "region": "mien_trung",
+      "voice": "Ngọc Trân",
+      "mp3Exists": true,
+      "wavExists": true,
+      "mp3Size": 271340,
+      "wavSize": 1079802
+    },
+    {
+      "region": "mien_bac",
+      "voice": "Mai Anh",
+      "mp3Exists": true,
+      "wavExists": true,
+      "mp3Size": 258668,
+      "wavSize": 1028902
+    }
+  ],
+  "screenshots": [
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-12-four-regional-voices-and-34-provinces-routing\\screenshots\\regional-voice-routing-mobile.png"
+  ],
+  "allPassed": true
+}

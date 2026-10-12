@@ -4395,22 +4395,92 @@ class SOSApp {
     }
   }
 
+  detectVoiceRegion() {
+    // 1. Kiểm tra cấu hình người dùng lưu trong localStorage nếu có chỉ định thủ công
+    try {
+      const saved = localStorage.getItem('sos_voice_config');
+      if (saved) {
+        const cfg = JSON.parse(saved);
+        if (cfg.region) return cfg.region; // 'tay_nam_bo' | 'mien_nam' | 'mien_trung' | 'mien_bac'
+        if (cfg.voiceKey) {
+          if (cfg.voiceKey.includes('tay_nam_bo') || cfg.voiceKey === 'my_duyen') return 'tay_nam_bo';
+          if (cfg.voiceKey.includes('mien_nam') || cfg.voiceKey === 'thuy_dung') return 'mien_nam';
+          if (cfg.voiceKey.includes('mien_trung') || cfg.voiceKey === 'ngoc_tran') return 'mien_trung';
+          if (cfg.voiceKey.includes('mien_bac') || cfg.voiceKey === 'mai_anh') return 'mien_bac';
+          return cfg.voiceKey;
+        }
+      }
+    } catch(e) {}
+
+    // 2. Tự động nhận diện theo Tỉnh/Thành phố hoặc Tọa độ GPS của người dân (34 Tỉnh Thành)
+    let provinceName = '';
+    let address = '';
+    if (this.currentWardBoundary && this.currentWardBoundary.province) {
+      provinceName = this.currentWardBoundary.province;
+    }
+    if (this.locationService) {
+      address = this.locationService.currentAddress || '';
+    }
+
+    const normProv = (provinceName + ' ' + address).toLowerCase();
+
+    // VÙNG 1: TÂY NAM BỘ (Đồng bằng sông Cửu Long - Cần Thơ, An Giang, Cà Mau, Đồng Tháp...)
+    const TAY_NAM_BO_KEYWORDS = [
+      'cần thơ', 'an giang', 'cà mau', 'đồng tháp', 'vĩnh long', 'kiên giang',
+      'bạc liêu', 'sóc trăng', 'bến tre', 'trà vinh', 'hậu giang', 'tiền giang', 'long an'
+    ];
+    for (const kw of TAY_NAM_BO_KEYWORDS) {
+      if (normProv.includes(kw)) return 'tay_nam_bo';
+    }
+
+    // VÙNG 2: MIỀN NAM / ĐÔNG NAM BỘ (Sài Gòn - TP.HCM, Bình Dương, Đồng Nai, Tây Ninh...)
+    const MIEN_NAM_KEYWORDS = [
+      'hồ chí minh', 'sài gòn', 'bình dương', 'đồng nai', 'vũng tàu', 'bà rịa', 'tây ninh', 'bình phước'
+    ];
+    for (const kw of MIEN_NAM_KEYWORDS) {
+      if (normProv.includes(kw)) return 'mien_nam';
+    }
+
+    // VÙNG 3: MIỀN TRUNG & TÂY NGUYÊN (Đà Nẵng, Huế, Quảng Trị, Khánh Hòa, Tây Nguyên...)
+    const MIEN_TRUNG_KEYWORDS = [
+      'đà nẵng', 'huế', 'thừa thiên', 'quảng trị', 'quảng ngãi', 'quảng nam', 'quảng bình',
+      'hà tĩnh', 'nghệ an', 'thanh hóa', 'khánh hòa', 'bình định', 'phú yên', 'ninh thuận',
+      'bình thuận', 'gia lai', 'đắk lắk', 'đắc lắk', 'kon tum', 'lâm đồng', 'đắk nông'
+    ];
+    for (const kw of MIEN_TRUNG_KEYWORDS) {
+      if (normProv.includes(kw)) return 'mien_trung';
+    }
+
+    // VÙNG 4: MIỀN BẮC (Hà Nội, Hải Phòng, Quảng Ninh, Bắc Ninh, Hưng Yên...)
+    const MIEN_BAC_KEYWORDS = [
+      'hà nội', 'hải phòng', 'quảng ninh', 'bắc ninh', 'hưng yên', 'ninh bình', 'thái nguyên',
+      'phú thọ', 'tuyên quang', 'lạng sơn', 'cao bằng', 'lào cai', 'sơn la', 'lai châu',
+      'điện biên', 'hải dương', 'nam định', 'thái bình', 'hà nam', 'vĩnh phúc', 'bắc giang',
+      'hòa bình', 'yên bái', 'bắc kạn', 'hà giang'
+    ];
+    for (const kw of MIEN_BAC_KEYWORDS) {
+      if (normProv.includes(kw)) return 'mien_bac';
+    }
+
+    // 3. Fallback theo Vĩ độ GPS (nếu chưa có tên tỉnh cụ thể)
+    const lat = this.locationService?.lastCoords?.lat;
+    const lng = this.locationService?.lastCoords?.lng;
+    if (lat && lng) {
+      if (lat < 10.7 && lng < 106.3) return 'tay_nam_bo'; // Vùng ĐBSCL
+      if (lat >= 10.3 && lat <= 12.0 && lng >= 106.3 && lng <= 108.0) return 'mien_nam'; // Vùng Đông Nam Bộ
+      if (lat > 11.8 && lat < 19.8) return 'mien_trung'; // Vùng Trung Bộ & Tây Nguyên
+      if (lat >= 19.8) return 'mien_bac'; // Vùng Bắc Bộ
+    }
+
+    // Mặc định: Tây Nam Bộ (Cần Thơ)
+    return 'tay_nam_bo';
+  }
+
   speakSosPrompt() {
     try {
-      // 1. Determine natural studio-grade voice by VieNeu-TTS
-      let voiceKey = 'thuy_dung'; // Mặc định: Thùy Dung (Nữ · Nam Bộ · Studio 48kHz)
-      try {
-        const saved = localStorage.getItem('sos_voice_config');
-        if (saved) {
-          const cfg = JSON.parse(saved);
-          if (cfg.voiceType === 'female-north') voiceKey = 'mai_anh';
-          else if (cfg.voiceType === 'male-north') voiceKey = 'minh_quan';
-          else if (cfg.voiceType === 'male-south') voiceKey = 'thai_son';
-          else if (cfg.voiceType === 'female-central' || cfg.voiceType === 'male-central') voiceKey = 'quang_son';
-          else if (cfg.voiceType === 'female-north-soft') voiceKey = 'truc_ly';
-          else if (cfg.voiceKey) voiceKey = cfg.voiceKey;
-        }
-      } catch(e) {}
+      // 1. Tự động nhận diện vùng miền theo 34 tỉnh thành & GPS
+      const voiceKey = this.detectVoiceRegion();
+      console.log(`[SOS Voice] Kích hoạt giọng đọc vùng miền: ${voiceKey}`);
 
       // Dừng audio cũ nếu đang phát
       if (this.sosPromptAudio) {
@@ -4420,7 +4490,7 @@ class SOSApp {
         } catch(e) {}
       }
 
-      const audioSrc = `assets/sounds/sos_prompt_${voiceKey}.mp3?v=20261012_speed_1_2x`;
+      const audioSrc = `assets/sounds/sos_prompt_${voiceKey}.mp3?v=20261012_4regions_1_2x`;
       this.sosPromptAudio = new Audio(audioSrc);
       this.sosPromptAudio.preload = 'auto';
 
@@ -4429,10 +4499,10 @@ class SOSApp {
         playPromise.catch((err) => {
           console.warn('HTML5 Audio MP3 interrupted, trying WAV fallback:', err);
           try {
-            const wavAudio = new Audio(`assets/sounds/sos_prompt_${voiceKey}.wav?v=20261012_speed_1_2x`);
-            wavAudio.play().catch(() => this.fallbackSpeechSynthesis());
+            const wavAudio = new Audio(`assets/sounds/sos_prompt_${voiceKey}.wav?v=20261012_4regions_1_2x`);
+            wavAudio.play().catch(() => this.fallbackSpeechSynthesis(voiceKey));
           } catch(e2) {
-            this.fallbackSpeechSynthesis();
+            this.fallbackSpeechSynthesis(voiceKey);
           }
         });
       }
@@ -4442,12 +4512,12 @@ class SOSApp {
     }
   }
 
-  fallbackSpeechSynthesis() {
+  fallbackSpeechSynthesis(voiceKey = 'tay_nam_bo') {
     try {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
 
-      let voiceConfig = { voiceType: 'female-south', rate: 0.88, pitch: 1.1 };
+      let voiceConfig = { voiceType: voiceKey === 'mien_bac' ? 'female-north' : (voiceKey === 'mien_trung' ? 'female-central' : 'female-south'), rate: 0.88, pitch: 1.1 };
       try {
         const saved = localStorage.getItem('sos_voice_config');
         if (saved) voiceConfig = { ...voiceConfig, ...JSON.parse(saved) };
