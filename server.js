@@ -1944,6 +1944,22 @@ function broadcastToDispatchers(event, data) {
       continue;
     }
 
+    // 1.2 Duty Shift updates: strictly isolate to target unit username or national command
+    if (event === 'duty_shift_update') {
+      const targetUsername = (data?.username || '').trim().toLowerCase();
+      if (!targetUsername) continue;
+      // Do NOT send to unauthenticated/anonymous subscribers
+      if (!client.authenticatedUser || client.authenticatedUser === 'anonymous') continue;
+
+      const clientUsername = (client.authenticatedUser || '').trim().toLowerCase();
+      const isSameUnit = clientUsername === targetUsername;
+      const isNationalAdmin = clientLevel === 'national' || clientUsername === 'admin';
+
+      if (!isSameUnit && !isNationalAdmin) {
+        continue; // Strictly drop for all other units!
+      }
+    }
+
     // 2. Incident updates (sos_new, sos_update, sos_escalate, new_message):
     if (event === 'sos_new' || event === 'sos_update' || event === 'sos_escalate' || event === 'new_message') {
       if (clientLevel === 'ward') {

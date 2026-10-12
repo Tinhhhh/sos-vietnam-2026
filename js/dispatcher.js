@@ -47,6 +47,7 @@ class DispatcherApp {
     this.currentOfficer = null;
     this.currentDutyShift = null;
     this.shiftExpiredNotified = false;
+    this.shiftReminderNotified = false;
     this.filterAgency = 'all';
     this.eventSource = null;
     this.isSpeakingVoiceAi = false;
@@ -202,6 +203,14 @@ class DispatcherApp {
     const isGatePassed = sessionStorage.getItem('sos_gatekeeper_pass') === 'true';
     if (!isGatePassed) {
       document.body.classList.remove('officer-authenticated');
+      this.currentOfficer = null;
+      this.currentDutyShift = null;
+      this.shiftExpiredNotified = false;
+      this.shiftReminderNotified = false;
+      if (this.dutyShiftModal) this.dutyShiftModal.style.display = 'none';
+      if (this.substituteOfficerModal) this.substituteOfficerModal.style.display = 'none';
+      const shiftDisplay = document.getElementById('dutyShiftDisplay');
+      if (shiftDisplay) shiftDisplay.textContent = '';
       if (this.cyberGatekeeperModal) {
         this.cyberGatekeeperModal.style.display = 'flex';
       }
@@ -237,60 +246,74 @@ class DispatcherApp {
     }
 
     // 2. Check Officer Session
-    const raw = sessionStorage.getItem('sos_dispatcher_officer') || localStorage.getItem('sos_dispatcher_officer');
+    // Active session strictly requires sessionStorage in the current tab/window.
+    // Do NOT auto-authenticate from stale localStorage left by previous officers or past days!
+    const raw = sessionStorage.getItem('sos_dispatcher_officer');
     if (raw) {
       try {
         const profile = JSON.parse(raw);
-        this.currentOfficer = profile;
-        this.applyOfficerProfile(profile);
-        document.body.classList.add('officer-authenticated');
+        if (profile && profile.username) {
+          this.currentOfficer = profile;
+          this.applyOfficerProfile(profile);
+          document.body.classList.add('officer-authenticated');
 
-        // Hide Cosmic Portal & Login Modal
-        if (this.cosmicPortalView) {
-          this.cosmicPortalView.style.display = 'none';
-          this.cosmicPortalView.style.setProperty('display', 'none', 'important');
-        }
-        setTimeout(() => {
-          if (this.mapController?.map) {
-            this.mapController.map.resize();
+          // Hide Cosmic Portal & Login Modal
+          if (this.cosmicPortalView) {
+            this.cosmicPortalView.style.display = 'none';
+            this.cosmicPortalView.style.setProperty('display', 'none', 'important');
           }
-        }, 200);
-        if (this.authGateModal) {
-          this.authGateModal.style.display = 'none';
-          this.authGateModal.style.setProperty('display', 'none', 'important');
-        }
+          setTimeout(() => {
+            if (this.mapController?.map) {
+              this.mapController.map.resize();
+            }
+          }, 200);
+          if (this.authGateModal) {
+            this.authGateModal.style.display = 'none';
+            this.authGateModal.style.setProperty('display', 'none', 'important');
+          }
 
-        const savedShift = sessionStorage.getItem('sos_duty_shift_' + profile.username) ||
-                           localStorage.getItem('sos_duty_shift_' + profile.username);
-        if (savedShift) {
-          try {
-            this.currentDutyShift = JSON.parse(savedShift);
+          const savedShift = sessionStorage.getItem('sos_duty_shift_' + profile.username) ||
+                             localStorage.getItem('sos_duty_shift_' + profile.username);
+          if (savedShift) {
+            try {
+              this.currentDutyShift = JSON.parse(savedShift);
+              this.applyDutyShift(this.currentDutyShift);
+            } catch(e) {}
+          } else {
+            const now = new Date();
+            const curH = String(now.getHours()).padStart(2, '0');
+            const endH = String((now.getHours() + 8) % 24).padStart(2, '0');
+            this.currentDutyShift = {
+              username: profile.username,
+              officerName: profile.officerName || profile.username,
+              officerRank: profile.officerRank || 'Cán bộ',
+              officerPhone: profile.officerPhone || '113',
+              officerSms: profile.officerSms || '',
+              startTime: `${curH}:00`,
+              endTime: `${endH}:00`,
+              date: now.toISOString().split('T')[0]
+            };
             this.applyDutyShift(this.currentDutyShift);
-          } catch(e) {}
-        } else {
-          const now = new Date();
-          const curH = String(now.getHours()).padStart(2, '0');
-          const endH = String((now.getHours() + 8) % 24).padStart(2, '0');
-          this.currentDutyShift = {
-            username: profile.username,
-            officerName: profile.officerName || profile.username,
-            officerRank: profile.officerRank || 'Cán bộ',
-            officerPhone: profile.officerPhone || '113',
-            officerSms: profile.officerSms || '',
-            startTime: `${curH}:00`,
-            endTime: `${endH}:00`,
-            date: now.toISOString().split('T')[0]
-          };
-          this.applyDutyShift(this.currentDutyShift);
-        }
-        this.restoreDutyShift();
+          }
+          this.restoreDutyShift();
 
-        // Khởi tạo danh sách ca và stream SSE chính xác theo địa bàn cán bộ
-        this.clearActiveSelectionAndMap();
-        this.loadIncidents();
-        this.connectLiveStream();
+          // Khởi tạo danh sách ca và stream SSE chính xác theo địa bàn cán bộ
+          this.clearActiveSelectionAndMap();
+          this.loadIncidents();
+          this.connectLiveStream();
+        } else {
+          throw new Error('Invalid officer session');
+        }
       } catch (err) {
         document.body.classList.remove('officer-authenticated');
+        this.currentOfficer = null;
+        this.currentDutyShift = null;
+        this.shiftExpiredNotified = false;
+        this.shiftReminderNotified = false;
+        if (this.dutyShiftModal) this.dutyShiftModal.style.display = 'none';
+        if (this.substituteOfficerModal) this.substituteOfficerModal.style.display = 'none';
+        const shiftDisplay = document.getElementById('dutyShiftDisplay');
+        if (shiftDisplay) shiftDisplay.textContent = '';
         // Fallback to Cosmic Portal
         if (this.cosmicPortalView) {
           this.cosmicPortalView.style.display = 'block';
@@ -302,8 +325,17 @@ class DispatcherApp {
         }
       }
     } else {
-      // Gatekeeper is verified, SHOW THE COSMIC PORTAL WITH 4 BUBBLES!
+      // Gatekeeper is verified, but NO officer has logged in yet!
+      // Must SHOW THE COSMIC PORTAL and ensure ZERO duty shift alerts or modals!
       document.body.classList.remove('officer-authenticated');
+      this.currentOfficer = null;
+      this.currentDutyShift = null;
+      this.shiftExpiredNotified = false;
+      this.shiftReminderNotified = false;
+      if (this.dutyShiftModal) this.dutyShiftModal.style.display = 'none';
+      if (this.substituteOfficerModal) this.substituteOfficerModal.style.display = 'none';
+      const shiftDisplay = document.getElementById('dutyShiftDisplay');
+      if (shiftDisplay) shiftDisplay.textContent = '';
       if (this.cosmicPortalView) {
         this.cosmicPortalView.style.display = 'block';
         this.cosmicPortalView.style.setProperty('display', 'block', 'important');
@@ -313,6 +345,19 @@ class DispatcherApp {
         this.authGateModal.style.setProperty('display', 'none', 'important');
       }
     }
+  }
+
+  isUnauthenticatedScreenActive() {
+    if (!document.body.classList.contains('officer-authenticated')) return true;
+    if (!this.currentOfficer || !this.currentOfficer.username) return true;
+    if (this.cyberGatekeeperModal && window.getComputedStyle(this.cyberGatekeeperModal).display !== 'none') return true;
+    if (this.cosmicPortalView && window.getComputedStyle(this.cosmicPortalView).display !== 'none') return true;
+    if (this.authGateModal && window.getComputedStyle(this.authGateModal).display !== 'none') return true;
+    const introOverlay = document.getElementById('cyberIntroVideoOverlay');
+    if (introOverlay && window.getComputedStyle(introOverlay).display === 'flex') return true;
+    const outroOverlay = document.getElementById('cyberLogoutVideoOverlay');
+    if (outroOverlay && window.getComputedStyle(outroOverlay).display === 'flex') return true;
+    return false;
   }
 
   initVietnamClock() {
@@ -334,10 +379,28 @@ class DispatcherApp {
         dateEl.textContent = `${dayName}, ${dayStr}/${monthStr}/${yearStr}`;
       }
 
-      // Calculate shift remaining — ONLY when officer is authenticated to this unit.
-      // Guard: Do NOT run shift expiry check or show any alert when officer hasn't logged in yet.
-      // This prevents the shift-expired popup from showing on the login/cosmic-portal screen.
+      // Calculate shift remaining — ONLY when officer is authenticated to this unit AND not on unauthenticated screen.
+      // Guard: Strictly NEVER run shift expiry check or show any alert when officer hasn't logged in yet or when gatekeeper/portal/login modal is active.
+      if (this.isUnauthenticatedScreenActive()) {
+        this.shiftExpiredNotified = false;
+        this.shiftReminderNotified = false;
+        const shiftDisplay = document.getElementById('dutyShiftDisplay');
+        if (shiftDisplay) shiftDisplay.textContent = '';
+        if (this.dutyShiftModal) this.dutyShiftModal.style.display = 'none';
+        if (this.substituteOfficerModal) this.substituteOfficerModal.style.display = 'none';
+        return;
+      }
+
       if (this.currentOfficer && this.currentDutyShift && this.currentDutyShift.endTime) {
+        // Double check unit scoping: ensure shift strictly matches currentOfficer.username
+        const shiftUname = (this.currentDutyShift.username || '').toLowerCase();
+        const officerUname = (this.currentOfficer.username || '').toLowerCase();
+        if (shiftUname && officerUname && shiftUname !== officerUname) {
+          this.currentDutyShift = null;
+          this.restoreDutyShift();
+          return;
+        }
+
         const [endH, endM] = this.currentDutyShift.endTime.split(':').map(Number);
         const [startH, startM] = (this.currentDutyShift.startTime || '07:00').split(':').map(Number);
 
@@ -358,14 +421,29 @@ class DispatcherApp {
         const diffMin = endTotalMin - nowTotalMin;
         const shiftDisplay = document.getElementById('dutyShiftDisplay');
 
+        // Detailed unit & territorial context
+        const unitName = this.currentOfficer.agencyName || this.currentOfficer.unitName || this.currentOfficer.username || 'Đơn vị trực ban';
+        const territory = this.currentOfficer.ward 
+          ? `${this.currentOfficer.ward}, ${this.currentOfficer.province || ''}`
+          : (this.currentOfficer.province ? `Tỉnh/Thành: ${this.currentOfficer.province}` : 'Toàn quốc');
+        const officerDesc = `${this.currentDutyShift.officerRank || this.currentOfficer.officerRank || ''} ${this.currentDutyShift.officerName || this.currentOfficer.officerName || ''}`.trim() || 'Cán bộ trực ban';
+
         if (diffMin <= 0) {
           if (shiftDisplay) shiftDisplay.innerHTML = `<span style="color: #ef4444; font-weight: 800;">⚠️ HẾT CA (${this.currentDutyShift.startTime}-${this.currentDutyShift.endTime})</span>`;
           // Only alert once per session AND only if officer is authenticated to this specific unit
-          if (!this.shiftExpiredNotified && this.currentOfficer) {
+          if (!this.shiftExpiredNotified && !this.isUnauthenticatedScreenActive()) {
             this.shiftExpiredNotified = true;
-            const unitName = this.currentOfficer.agencyName || this.currentOfficer.unitName || this.currentOfficer.username || '';
+            this.shiftReminderNotified = true;
             setTimeout(() => {
-              alert(`⏰ THÔNG BÁO HẾT GIỜ KÍP TRỰC BAN (${this.currentDutyShift.startTime} - ${this.currentDutyShift.endTime})!\n${unitName ? `Đơn vị: ${unitName}\n` : ''}Vui lòng bàn giao ca và nhập thông tin cán bộ kíp trực tiếp theo.`);
+              if (this.isUnauthenticatedScreenActive()) return;
+              alert(
+                `⏰ [THÔNG BÁO HẾT GIỜ KÍP TRỰC BAN]\n` +
+                `🏢 Đơn vị: ${unitName}\n` +
+                `📍 Địa bàn: ${territory}\n` +
+                `👮 Cán bộ trực: ${officerDesc}\n` +
+                `⏱️ Khung giờ ca: ${this.currentDutyShift.startTime} - ${this.currentDutyShift.endTime}\n\n` +
+                `Đã kết thúc ca trực ban theo quy định. Vui lòng bàn giao ca và nhập thông tin cán bộ kíp trực tiếp theo.`
+              );
               this.openDutyShiftModal();
             }, 200);
           }
@@ -376,10 +454,17 @@ class DispatcherApp {
           if (shiftDisplay) {
             shiftDisplay.innerHTML = `<span>Ca: ${this.currentDutyShift.startTime}-${this.currentDutyShift.endTime}</span><span class="shift-remaining-time"> (Còn: ${remH}h ${remM}p)</span>`;
           }
+
+          // Nhắc ca trực khi còn <= 15 phút
+          if (diffMin <= 15 && diffMin > 0 && !this.shiftReminderNotified && !this.isUnauthenticatedScreenActive()) {
+            this.shiftReminderNotified = true;
+            this.showShiftReminder(diffMin, unitName, territory, officerDesc);
+          }
         }
-      } else if (!this.currentOfficer) {
-        // Not logged in — clear shift display quietly, reset notification flag
+      } else {
+        // Not logged in or no duty shift — clear shift display quietly, reset notification flag
         this.shiftExpiredNotified = false;
+        this.shiftReminderNotified = false;
         const shiftDisplay = document.getElementById('dutyShiftDisplay');
         if (shiftDisplay) shiftDisplay.textContent = '';
       }
@@ -387,6 +472,59 @@ class DispatcherApp {
 
     updateClock();
     setInterval(updateClock, 1000);
+  }
+
+  showShiftReminder(diffMin, unitName, territory, officerDesc) {
+    if (this.isUnauthenticatedScreenActive()) return;
+    const oldToast = document.getElementById('shiftReminderToast');
+    if (oldToast) oldToast.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'shiftReminderToast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+      border: 1.5px solid #f59e0b;
+      border-radius: 10px;
+      padding: 10px 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(245, 158, 11, 0.35);
+      color: #f1f5f9;
+      font-size: 12px;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    `;
+    toast.innerHTML = `
+      <span style="font-size: 20px;">⏰</span>
+      <div>
+        <div style="font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 6px;">
+          NHẮC NHỞ KÍP TRỰC BAN — CÒN ${diffMin} PHÚT
+        </div>
+        <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">
+          <b>${unitName}</b> (${territory}) · Cán bộ: <b>${officerDesc}</b>. Vui lòng chuẩn bị bàn giao kíp trực!
+        </div>
+      </div>
+      <button style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 800; margin-left: 8px; cursor: pointer;">GIAO CA</button>
+    `;
+    toast.addEventListener('click', () => {
+      toast.remove();
+      this.openDutyShiftModal();
+    });
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(-10px)';
+        setTimeout(() => toast.remove(), 400);
+      }
+    }, 12000);
+    document.body.appendChild(toast);
   }
 
   initWeatherWidget() {
@@ -518,7 +656,19 @@ class DispatcherApp {
         localStorage.removeItem('sos_gatekeeper_pass');
         sessionStorage.removeItem('sos_dispatcher_officer');
         localStorage.removeItem('sos_dispatcher_officer');
+        sessionStorage.removeItem('sos_duty_shift');
+        localStorage.removeItem('sos_duty_shift');
+        sessionStorage.removeItem('SOS_ACTIVE_DUTY_SHIFT');
+        localStorage.removeItem('SOS_ACTIVE_DUTY_SHIFT');
         this.currentOfficer = null;
+        this.currentDutyShift = null;
+        this.shiftReminderNotified = false;
+        this.shiftExpiredNotified = false;
+        document.body.classList.remove('officer-authenticated');
+        const reminderEl = document.getElementById('shiftReminderToast');
+        if (reminderEl) reminderEl.remove();
+        if (this.dutyShiftModal) this.dutyShiftModal.style.display = 'none';
+        if (this.substituteOfficerModal) this.substituteOfficerModal.style.display = 'none';
         if (this.cosmicPortalView) this.cosmicPortalView.style.display = 'none';
         if (this.cyberGatekeeperModal) {
           this.cyberGatekeeperModal.style.display = 'flex';
@@ -863,6 +1013,9 @@ class DispatcherApp {
     this.currentOfficer = null;
     this.currentDutyShift = null;
     this.shiftExpiredNotified = false;
+    this.shiftReminderNotified = false;
+    const reminderToast = document.getElementById('shiftReminderToast');
+    if (reminderToast) reminderToast.remove();
     const shiftDisplay = document.getElementById('dutyShiftDisplay');
     if (shiftDisplay) shiftDisplay.textContent = '';
     if (this.eventSource) {
@@ -1201,8 +1354,30 @@ class DispatcherApp {
   }
 
   openSubstituteModal() {
-    if (!this.currentOfficer || !document.body.classList.contains('officer-authenticated')) return;
+    if (!this.currentOfficer || this.isUnauthenticatedScreenActive()) return;
     if (!this.substituteOfficerModal) return;
+
+    // Update Unit & Territorial Badge for Substitute
+    const subUnitNameEl = document.getElementById('substituteModalUnitName');
+    const subLevelEl = document.getElementById('substituteModalLevel');
+    const subTerritoryEl = document.getElementById('substituteModalTerritory');
+    if (subUnitNameEl) {
+      const uName = this.currentOfficer.stationName || this.currentOfficer.unitName || this.currentOfficer.username || 'Trực Ban Tác Chiến';
+      subUnitNameEl.innerHTML = `<svg class="svg-ico ico-sm ico-amber" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Đơn vị: ${uName}`;
+    }
+    if (subLevelEl) {
+      const lvl = this.currentOfficer.level || (this.currentOfficer.isWardLevel ? 'ward' : 'province');
+      subLevelEl.textContent = lvl === 'ward' ? 'Cấp Xã/Phường' : (lvl === 'province' ? 'Cấp Tỉnh/Thành Phố' : 'Cấp Chỉ Huy');
+    }
+    if (subTerritoryEl) {
+      const parts = [
+        this.currentOfficer.ward || this.currentOfficer.wardName,
+        this.currentOfficer.district || this.currentOfficer.districtName,
+        this.currentOfficer.province || this.currentOfficer.provinceName || this.currentOfficer.city
+      ].filter(Boolean);
+      subTerritoryEl.textContent = parts.length > 0 ? parts.join(', ') : (this.currentOfficer.stationAddress || 'Toàn địa bàn ủy quyền');
+    }
+
     if (this.currentDutyShift && this.currentDutyShift.substitute) {
       if (document.getElementById('subOfficerName')) document.getElementById('subOfficerName').value = this.currentDutyShift.substitute.officerName || '';
       if (document.getElementById('subOfficerRank')) document.getElementById('subOfficerRank').value = this.currentDutyShift.substitute.officerRank || '';
@@ -1213,8 +1388,30 @@ class DispatcherApp {
   }
 
   openDutyShiftModal() {
-    if (!this.currentOfficer || !document.body.classList.contains('officer-authenticated')) return;
+    if (!this.currentOfficer || this.isUnauthenticatedScreenActive()) return;
     if (!this.dutyShiftModal) return;
+
+    // Update Unit & Territorial Badge
+    const shiftUnitNameEl = document.getElementById('dutyShiftModalUnitName');
+    const shiftLevelEl = document.getElementById('dutyShiftModalLevel');
+    const shiftTerritoryEl = document.getElementById('dutyShiftModalTerritory');
+    if (shiftUnitNameEl) {
+      const uName = this.currentOfficer.stationName || this.currentOfficer.unitName || this.currentOfficer.username || 'Trực Ban Tác Chiến';
+      shiftUnitNameEl.innerHTML = `<svg class="svg-ico ico-sm ico-blue" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Đơn vị: ${uName}`;
+    }
+    if (shiftLevelEl) {
+      const lvl = this.currentOfficer.level || (this.currentOfficer.isWardLevel ? 'ward' : 'province');
+      shiftLevelEl.textContent = lvl === 'ward' ? 'Cấp Xã/Phường' : (lvl === 'province' ? 'Cấp Tỉnh/Thành Phố' : 'Cấp Chỉ Huy');
+    }
+    if (shiftTerritoryEl) {
+      const parts = [
+        this.currentOfficer.ward || this.currentOfficer.wardName,
+        this.currentOfficer.district || this.currentOfficer.districtName,
+        this.currentOfficer.province || this.currentOfficer.provinceName || this.currentOfficer.city
+      ].filter(Boolean);
+      shiftTerritoryEl.textContent = parts.length > 0 ? parts.join(', ') : (this.currentOfficer.stationAddress || 'Toàn địa bàn quản lý');
+    }
+
     const activeName = this.currentDutyShift?.officerName || this.currentOfficer?.officerName || '';
     const activeRank = this.currentDutyShift?.officerRank || this.currentOfficer?.officerRank || '';
     const activePhone = this.currentDutyShift?.officerPhone || this.currentOfficer?.officerPhone || '';
@@ -9629,7 +9826,7 @@ class DispatcherApp {
 
     this.eventSource.addEventListener('duty_shift_update', (e) => {
       try {
-        if (!this.currentOfficer || !this.currentOfficer.username) return;
+        if (!this.currentOfficer || !this.currentOfficer.username || this.isUnauthenticatedScreenActive()) return;
         const shift = JSON.parse(e.data);
         if (shift) {
           if (shift.username && shift.username.toLowerCase() !== this.currentOfficer.username.toLowerCase()) {

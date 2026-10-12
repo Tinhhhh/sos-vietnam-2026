@@ -1,6 +1,6 @@
 {
   "isSyncing": false,
-  "lastSyncTime": "2026-10-11T15:53:46.243Z",
+  "lastSyncTime": "2026-10-12T12:28:42.692Z",
   "lastStatus": "SUCCESS",
   "sourceUrl": "https://sapnhap.bando.com.vn/",
   "cosoUrl": "https://cosodulieu.bando.com.vn/",
@@ -9,6 +9,16 @@
   "totalUbnd": 3357,
   "checksum": "",
   "history": [
+    {
+      "time": "2026-10-12T12:28:42.692Z",
+      "manual": false,
+      "totalUnits": 3355,
+      "provinces": 34,
+      "wards": 3321,
+      "updatedCount": 0,
+      "newCount": 3321,
+      "summary": "Đã đồng bộ 3321 thay đổi mới nhất từ bando.com.vn."
+    },
     {
       "time": "2026-10-11T15:53:46.243Z",
       "manual": false,
@@ -191,16 +201,6 @@
     },
     {
       "time": "2026-09-21T03:56:59.303Z",
-      "manual": false,
-      "totalUnits": 3355,
-      "provinces": 34,
-      "wards": 3321,
-      "updatedCount": 0,
-      "newCount": 3321,
-      "summary": "Đã đồng bộ 3321 thay đổi mới nhất từ bando.com.vn."
-    },
-    {
-      "time": "2026-09-20T23:26:37.282Z",
       "manual": false,
       "totalUnits": 3355,
       "provinces": 34,

@@ -47,7 +47,8 @@
     body:not(.officer-authenticated) #dispatcherFloatingChatDock,
     body:not(.officer-authenticated) .tactical-tabbar,
     body:not(.officer-authenticated) #dutyShiftModal,
-    body:not(.officer-authenticated) #substituteOfficerModal {
+    body:not(.officer-authenticated) #substituteOfficerModal,
+    body:not(.officer-authenticated) #shiftReminderToast {
       display: none !important;
       visibility: hidden !important;
       pointer-events: none !important;
@@ -680,6 +681,21 @@
 
       <p style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">Vui lòng điền thông tin cán bộ trực ban và thời gian ca trực. Hết giờ kíp trực, hệ thống sẽ tự động nhắc nhở bàn giao cho ca tiếp theo.</p>
 
+      <!-- Unit & Territorial Identity Badge (Cô lập theo từng đơn vị & địa giới hành chính) -->
+      <div id="dutyShiftUnitBadge" style="background: rgba(56, 189, 248, 0.08); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span id="dutyShiftModalUnitName" style="font-size: 13px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+            <svg class="svg-ico ico-sm ico-blue" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Đơn vị: --
+          </span>
+          <span id="dutyShiftModalLevel" style="font-size: 10.5px; font-weight: 700; color: #34d399; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16,185,129,0.3); padding: 2px 8px; border-radius: 4px;">Cấp Xã/Phường</span>
+        </div>
+        <div style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+          <span>📍 Địa bàn quản lý:</span>
+          <span id="dutyShiftModalTerritory" style="color: #f1f5f9; font-weight: 700;">--</span>
+        </div>
+      </div>
+
       <form id="formDutyShift" style="display: flex; flex-direction: column; gap: 10px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
@@ -761,6 +777,21 @@
       </div>
 
       <p style="font-size: 11px; color: #cbd5e1; margin-bottom: 10px;">Sử dụng khi cán bộ trực chính bận đi xử lý vụ việc tại hiện trường hoặc có công tác đột xuất.</p>
+
+      <!-- Unit & Territorial Identity Badge for Substitute -->
+      <div id="substituteUnitBadge" style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span id="substituteModalUnitName" style="font-size: 13px; font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 6px;">
+            <svg class="svg-ico ico-sm ico-amber" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Đơn vị: --
+          </span>
+          <span id="substituteModalLevel" style="font-size: 10.5px; font-weight: 700; color: #fbbf24; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245,158,11,0.3); padding: 2px 8px; border-radius: 4px;">Cấp Xã/Phường</span>
+        </div>
+        <div style="font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+          <span>📍 Địa bàn ủy quyền:</span>
+          <span id="substituteModalTerritory" style="color: #f1f5f9; font-weight: 700;">--</span>
+        </div>
+      </div>
 
       <form id="formSubstituteOfficer" style="display: flex; flex-direction: column; gap: 10px;">
         <div>
