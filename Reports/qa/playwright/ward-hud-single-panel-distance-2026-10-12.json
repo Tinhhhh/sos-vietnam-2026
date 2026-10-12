@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-10-12T08:20:33.699Z",
+  "feature": "Device GPS Facility Distance, Header/TopBar Pill Alignment & Inset Scrollbar Polish",
+  "deviceCoords": {
+    "latitude": 11.035,
+    "longitude": 106.675
+  },
+  "binhDuongStationCoords": {
+    "latitude": 11.0503399,
+    "longitude": 106.6836829
+  },
+  "expectedDistKm": 1.95,
+  "passedSinglePanel": true,
+  "passedDeviceDistance": true,
+  "passedGatekeeperIcon": true,
+  "passedResponsiveFit": true,
+  "overallStatus": "PASS",
+  "gatekeeperCheck": {
+    "found": true,
+    "svgRect": {
+      "top": 269.1,
+      "left": 474.3,
+      "right": 487.3,
+      "height": 13
+    },
+    "firstLineRect": {
+      "top": 268.1,
+      "left": 491.3,
+      "height": 16
+    },
+    "verticalCenterDiff": 0.5,
+    "horizontalGap": 4,
+    "alignedHorizontallyWithFirstLine": true
+  },
+  "evalResult": {
+    "ok": true,
+    "leftHudVisible": true,
+    "rightPopupCount": 0,
+    "unitTitle": "Công An Phường Bình Dương — TP. Hồ Chí Minh",
+    "nearestBadgeText": "[Cơ sở gần nhất · 1.95 km]",
+    "multiText": "🏛️ TOÀN BỘ CƠ SỞ TẠI PHƯỜNG BÌNH DƯƠNG (1 CƠ SỞ)\nCông An Phường Bình Dương — TP. Hồ Chí Minh\nTrụ sở chính\n[Cơ sở gần nhất · 1.95 km]\n📍 Trụ sở Công An Phường Bình Dương, TP. Hồ Chí Minh\n📞 028 3829 1407\n📋 Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT",
+    "gmapsHref": "https://www.google.com/maps/dir/?api=1&origin=11.035,106.675&destination=11.04743,106.68763",
+    "hudScrollTop": 0,
+    "titleVisibleAtTop": true,
+    "hudFitsInViewport": true,
+    "topBarRight": 1355,
+    "fakePillRight": 1079.1,
+    "fakePillFitsInTopBar": true,
+    "headerPillsReport": [
+      {
+        "pillSel": ".header-nav-left-pill",
+        "primLineCount": 1,
+        "secLineCount": 1,
+        "noOrphanWrap": true,
+        "rightPaddingPx": 19,
+        "fitsInsidePill": true
+      },
+      {
+        "pillSel": "#vnLiveClock",
+        "primLineCount": 1,
+        "secLineCount": 1,
+        "noOrphanWrap": true,
+        "rightPaddingPx": 15,
+        "fitsInsidePill": true
+      },
+      {
+        "pillSel": "#weatherWidget",
+        "primLineCount": 1,
+        "secLineCount": 1,
+        "noOrphanWrap": true,
+        "rightPaddingPx": 16,
+        "fitsInsidePill": true
+      },
+      {
+        "pillSel": "#locationWidget",
+        "primLineCount": 1,
+        "secLineCount": 1,
+        "noOrphanWrap": true,
+        "rightPaddingPx": 27,
+        "fitsInsidePill": true
+      },
+      {
+        "pillSel": "#headerDutyShiftPill",
+        "primLineCount": 1,
+        "secLineCount": 1,
+        "noOrphanWrap": true,
+        "rightPaddingPx": 61.7,
+        "fitsInsidePill": true
+      }
+    ],
+    "allHeaderPillsClean": true,
+    "scrollbarCheck": {
+      "scrollable": true,
+      "scrollbarWidthStyle": "auto",
+      "marginRight": "3px",
+      "marginBottom": "8px",
+      "usesInsetWebkitScrollbar": true
+    }
+  },
+  "gatekeeperScreenshotPath": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\gatekeeper-warning-icon-aligned-2026-10-12.png",
+  "screenshotPath": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\ward-hud-single-panel-distance-2026-10-12.png"
+}

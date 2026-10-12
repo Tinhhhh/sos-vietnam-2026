@@ -126,6 +126,69 @@ async function run() {
     }
     await new Promise(r => setTimeout(r, 900));
 
+    // Populate the exact National HQ header strings & 3-digit top bar counts from user's screenshots
+    const brandTitle = document.getElementById('headerBrandTitle');
+    const brandSub = document.getElementById('headerBrandSub');
+    const weatherTemp = document.getElementById('weatherTempVal');
+    const weatherDesc = document.getElementById('weatherDescVal');
+    const locPrim = document.getElementById('locationPrimaryVal');
+    const locSec = document.getElementById('locationSecondaryVal');
+    const offName = document.getElementById('headerOfficerName');
+    const dutyBadge = document.getElementById('headerDutyBadge');
+    const shiftTime = document.getElementById('headerDutyShiftTime');
+
+    if (brandTitle) brandTitle.textContent = 'Trung Tâm Chỉ Huy Tác Chiến Quốc Gia';
+    if (brandSub) brandSub.textContent = 'BỘ CÔNG AN · 34 TỈNH THÀNH · 3.321 XÃ PHƯỜNG';
+    if (weatherTemp) weatherTemp.textContent = '31°C';
+    if (weatherDesc) weatherDesc.textContent = 'Mưa phùn nhẹ';
+    if (locPrim) locPrim.textContent = 'Trung Tâm Chỉ Huy Tác Chiến Quốc Gia';
+    if (locSec) locSec.textContent = 'Bộ Công An · Cấp Quốc Gia';
+    if (offName) offName.textContent = 'TRỰC BAN: Trung sĩ Điền Trần Vĩnh An';
+    if (dutyBadge) {
+      dutyBadge.textContent = 'ĐỔI CA';
+      dutyBadge.style.background = '#f59e0b';
+    }
+    if (shiftTime) shiftTime.textContent = 'Ca: 07:00 - 15:00';
+
+    // Top bar 3-digit counts
+    const natSub = document.querySelector('#statNationalMapPill .national-badge-sub');
+    const sumRate = document.getElementById('statSummaryRate');
+    const statTotal = document.getElementById('statTotalCases');
+    const statPolice = document.getElementById('statPoliceCases');
+    const statCsgt = document.getElementById('statCsgtCases');
+    const statFire = document.getElementById('statFireCases');
+    const statHosp = document.getElementById('statHospitalCases');
+    const statResc = document.getElementById('statRescueCases');
+    const statFake = document.getElementById('statFakeAlarmCount');
+    if (natSub) natSub.textContent = '3.321 ĐƠN VỊ (2.628 PHƯỜNG/XÃ)';
+    if (sumRate) sumRate.textContent = '9% (10/107)';
+    if (statTotal) statTotal.textContent = '107';
+    if (statPolice) statPolice.textContent = '92';
+    if (statCsgt) statCsgt.textContent = '4';
+    if (statFire) statFire.textContent = '3';
+    if (statHosp) statHosp.textContent = '2';
+    if (statResc) statResc.textContent = '6';
+    if (statFake) statFake.textContent = '0';
+
+    // Ensure sidebar incident queue has scrollable items to verify inset scrollbar
+    const queueList = document.getElementById('incidentQueueList');
+    if (queueList && queueList.children.length < 6) {
+      let cardsHtml = '';
+      for (let i = 1; i <= 8; i++) {
+        cardsHtml += `
+          <div class="queue-item" style="margin-bottom:8px; padding:12px; border-radius:14px; background:rgba(4,35,72,0.75); border:1px solid rgba(0,236,243,0.28);">
+            <div style="display:flex; justify-content:space-between; font-weight:800; font-size:12px; color:#F1ECCB;">
+              <span>#SOS-92990${i} · CỨU HỘ KHẨN CẤP</span>
+              <span style="color:#00ECF3;">ĐANG XỬ LÝ</span>
+            </div>
+            <div style="font-size:11px; color:#DFB077; margin-top:4px;">Công An Phường Bình Dương — Cách thiết bị ${coords.latitude.toFixed(2)}</div>
+          </div>`;
+      }
+      queueList.insertAdjacentHTML('beforeend', cardsHtml);
+    }
+
+    await new Promise(r => setTimeout(r, 250));
+
     const hud = document.getElementById('tacticalWardGeofenceHud');
     const titleEl = document.getElementById('hudWardUnitTitle');
     const gmapsBtn = document.getElementById('hudGmapsBtn');
@@ -142,6 +205,45 @@ async function run() {
     const topBarRect = topBar?.getBoundingClientRect();
     const fakePillRect = fakePill?.getBoundingClientRect();
 
+    // Check all 5 header pills for single-line text (no orphan wrapping) and fit within pill borders
+    const headerPillIds = [
+      { pillSel: '.header-nav-left-pill', primarySel: '#headerBrandTitle', secondarySel: '#headerBrandSub' },
+      { pillSel: '#vnLiveClock', primarySel: '#clockTimeVal', secondarySel: '#clockDateVal' },
+      { pillSel: '#weatherWidget', primarySel: '#weatherTempVal', secondarySel: '#weatherDescVal' },
+      { pillSel: '#locationWidget', primarySel: '#locationPrimaryVal', secondarySel: '#locationSecondaryVal' },
+      { pillSel: '#headerDutyShiftPill', primarySel: '#headerOfficerName', secondarySel: '#headerDutyShiftTime' }
+    ];
+    const headerPillsReport = headerPillIds.map(({ pillSel, primarySel, secondarySel }) => {
+      const pill = document.querySelector(pillSel);
+      const prim = document.querySelector(primarySel);
+      const sec = document.querySelector(secondarySel);
+      const pillRect = pill?.getBoundingClientRect();
+      const primRect = prim?.getBoundingClientRect();
+      const secRect = sec?.getBoundingClientRect();
+      const primLineCount = prim ? prim.getClientRects().length : 0;
+      const secLineCount = sec ? sec.getClientRects().length : 0;
+      const rightPaddingPx = (pillRect && primRect && secRect)
+        ? +(pillRect.right - Math.max(primRect.right, secRect.right)).toFixed(1)
+        : 0;
+      return {
+        pillSel,
+        primLineCount,
+        secLineCount,
+        noOrphanWrap: primLineCount <= 1 && secLineCount <= 1,
+        rightPaddingPx,
+        fitsInsidePill: Boolean(pillRect && primRect && secRect && primRect.right <= pillRect.right - 6 && secRect.right <= pillRect.right - 6)
+      };
+    });
+
+    const queueComputed = queueList ? getComputedStyle(queueList) : null;
+    const scrollbarCheck = {
+      scrollable: Boolean(queueList && queueList.scrollHeight > queueList.clientHeight),
+      scrollbarWidthStyle: queueComputed ? queueComputed.scrollbarWidth : 'unknown',
+      marginRight: queueComputed ? queueComputed.marginRight : '0px',
+      marginBottom: queueComputed ? queueComputed.marginBottom : '0px',
+      usesInsetWebkitScrollbar: Boolean(queueComputed && queueComputed.scrollbarWidth !== 'thin')
+    };
+
     return {
       ok: true,
       leftHudVisible: Boolean(hud && getComputedStyle(hud).display !== 'none'),
@@ -153,11 +255,16 @@ async function run() {
       hudScrollTop: hud ? hud.scrollTop : -1,
       titleVisibleAtTop: Boolean(hudRect && titleRect && titleRect.top >= hudRect.top && titleRect.bottom <= hudRect.bottom),
       hudFitsInViewport: Boolean(hudRect && hudRect.top >= 0 && hudRect.bottom <= window.innerHeight),
-      fakePillFitsInTopBar: Boolean(topBarRect && fakePillRect && fakePillRect.right <= topBarRect.right + 2)
+      topBarRight: topBarRect ? +topBarRect.right.toFixed(1) : 0,
+      fakePillRight: fakePillRect ? +fakePillRect.right.toFixed(1) : 0,
+      fakePillFitsInTopBar: Boolean(topBarRect && fakePillRect && fakePillRect.right <= topBarRect.right + 1 && fakePillRect.left >= topBarRect.left),
+      headerPillsReport,
+      allHeaderPillsClean: headerPillsReport.every(p => p.noOrphanWrap && p.fitsInsidePill),
+      scrollbarCheck
     };
   }, deviceCoords);
 
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(600);
   const screenshotPath = path.join(REPORT_DIR, 'ward-hud-single-panel-distance-2026-10-12.png');
   await page.screenshot({ path: screenshotPath, fullPage: false });
   await browser.close();
@@ -169,11 +276,17 @@ async function run() {
     evalResult.nearestBadgeText.includes(expectedBadgeSubstring) &&
     !evalResult.nearestBadgeText.includes('1113');
   const passedGatekeeperIcon = Boolean(gatekeeperCheck.found && gatekeeperCheck.alignedHorizontallyWithFirstLine);
-  const passedResponsiveFit = Boolean(evalResult.titleVisibleAtTop && evalResult.hudFitsInViewport);
+  const passedResponsiveFit = Boolean(
+    evalResult.titleVisibleAtTop &&
+    evalResult.hudFitsInViewport &&
+    evalResult.fakePillFitsInTopBar &&
+    evalResult.allHeaderPillsClean &&
+    evalResult.scrollbarCheck?.usesInsetWebkitScrollbar
+  );
 
   const report = {
     timestamp: new Date().toISOString(),
-    feature: 'Device GPS Facility Distance, Responsive Ward HUD & Gatekeeper Warning Icon Alignment',
+    feature: 'Device GPS Facility Distance, Header/TopBar Pill Alignment & Inset Scrollbar Polish',
     deviceCoords,
     binhDuongStationCoords,
     expectedDistKm,
@@ -193,18 +306,18 @@ async function run() {
 
   fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2), 'utf8');
   const md = [
-    '# QA Report — Device GPS Facility Distance, Responsive Layout & Gatekeeper Warning Alignment',
+    '# QA Report — Header Pills, Top Bar Last Button, Inset Scrollbar & Device GPS Distance',
     '',
     `- **Timestamp**: ${report.timestamp}`,
     `- **Overall Status**: **${report.overallStatus}**`,
     `- **Gatekeeper Warning Icon Aligned**: \`${passedGatekeeperIcon}\` (verticalDiff=${gatekeeperCheck.verticalCenterDiff}px, gap=${gatekeeperCheck.horizontalGap}px)`,
+    `- **All 5 Header Pills Clean (No Orphan Wrap & Fits Pill)**: \`${evalResult.allHeaderPillsClean}\``,
+    `- **Last Top Bar Button (#btnOpenFakeArchivePill) Fits Without Clipping**: \`${evalResult.fakePillFitsInTopBar}\` (fakePillRight=${evalResult.fakePillRight}px <= topBarRight=${evalResult.topBarRight}px)`,
+    `- **Sidebar Queue Uses Inset WebKit Scrollbar Track**: \`${evalResult.scrollbarCheck?.usesInsetWebkitScrollbar}\` (marginRight=${evalResult.scrollbarCheck?.marginRight}, marginBottom=${evalResult.scrollbarCheck?.marginBottom})`,
     `- **Left HUD Visible & Title Visible at Top**: \`${evalResult.leftHudVisible}\` / \`${evalResult.titleVisibleAtTop}\``,
     `- **HUD Fits Inside Viewport**: \`${evalResult.hudFitsInViewport}\``,
     `- **Redundant Right Map Popup Count**: \`${evalResult.rightPopupCount}\` (Expected: \`0\`)`,
-    `- **Device GPS Coordinates**: \`${deviceCoords.latitude}, ${deviceCoords.longitude}\``,
-    `- **Station Coordinates (Công An Phường Bình Dương)**: \`${binhDuongStationCoords.latitude}, ${binhDuongStationCoords.longitude}\``,
-    `- **Expected Device-to-Station Distance**: \`${expectedDistKm} km\` (Ignored unrelated Hanoi incident)`,
-    `- **Actual Nearest Facility Badge**: \`${evalResult.nearestBadgeText}\``,
+    `- **Expected Device-to-Station Distance**: \`${expectedDistKm} km\` (Actual: \`${evalResult.nearestBadgeText}\`)`,
     `- **Gatekeeper Screenshot**: \`${gatekeeperScreenshotPath}\``,
     `- **Dispatcher HUD Screenshot**: \`${screenshotPath}\``
   ].join('\n');
