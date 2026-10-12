@@ -1082,7 +1082,7 @@ export class MapController {
     const isCurrentNearest = Boolean(st.isNearest || (facilitiesList.length > 0 && facilitiesList[0]?.id === st.id));
 
     return `
-      <div class="cantho-official-popup-card" style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 320px; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
+      <div class="cantho-official-popup-card" style="font-family: 'Hubot Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 320px; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
         <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;">
           <img src="/assets/iconcongan.png" style="width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));" alt="Huy hiệu CAND" />
           <div style="flex: 1; min-width: 0;">
@@ -1172,7 +1172,7 @@ export class MapController {
     const remainingCount = stationList.length - displayStations.length;
 
     return `
-      <div class="tactical-police-popup-card" style="font-family: system-ui, -apple-system, sans-serif; background: rgba(15, 23, 42, 0.96); border: 1.5px solid rgba(250, 204, 21, 0.6); border-radius: 12px; padding: 14px; color: #f8fafc; min-width: 300px; max-width: 350px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8), 0 0 30px rgba(250, 204, 21, 0.35); backdrop-filter: blur(12px);">
+      <div class="tactical-police-popup-card" style="font-family: 'Hubot Sans', system-ui, -apple-system, sans-serif; background: rgba(15, 23, 42, 0.96); border: 1.5px solid rgba(250, 204, 21, 0.6); border-radius: 12px; padding: 14px; color: #f8fafc; min-width: 300px; max-width: 350px; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8), 0 0 30px rgba(250, 204, 21, 0.35); backdrop-filter: blur(12px);">
         <div style="display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">
           <img src="/assets/iconcongan.png" style="width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.9)); margin-right: 10px; flex-shrink: 0;" />
           <div style="flex: 1; min-width: 0;">

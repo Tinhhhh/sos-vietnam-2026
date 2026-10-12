@@ -22,11 +22,14 @@
   <link rel="apple-touch-icon" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261012_official_logo_v1">
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261012_official_logo_v1">
   <link rel="shortcut icon" href="/assets/icons/favicon.png?v=20261012_official_logo_v1">
+  <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-Bold.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/css/style.css?v=20261012_official_palette_v1">
-  <link rel="stylesheet" href="/css/map.css?v=20261012_official_palette_v1">
-  <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261012_official_palette_v1">
-  <link rel="stylesheet" href="/css/portal-cinematic.css?v=20261012_official_palette_v1">
+  <link rel="stylesheet" href="/css/style.css?v=20261012_hubot_font_v1">
+  <link rel="stylesheet" href="/css/map.css?v=20261012_hubot_font_v1">
+  <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261012_hubot_font_v1">
+  <link rel="stylesheet" href="/css/portal-cinematic.css?v=20261012_hubot_font_v1">
   <style>
     body {
       min-height: 100vh; min-height: 100dvh;
@@ -1958,7 +1961,7 @@
       </div>
 
       <!-- Official Can Tho Police / Ward Info HUD (Matching Hình 1 bando-congan.cantho.gov.vn) -->
-      <div id="tacticalWardGeofenceHud" style="display: none; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 310px; max-width: 370px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
+      <div id="tacticalWardGeofenceHud" style="display: none; font-family: 'Hubot Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1c1917; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 14px 16px; color: #ffffff; min-width: 310px; max-width: 370px; box-shadow: 0 10px 30px rgba(0,0,0,0.85); text-align: left;">
         <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
           <div style="display: flex; align-items: flex-start; gap: 10px; flex: 1;">
             <img src="/assets/iconcongan.png" style="width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));" alt="Huy hiệu CAND" />

@@ -1,13 +1,161 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
-
+/* =====================================================================
+   OFFICIAL TYPOGRAPHY — HUBOT SANS VIETNAMESE (fontvn.com-hubbot)
+   Full Weight Spectrum (200 ExtraLight → 900 Black, Normal & Italic)
+   ===================================================================== */
 @font-face {
-  font-family: "Helvetica Regular";
-  src: url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.eot");
-  src: url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.eot?#iefix") format("embedded-opentype"),
-       url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.woff2") format("woff2"),
-       url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.woff") format("woff"),
-       url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.ttf") format("truetype"),
-       url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.svg#Helvetica Regular") format("svg");
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-ExtraLightItalic.ttf') format('truetype');
+  font-weight: 200;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-LightItalic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-MediumItalic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-SemiBoldItalic.ttf') format('truetype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-ExtraBoldItalic.ttf') format('truetype');
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans';
+  src: url('/assets/fonts/hubot-sans/HubotSans-BlackItalic.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Condensed & Expanded Width Variants */
+@font-face {
+  font-family: 'Hubot Sans Condensed';
+  src: url('/assets/fonts/hubot-sans/HubotSans_Condensed-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans Condensed';
+  src: url('/assets/fonts/hubot-sans/HubotSans_Condensed-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans Condensed';
+  src: url('/assets/fonts/hubot-sans/HubotSans_Condensed-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans Expanded';
+  src: url('/assets/fonts/hubot-sans/HubotSans_Expanded-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans Expanded';
+  src: url('/assets/fonts/hubot-sans/HubotSans_Expanded-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hubot Sans Expanded';
+  src: url('/assets/fonts/hubot-sans/HubotSans_Expanded-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
   font-display: swap;
 }
 
@@ -50,7 +198,10 @@
 
   --shadow-card: 0 10px 30px -5px rgba(4, 35, 72, 0.7), 0 0 0 1px rgba(223, 176, 119, 0.18);
   --shadow-glow-red: 0 0 50px rgba(172, 0, 21, 0.65);
-  --font-family: 'Geist', 'Helvetica Regular', 'Plus Jakarta Sans', 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family: 'Hubot Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Hubot Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-condensed: 'Hubot Sans Condensed', 'Hubot Sans', sans-serif;
+  --font-expanded: 'Hubot Sans Expanded', 'Hubot Sans', sans-serif;
 }
 
 /* Ultra-sleek Custom Scrollbar for all elements & modals */
@@ -3600,7 +3751,7 @@ body.theme-admin .brand-badge {
   border: 1.2px solid rgba(0, 236, 243, 0.65);
   border-radius: 9999px;
   color: #00ECF3 !important;
-  font-family: 'Plus Jakarta Sans', 'Geist', var(--font-family);
+  font-family: 'Hubot Sans', var(--font-family);
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 1.5px;
@@ -3623,7 +3774,7 @@ body.theme-admin .brand-badge {
 }
 
 .cosmic-portal-title {
-  font-family: 'Plus Jakarta Sans', 'Geist', var(--font-family);
+  font-family: 'Hubot Sans', var(--font-family);
   font-size: 21px !important;
   font-weight: 900 !important;
   letter-spacing: 1px !important;
@@ -3638,7 +3789,7 @@ body.theme-admin .brand-badge {
 }
 
 .cosmic-portal-desc {
-  font-family: 'Be Vietnam Pro', 'Geist', var(--font-family);
+  font-family: 'Hubot Sans', var(--font-family);
   font-size: 12px !important;
   font-weight: 600 !important;
   color: #DFB077 !important;
@@ -3785,7 +3936,7 @@ body.theme-admin .brand-badge {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(223, 176, 119, 0.38);
   border-radius: 9999px;
-  font-family: 'Plus Jakarta Sans', 'Geist', var(--font-family);
+  font-family: 'Hubot Sans', var(--font-family);
   font-size: 11.5px;
   font-weight: 700;
   color: #F1ECCB;
