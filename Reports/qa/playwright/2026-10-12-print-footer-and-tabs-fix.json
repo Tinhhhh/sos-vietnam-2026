@@ -1,6 +1,6 @@
 {
   "testName": "Print-Footer-Blank-Pages-And-Sidebar-Tabs-Visibility",
-  "timestamp": "2026-10-12T14:03:33.102Z",
+  "timestamp": "2026-10-12T14:28:14.576Z",
   "assertions": [
     {
       "test": "Tất cả 5 tab buttons trên Sidebar hiển thị đầy đủ 100% trong khung nhìn, không bị cắt xén",
@@ -78,13 +78,13 @@
       "passed": true,
       "expected": true,
       "actual": true,
-      "height": 22
+      "height": 25
     },
     {
       "test": "Xuất file PDF thành công, dung lượng hợp lệ (> 10KB và < 200KB)",
       "passed": true,
       "expected": true,
-      "actual": "42 KB"
+      "actual": "135 KB"
     }
   ],
   "passed": true

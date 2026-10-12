@@ -242,18 +242,18 @@ def strip_emojis(text):
 def generate_report(data, output_path):
     doc = Document()
 
-    # Page Margins according to Decree 30/2020/ND-CP (Top: 20mm, Bottom: 20mm, Left: 30mm, Right: 15-20mm)
+    # Page Margins according to Decree 30/2020/ND-CP (Top: 20mm, Bottom: 20mm, Left: 25-30mm, Right: 15-20mm)
     for section in doc.sections:
         section.top_margin = Inches(0.79)     # 20mm
         section.bottom_margin = Inches(0.79)  # 20mm
         section.left_margin = Inches(0.98)    # 25mm
         section.right_margin = Inches(0.79)   # 20mm
 
-    # Set normal style font
+    # Set normal style font (Decree 30: Times New Roman, 13pt - 14pt)
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Times New Roman'
-    font.size = Pt(12)
+    font.size = Pt(13)
     font.color.rgb = RGBColor(0, 0, 0)
 
     # 1. Header Table (Decree 30/2020/ND-CP Standard)
@@ -281,7 +281,7 @@ def generate_report(data, output_path):
     r = p_up.add_run(upper_agency)
     r.font.name = 'Times New Roman'
     r._element.rPr.rFonts.set(qn('w:eastAsia'), 'Times New Roman')
-    r.font.size = Pt(10.5 if len(upper_agency) > 25 else 11)
+    r.font.size = Pt(11.5 if len(upper_agency) > 28 else 12)
     r.bold = False
 
     p_low = left.add_paragraph()
@@ -292,7 +292,7 @@ def generate_report(data, output_path):
     r = p_low.add_run(lower_agency)
     r.font.name = 'Times New Roman'
     r._element.rPr.rFonts.set(qn('w:eastAsia'), 'Times New Roman')
-    r.font.size = Pt(10.5 if len(lower_agency) > 22 else 11)
+    r.font.size = Pt(11.5 if len(lower_agency) > 24 else 12.5)
     r.bold = True
 
     # Line under issuing agency: Decree 30 standard: length = 1/3 to 1/2 text width (around 4.0cm, centered)
@@ -310,7 +310,7 @@ def generate_report(data, output_path):
     r = p_num.add_run(f"Số: {raw_num}/PTN-SC")
     r.font.name = 'Times New Roman'
     r._element.rPr.rFonts.set(qn('w:eastAsia'), 'Times New Roman')
-    r.font.size = Pt(11)
+    r.font.size = Pt(12)
     r.bold = False
 
     # Right cell: National Motto + Solid Line
@@ -322,7 +322,7 @@ def generate_report(data, output_path):
     r_nat1 = p_nat.add_run('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM')
     r_nat1.font.name = 'Times New Roman'
     r_nat1._element.rPr.rFonts.set(qn('w:eastAsia'), 'Times New Roman')
-    r_nat1.font.size = Pt(12)
+    r_nat1.font.size = Pt(12.5)
     r_nat1.bold = True
 
     p_motto = right.add_paragraph()
@@ -331,7 +331,7 @@ def generate_report(data, output_path):
     r_nat2 = p_motto.add_run('Độc lập - Tự do - Hạnh phúc')
     r_nat2.font.name = 'Times New Roman'
     r_nat2._element.rPr.rFonts.set(qn('w:eastAsia'), 'Times New Roman')
-    r_nat2.font.size = Pt(12.5)
+    r_nat2.font.size = Pt(13.5)
     r_nat2.bold = True
 
     p_line_right = right.add_paragraph()
@@ -348,16 +348,16 @@ def generate_report(data, output_path):
     r_date = p_date.add_run(date_loc_str)
     r_date.font.name = 'Times New Roman'
     r_date._element.rPr.rFonts.set(qn('w:eastAsia'), 'Times New Roman')
-    r_date.font.size = Pt(12)
+    r_date.font.size = Pt(13.5)
     r_date.italic = True
 
-    # Header Title
+    # Header Title (Decree 30: 14pt - 15pt, in hoa, đậm)
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_after = Pt(4)
     run_title = p_title.add_run("PHIẾU THÔNG BÁO VÀ TIẾP NHẬN THÔNG TIN\nỨNG PHÓ SỰ CỐ KHẨN CẤP")
     run_title.bold = True
-    run_title.font.size = Pt(14)
+    run_title.font.size = Pt(14.5)
     run_title.font.name = 'Times New Roman'
 
     p_sos_id = doc.add_paragraph()
@@ -365,13 +365,15 @@ def generate_report(data, output_path):
     p_sos_id.paragraph_format.space_after = Pt(12)
     r_id = p_sos_id.add_run(f"Mã tiếp nhận: #{strip_emojis(data.get('incidentId', 'SOS-XXXX'))} | Thời gian: {strip_emojis(data.get('incidentTime', ''))}")
     r_id.italic = True
-    r_id.font.size = Pt(11)
+    r_id.font.size = Pt(12)
+    r_id.font.name = 'Times New Roman'
 
     # Section A
     p_a = doc.add_paragraph()
     r_a = p_a.add_run("A. THÔNG TIN CHUNG (ĐƠN VỊ TIẾP NHẬN)")
     r_a.bold = True
-    r_a.font.size = Pt(12)
+    r_a.font.size = Pt(13.5)
+    r_a.font.name = 'Times New Roman'
 
     p_a1 = doc.add_paragraph()
     p_a1.paragraph_format.left_indent = Inches(0.2)
@@ -411,7 +413,8 @@ def generate_report(data, output_path):
     p_b = doc.add_paragraph()
     r_b = p_b.add_run("B. THÔNG TIN ĐẾN (NGƯỜI BÁO & HIỆN TRƯỜNG SỰ CỐ)")
     r_b.bold = True
-    r_b.font.size = Pt(12)
+    r_b.font.size = Pt(13.5)
+    r_b.font.name = 'Times New Roman'
 
     p_b1 = doc.add_paragraph()
     p_b1.paragraph_format.left_indent = Inches(0.2)
@@ -517,8 +520,12 @@ def generate_report(data, output_path):
     p_left.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_l1 = p_left.add_run("NGƯỜI BÁO TIN / NGƯỜI DÂN\n")
     r_l1.bold = True
+    r_l1.font.name = 'Times New Roman'
+    r_l1.font.size = Pt(13)
     r_l2 = p_left.add_run("(Ký, ghi rõ họ tên)\n")
     r_l2.italic = True
+    r_l2.font.name = 'Times New Roman'
+    r_l2.font.size = Pt(11)
 
     citizen_sig = data.get('citizenSignature', {})
     if citizen_sig and citizen_sig.get('signatureData'):
@@ -534,15 +541,20 @@ def generate_report(data, output_path):
             r_sig_txt = p_left.add_run(f"(Chữ ký điện tử: {strip_emojis(sig_data)})\n")
             r_sig_txt.italic = True
             r_sig_txt.bold = True
+            r_sig_txt.font.name = 'Times New Roman'
+            r_sig_txt.font.size = Pt(12)
             r_sig_txt.font.color.rgb = RGBColor(30, 58, 138)
     else:
         p_left.add_run("\n\n\n")
 
     r_l3 = p_left.add_run(f"{strip_emojis(data.get('reporterName', 'Người dân'))}")
     r_l3.bold = True
+    r_l3.font.name = 'Times New Roman'
+    r_l3.font.size = Pt(13)
     if citizen_sig.get('signedAt'):
         r_l_time = p_left.add_run(f"\nThời gian ký: {strip_emojis(citizen_sig.get('signedAt'))}")
-        r_l_time.font.size = Pt(9)
+        r_l_time.font.name = 'Times New Roman'
+        r_l_time.font.size = Pt(10)
         r_l_time.italic = True
 
     # Officer Signature
@@ -550,8 +562,12 @@ def generate_report(data, output_path):
     p_right.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_r1 = p_right.add_run("CÁN BỘ / CHỈ HUY TIẾP NHẬN\n")
     r_r1.bold = True
+    r_r1.font.name = 'Times New Roman'
+    r_r1.font.size = Pt(13)
     r_r2 = p_right.add_run("(Ký, đóng dấu và ghi rõ họ tên)\n")
     r_r2.italic = True
+    r_r2.font.name = 'Times New Roman'
+    r_r2.font.size = Pt(11)
 
     officer_sig = data.get('officerSignature', {})
     if officer_sig and officer_sig.get('signatureData'):
@@ -567,15 +583,20 @@ def generate_report(data, output_path):
             r_sig_txt = p_right.add_run(f"(Chữ ký điện tử: {strip_emojis(sig_data)})\n")
             r_sig_txt.italic = True
             r_sig_txt.bold = True
+            r_sig_txt.font.name = 'Times New Roman'
+            r_sig_txt.font.size = Pt(12)
             r_sig_txt.font.color.rgb = RGBColor(30, 58, 138)
     else:
         p_right.add_run("\n\n\n")
 
     r_r3 = p_right.add_run(f"{strip_emojis(data.get('officerName', 'Cán bộ trực ban'))}")
     r_r3.bold = True
+    r_r3.font.name = 'Times New Roman'
+    r_r3.font.size = Pt(13)
     if officer_sig.get('signedAt'):
         r_r_time = p_right.add_run(f"\nThời gian ký: {strip_emojis(officer_sig.get('signedAt'))}")
-        r_r_time.font.size = Pt(9)
+        r_r_time.font.name = 'Times New Roman'
+        r_r_time.font.size = Pt(10)
         r_r_time.italic = True
 
     doc.save(output_path)

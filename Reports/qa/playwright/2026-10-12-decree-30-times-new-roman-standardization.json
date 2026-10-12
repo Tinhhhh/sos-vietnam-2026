@@ -1,0 +1,189 @@
+{
+  "testName": "Decree-30-Times-New-Roman-Standardization",
+  "timestamp": "2026-10-12T14:28:00.527Z",
+  "assertions": [
+    {
+      "id": "PRINT_PDF_FONT_TIMES_NEW_ROMAN",
+      "description": "Bản In & PDF Thống kê: 100% các thành phần tiêu đề, cơ quan, bảng biểu, chữ ký áp dụng phông chữ Times New Roman",
+      "passed": true,
+      "details": {
+        "metrics": [
+          {
+            "name": "Container",
+            "item": {
+              "selector": "#territoryStatsPrintArea",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "16px",
+              "fontWeight": "400",
+              "fontStyle": "normal",
+              "textTransform": "none",
+              "text": "STT Mã SOS Tiếp Nhận Lực Lượng Nội Dung Sự Cố Người Báo & SĐT Địa Bàn Hiện Trường Trạng Thái Không có dữ liệu ca sự cố nào phù hợp với bộ lọc hiện tại."
+            }
+          },
+          {
+            "name": "Upper Agency",
+            "item": {
+              "selector": "#printUpperAgency",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "16px",
+              "fontWeight": "700",
+              "fontStyle": "normal",
+              "textTransform": "uppercase",
+              "text": "CÔNG AN TP. CẦN THƠ"
+            }
+          },
+          {
+            "name": "Lower Agency",
+            "item": {
+              "selector": "#printLowerAgency",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "16.6667px",
+              "fontWeight": "700",
+              "fontStyle": "normal",
+              "textTransform": "uppercase",
+              "text": "CÔNG AN THUẬN HÒA"
+            }
+          },
+          {
+            "name": "Date & Place",
+            "item": {
+              "selector": "#printDatePlace",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "17.3333px",
+              "fontWeight": "400",
+              "fontStyle": "italic",
+              "textTransform": "none",
+              "text": "Cần Thơ, ngày 12 tháng 10 năm 2026"
+            }
+          },
+          {
+            "name": "Document Title",
+            "item": {
+              "selector": ".print-title-doc",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "19.3333px",
+              "fontWeight": "800",
+              "fontStyle": "normal",
+              "textTransform": "uppercase",
+              "text": "BẢNG TỔNG HỢP & THỐNG KÊ CHI TIẾT CÁC CA SỰ CỐ ĐIỀU PHỐI"
+            }
+          },
+          {
+            "name": "Table Header",
+            "item": {
+              "selector": "table.territory-stats-table th",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "14px",
+              "fontWeight": "700",
+              "fontStyle": "normal",
+              "textTransform": "none",
+              "text": "STT"
+            }
+          },
+          {
+            "name": "Sign Title",
+            "item": {
+              "selector": ".print-official-footer-sign-title",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "17.3333px",
+              "fontWeight": "700",
+              "fontStyle": "normal",
+              "textTransform": "uppercase",
+              "text": "CÁN BỘ LẬP BIỂU THỐNG KÊ"
+            }
+          },
+          {
+            "name": "Officer Footer",
+            "item": {
+              "selector": "#printOfficerNameFooter",
+              "fontFamily": "\"Times New Roman\", Times, serif",
+              "fontSize": "17.3333px",
+              "fontWeight": "700",
+              "fontStyle": "normal",
+              "textTransform": "none",
+              "text": "Đại úy Lê Văn Hòa"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "PRINT_PDF_DECREE30_SIZING",
+      "description": "Bản In & PDF Thống kê: Kích cỡ phân cấp chuẩn NĐ 30 (Tiêu đề ~14.5pt, Chức danh ký ~13pt, Địa danh ~13pt)",
+      "passed": true,
+      "details": {
+        "titleFontSize": "19.3333px",
+        "signTitleFontSize": "17.3333px",
+        "datePlaceFontSize": "17.3333px"
+      }
+    },
+    {
+      "id": "REPORT_SHEET_FONT_TIMES_NEW_ROMAN",
+      "description": "Phiếu Tiếp Nhận (Modal & Ảnh): 100% các thành phần đều kế thừa và sử dụng Times New Roman",
+      "passed": true,
+      "details": {
+        "sheetMetrics": {
+          "container": {
+            "selector": "#reportSheetContainer",
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "fontSize": "17.3333px",
+            "fontWeight": "400"
+          },
+          "agencyUpper": {
+            "selector": "#docHeaderAgencyUpper",
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "fontSize": "16px",
+            "fontWeight": "400"
+          },
+          "agencyLower": {
+            "selector": "#docHeaderAgencyLower",
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "fontSize": "16.6667px",
+            "fontWeight": "700"
+          },
+          "docNumber": {
+            "selector": "#docHeaderDocNumber",
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "fontSize": "16px",
+            "fontWeight": "400"
+          },
+          "dateLocation": {
+            "selector": "#docHeaderDateLocation",
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "fontSize": "18px",
+            "fontWeight": "400"
+          },
+          "signCitizen": {
+            "selector": "#docSignaturesBlock div:first-child div:first-child",
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "fontSize": "17.3333px",
+            "fontWeight": "700"
+          },
+          "signOfficer": {
+            "selector": "#docSignaturesBlock div:last-child div:first-child",
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "fontSize": "17.3333px",
+            "fontWeight": "700"
+          }
+        }
+      }
+    },
+    {
+      "id": "DOCX_TIMES_NEW_ROMAN_AND_DECREE30",
+      "description": "File Word (.docx): 100% font chữ là Times New Roman, Normal font size đạt chuẩn 13pt theo Nghị định 30/2020",
+      "passed": true,
+      "details": {
+        "output": "NORMAL_FONT:Times New Roman|NORMAL_SIZE:13.0|NON_TIMES_COUNT:0"
+      }
+    },
+    {
+      "id": "EXCEL_TIMES_NEW_ROMAN_AND_DECREE30",
+      "description": "File Excel (.xlsx): 100% font chữ là Times New Roman, Quốc hiệu 12pt, Tiêu ngữ 13pt, có Khối chữ ký & Nơi nhận theo Nghị định 30/2020",
+      "passed": true,
+      "details": {
+        "output": "EXCEL_FONT:Times New Roman|A1_SIZE:12.0|A2_SIZE:13.0|A4_SIZE:14.5|NON_TIMES:0|HAS_SIGN:True|HAS_RECIP:True"
+      }
+    }
+  ],
+  "passed": true
+}

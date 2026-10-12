@@ -7658,10 +7658,10 @@ class DispatcherApp {
     // Tactical Timestamp & Incident Watermark Overlay
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(20, h - 70, 560, 50);
-    ctx.font = 'bold 18px Arial';
+    ctx.font = 'bold 18px "Times New Roman", Times, serif';
     ctx.fillStyle = '#00d2ff';
     ctx.fillText(`🚨 SOS VIỆT NAM — #${this.selectedIncidentId || 'LIVE'}`, 35, h - 42);
-    ctx.font = '14px Arial';
+    ctx.font = '14px "Times New Roman", Times, serif';
     ctx.fillStyle = '#f8fafc';
     ctx.fillText(`Thời gian chụp: ${new Date().toLocaleString('vi-VN')} | Đơn vị: Cán bộ trực ban`, 35, h - 22);
 
@@ -14539,7 +14539,9 @@ class DispatcherApp {
     if (modalSubtitle) modalSubtitle.textContent = `${officer?.level === 'ward' ? 'CÔNG AN ' + ward.toUpperCase() + ' - ' : ''}${prov.toUpperCase()}`;
     
     const now = new Date();
-    const formattedDate = `${prov}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+    const dayStr = String(now.getDate()).padStart(2, '0');
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const formattedDate = `${prov}, ngày ${dayStr} tháng ${monthStr} năm ${now.getFullYear()}`;
     if (datePlace) datePlace.textContent = formattedDate;
     const datePlaceFooter = document.getElementById('printDatePlaceFooter');
     if (datePlaceFooter) datePlaceFooter.textContent = formattedDate;
@@ -14811,7 +14813,9 @@ class DispatcherApp {
     const ward = (officer.ward || '').toUpperCase();
     const agencyName = (officer.agencyName || 'CÔNG AN NHÂN DÂN').toUpperCase();
     const now = new Date();
-    const dateStr = `ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+    const dayStr = String(now.getDate()).padStart(2, '0');
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const dateStr = `ngày ${dayStr} tháng ${monthStr} năm ${now.getFullYear()}`;
 
     let rowsHtml = '';
     if (incidents.length === 0) {
@@ -14846,51 +14850,59 @@ class DispatcherApp {
         <meta charset='utf-8'>
         <title>Báo Cáo Thống Kê Sự Cố</title>
         <style>
-          body { font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; margin: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { border: 1px solid #000; padding: 8px; background-color: #f2f2f2; font-weight: bold; font-size: 11pt; text-align: center; }
-          td { border: 1px solid #000; padding: 6px; font-size: 11pt; }
+          body { font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.35; margin: 25mm 20mm 20mm 25mm; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; font-family: 'Times New Roman', serif; }
+          th { border: 1px solid #000; padding: 6px 4px; background-color: #f2f2f2; font-weight: bold; font-size: 10.5pt; text-align: center; }
+          td { border: 1px solid #000; padding: 5px 4px; font-size: 10pt; vertical-align: top; }
         </style>
       </head>
       <body>
         <table style="width: 100%; border: none; margin-bottom: 20px;">
           <tr>
-            <td style="width: 45%; text-align: center; border: none; vertical-align: top;">
-              <b>${officer.level === 'ward' ? 'CÔNG AN TP. ' + prov : 'BỘ CÔNG AN'}</b><br/>
-              <b>${officer.level === 'ward' ? 'CÔNG AN ' + ward : agencyName}</b><br/>
-              Số: ......./BC-CA
+            <td style="width: 45%; text-align: center; border: none; vertical-align: top; font-size: 12pt; line-height: 1.3;">
+              <span style="font-size: 12pt; text-transform: uppercase;">${officer.level === 'ward' ? 'CÔNG AN TP. ' + prov : 'BỘ CÔNG AN'}</span><br/>
+              <span style="font-size: 12.5pt; font-weight: bold; text-transform: uppercase;">${officer.level === 'ward' ? 'CÔNG AN ' + ward : agencyName}</span><br/>
+              <div style="width: 100px; height: 1px; background: #000; margin: 3px auto 4px;"></div>
+              <span style="font-size: 12pt;">Số: ......./BC-CA</span>
             </td>
-            <td style="width: 55%; text-align: center; border: none; vertical-align: top;">
-              <b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br/>
-              <b><u>Độc lập - Tự do - Hạnh phúc</u></b><br/>
-              <i>${prov}, ${dateStr}</i>
+            <td style="width: 55%; text-align: center; border: none; vertical-align: top; font-size: 12.5pt; line-height: 1.3;">
+              <span style="font-size: 12.5pt; font-weight: bold; text-transform: uppercase;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</span><br/>
+              <span style="font-size: 13.5pt; font-weight: bold;">Độc lập - Tự do - Hạnh phúc</span><br/>
+              <div style="width: 140px; height: 1.5px; background: #000; margin: 3px auto 4px;"></div>
+              <span style="font-size: 13pt; font-style: italic;">${prov}, ${dateStr}</span>
             </td>
           </tr>
         </table>
-        <h2 style="text-align: center; font-size: 16pt; margin: 15px 0 5px 0;">BÁO CÁO THỐNG KÊ CHI TIẾT SỰ CỐ & ĐIỀU PHỐI TÁC CHIẾN</h2>
-        <div style="text-align: center; font-style: italic; margin-bottom: 15px;">Địa bàn: ${officer.level === 'ward' ? 'Xã/Phường ' + ward + ' - ' : ''}${prov} (Tổng số: ${incidents.length} vụ việc)</div>
+        <h2 style="text-align: center; font-size: 14.5pt; font-weight: bold; text-transform: uppercase; margin: 18px 0 4px 0;">BÁO CÁO THỐNG KÊ CHI TIẾT SỰ CỐ & ĐIỀU PHỐI TÁC CHIẾN</h2>
+        <div style="text-align: center; font-size: 13pt; font-style: italic; margin-bottom: 16px;">(Địa bàn: ${officer.level === 'ward' ? 'Xã/Phường ' + ward + ' - ' : ''}${prov} | Tổng số: ${incidents.length} vụ việc)</div>
         <table>
           <thead>
             <tr>
               <th style="width: 35px;">STT</th>
-              <th style="width: 110px;">Mã SOS</th>
+              <th style="width: 105px;">Mã SOS</th>
               <th style="width: 110px;">Thời Gian</th>
-              <th style="width: 80px;">Lực Lượng</th>
+              <th style="width: 85px;">Lực Lượng</th>
               <th>Nội Dung Sự Cố</th>
-              <th style="width: 130px;">Người Báo</th>
+              <th style="width: 135px;">Người Báo & SĐT</th>
               <th>Địa Bàn Hiện Trường</th>
-              <th style="width: 90px;">Trạng Thái</th>
+              <th style="width: 85px;">Trạng Thái</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <table style="width: 100%; border: none; margin-top: 35px;">
+        <table style="width: 100%; border: none; margin-top: 30px;">
           <tr>
-            <td style="width: 50%; border: none;"></td>
-            <td style="width: 50%; text-align: center; border: none;">
-              <b>THỦ TRƯỞNG ĐƠN VỊ</b><br/>
-              <i>(Ký, ghi rõ họ tên và đóng dấu)</i><br/><br/><br/><br/><br/>
-              <b>${officer.name || officer.officerName || 'Cán bộ chỉ huy'}</b>
+            <td style="width: 45%; border: none; vertical-align: top; font-size: 10.5pt; line-height: 1.45;">
+              <b style="font-size: 12pt; font-style: italic;">Nơi nhận:</b><br/>
+              - Ban Chỉ Huy Đơn Vị (để b/c);<br/>
+              - Trung Tâm Tác Chiến Cấp Trên;<br/>
+              - Lưu: Hồ sơ trực ban điều phối.
+            </td>
+            <td style="width: 55%; text-align: center; border: none; vertical-align: top; font-size: 13pt; line-height: 1.45;">
+              <span style="font-style: italic; font-size: 13pt;">${prov}, ${dateStr}</span><br/>
+              <span style="font-weight: bold; text-transform: uppercase; font-size: 13pt;">CÁN BỘ LẬP BIỂU THỐNG KÊ</span><br/>
+              <span style="font-style: italic; font-size: 11pt;">(Ký, ghi rõ họ tên và cấp bậc)</span><br/><br/><br/><br/><br/>
+              <span style="font-weight: bold; font-size: 13pt;">${officer.name || officer.officerName || 'Cán bộ trực ban'}</span>
             </td>
           </tr>
         </table>

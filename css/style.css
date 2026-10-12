@@ -8418,6 +8418,18 @@ textarea:focus {
   background: rgba(56, 189, 248, 0.08);
 }
 
+/* --- CHUẨN HÓA THỂ THỨC HÀNH CHÍNH & PHÔNG CHỮ TIMES NEW ROMAN (NGHỊ ĐỊNH 30/2020/NĐ-CP) --- */
+#territoryStatsPrintArea,
+#territoryStatsPrintArea *,
+.print-official-header,
+.print-official-header *,
+.print-official-footer,
+.print-official-footer *,
+#reportSheetContainer,
+#reportSheetContainer * {
+  font-family: 'Times New Roman', Times, serif !important;
+}
+
 /* --- PRINT RULES (IN MÁY / IN PDF KHỔ A4 TIÊU CHUẨN) --- */
 @media print {
   body.printing-territory-stats {
@@ -8519,11 +8531,38 @@ textarea:focus {
     font-family: 'Times New Roman', Times, serif !important;
   }
 
-  /* Hiện tiêu ngữ hành chính và chữ ký khi in */
+  /* Hiện tiêu ngữ hành chính và chữ ký khi in theo chuẩn Nghị định 30/2020/NĐ-CP */
   .print-official-header {
     display: block !important;
     page-break-inside: avoid !important;
     margin-bottom: 16px !important;
+    font-family: 'Times New Roman', Times, serif !important;
+    color: #000000 !important;
+  }
+
+  .print-official-header #printUpperAgency {
+    font-size: 12pt !important;
+    font-weight: 700 !important;
+  }
+
+  .print-official-header #printLowerAgency {
+    font-size: 12.5pt !important;
+    font-weight: 700 !important;
+  }
+
+  .print-official-header #printDatePlace {
+    font-size: 13pt !important;
+    font-style: italic !important;
+  }
+
+  .print-official-header .print-title-doc {
+    font-size: 14.5pt !important;
+    font-weight: 800 !important;
+  }
+
+  .print-official-header #printFilterCategoryTitle {
+    font-size: 13pt !important;
+    font-style: italic !important;
   }
 
   .print-official-footer {
@@ -8550,27 +8589,48 @@ textarea:focus {
   .print-official-footer-recipient {
     width: 38% !important;
     text-align: left !important;
-    font-size: 11pt !important;
+    font-size: 10.5pt !important;
     line-height: 1.5 !important;
+    font-family: 'Times New Roman', Times, serif !important;
+  }
+
+  .print-official-footer-recipient div:first-child {
+    font-size: 12pt !important;
+    font-style: italic !important;
+    font-weight: 700 !important;
   }
 
   .print-official-footer-sign {
     width: 48% !important;
     margin-left: auto !important;
     text-align: center !important;
-    font-size: 11.5pt !important;
+    font-size: 13pt !important;
     line-height: 1.45 !important;
     box-sizing: border-box !important;
+    font-family: 'Times New Roman', Times, serif !important;
   }
 
   .print-official-footer-sign-title {
     font-weight: 700 !important;
     text-transform: uppercase !important;
     white-space: nowrap !important;
-    font-size: 11.5pt !important;
+    font-size: 13pt !important;
     letter-spacing: 0.5px !important;
     margin-top: 3px !important;
     margin-bottom: 2px !important;
+    font-family: 'Times New Roman', Times, serif !important;
+  }
+
+  #printDatePlaceFooter {
+    font-size: 13pt !important;
+    font-style: italic !important;
+    font-family: 'Times New Roman', Times, serif !important;
+  }
+
+  #printOfficerNameFooter {
+    font-size: 13pt !important;
+    font-weight: 700 !important;
+    font-family: 'Times New Roman', Times, serif !important;
   }
 
   /* Support named landscape page for modern printing engines */

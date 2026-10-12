@@ -1,6 +1,6 @@
 # Báo Cáo QA: Khắc Phục Lỗi Hiển Thị In & Xuất File PDF
 
-- **Thời gian**: `2026-10-12T13:34:10.346Z`
+- **Thời gian**: `2026-10-12T14:28:26.101Z`
 - **Kết quả tổng thể**: **ĐẠT (PASS 100%)**
 - **File PDF thực nghiệm**: `Reports/qa/playwright/BaoCao_ThongKe_SuCo_SOS_VietNam_2026.pdf`
 
@@ -13,7 +13,7 @@
 | 3 | Content column ('Nội Dung Sự Cố') width is allocated generous room (>= 120px in print) | `>= 120px` | `360px` | **PASS** |
 | 4 | STT column has adequate width for numbers (>= 25px) | `>= 25px` | `65px` | **PASS** |
 | 5 | Sample row height is compact (< 80px), proving no letter-by-letter vertical stacking | `< 80px` | `0px` | **PASS** |
-| 6 | PDF report exported cleanly with valid file size (> 10KB) | `> 10KB` | `43KB` | **PASS** |
+| 6 | PDF report exported cleanly with valid file size (> 10KB) | `> 10KB` | `134KB` | **PASS** |
 
 ## Kết Quả Đạt Được & So Sánh Trước/Sau
 1. **Khổ Giấy A4 Landscape**: Bảng 8 cột tự động áp dụng khổ giấy ngang (297mm x 210mm), giải phóng không gian hiển thị rộng rãi gấp 1.4 lần so với khổ dọc.

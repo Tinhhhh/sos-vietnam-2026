@@ -91,11 +91,11 @@ def generate_excel(json_path, output_path):
     ZEBRA_FILL = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
     WHITE_FILL = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
 
-    FONT_HEADER = Font(name="Times New Roman", size=10, bold=True, color="FFFFFF")
-    FONT_TITLE = Font(name="Times New Roman", size=14, bold=True, color="0F172A")
-    FONT_SUBTITLE = Font(name="Times New Roman", size=10, italic=True, color="475569")
+    FONT_HEADER = Font(name="Times New Roman", size=10.5, bold=True, color="FFFFFF")
+    FONT_TITLE = Font(name="Times New Roman", size=14.5, bold=True, color="0F172A")
+    FONT_SUBTITLE = Font(name="Times New Roman", size=11, italic=True, color="475569")
     FONT_NORMAL = Font(name="Times New Roman", size=10, color="0F172A")
-    FONT_BOLD = Font(name="Times New Roman", size=10, bold=True, color="0F172A")
+    FONT_BOLD = Font(name="Times New Roman", size=10.5, bold=True, color="0F172A")
     FONT_LINK = Font(name="Times New Roman", size=10, color="0044CC", underline="single")
 
     THIN_BORDER = Border(
@@ -105,18 +105,18 @@ def generate_excel(json_path, output_path):
         bottom=Side(style='thin', color='CBD5E1')
     )
 
-    # 1. National Title Banner (13 columns A to M)
+    # 1. National Title Banner (13 columns A to M) - Decree 30/2020/ND-CP Standard
     ws.merge_cells('A1:M1')
     ws['A1'] = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"
-    ws['A1'].font = Font(name="Times New Roman", size=11, bold=True)
+    ws['A1'].font = Font(name="Times New Roman", size=12, bold=True)
     ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
 
     ws.merge_cells('A2:M2')
     ws['A2'] = "Độc lập - Tự do - Hạnh phúc"
-    ws['A2'].font = Font(name="Times New Roman", size=11, bold=True)
+    ws['A2'].font = Font(name="Times New Roman", size=13, bold=True)
     ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
 
-    # 2. Document Title
+    # 2. Document Title (Decree 30 Standard: 14pt - 15pt uppercase bold)
     ws.merge_cells('A4:M4')
     ws['A4'] = "BẢNG KÊ THEO DÕI & LỊCH SỬ TIẾP NHẬN XỬ LÝ SỰ CỐ KHẨN CẤP (SOS)"
     ws['A4'].font = FONT_TITLE
@@ -129,7 +129,7 @@ def generate_excel(json_path, output_path):
 
     ws.merge_cells('A6:M6')
     ws['A6'] = f"Thời gian xuất: {generated_at} | Cán bộ xuất báo cáo: {officer_name} | Tổng số ca lưu trữ: {len(incidents)} ca"
-    ws['A6'].font = Font(name="Times New Roman", size=10, italic=True, color="0284C7")
+    ws['A6'].font = Font(name="Times New Roman", size=10.5, italic=True, color="0284C7")
     ws['A6'].alignment = Alignment(horizontal='center', vertical='center')
 
     # 3. Optimized 13 Table Column Headers
@@ -305,6 +305,35 @@ def generate_excel(json_path, output_path):
     ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
     ws.cell(row=summary_row, column=1, value=f"TỔNG CỘNG: {len(incidents)} CA SỰ CỐ ĐÃ LƯU TRỮ").font = FONT_BOLD
     ws.cell(row=summary_row, column=1).alignment = Alignment(horizontal='left', vertical='center')
+
+    # 7. Official Signatures Block (Decree 30/2020/ND-CP Standard)
+    sig_row = summary_row + 2
+    now_dt = datetime.now()
+    date_str = f"ngày {now_dt.day:02d} tháng {now_dt.month:02d} năm {now_dt.year}"
+    
+    # Left: Nơi nhận (Columns A to C)
+    ws.cell(row=sig_row, column=1, value="Nơi nhận:").font = Font(name="Times New Roman", size=10.5, bold=True, italic=True)
+    ws.cell(row=sig_row + 1, column=1, value="- Ban Chỉ Huy Đơn Vị (để b/c);").font = Font(name="Times New Roman", size=9.5)
+    ws.cell(row=sig_row + 2, column=1, value="- Trung Tâm Tác Chiến Cấp Trên;").font = Font(name="Times New Roman", size=9.5)
+    ws.cell(row=sig_row + 3, column=1, value="- Lưu: Hồ sơ trực ban điều phối.").font = Font(name="Times New Roman", size=9.5)
+
+    # Right: Khối cán bộ ký (Columns K to M)
+    ws.merge_cells(start_row=sig_row, start_column=11, end_row=sig_row, end_column=13)
+    ws.cell(row=sig_row, column=11, value=f"..., {date_str}").font = Font(name="Times New Roman", size=11, italic=True)
+    ws.cell(row=sig_row, column=11).alignment = Alignment(horizontal='center', vertical='center')
+
+    ws.merge_cells(start_row=sig_row + 1, start_column=11, end_row=sig_row + 1, end_column=13)
+    ws.cell(row=sig_row + 1, column=11, value="CÁN BỘ LẬP BIỂU THỐNG KÊ").font = Font(name="Times New Roman", size=11, bold=True)
+    ws.cell(row=sig_row + 1, column=11).alignment = Alignment(horizontal='center', vertical='center')
+
+    ws.merge_cells(start_row=sig_row + 2, start_column=11, end_row=sig_row + 2, end_column=13)
+    ws.cell(row=sig_row + 2, column=11, value="(Ký, ghi rõ họ tên và cấp bậc)").font = Font(name="Times New Roman", size=10, italic=True)
+    ws.cell(row=sig_row + 2, column=11).alignment = Alignment(horizontal='center', vertical='center')
+
+    # Spacing for signature
+    ws.merge_cells(start_row=sig_row + 6, start_column=11, end_row=sig_row + 6, end_column=13)
+    ws.cell(row=sig_row + 6, column=11, value=officer_name).font = Font(name="Times New Roman", size=11, bold=True)
+    ws.cell(row=sig_row + 6, column=11).alignment = Alignment(horizontal='center', vertical='center')
 
     # Save
     wb.save(output_path)

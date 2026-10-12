@@ -1,6 +1,6 @@
 {
   "testName": "Territory-Incidents-Print-PDF-Layout-Verification",
-  "timestamp": "2026-10-12T13:34:10.346Z",
+  "timestamp": "2026-10-12T14:28:26.101Z",
   "assertions": [
     {
       "test": "Territory stats modal opens and is visible",
@@ -36,7 +36,7 @@
       "test": "PDF report exported cleanly with valid file size (> 10KB)",
       "passed": true,
       "expected": "> 10KB",
-      "actual": "43KB"
+      "actual": "134KB"
     }
   ],
   "passed": true

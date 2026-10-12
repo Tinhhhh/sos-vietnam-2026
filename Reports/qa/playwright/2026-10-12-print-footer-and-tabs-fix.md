@@ -1,7 +1,7 @@
 # Báo Cáo Kiểm Thử Tự Động Playwright: Khắc Phục Trang Trắng, Khối Chữ Ký & 5 Tab Buttons
 
 ## Tổng Quan
-- Thời gian: `2026-10-12T14:03:33.102Z`
+- Thời gian: `2026-10-12T14:28:14.576Z`
 - Trạng thái tổng thể: **ĐẠT (PASS 100%)**
 - Số tiêu chí kiểm tra: **5**
 
@@ -82,7 +82,7 @@
 
 ### 5. Xuất file PDF thành công, dung lượng hợp lệ (> 10KB và < 200KB)
 - Trạng thái: **✅ PASS**
-- Kết quả thực tế: `"42 KB"`
+- Kết quả thực tế: `"135 KB"`
 
 
 
