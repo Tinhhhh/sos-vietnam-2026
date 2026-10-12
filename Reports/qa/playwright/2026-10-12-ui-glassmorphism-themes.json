@@ -1,0 +1,89 @@
+{
+  "testName": "5-Tactical-Forces-Glassmorphism-Theme-Verification",
+  "timestamp": "2026-10-12T13:07:58.873Z",
+  "viewports": [
+    "1440x900 (Desktop)",
+    "390x844 (Mobile)"
+  ],
+  "assertions": [
+    {
+      "test": "Citizen page (index.html) mobile responsive zero horizontal overflow",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Dispatcher desktop original layout structure 100% intact (header, sidebar, map)",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Theme theme-police correctly binds --theme-primary to #0088ff",
+      "passed": true,
+      "expected": "#0088ff",
+      "actual": "#0088ff"
+    },
+    {
+      "test": "Theme theme-police desktop has zero horizontal overflow",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Theme theme-csgt correctly binds --theme-primary to #f59e0b",
+      "passed": true,
+      "expected": "#f59e0b",
+      "actual": "#f59e0b"
+    },
+    {
+      "test": "Theme theme-csgt desktop has zero horizontal overflow",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Theme theme-rescue correctly binds --theme-primary to #ac0015",
+      "passed": true,
+      "expected": "#ac0015",
+      "actual": "#ac0015"
+    },
+    {
+      "test": "Theme theme-rescue desktop has zero horizontal overflow",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Theme theme-hospital correctly binds --theme-primary to #10b981",
+      "passed": true,
+      "expected": "#10b981",
+      "actual": "#10b981"
+    },
+    {
+      "test": "Theme theme-hospital desktop has zero horizontal overflow",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Theme theme-admin correctly binds --theme-primary to #8b5cf6",
+      "passed": true,
+      "expected": "#8b5cf6",
+      "actual": "#8b5cf6"
+    },
+    {
+      "test": "Theme theme-admin desktop has zero horizontal overflow",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Dispatcher mobile 390px responsive zero horizontal overflow",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    }
+  ],
+  "passed": true
+}

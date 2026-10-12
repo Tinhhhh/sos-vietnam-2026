@@ -2915,77 +2915,280 @@ body.theme-light #adminStatsBanner * {
 }
 
 /* ==========================================================================
-   DEDICATED 3-AGENCY THEMES & OFFICER PROFILE
+   DEDICATED 5-AGENCY TACTICAL THEMES (FIGMA LIQUID GLASS STANDARD)
    ========================================================================== */
 
-/* Police Theme (113) */
+/* 1. Police Theme (113 - Công An Nhân Dân) */
 body.theme-police {
   --theme-primary: #0088ff;
-  --theme-glow: rgba(0, 136, 255, 0.4);
+  --theme-secondary: #00ecf3;
+  --theme-glow: rgba(0, 136, 255, 0.45);
+  --theme-glow-soft: rgba(0, 136, 255, 0.18);
+  --theme-gradient: linear-gradient(135deg, #00669a 0%, #0088ff 100%);
+  --theme-badge-gradient: linear-gradient(135deg, #0088ff, #0055aa);
+  --theme-border: rgba(0, 236, 243, 0.35);
+  --theme-card-glow: 0 0 20px rgba(0, 136, 255, 0.25);
 }
 body.theme-police .brand-badge {
   display: inline-flex !important;
   width: auto !important;
   height: auto !important;
   flex-shrink: 0 !important;
-  padding: 4px 10px !important;
+  padding: 4px 12px !important;
   border-radius: 9999px !important;
   background: linear-gradient(135deg, #0088ff, #0055aa) !important;
-  box-shadow: 0 0 15px rgba(0, 136, 255, 0.4) !important;
+  box-shadow: 0 0 18px rgba(0, 136, 255, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(0, 236, 243, 0.4) !important;
 }
-body.theme-police .queue-card.active {
+body.theme-police .queue-card.active,
+body.theme-police .station-card.active {
   border-color: #0088ff !important;
-  background: rgba(0, 136, 255, 0.12) !important;
+  background: rgba(0, 136, 255, 0.14) !important;
+  box-shadow: 0 8px 24px rgba(0, 136, 255, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+}
+body.theme-police .sidebar-tab-btn.is-active {
+  border-color: #0088ff !important;
+  box-shadow: 0 0 14px rgba(0, 136, 255, 0.35) !important;
 }
 
-/* Hospital Theme (115) */
-body.theme-hospital {
-  --theme-primary: #10b981;
-  --theme-glow: rgba(16, 185, 129, 0.4);
+/* 2. Traffic Police Theme (CSGT - Cảnh Sát Giao Thông) */
+body.theme-csgt {
+  --theme-primary: #f59e0b;
+  --theme-secondary: #dfb077;
+  --theme-glow: rgba(245, 158, 11, 0.45);
+  --theme-glow-soft: rgba(245, 158, 11, 0.18);
+  --theme-gradient: linear-gradient(135deg, #dfb077 0%, #f59e0b 100%);
+  --theme-badge-gradient: linear-gradient(135deg, #f59e0b, #d97706);
+  --theme-border: rgba(245, 158, 11, 0.4);
+  --theme-card-glow: 0 0 20px rgba(245, 158, 11, 0.25);
 }
-body.theme-hospital .brand-badge {
+body.theme-csgt .brand-badge {
   display: inline-flex !important;
   width: auto !important;
   height: auto !important;
   flex-shrink: 0 !important;
-  padding: 4px 10px !important;
+  padding: 4px 12px !important;
   border-radius: 9999px !important;
-  background: linear-gradient(135deg, #10b981, #059669) !important;
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) !important;
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(223, 176, 119, 0.5) !important;
 }
-body.theme-hospital .queue-card.active {
-  border-color: #10b981 !important;
-  background: rgba(16, 185, 129, 0.12) !important;
+body.theme-csgt .queue-card.active,
+body.theme-csgt .station-card.active {
+  border-color: #f59e0b !important;
+  background: rgba(245, 158, 11, 0.14) !important;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+}
+body.theme-csgt .sidebar-tab-btn.is-active {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35) !important;
 }
 
-/* Rescue & Fire Theme (114) */
+/* 3. Fire & Rescue Theme (114 - Cảnh Sát PCCC & CNCH) */
 body.theme-rescue {
-  --theme-primary: #ff9100;
-  --theme-glow: rgba(255, 145, 0, 0.4);
+  --theme-primary: #ac0015;
+  --theme-secondary: #ff3b30;
+  --theme-glow: rgba(172, 0, 21, 0.55);
+  --theme-glow-soft: rgba(172, 0, 21, 0.22);
+  --theme-gradient: linear-gradient(135deg, #ac0015 0%, #ff3b30 100%);
+  --theme-badge-gradient: linear-gradient(135deg, #ac0015, #dc2626);
+  --theme-border: rgba(255, 59, 48, 0.45);
+  --theme-card-glow: 0 0 22px rgba(172, 0, 21, 0.35);
 }
 body.theme-rescue .brand-badge {
   display: inline-flex !important;
   width: auto !important;
   height: auto !important;
   flex-shrink: 0 !important;
-  padding: 4px 10px !important;
+  padding: 4px 12px !important;
   border-radius: 9999px !important;
-  background: linear-gradient(135deg, #ff9100, #d97706) !important;
-  box-shadow: 0 0 15px rgba(255, 145, 0, 0.4) !important;
+  background: linear-gradient(135deg, #ac0015, #dc2626) !important;
+  box-shadow: 0 0 20px rgba(172, 0, 21, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(255, 59, 48, 0.5) !important;
 }
-body.theme-rescue .queue-card.active {
-  border-color: #ff9100 !important;
-  background: rgba(255, 145, 0, 0.12) !important;
+body.theme-rescue .queue-card.active,
+body.theme-rescue .station-card.active {
+  border-color: #ac0015 !important;
+  background: rgba(172, 0, 21, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(172, 0, 21, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+}
+body.theme-rescue .sidebar-tab-btn.is-active {
+  border-color: #ac0015 !important;
+  box-shadow: 0 0 14px rgba(172, 0, 21, 0.4) !important;
 }
 
-/* Super Admin Theme */
+/* 4. Emergency Medical Theme (115 - Cấp Cứu Y Tế) */
+body.theme-hospital {
+  --theme-primary: #10b981;
+  --theme-secondary: #00ecf3;
+  --theme-glow: rgba(16, 185, 129, 0.45);
+  --theme-glow-soft: rgba(16, 185, 129, 0.18);
+  --theme-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --theme-badge-gradient: linear-gradient(135deg, #10b981, #047857);
+  --theme-border: rgba(16, 185, 129, 0.4);
+  --theme-card-glow: 0 0 20px rgba(16, 185, 129, 0.25);
+}
+body.theme-hospital .brand-badge {
+  display: inline-flex !important;
+  width: auto !important;
+  height: auto !important;
+  flex-shrink: 0 !important;
+  padding: 4px 12px !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, #10b981, #047857) !important;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(52, 211, 153, 0.4) !important;
+}
+body.theme-hospital .queue-card.active,
+body.theme-hospital .station-card.active {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.14) !important;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+}
+body.theme-hospital .sidebar-tab-btn.is-active {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.35) !important;
+}
+
+/* 5. National Super Admin Theme (Chỉ Huy Tổng Hợp Quốc Gia) */
 body.theme-admin {
   --theme-primary: #8b5cf6;
-  --theme-glow: rgba(139, 92, 246, 0.4);
+  --theme-secondary: #00ecf3;
+  --theme-glow: rgba(139, 92, 246, 0.5);
+  --theme-glow-soft: rgba(139, 92, 246, 0.2);
+  --theme-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  --theme-badge-gradient: linear-gradient(135deg, #8b5cf6, #6366f1);
+  --theme-border: rgba(139, 92, 246, 0.45);
+  --theme-card-glow: 0 0 22px rgba(139, 92, 246, 0.3);
 }
 body.theme-admin .brand-badge {
+  display: inline-flex !important;
+  width: auto !important;
+  height: auto !important;
+  flex-shrink: 0 !important;
+  padding: 4px 12px !important;
+  border-radius: 9999px !important;
   background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5) !important;
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(167, 139, 250, 0.4) !important;
+}
+body.theme-admin .queue-card.active,
+body.theme-admin .station-card.active {
+  border-color: #8b5cf6 !important;
+  background: rgba(139, 92, 246, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2) !important;
+}
+body.theme-admin .sidebar-tab-btn.is-active {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.35) !important;
+}
+
+/* Common Tactical Theme Interactive States & Tactile Transitions */
+.queue-card,
+.station-card,
+.service-btn,
+.sidebar-tab-btn,
+.tactical-theme-pill,
+.duty-officer-widget,
+.modal-content,
+.hero-badge-pill {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              background-color 0.2s ease !important;
+  will-change: transform;
+}
+
+.queue-card:active,
+.station-card:active,
+.service-btn:active,
+.tactical-theme-pill:active {
+  transform: scale(0.97) !important;
+}
+
+/* Chromatic Liquid Glass Variants for Cards & Overlays */
+.liquid-glass-blue {
+  background: rgba(4, 35, 72, 0.75) !important;
+  border: 1px solid rgba(0, 236, 243, 0.3) !important;
+  box-shadow: 0 16px 40px rgba(0, 102, 154, 0.35), inset 0 1.5px 1px rgba(255, 255, 255, 0.3) !important;
+}
+.liquid-glass-amber {
+  background: rgba(36, 24, 6, 0.78) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 16px 40px rgba(245, 158, 11, 0.28), inset 0 1.5px 1px rgba(255, 255, 255, 0.3) !important;
+}
+.liquid-glass-red {
+  background: rgba(42, 6, 12, 0.8) !important;
+  border: 1px solid rgba(255, 59, 48, 0.38) !important;
+  box-shadow: 0 16px 40px rgba(172, 0, 21, 0.35), inset 0 1.5px 1px rgba(255, 255, 255, 0.3) !important;
+}
+.liquid-glass-green {
+  background: rgba(4, 36, 24, 0.78) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 16px 40px rgba(16, 185, 129, 0.28), inset 0 1.5px 1px rgba(255, 255, 255, 0.3) !important;
+}
+.liquid-glass-purple {
+  background: rgba(28, 12, 48, 0.8) !important;
+  border: 1px solid rgba(139, 92, 246, 0.38) !important;
+  box-shadow: 0 16px 40px rgba(139, 92, 246, 0.32), inset 0 1.5px 1px rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Quick Theme Preview Bar in Dispatcher Header */
+.theme-switcher-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  padding: 3px 6px;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.theme-switcher-pill {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+  outline: none;
+}
+.theme-switcher-pill:hover {
+  transform: scale(1.22);
+}
+.theme-switcher-pill.is-active {
+  border-color: #ffffff !important;
+  transform: scale(1.18);
+  box-shadow: 0 0 12px currentColor, inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+}
+.theme-switcher-pill[data-theme="theme-police"] {
+  background: linear-gradient(135deg, #0088ff, #0055aa);
+  color: #0088ff;
+}
+.theme-switcher-pill[data-theme="theme-csgt"] {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #f59e0b;
+}
+.theme-switcher-pill[data-theme="theme-rescue"] {
+  background: linear-gradient(135deg, #ac0015, #dc2626);
+  color: #ac0015;
+}
+.theme-switcher-pill[data-theme="theme-hospital"] {
+  background: linear-gradient(135deg, #10b981, #047857);
+  color: #10b981;
+}
+.theme-switcher-pill[data-theme="theme-admin"] {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: #8b5cf6;
 }
 
 /* Duty Officer Profile Box in Header */

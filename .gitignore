@@ -62,7 +62,7 @@ blob-report/
 .playwright/
 coverage/
 .nyc_output/
-Reports/
+Reports/*
 !Reports/qa/
 !Reports/qa/**
 
@@ -105,6 +105,7 @@ AGENTS.md
 CLAUDE.md
 
 # Agent/editor local state used by Anvien integrations
+.ua/
 .claude/
 .codex/
 .agents/
