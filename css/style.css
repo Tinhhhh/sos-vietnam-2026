@@ -2688,9 +2688,10 @@ body.theme-light #adminStatsBanner * {
 .sidebar-tab-btn {
   flex: 1 1 0 !important;
   min-width: 0 !important;
-  padding: 5px 3px !important;
-  font-size: 10.5px !important;
+  padding: 5px 2px !important;
+  font-size: 9.5px !important;
   font-weight: 700 !important;
+  letter-spacing: -0.2px !important;
   border-radius: 8px !important;
   background: rgba(255, 255, 255, 0.06) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -2699,22 +2700,49 @@ body.theme-light #adminStatsBanner * {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 3px !important;
+  gap: 2px !important;
   white-space: nowrap !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#tabBtnIncidents,
+#tabBtnHistory {
+  flex: 1.15 1 0 !important;
+}
+
+#tabBtnStations,
+#tabBtnEnterprises {
+  flex: 0.82 1 0 !important;
+}
+
+#tabBtnHospitals {
+  flex: 1.06 1 0 !important;
+}
+
+.sidebar-tab-btn .tab-btn-text {
+  display: inline !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  vertical-align: middle !important;
 }
 
 .sidebar-tab-btn span {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 2px !important;
+  gap: 1px !important;
   white-space: nowrap !important;
 }
 
 .sidebar-tab-btn .svg-ico {
-  width: 12px !important;
-  height: 12px !important;
+  width: 11px !important;
+  height: 11px !important;
+  min-width: 11px !important;
+  min-height: 11px !important;
   flex-shrink: 0 !important;
+  display: block !important;
 }
 
 .sidebar-tab-btn:hover {

@@ -736,10 +736,23 @@ body.officer-authenticated .ios26-ambient-bubbles-backdrop {
   body.tac-three-zone .sidebar-tab-btn {
     flex: 1 1 0 !important;
     min-width: 0 !important;
-    padding: 6px 4px !important;
-    font-size: 11px !important;
+    padding: 5px 3px !important;
+    font-size: 10px !important;
     font-weight: 700 !important;
     white-space: nowrap !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+  body.tac-three-zone #tabBtnIncidents,
+  body.tac-three-zone #tabBtnHistory {
+    flex: 1.15 1 0 !important;
+  }
+  body.tac-three-zone #tabBtnStations,
+  body.tac-three-zone #tabBtnEnterprises {
+    flex: 0.82 1 0 !important;
+  }
+  body.tac-three-zone #tabBtnHospitals {
+    flex: 1.06 1 0 !important;
   }
 }
 @media (min-width: 1600px) {

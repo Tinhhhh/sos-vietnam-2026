@@ -1039,34 +1039,52 @@ function getWardBoundaryFeature(wardName, districtName, provinceName, lat, lng) 
 
   const cleanW = normWard(wardName);
   const cleanP = normProv(provinceName);
+  const isWildcard = !cleanW || cleanW === 'toan thanh pho' || cleanW === 'toan tinh' || cleanW === 'toan quoc';
 
-  // 1. Check if GPS falls inside any predefined polygon or MultiPolygon
+  // 1. If clean ward name is provided, prioritize matching by official administrative name & province
+  if (!isWildcard && vnWardBoundaries.features) {
+    if (cleanP) {
+      // 1a. Exact ward match within province
+      const exactProvMatch = vnWardBoundaries.features.find(f => {
+        const fw = normWard(f.properties?.ward || '');
+        const fp = normProv(f.properties?.province || '');
+        const provMatches = fp === cleanP || fp.includes(cleanP) || cleanP.includes(fp);
+        return provMatches && fw === cleanW;
+      });
+      if (exactProvMatch) return exactProvMatch;
+
+      // 1b. Partial ward match within province
+      const partialProvMatch = vnWardBoundaries.features.find(f => {
+        const fw = normWard(f.properties?.ward || '');
+        const fp = normProv(f.properties?.province || '');
+        const provMatches = fp === cleanP || fp.includes(cleanP) || cleanP.includes(fp);
+        return provMatches && (fw.includes(cleanW) || cleanW.includes(fw));
+      });
+      if (partialProvMatch) return partialProvMatch;
+    }
+
+    // 1c. Exact ward match across entire dataset
+    const exactMatch = vnWardBoundaries.features.find(f => {
+      const fw = normWard(f.properties?.ward || '');
+      return fw === cleanW;
+    });
+    if (exactMatch) return exactMatch;
+
+    // 1d. Partial ward match across dataset
+    const partialMatch = vnWardBoundaries.features.find(f => {
+      const fw = normWard(f.properties?.ward || '');
+      return fw.includes(cleanW) || cleanW.includes(fw);
+    });
+    if (partialMatch) return partialMatch;
+  }
+
+  // 2. Check if GPS falls inside any predefined polygon or MultiPolygon (raw GPS reverse geocoding or fallback)
   if (lat && lng && vnWardBoundaries.features) {
     for (const f of vnWardBoundaries.features) {
       if (isPointInFeature([lng, lat], f)) {
         return f;
       }
     }
-  }
-
-  // 2. Check by name and optional province
-  if (cleanW && vnWardBoundaries.features) {
-    if (cleanP) {
-      const matchWithProv = vnWardBoundaries.features.find(f => {
-        const fw = normWard(f.properties?.ward || '');
-        const fp = normProv(f.properties?.province || '');
-        const provMatches = fp === cleanP || fp.includes(cleanP) || cleanP.includes(fp);
-        const wardMatches = fw === cleanW || cleanW.includes(fw) || fw.includes(cleanW);
-        return provMatches && wardMatches;
-      });
-      if (matchWithProv) return matchWithProv;
-    }
-
-    const match = vnWardBoundaries.features.find(f => {
-      const fw = normWard(f.properties?.ward || '');
-      return fw === cleanW || cleanW.includes(fw) || fw.includes(cleanW);
-    });
-    if (match) return match;
   }
 
   // 3. Fallback to closest centroid in same province (or nationwide)

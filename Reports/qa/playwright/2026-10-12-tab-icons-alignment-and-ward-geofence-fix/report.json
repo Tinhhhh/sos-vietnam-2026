@@ -1,0 +1,494 @@
+{
+  "testName": "Tab Icons Alignment & Phường Cái Khế Ward Geofence Suite",
+  "timestamp": "2026-10-12T16:04:32.443Z",
+  "baseUrl": "http://localhost:3000",
+  "assertions": [
+    {
+      "name": "Sidebar sub-tabs container #sidebarTabsNav is present",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "Tab #tabBtnIncidents (Sự Cố (0)) icon is strictly inside button boundaries (no left overflow, no right overflow)",
+      "pass": true,
+      "details": {
+        "id": "tabBtnIncidents",
+        "text": "Sự Cố (0)",
+        "btnRect": {
+          "left": 19,
+          "right": 106.58,
+          "width": 87.58,
+          "top": 106.5
+        },
+        "svgRect": {
+          "left": 34.59,
+          "right": 45.59,
+          "width": 11
+        },
+        "isContained": true,
+        "overflowLeft": 0,
+        "overflowRight": 0
+      }
+    },
+    {
+      "name": "Tab #tabBtnHistory (Lịch Sử (0)) icon is strictly inside button boundaries (no left overflow, no right overflow)",
+      "pass": true,
+      "details": {
+        "id": "tabBtnHistory",
+        "text": "Lịch Sử (0)",
+        "btnRect": {
+          "left": 110.58,
+          "right": 198.16,
+          "width": 87.58,
+          "top": 106.5
+        },
+        "svgRect": {
+          "left": 122.84,
+          "right": 133.84,
+          "width": 11
+        },
+        "isContained": true,
+        "overflowLeft": 0,
+        "overflowRight": 0
+      }
+    },
+    {
+      "name": "Tab #tabBtnStations (Công An) icon is strictly inside button boundaries (no left overflow, no right overflow)",
+      "pass": true,
+      "details": {
+        "id": "tabBtnStations",
+        "text": "Công An",
+        "btnRect": {
+          "left": 202.16,
+          "right": 266.89,
+          "width": 64.73,
+          "top": 106.5
+        },
+        "svgRect": {
+          "left": 207.23,
+          "right": 218.23,
+          "width": 11
+        },
+        "isContained": true,
+        "overflowLeft": 0,
+        "overflowRight": 0
+      }
+    },
+    {
+      "name": "Tab #tabBtnEnterprises (Cứu Hộ) icon is strictly inside button boundaries (no left overflow, no right overflow)",
+      "pass": true,
+      "details": {
+        "id": "tabBtnEnterprises",
+        "text": "Cứu Hộ",
+        "btnRect": {
+          "left": 270.89,
+          "right": 335.64,
+          "width": 64.75,
+          "top": 106.5
+        },
+        "svgRect": {
+          "left": 278.88,
+          "right": 289.88,
+          "width": 11
+        },
+        "isContained": true,
+        "overflowLeft": 0,
+        "overflowRight": 0
+      }
+    },
+    {
+      "name": "Tab #tabBtnHospitals (Bệnh Viện) icon is strictly inside button boundaries (no left overflow, no right overflow)",
+      "pass": true,
+      "details": {
+        "id": "tabBtnHospitals",
+        "text": "Bệnh Viện",
+        "btnRect": {
+          "left": 339.64,
+          "right": 421,
+          "width": 81.36,
+          "top": 106.5
+        },
+        "svgRect": {
+          "left": 349.09,
+          "right": 360.09,
+          "width": 11
+        },
+        "isContained": true,
+        "overflowLeft": 0,
+        "overflowRight": 0
+      }
+    },
+    {
+      "name": "All 5 sidebar tabs are aligned on a single row (max top difference <= 2px)",
+      "pass": true,
+      "details": {
+        "tops": [
+          106.5,
+          106.5,
+          106.5,
+          106.5,
+          106.5
+        ],
+        "maxTopDiff": 0
+      }
+    },
+    {
+      "name": "Double-digit badge Tab #tabBtnIncidents (Sự Cố (82)) icon is strictly inside boundaries",
+      "pass": true,
+      "details": {
+        "id": "tabBtnIncidents",
+        "text": "Sự Cố (82)",
+        "isContained": true,
+        "overflowLeft": 0,
+        "overflowRight": 0
+      }
+    },
+    {
+      "name": "Double-digit badge Tab #tabBtnHistory (Lịch Sử (10)) icon is strictly inside boundaries",
+      "pass": true,
+      "details": {
+        "id": "tabBtnHistory",
+        "text": "Lịch Sử (10)",
+        "isContained": true,
+        "overflowLeft": 0,
+        "overflowRight": 0
+      }
+    },
+    {
+      "name": "API /api/geo/locate-ward returns ok:true for Phường Cái Khế",
+      "pass": true,
+      "details": {
+        "ok": true,
+        "jurisdiction": {
+          "ward": "Phường Cái Khế",
+          "province": "Cần Thơ",
+          "boundary": {
+            "type": "Feature",
+            "id": "ward-92-diaphanhanhchinhcapxa_2025_202",
+            "properties": {
+              "id": "ward-92-diaphanhanhchinhcapxa_2025_202",
+              "ward": "Phường Cái Khế",
+              "province": "Cần Thơ",
+              "unitType": "Phường",
+              "ma_xa": "31120",
+              "postal_code": "31120",
+              "maDVHC": "31120",
+              "sapNhapTu": "An Hòa, Cái Khế, Bùi Hữu Nghĩa (1 phần)",
+              "dienTich": "10,04 (km²)",
+              "danSo": "57.688 (người)",
+              "trungTamHanhChinh": "UBND Phường Cái Khế",
+              "canCu": "Nghị quyết số 1668/NQ-UBTVQH15",
+              "center": [
+                105.7776,
+                10.0561
+              ]
+            },
+            "geometry": {
+              "type": "MultiPolygon",
+              "coordinates": [
+                [
+                  [
+                    [
+                      105.7794,
+                      10.0709
+                    ],
+                    [
+                      105.7878,
+                      10.0637
+                    ],
+                    [
+                      105.8004,
+                      10.0468
+                    ],
+                    [
+                      105.7922,
+                      10.036
+                    ],
+                    [
+                      105.7778,
+                      10.0476
+                    ],
+                    [
+                      105.7726,
+                      10.0428
+                    ],
+                    [
+                      105.7721,
+                      10.0394
+                    ],
+                    [
+                      105.7691,
+                      10.0385
+                    ],
+                    [
+                      105.762,
+                      10.0449
+                    ],
+                    [
+                      105.7583,
+                      10.0437
+                    ],
+                    [
+                      105.7548,
+                      10.0453
+                    ],
+                    [
+                      105.7551,
+                      10.047
+                    ],
+                    [
+                      105.7591,
+                      10.0452
+                    ],
+                    [
+                      105.7591,
+                      10.0476
+                    ],
+                    [
+                      105.7698,
+                      10.0511
+                    ],
+                    [
+                      105.7744,
+                      10.0565
+                    ],
+                    [
+                      105.7585,
+                      10.0762
+                    ],
+                    [
+                      105.7794,
+                      10.0709
+                    ]
+                  ]
+                ]
+              ]
+            }
+          },
+          "wardFacilities": [
+            {
+              "id": "st-ct-28-ph-ng-c-i-kh",
+              "name": "Công An Phường Cái Khế",
+              "facility_type": "Trụ sở chính",
+              "address": "Số 138 Đường Trần Phú, Phường Cái Khế, Thành phố Cần Thơ",
+              "phone": "02923890379",
+              "services": "Đăng kí cư trú, đăng kí phương tiện giao thông, tiếp nhận tin báo",
+              "maps_url": "",
+              "lat": 10.0498,
+              "lng": 105.7785,
+              "distanceKm": 0,
+              "isNearest": true
+            }
+          ]
+        },
+        "boundary": {
+          "type": "Feature",
+          "id": "ward-92-diaphanhanhchinhcapxa_2025_202",
+          "properties": {
+            "id": "ward-92-diaphanhanhchinhcapxa_2025_202",
+            "ward": "Phường Cái Khế",
+            "province": "Cần Thơ",
+            "unitType": "Phường",
+            "ma_xa": "31120",
+            "postal_code": "31120",
+            "maDVHC": "31120",
+            "sapNhapTu": "An Hòa, Cái Khế, Bùi Hữu Nghĩa (1 phần)",
+            "dienTich": "10,04 (km²)",
+            "danSo": "57.688 (người)",
+            "trungTamHanhChinh": "UBND Phường Cái Khế",
+            "canCu": "Nghị quyết số 1668/NQ-UBTVQH15",
+            "center": [
+              105.7776,
+              10.0561
+            ]
+          },
+          "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [
+              [
+                [
+                  [
+                    105.7794,
+                    10.0709
+                  ],
+                  [
+                    105.7878,
+                    10.0637
+                  ],
+                  [
+                    105.8004,
+                    10.0468
+                  ],
+                  [
+                    105.7922,
+                    10.036
+                  ],
+                  [
+                    105.7778,
+                    10.0476
+                  ],
+                  [
+                    105.7726,
+                    10.0428
+                  ],
+                  [
+                    105.7721,
+                    10.0394
+                  ],
+                  [
+                    105.7691,
+                    10.0385
+                  ],
+                  [
+                    105.762,
+                    10.0449
+                  ],
+                  [
+                    105.7583,
+                    10.0437
+                  ],
+                  [
+                    105.7548,
+                    10.0453
+                  ],
+                  [
+                    105.7551,
+                    10.047
+                  ],
+                  [
+                    105.7591,
+                    10.0452
+                  ],
+                  [
+                    105.7591,
+                    10.0476
+                  ],
+                  [
+                    105.7698,
+                    10.0511
+                  ],
+                  [
+                    105.7744,
+                    10.0565
+                  ],
+                  [
+                    105.7585,
+                    10.0762
+                  ],
+                  [
+                    105.7794,
+                    10.0709
+                  ]
+                ]
+              ]
+            ]
+          }
+        },
+        "policeStation": {
+          "id": "st-ct-28-ph-ng-c-i-kh",
+          "station_id": "st-ct-28-ph-ng-c-i-kh",
+          "level": "ward",
+          "isRegionalSquad": true,
+          "isCityHq": false,
+          "unitCategory": "ward_police",
+          "jurisdictionScope": "ward",
+          "levelName": "Công An Cấp Xã/Phường (Công An Phường Cái Khế)",
+          "name": "Công An Phường Cái Khế",
+          "unit_title": "Phường Cái Khế",
+          "address": "Số 138 Đường Trần Phú, Phường Cái Khế, Thành phố Cần Thơ",
+          "phone": "02923890379",
+          "sms": "0903101070",
+          "ward": "Phường Cái Khế",
+          "province": "Cần Thơ",
+          "email": "phuongcaikhe@cantho.gov.vn",
+          "officerRank": "Trưởng CA",
+          "officerName": "Trung tá Trần Sơn Lam (SĐT: 0903101070)",
+          "officer_phone": "0903101070",
+          "truongca": "Trung tá Trần Sơn Lam (SĐT: 0903101070)",
+          "sdttruongca": "0903101070",
+          "services": "Đăng kí cư trú, đăng kí phương tiện giao thông, tiếp nhận tin báo",
+          "isGpsVerified": true,
+          "officerFullTitle": "Trung tá Trần Sơn Lam (SĐT: 0903101070) (Chỉ huy trực ban)",
+          "contactVerification": "official",
+          "gmapsUrl": "https://www.google.com/maps/dir/?api=1&destination=10.0498,105.7785",
+          "lat": 10.0498,
+          "lng": 105.7785,
+          "distanceKm": 0,
+          "facility_type": "Trụ sở chính",
+          "maps_url": null,
+          "wardFacilities": [
+            {
+              "id": "st-ct-28-ph-ng-c-i-kh",
+              "name": "Công An Phường Cái Khế",
+              "facility_type": "Trụ sở chính",
+              "address": "Số 138 Đường Trần Phú, Phường Cái Khế, Thành phố Cần Thơ",
+              "phone": "02923890379",
+              "services": "Đăng kí cư trú, đăng kí phương tiện giao thông, tiếp nhận tin báo",
+              "maps_url": "",
+              "lat": 10.0498,
+              "lng": 105.7785,
+              "distanceKm": 0,
+              "isNearest": true
+            }
+          ],
+          "isNearestFacilityInWard": false,
+          "isAutoRoutedNearest": false,
+          "routingNotice": null,
+          "originalWard": "Phường Cái Khế",
+          "originalProvince": "Cần Thơ"
+        },
+        "provinceStation": {
+          "id": "st-congan",
+          "station_id": "st-congan",
+          "level": "province",
+          "isCityHq": true,
+          "unitCategory": "city_hq",
+          "jurisdictionScope": "city_hq",
+          "levelName": "Trụ Sở Chính Cấp Tỉnh / Thành Phố (Công an TP Cần Thơ)",
+          "name": "Công an TP Cần Thơ",
+          "address": "Số 9A Trần Phú, Phường Cái Khế, Thành phố Cần Thơ",
+          "phone": "0292 382 0830",
+          "sms": "0988 113 113",
+          "email": "catp@cantho.gov.vn",
+          "province": "Cần Thơ",
+          "officerRank": "Thượng tá",
+          "officerName": "Đại úy Trực ban Công an TP Cần Thơ",
+          "officerFullTitle": "Đại úy Trực ban Công an TP Cần Thơ",
+          "contactVerification": "official",
+          "gmapsUrl": "https://www.google.com/maps/search/?api=1&query=C%C3%B4ng%20an%20TP%20C%E1%BA%A7n%20Th%C6%A1%2C%20S%E1%BB%91%209A%20Tr%E1%BA%A7n%20Ph%C3%BA%2C%20Ph%C6%B0%E1%BB%9Dng%20C%C3%A1i%20Kh%E1%BA%BF%2C%20Th%C3%A0nh%20ph%E1%BB%91%20C%E1%BA%A7n%20Th%C6%A1",
+          "lat": 10.04525,
+          "lng": 105.78182,
+          "distanceKm": 0.62
+        }
+      }
+    },
+    {
+      "name": "API returns Phường Cái Khế boundary id: ward-92-diaphanhanhchinhcapxa_2025_202",
+      "pass": true,
+      "details": {
+        "returnedWard": "Phường Cái Khế",
+        "returnedId": "ward-92-diaphanhanhchinhcapxa_2025_202"
+      }
+    },
+    {
+      "name": "Station click highlights Phường Cái Khế without defaulting to Ninh Kiều",
+      "pass": true,
+      "details": {
+        "ok": true,
+        "ward": "Phường Cái Khế",
+        "id": "ward-92-diaphanhanhchinhcapxa_2025_202",
+        "hudText": ""
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "sidebar-tabs-nav-aligned",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-12-tab-icons-alignment-and-ward-geofence-fix\\screenshots\\sidebar-tabs-nav-aligned.png"
+    },
+    {
+      "name": "dispatcher-cai-khe-ward-highlighted",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-12-tab-icons-alignment-and-ward-geofence-fix\\screenshots\\dispatcher-cai-khe-ward-highlighted.png"
+    }
+  ]
+}
