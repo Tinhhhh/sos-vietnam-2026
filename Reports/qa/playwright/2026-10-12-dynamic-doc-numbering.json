@@ -1,0 +1,192 @@
+{
+  "testName": "Dynamic-Administrative-Doc-Numbering",
+  "timestamp": "2026-10-12T15:26:16.127Z",
+  "assertions": [
+    {
+      "id": "DOC-NUM-01",
+      "description": "Cấp Quốc Gia (Trung ương) - All -> Kỳ vọng \"Số: ...... /BC-TTCH\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-TTCH",
+        "actual": "Số: ...... /BC-TTCH"
+      }
+    },
+    {
+      "id": "DOC-NUM-02",
+      "description": "Cấp Quốc Gia (Trung ương) - Police -> Kỳ vọng \"Số: ...... /BC-TTCH\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-TTCH",
+        "actual": "Số: ...... /BC-TTCH"
+      }
+    },
+    {
+      "id": "DOC-NUM-03",
+      "description": "Cấp TP trực thuộc TW (Cần Thơ) - All -> Kỳ vọng \"Số: ...... /BC-CATP CẦN THƠ\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CATP CẦN THƠ",
+        "actual": "Số: ...... /BC-CATP CẦN THƠ"
+      }
+    },
+    {
+      "id": "DOC-NUM-04",
+      "description": "Cấp TP trực thuộc TW (Hà Nội có tiền tố TP.) - All -> Kỳ vọng \"Số: ...... /BC-CATP HÀ NỘI\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CATP HÀ NỘI",
+        "actual": "Số: ...... /BC-CATP HÀ NỘI"
+      }
+    },
+    {
+      "id": "DOC-NUM-05",
+      "description": "Cấp Tỉnh (Đồng Nai) - All -> Kỳ vọng \"Số: ...... /BC-CAT ĐỒNG NAI\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CAT ĐỒNG NAI",
+        "actual": "Số: ...... /BC-CAT ĐỒNG NAI"
+      }
+    },
+    {
+      "id": "DOC-NUM-06",
+      "description": "Cấp Tỉnh (Tỉnh An Giang có tiền tố Tỉnh) - All -> Kỳ vọng \"Số: ...... /BC-CAT AN GIANG\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CAT AN GIANG",
+        "actual": "Số: ...... /BC-CAT AN GIANG"
+      }
+    },
+    {
+      "id": "DOC-NUM-07",
+      "description": "Cấp Xã (Xã Phú Tâm) - All -> Kỳ vọng \"Số: ...... /BC-CAX PHÚ TÂM\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CAX PHÚ TÂM",
+        "actual": "Số: ...... /BC-CAX PHÚ TÂM"
+      }
+    },
+    {
+      "id": "DOC-NUM-08",
+      "description": "Cấp Xã (Thuận Hòa) - All -> Kỳ vọng \"Số: ...... /BC-CAX THUẬN HÒA\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CAX THUẬN HÒA",
+        "actual": "Số: ...... /BC-CAX THUẬN HÒA"
+      }
+    },
+    {
+      "id": "DOC-NUM-09",
+      "description": "Cấp Phường (Phường Tân An) - All -> Kỳ vọng \"Số: ...... /BC-CAP TÂN AN\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CAP TÂN AN",
+        "actual": "Số: ...... /BC-CAP TÂN AN"
+      }
+    },
+    {
+      "id": "DOC-NUM-010",
+      "description": "Cấp Phường (An Khánh) - All -> Kỳ vọng \"Số: ...... /BC-CAP AN KHÁNH\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CAP AN KHÁNH",
+        "actual": "Số: ...... /BC-CAP AN KHÁNH"
+      }
+    },
+    {
+      "id": "DOC-NUM-011",
+      "description": "Cấp Thị Trấn (Thị trấn Phong Điền) - All -> Kỳ vọng \"Số: ...... /BC-CATT PHONG ĐIỀN\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CATT PHONG ĐIỀN",
+        "actual": "Số: ...... /BC-CATT PHONG ĐIỀN"
+      }
+    },
+    {
+      "id": "DOC-NUM-012",
+      "description": "Lực lượng CSGT (Cần Thơ) - Filter CSGT -> Kỳ vọng \"Số: ...... /BC-CSGT CẦN THƠ\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CSGT CẦN THƠ",
+        "actual": "Số: ...... /BC-CSGT CẦN THƠ"
+      }
+    },
+    {
+      "id": "DOC-NUM-013",
+      "description": "Lực lượng PCCC (Cần Thơ) - Filter Fire -> Kỳ vọng \"Số: ...... /BC-PCCC CẦN THƠ\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-PCCC CẦN THƠ",
+        "actual": "Số: ...... /BC-PCCC CẦN THƠ"
+      }
+    },
+    {
+      "id": "DOC-NUM-014",
+      "description": "Lực lượng Y tế (Cấp Cứu 115 / Bệnh Viện) - Filter Hospital -> Kỳ vọng \"Số: ...... /BC-BYT\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-BYT",
+        "actual": "Số: ...... /BC-BYT"
+      }
+    },
+    {
+      "id": "DOC-NUM-015",
+      "description": "Lực lượng Cứu Hộ Giao Thông - Filter Traffic-Rescue -> Kỳ vọng \"Số: ...... /BC-CHGT CẦN THƠ\"",
+      "passed": true,
+      "details": {
+        "expected": "Số: ...... /BC-CHGT CẦN THƠ",
+        "actual": "Số: ...... /BC-CHGT CẦN THƠ"
+      }
+    },
+    {
+      "id": "UI-MODAL-INITIAL",
+      "description": "Modal mở lần đầu hiển thị số ký hiệu cấp TP: \"Số: ...... /BC-CATP CẦN THƠ\"",
+      "passed": true,
+      "details": {
+        "actual": "Số: ...... /BC-CATP CẦN THƠ"
+      }
+    },
+    {
+      "id": "UI-TAB-CSGT",
+      "description": "Chuyển tab CSGT cập nhật số ký hiệu: \"Số: ...... /BC-CSGT CẦN THƠ\"",
+      "passed": true,
+      "details": {
+        "actual": "Số: ...... /BC-CSGT CẦN THƠ"
+      }
+    },
+    {
+      "id": "UI-TAB-PCCC",
+      "description": "Chuyển tab PCCC cập nhật số ký hiệu: \"Số: ...... /BC-PCCC CẦN THƠ\"",
+      "passed": true,
+      "details": {
+        "actual": "Số: ...... /BC-PCCC CẦN THƠ"
+      }
+    },
+    {
+      "id": "UI-TAB-HOSPITAL",
+      "description": "Chuyển tab Y Tế cập nhật số ký hiệu: \"Số: ...... /BC-BYT\"",
+      "passed": true,
+      "details": {
+        "actual": "Số: ...... /BC-BYT"
+      }
+    },
+    {
+      "id": "UI-WARD-THUANHOA",
+      "description": "Cấp Xã Thuận Hòa hiển thị chuẩn thể thức: \"Số: ...... /BC-CAX THUẬN HÒA\"",
+      "passed": true,
+      "details": {
+        "actual": "Số: ...... /BC-CAX THUẬN HÒA"
+      }
+    },
+    {
+      "id": "WORD-EXPORT-NUM",
+      "description": "Hàm xuất Word liên kết đúng getAdministrativeDocNumber",
+      "passed": true,
+      "details": {
+        "filter": "all",
+        "docNum": "Số: ...... /BC-CAX THUẬN HÒA",
+        "hasStandardDocNum": true
+      }
+    }
+  ],
+  "passed": true
+}

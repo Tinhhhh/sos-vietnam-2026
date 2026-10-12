@@ -14514,6 +14514,80 @@ class DispatcherApp {
     if (btnDownloadWord) btnDownloadWord.addEventListener('click', () => this.downloadTerritoryWord());
   }
 
+  getAdministrativeDocNumber(officer = null, filter = 'all') {
+    const off = officer || this.currentOfficer || {};
+    const level = (off.level || '').toLowerCase();
+    const rawProv = (off.province || 'Cần Thơ').trim();
+    const rawWard = (off.ward || '').trim();
+    const agency = (off.agency || '').toLowerCase();
+    const agencyName = (off.agencyName || '').toLowerCase();
+
+    // Chuẩn hóa tên tỉnh/thành (loại bỏ tiền tố 'Tỉnh', 'TP.', 'Thành phố')
+    const cleanProv = rawProv.replace(/^(TỈNH|TP\.|THÀNH PHỐ|TP)\s*/i, '').trim().toUpperCase();
+
+    // 1. Cấp Quốc Gia (Trung ương):
+    // Ký hiệu chuẩn thể thức: Số: ...... /BC-TTCH (Trung Tâm Chỉ Huy Tác Chiến Quốc Gia - Bộ Công An)
+    if (level === 'national' || agency === 'admin' || off.username === 'admin') {
+      return 'Số: ...... /BC-TTCH';
+    }
+
+    // 2. Kiểm tra lực lượng chuyên trách theo filter tab hoặc agency của cán bộ
+    const effectiveAgency = (filter && filter !== 'all') ? filter : agency;
+
+    if (effectiveAgency === 'csgt' || agencyName.includes('giao thông') || agencyName.includes('csgt')) {
+      const loc = cleanProv ? ` ${cleanProv}` : '';
+      return `Số: ...... /BC-CSGT${loc}`;
+    }
+
+    if (effectiveAgency === 'fire' || agencyName.includes('pccc') || agencyName.includes('cứu nạn cứu hộ')) {
+      const loc = cleanProv ? ` ${cleanProv}` : '';
+      return `Số: ...... /BC-PCCC${loc}`;
+    }
+
+    if (effectiveAgency === 'hospital' || effectiveAgency === 'ambulance' || effectiveAgency === '115' || agencyName.includes('bệnh viện') || agencyName.includes('y tế') || agencyName.includes('cấp cứu')) {
+      return 'Số: ...... /BC-BYT';
+    }
+
+    if (effectiveAgency === 'traffic-rescue' || effectiveAgency === 'rescue' || agencyName.includes('cứu hộ')) {
+      const loc = cleanProv ? ` ${cleanProv}` : '';
+      return `Số: ...... /BC-CHGT${loc}`;
+    }
+
+    // 3. Cấp Xã / Phường / Thị trấn (level === 'ward' hoặc có thông tin ward)
+    if (level === 'ward' || rawWard) {
+      let wardUpper = rawWard.toUpperCase();
+      let type = 'CAX';
+
+      if (wardUpper.startsWith('PHƯỜNG ') || wardUpper.startsWith('P. ') || agencyName.includes('phường')) {
+        type = 'CAP';
+      } else if (wardUpper.startsWith('THỊ TRẤN ') || wardUpper.startsWith('TT. ') || agencyName.includes('thị trấn')) {
+        type = 'CATT';
+      } else if (wardUpper.startsWith('XÃ ') || wardUpper.startsWith('X. ') || agencyName.includes('xã')) {
+        type = 'CAX';
+      } else {
+        const knownWards = ['TÂN AN', 'AN KHÁNH', 'XUÂN KHÁNH', 'HƯNG LỢI', 'AN CƯ', 'AN HÒA', 'AN NGHIỆP', 'CÁI KHẾ', 'TRẦN PHÚ', 'HÀNG BÔNG', 'TRÀNG TIỀN'];
+        if (knownWards.some(w => wardUpper.includes(w))) {
+          type = 'CAP';
+        } else {
+          type = 'CAX';
+        }
+      }
+
+      const cleanWard = wardUpper.replace(/^(PHƯỜNG|THỊ TRẤN|XÃ|P\.|TT\.|X\.)\s*/i, '').trim();
+      return `Số: ...... /BC-${type} ${cleanWard}`.trim();
+    }
+
+    // 4. Cấp Tỉnh / TP trực thuộc Trung ương
+    const centralCities = ['CẦN THƠ', 'HÀ NỘI', 'HẢI PHÒNG', 'ĐÀ NẴNG', 'HỒ CHÍ MINH', 'TP. HỒ CHÍ MINH', 'TP.HCM', 'TPHCM'];
+    const isCentralCity = centralCities.some(c => cleanProv.includes(c));
+
+    if (isCentralCity) {
+      return `Số: ...... /BC-CATP ${cleanProv}`;
+    } else {
+      return `Số: ...... /BC-CAT ${cleanProv}`;
+    }
+  }
+
   openTerritoryStatsModal(agencyFilter = 'all') {
     const modal = document.getElementById('territoryStatsModal');
     if (!modal) return;
@@ -14524,6 +14598,7 @@ class DispatcherApp {
     const modalSubtitle = document.getElementById('territoryStatsModalSubtitle');
     const datePlace = document.getElementById('printDatePlace');
     const officerFooter = document.getElementById('printOfficerNameFooter');
+    const docNumEl = document.getElementById('printDocNumber');
 
     const officer = this.currentOfficer;
     const prov = officer?.province || 'Cần Thơ';
@@ -14534,6 +14609,7 @@ class DispatcherApp {
     if (upperTitle) upperTitle.textContent = officer?.level === 'ward' ? `CÔNG AN TP. ${prov.toUpperCase()}` : 'BỘ CÔNG AN';
     if (lowerTitle) lowerTitle.textContent = officer?.level === 'ward' ? `CÔNG AN ${ward.toUpperCase()}` : (officer?.level === 'province' ? `CÔNG AN TP. ${prov.toUpperCase()}` : agencyName.toUpperCase());
     if (modalSubtitle) modalSubtitle.textContent = `${officer?.level === 'ward' ? 'CÔNG AN ' + ward.toUpperCase() + ' - ' : ''}${prov.toUpperCase()}`;
+    if (docNumEl) docNumEl.textContent = this.getAdministrativeDocNumber(officer, agencyFilter);
     
     const now = new Date();
     const dayStr = String(now.getDate()).padStart(2, '0');
@@ -14628,6 +14704,9 @@ class DispatcherApp {
       fake_alarm: 'Hồ sơ sự cố Báo Khống & Dấu Vết OSINT'
     };
     if (categoryTitle) categoryTitle.textContent = `Phân loại: ${filterLabels[agencyFilter] || 'Toàn bộ sự cố'}`;
+
+    const docNumEl = document.getElementById('printDocNumber');
+    if (docNumEl) docNumEl.textContent = this.getAdministrativeDocNumber(this.currentOfficer, agencyFilter);
 
     const list = this.getFilteredTerritoryIncidents(agencyFilter);
     if (footerCount) footerCount.textContent = list.length;
@@ -14964,7 +15043,7 @@ class DispatcherApp {
               <span style="font-size: 12pt; text-transform: uppercase;">${officer.level === 'ward' ? 'CÔNG AN TP. ' + prov : 'BỘ CÔNG AN'}</span><br/>
               <span style="font-size: 12.5pt; font-weight: bold; text-transform: uppercase;">${officer.level === 'ward' ? 'CÔNG AN ' + ward : agencyName}</span><br/>
               <div style="width: 100px; height: 1px; background: #000; margin: 3px auto 4px;"></div>
-              <span style="font-size: 12pt;">Số: ......./BC-CA</span>
+              <span style="font-size: 12pt;">${this.getAdministrativeDocNumber(officer, filter)}</span>
             </td>
             <td style="width: 55%; text-align: center; border: none; vertical-align: top; font-size: 12.5pt; line-height: 1.3;">
               <span style="font-size: 12.5pt; font-weight: bold; text-transform: uppercase;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</span><br/>
