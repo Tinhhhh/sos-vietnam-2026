@@ -4420,7 +4420,7 @@ class SOSApp {
         } catch(e) {}
       }
 
-      const audioSrc = `assets/sounds/sos_prompt_${voiceKey}.mp3?v=20261012_agency_dispatch_flow`;
+      const audioSrc = `assets/sounds/sos_prompt_${voiceKey}.mp3?v=20261012_speed_1_2x`;
       this.sosPromptAudio = new Audio(audioSrc);
       this.sosPromptAudio.preload = 'auto';
 
@@ -4429,7 +4429,7 @@ class SOSApp {
         playPromise.catch((err) => {
           console.warn('HTML5 Audio MP3 interrupted, trying WAV fallback:', err);
           try {
-            const wavAudio = new Audio(`assets/sounds/sos_prompt_${voiceKey}.wav?v=20261012_agency_dispatch_flow`);
+            const wavAudio = new Audio(`assets/sounds/sos_prompt_${voiceKey}.wav?v=20261012_speed_1_2x`);
             wavAudio.play().catch(() => this.fallbackSpeechSynthesis());
           } catch(e2) {
             this.fallbackSpeechSynthesis();
@@ -4456,7 +4456,8 @@ class SOSApp {
       const promptText = "Hệ thống khẩn cấp ét-ô-ét đã kích hoạt. Xin giữ bình tĩnh, vui lòng chọn đơn vị bạn muốn báo trên màn hình. Sau đó, thông tin sẽ được chuyển tiếp ngay đến trực ban của đơn vị để điều phối lực lượng cứu hộ.";
       const utterance = new SpeechSynthesisUtterance(promptText);
       utterance.lang = 'vi-VN';
-      utterance.rate = voiceConfig.rate || 0.88;
+      // Tăng thêm 0.2x tốc độ đọc (1.2x speed)
+      utterance.rate = Math.min(2.0, (voiceConfig.rate || 0.88) * 1.2);
       utterance.pitch = voiceConfig.pitch || (voiceConfig.voiceType?.startsWith('female') ? 1.1 : 0.95);
       utterance.volume = 1.0;
 

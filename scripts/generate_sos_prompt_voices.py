@@ -10,6 +10,7 @@ Tuân thủ đầy đủ quy tắc vàng của vieneu-tts:
 import os
 import sys
 import io
+import subprocess
 import numpy as np
 import soundfile as sf
 from vieneu import Vieneu
@@ -25,7 +26,12 @@ PROMPT_TEXT = (
     "Sau đó, thông tin sẽ được chuyển tiếp ngay đến trực ban của đơn vị để điều phối lực lượng cứu hộ."
 )
 
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "sounds")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUT_DIR = os.path.join(REPO_ROOT, "assets", "sounds")
+TEMP_DIR = os.path.join(REPO_ROOT, ".tmp")
+
+# Tốc độ đọc: nhanh thêm 0.2x (tức 1.2x speed)
+TEMPO_FACTOR = 1.20
 
 VOICE_CONFIGS = [
     {
@@ -54,8 +60,12 @@ def main():
     print("=" * 60)
     print("🎙️ KHỞI TẠO BỘ GIỌNG NỮ VIENEU-TTS CHO NÚT BẤM SOS KHẨN CẤP")
     print(f"Nội dung đọc: \"{PROMPT_TEXT}\"")
+    print(f"Tốc độ đọc: {TEMPO_FACTOR}x (+0.2x nhanh hơn)")
     print(f"Thư mục xuất: {OUTPUT_DIR}")
     print("=" * 60)
+
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     tts = Vieneu(mode='v3turbo')
     sr = tts.sample_rate
@@ -75,20 +85,57 @@ def main():
         if raw_audio.dtype != np.float32:
             raw_audio = raw_audio.astype(np.float32)
 
-        padded = np.concatenate([lead, raw_audio, tail])
+        # 1. Ghi âm thanh gốc vào thư mục tạm trong repo
+        temp_raw_path = os.path.join(TEMP_DIR, f"temp_raw_{key}.wav")
+        temp_stretched_path = os.path.join(TEMP_DIR, f"temp_stretched_{key}.wav")
+        sf.write(temp_raw_path, raw_audio, sr)
+
+        # 2. Áp dụng time-stretching 1.2x bảo toàn cao độ (pitch-preserved) bằng ffmpeg atempo
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-i", temp_raw_path,
+            "-filter:a", f"atempo={TEMPO_FACTOR}",
+            "-ar", str(sr),
+            temp_stretched_path
+        ]
+        res = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"    [!] Lỗi ffmpeg atempo: {res.stderr}")
+            stretched_audio = raw_audio
+        else:
+            stretched_audio, read_sr = sf.read(temp_stretched_path, dtype='float32')
+
+        # 3. Nối padding 420ms chống cắt đầu/đuôi
+        padded = np.concatenate([lead, stretched_audio, tail])
 
         wav_path = os.path.join(OUTPUT_DIR, f"sos_prompt_{key}.wav")
         mp3_path = os.path.join(OUTPUT_DIR, f"sos_prompt_{key}.mp3")
 
         sf.write(wav_path, padded, sr)
-        sf.write(mp3_path, padded, sr)
+        # Xuất MP3 chuẩn 192kbps 48kHz
+        ffmpeg_mp3 = [
+            "ffmpeg", "-y",
+            "-i", wav_path,
+            "-b:a", "192k",
+            "-ar", str(sr),
+            mp3_path
+        ]
+        subprocess.run(ffmpeg_mp3, capture_output=True, text=True)
 
         dur = len(padded) / sr
+        raw_dur = len(raw_audio) / sr
+        print(f"    ✓ Thời lượng gốc (1.0x): {raw_dur:.2f}s -> Tốc độ mới (1.2x): {dur:.2f}s (kèm 420ms padding)")
         print(f"    ✓ Đã xuất WAV: {wav_path} ({os.path.getsize(wav_path):,} bytes)")
         print(f"    ✓ Đã xuất MP3: {mp3_path} ({os.path.getsize(mp3_path):,} bytes)")
-        print(f"    ✓ Thời lượng: {dur:.2f} giây (kèm 420ms padding)")
 
-    print("\n✅ TẤT CẢ GIỌNG ĐỌC NỮ ĐÃ ĐƯỢC XUẤT THÀNH CÔNG VỚI CHẤT LƯỢNG 48KHZ!")
+        # Xóa file tạm
+        try:
+            if os.path.exists(temp_raw_path): os.remove(temp_raw_path)
+            if os.path.exists(temp_stretched_path): os.remove(temp_stretched_path)
+        except Exception:
+            pass
+
+    print(f"\n✅ TẤT CẢ GIỌNG ĐỌC NỮ ĐÃ ĐƯỢC XUẤT THÀNH CÔNG VỚI TỐC ĐỘ {TEMPO_FACTOR}X (48KHZ)!")
 
 if __name__ == "__main__":
     main()
