@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thuyết Trình 8 Tiêu Chí — SOS Việt Nam 2026 (Data for Life 2026)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hubot+Sans:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* === LOCAL HUBOT SANS FONT FACES === */
+        @font-face {
+            font-family: 'Hubot Sans Local';
+            src: url('assets/fonts/hubot-sans/HubotSans-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Hubot Sans Local';
+            src: url('assets/fonts/hubot-sans/HubotSans-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Hubot Sans Local';
+            src: url('assets/fonts/hubot-sans/HubotSans-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Hubot Sans Local';
+            src: url('assets/fonts/hubot-sans/HubotSans-ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        /* === DESIGN TOKENS (C4ISR TACTICAL COMMAND THEME) === */
+        :root {
+            --bg-deep: #060B18;
+            --bg-panel: rgba(15, 25, 48, 0.84);
+            --bg-panel-strong: rgba(20, 34, 64, 0.92);
+            --border-subtle: rgba(56, 189, 248, 0.22);
+            --border-bright: rgba(0, 229, 255, 0.55);
+            --cyan: #00E5FF;
+            --red-sos: #FF3B5C;
+            --gold: #FFB800;
+            --emerald: #10B981;
+            --purple: #A855F7;
+            --text-main: #F8FAFC;
+            --text-sub: #CBD5E1;
+            --text-muted: #94A3B8;
+            --font-sans: 'Hubot Sans Local', 'Hubot Sans', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', Consolas, monospace;
+        }
+
+        /* === VIEWPORT-BASE INVARIANTS (ZERO SCROLLING) === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            background: var(--bg-deep);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            -webkit-font-smoothing: antialiased;
+            user-select: none;
+        }
+
+        /* Tactical Radar Grid Background */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 18% 18%, rgba(0, 229, 255, 0.11), transparent 42%),
+                radial-gradient(circle at 82% 80%, rgba(255, 59, 92, 0.10), transparent 42%),
+                linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Top Progress Bar */
+        .progress-track {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            z-index: 1000;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 10%;
+            background: linear-gradient(90deg, var(--cyan), var(--emerald), var(--gold));
+            box-shadow: 0 0 12px var(--cyan);
+            transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Top HUD Bar */
+        .top-hud {
+            position: fixed;
+            top: 12px;
+            left: clamp(20px, 3.5vw, 52px);
+            right: clamp(20px, 3.5vw, 52px);
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 900;
+            pointer-events: none;
+        }
+        .hud-pill {
+            pointer-events: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: rgba(12, 21, 42, 0.85);
+            border: 1px solid var(--border-subtle);
+            font-size: clamp(11px, 1vw, 13px);
+            font-weight: 700;
+            color: var(--text-sub);
+            letter-spacing: 0.03em;
+            backdrop-filter: blur(10px);
+        }
+        .hud-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--emerald);
+            box-shadow: 0 0 8px var(--emerald);
+        }
+
+        /* Slide Deck Container */
+        .slide-deck {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            padding: clamp(58px, 7.5vh, 76px) clamp(24px, 4vw, 64px) clamp(62px, 8vh, 80px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(14px) scale(0.99);
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.4s;
+            overflow: hidden;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1440px;
+            margin: 0 auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: clamp(10px, 1.8vh, 18px);
+            overflow: hidden;
+        }
+
+        /* Slide Header */
+        .slide-header {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .criterion-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: clamp(10.5px, 1vw, 12.5px);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            background: rgba(0, 229, 255, 0.12);
+            color: var(--cyan);
+            border: 1px solid rgba(0, 229, 255, 0.35);
+        }
+        .criterion-badge.red {
+            background: rgba(255, 59, 92, 0.14);
+            color: var(--red-sos);
+            border-color: rgba(255, 59, 92, 0.4);
+        }
+        .criterion-badge.gold {
+            background: rgba(255, 184, 0, 0.14);
+            color: var(--gold);
+            border-color: rgba(255, 184, 0, 0.4);
+        }
+        .criterion-badge.emerald {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--emerald);
+            border-color: rgba(16, 185, 129, 0.45);
+        }
+        .criterion-badge.purple {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--purple);
+            border-color: rgba(168, 85, 247, 0.45);
+        }
+
+        .slide-h1 {
+            font-size: clamp(22px, 2.5vw, 34px);
+            font-weight: 800;
+            line-height: 1.18;
+            color: var(--text-main);
+            letter-spacing: -0.01em;
+        }
+        .slide-subtitle {
+            font-size: clamp(12.5px, 1.15vw, 15.5px);
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        /* Grids */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: clamp(12px, 1.5vw, 20px);
+            flex: 1;
+            min-height: 0;
+            align-content: stretch;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(12px, 1.4vw, 18px);
+            flex: 1;
+            min-height: 0;
+            align-content: stretch;
+        }
+        .grid-4-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(10px, 1.2vw, 16px);
+            flex-shrink: 0;
+        }
+        .split-60-40 {
+            display: grid;
+            grid-template-columns: 1.45fr 1fr;
+            gap: clamp(14px, 1.6vw, 22px);
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-top: 3px solid var(--cyan);
+            border-radius: 14px;
+            padding: clamp(14px, 1.8vh, 22px) clamp(16px, 1.6vw, 22px);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 1vh, 10px);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+        }
+        .card.red { border-top-color: var(--red-sos); }
+        .card.gold { border-top-color: var(--gold); }
+        .card.emerald { border-top-color: var(--emerald); }
+        .card.purple { border-top-color: var(--purple); }
+
+        .card-title {
+            font-size: clamp(14px, 1.25vw, 18px);
+            font-weight: 800;
+            color: var(--cyan);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card.red .card-title { color: var(--red-sos); }
+        .card.gold .card-title { color: var(--gold); }
+        .card.emerald .card-title { color: var(--emerald); }
+        .card.purple .card-title { color: var(--purple); }
+
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 0.95vh, 10px);
+        }
+        .bullet-list li {
+            font-size: clamp(12px, 1.05vw, 14.5px);
+            line-height: 1.42;
+            color: var(--text-sub);
+            position: relative;
+            padding-left: 16px;
+        }
+        .bullet-list li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--cyan);
+            font-weight: 800;
+        }
+        .card.red .bullet-list li::before { color: var(--red-sos); }
+        .card.gold .bullet-list li::before { color: var(--gold); }
+        .card.emerald .bullet-list li::before { color: var(--emerald); }
+        .card.purple .bullet-list li::before { color: var(--purple); }
+
+        .bullet-list li strong {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        /* Metric Cards */
+        .metric-card {
+            background: var(--bg-panel-strong);
+            border: 1px solid var(--border-subtle);
+            border-left: 4px solid var(--cyan);
+            border-radius: 12px;
+            padding: clamp(10px, 1.4vh, 16px) clamp(12px, 1.2vw, 18px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+        }
+        .metric-card.emerald { border-left-color: var(--emerald); }
+        .metric-card.gold { border-left-color: var(--gold); }
+        .metric-card.red { border-left-color: var(--red-sos); }
+
+        .metric-val {
+            font-size: clamp(20px, 2.1vw, 30px);
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: var(--cyan);
+            line-height: 1.1;
+        }
+        .metric-card.emerald .metric-val { color: var(--emerald); }
+        .metric-card.gold .metric-val { color: var(--gold); }
+        .metric-card.red .metric-val { color: var(--red-sos); }
+
+        .metric-lbl {
+            font-size: clamp(12px, 1vw, 14px);
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .metric-sub {
+            font-size: clamp(10.5px, 0.85vw, 12px);
+            color: var(--text-muted);
+        }
+
+        /* 80% Progress Bar Banner */
+        .completion-banner {
+            background: var(--bg-panel-strong);
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .completion-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: clamp(11.5px, 1vw, 13.5px);
+            font-weight: 800;
+        }
+        .completion-bar-outer {
+            width: 100%;
+            height: 22px;
+            background: rgba(255, 184, 0, 0.18);
+            border-radius: 999px;
+            overflow: hidden;
+            display: flex;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .completion-bar-80 {
+            width: 80%;
+            height: 100%;
+            background: linear-gradient(90deg, #059669, #10B981, #00E5FF);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11.5px;
+            font-weight: 800;
+            color: #03150E;
+            letter-spacing: 0.04em;
+        }
+        .completion-bar-20 {
+            width: 20%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        /* Chart wrapper */
+        .chart-box {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            min-height: 140px;
+            max-height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hero Title Slide Styling */
+        .hero-slide-box {
+            background: linear-gradient(145deg, rgba(16, 28, 56, 0.92), rgba(8, 15, 32, 0.94));
+            border: 1px solid var(--border-bright);
+            border-radius: 22px;
+            padding: clamp(24px, 4vh, 44px) clamp(24px, 4vw, 56px);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(12px, 2vh, 20px);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 229, 255, 0.12);
+            margin: auto;
+            max-width: 1240px;
+            width: 100%;
+        }
+        .hero-title {
+            font-size: clamp(26px, 3.6vw, 50px);
+            font-weight: 900;
+            line-height: 1.12;
+            background: linear-gradient(135deg, #FFFFFF 20%, #00E5FF 65%, #10B981 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-tagline {
+            font-size: clamp(15px, 1.5vw, 22px);
+            font-weight: 700;
+            color: var(--gold);
+        }
+        .hero-pillars {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .hero-chip {
+            padding: 7px 15px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            font-size: clamp(11.5px, 1vw, 13.5px);
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+        .hero-chip strong { color: var(--emerald); }
+
+        /* Quote Footer Box */
+        .quote-banner {
+            background: linear-gradient(90deg, rgba(255, 184, 0, 0.12), rgba(0, 229, 255, 0.10));
+            border: 1px solid rgba(255, 184, 0, 0.45);
+            border-radius: 14px;
+            padding: clamp(12px, 1.6vh, 18px) clamp(18px, 2vw, 28px);
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .quote-banner p {
+            font-size: clamp(12.5px, 1.15vw, 15.5px);
+            font-weight: 700;
+            font-style: italic;
+            color: var(--text-main);
+            line-height: 1.4;
+        }
+        .quote-banner p span {
+            color: var(--gold);
+        }
+
+        /* Bottom Navigation Controls */
+        .nav-bar {
+            position: fixed;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 16px;
+            border-radius: 999px;
+            background: rgba(10, 18, 36, 0.9);
+            border: 1px solid var(--border-subtle);
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: var(--text-main);
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-size: 12.5px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background: rgba(0, 229, 255, 0.2);
+            border-color: var(--cyan);
+        }
+        .slide-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.22);
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .dot.active {
+            width: 22px;
+            border-radius: 999px;
+            background: var(--cyan);
+            box-shadow: 0 0 8px var(--cyan);
+        }
+        .slide-counter {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            min-width: 48px;
+            text-align: center;
+        }
+
+        /* Speaker Notes Drawer */
+        .notes-drawer {
+            position: fixed;
+            bottom: 58px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            width: min(92vw, 980px);
+            background: rgba(8, 14, 28, 0.96);
+            border: 1px solid var(--gold);
+            border-radius: 14px;
+            padding: 14px 20px;
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+        }
+        .notes-drawer.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+        .notes-drawer-title {
+            font-size: 11.5px;
+            font-weight: 800;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .notes-drawer-body {
+            font-size: 13.5px;
+            line-height: 1.48;
+            color: var(--text-main);
+        }
+
+        @media (max-width: 900px) {
+            .grid-2, .grid-3, .split-60-40 { grid-template-columns: 1fr; }
+            .grid-4-metrics { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Progress Bar -->
+    <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- Top Tactical HUD -->
+    <div class="top-hud">
+        <div class="hud-pill">
+            <span class="hud-dot"></span>
+            <span>SOS VIỆT NAM 2026 // MÃ ĐỀ BÀI: ASXH-07</span>
+        </div>
+        <div class="hud-pill">
+            <span>HOÀN THIỆN HIỆN TẠI: <strong style="color: var(--emerald);">80% (TRL 7 LIVE)</strong></span>
+        </div>
+    </div>
+
+    <!-- Main 10-Slide Presentation Deck -->
+    <div class="slide-deck" id="slideDeck">
+
+        <!-- ================= SLIDE 1: TITLE / HOOK ================= -->
+        <section class="slide active" data-notes="Kính chào Hội đồng Ban Giám khảo Cuộc thi Data for Life 2026. Đội thi đến từ Trung đoàn Cảnh sát Cơ động số 10 (K02 - Bộ Công an) xin trình bày giải pháp 'Hệ thống Dữ liệu và Điều phối Cứu hộ Khẩn cấp Đa lực lượng SOS Việt Nam 2026' (Mã đề bài ASXH-07), giải đáp trọn vẹn 8 tiêu chí đánh giá với mức độ hoàn thiện hiện tại đạt 80% (TRL 7).">
+            <div class="hero-slide-box">
+                <div class="criterion-badge">CUỘC THI DATA FOR LIFE 2026 • TOP 60 VÒNG CHINH PHỤC</div>
+                <h1 class="hero-title">HỆ THỐNG DỮ LIỆU & ĐIỀU PHỐI CỨU HỘ KHẨN CẤP<br>ĐA LỰC LƯỢNG SOS VIỆT NAM 2026</h1>
+                <div class="hero-tagline">Kênh Kêu Cứu 1-Chạm & Trợ Giúp Nhanh Cho Người Yếu Thế (Mã đề bài: ASXH-07)</div>
+                <div class="hero-pillars">
+                    <span class="hero-chip">Giải đáp <strong>8/8 Tiêu chí</strong> Hội đồng Giám khảo</span>
+                    <span class="hero-chip">Mức độ hoàn thiện: <strong>80% (TRL 7 — Live Prototype)</strong></span>
+                    <span class="hero-chip">Đồng bộ <strong>34 Tỉnh/TP • 3.321 Xã/Phường • 417 Trạm CA Hà Nội</strong></span>
+                </div>
+                <div style="font-size: clamp(12px, 1.05vw, 14px); color: var(--text-muted); margin-top: 6px;">
+                    Đơn vị thực hiện: <strong style="color: var(--text-main);">Trung đoàn Cảnh sát Cơ động số 10 (K02 - Bộ Công an)</strong> &nbsp;|&nbsp; Trưởng nhóm: <strong style="color: var(--cyan);">Điền Trần Vĩnh An</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 2: TIÊU CHÍ 1 - VẤN ĐỀ THỰC TIỄN ================= -->
+        <section class="slide" data-notes="Tiêu chí 1 - Vấn đề thực tiễn hướng tới giải quyết: Trong cấp cứu và cứu nạn cứu hộ, 5 phút đầu là '5 phút vàng' quyết định sinh mạng. Tuy nhiên quy trình truyền thống đang gặp 4 điểm nghẽn: phân mảnh 3 đầu số 113-114-115, mù định vị trong ngõ hẻm và sau sáp nhập xã/phường, 40-60% cuộc gọi đêm là báo khống, và rào cản tuyệt đối với người câm điếc, người già đột quỵ.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge red">TIÊU CHÍ 01 // VẤN ĐỀ THỰC TIỄN MÀ ĐỘI THI HƯỚNG TỚI GIẢI QUYẾT</span>
+                    <h2 class="slide-h1">Bài Toán "5 Phút Vàng" Sinh Tử & 4 Điểm Nghẽn Cứu Nạn Hiện Nay</h2>
+                    <p class="slide-subtitle">Trong y khoa và CNCH, 5–10 phút đầu quyết định sự sống còn của nạn nhân, nhưng mô hình tổng đài thoại truyền thống đang tồn tại 4 rào cản lớn:</p>
+                </div>
+                <div class="grid-2">
+                    <div class="card red">
+                        <div class="card-title">🚨 1. Phân Mảnh 3 Đầu Số (113 - 114 - 115)</div>
+                        <ul class="bullet-list">
+                            <li><strong>Chia cắt thông tin chỉ huy:</strong> 3 tổng đài thoại chuyển mạch kênh vận hành độc lập, không có bản đồ tác chiến chung.</li>
+                            <li><strong>Lãng phí 3–7 phút vàng:</strong> Khi xảy ra tai nạn giao thông liên hoàn hoặc cháy nổ có người mắc kẹt, người dân phải gọi lần lượt từng nơi, lặp lại thông tin trong hoảng loạn.</li>
+                        </ul>
+                    </div>
+                    <div class="card gold">
+                        <div class="card-title">📍 2. Mù Định Vị Ngõ Hẻm, Sông Nước & Sau Sáp Nhập</div>
+                        <ul class="bullet-list">
+                            <li><strong>Thiếu tọa độ vệ tinh tự động:</strong> Cuộc gọi thoại phụ thuộc vào mô tả cảm tính, dễ dẫn tới điều động sai lực lượng hoặc phương tiện.</li>
+                            <li><strong>Đặc thù sau sáp nhập xã/phường (T10/2026):</strong> Tại các xã/phường mới sáp nhập, ngõ sâu &lt;2m hoặc kênh rạch ĐBSCL, người dân không biết mình thuộc địa bàn cơ sở công an nào.</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">📵 3. Vấn Nạn Báo Khống & Nghẽn Mạch Khi Thiên Tai</div>
+                        <ul class="bullet-list">
+                            <li><strong>40% – 60% cuộc gọi ban đêm là báo giả:</strong> Quấy rối tổng đài, gây lãng phí ngân sách Nhà nước mỗi lần xuất xe công vụ vô ích.</li>
+                            <li><strong>Quá tải khi bão lũ diện rộng:</strong> Hàng ngàn cuộc gọi thoại đồng thời khiến đường dây nóng truyền thống dễ bị nghẽn mạch.</li>
+                        </ul>
+                    </div>
+                    <div class="card emerald">
+                        <div class="card-title">♿ 4. Rào Cản Tuyệt Đối Với Người Yếu Thế (ASXH-07)</div>
+                        <ul class="bullet-list">
+                            <li><strong>Không thể kêu cứu bằng lời nói:</strong> Người câm điếc, người khuyết tật, người cao tuổi đột quỵ một mình hoặc nạn nhân ngạt khói không thể gọi thoại 113/114/115.</li>
+                            <li><strong>Đòi hỏi cấp thiết từ Đề án 06/CP:</strong> Cần một kênh cứu nạn số 1-chạm bình đẳng, nhân văn và tức thời cho mọi công dân.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 3: TIÊU CHÍ 2 - GIẢI PHÁP & ĐIỂM KHÁC BIỆT ================= -->
+        <section class="slide" data-notes="Tiêu chí 2 - Giải pháp và điểm khác biệt của sản phẩm: SOS Việt Nam 2026 hợp nhất 2 phân hệ: Phao cứu sinh 1-chạm PWA cho người dân và Bàn chỉ huy C4ISR 3D cho 5 lực lượng. Điểm khác biệt cốt lõi là tính khoảng cách trực tiếp từ thiết bị sử dụng App đến từng cơ sở cơ quan, hỗ trợ mô hình đa cơ sở trong 1 phường sau sáp nhập, và tự động chuyển cấp sau 15 phút.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge">TIÊU CHÍ 02 // GIẢI PHÁP VÀ ĐIỂM KHÁC BIỆT CỦA SẢN PHẨM</span>
+                    <h2 class="slide-h1">Hợp Nhất 5 Lực Lượng Trên 1 Bản Đồ Số — Báo Nạn 1-Chạm Từ Thiết Bị</h2>
+                    <p class="slide-subtitle">Kết nối trực tiếp Cổng Người Dân PWA Siêu Nhẹ với Bàn Chỉ Huy Tác Chiến C4ISR Đa Cấp theo thời gian thực:</p>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">📱 Phân Hệ Người Dân: "Phao Cứu Sinh 1-Chạm" (PWA)</div>
+                        <ul class="bullet-list">
+                            <li><strong>Không cần cài App, không cần tạo tài khoản:</strong> Mở tức thì trong 0.79s qua trình duyệt hoặc mã QR; hoạt động cả khi mất mạng nhờ bộ nhớ Offline.</li>
+                            <li><strong>Thiết kế chuyên biệt cho người yếu thế:</strong> Bấm nút SOS Orb và chọn thẻ hình ảnh trực quan (Cấp cứu, Cháy nổ, Tai nạn, Bão lũ) kèm ảnh chụp hiện trường.</li>
+                            <li><strong>Tính khoảng cách từ vị trí thiết bị sử dụng App:</strong> Tự động đo khoảng cách Haversine trực tiếp từ thiết bị của người dân tới từng cơ sở Công an, Y tế, PCCC gần nhất.</li>
+                            <li><strong>Đàm thoại/Video Call WebRTC & Ký số Canvas:</strong> Gọi trực tiếp cho cán bộ trực ban và ký xác nhận biên bản hiện trường ngay trên màn hình cảm ứng.</li>
+                        </ul>
+                    </div>
+                    <div class="card gold">
+                        <div class="card-title">🛡️ 5 Điểm Khác Biệt Vượt Trội So Với Tổng Đài Cũ</div>
+                        <ul class="bullet-list">
+                            <li><strong>1. Hợp nhất 5 lực lượng trên 1 Bản đồ GIS:</strong> Cảnh sát (113), PCCC & CNCH (114), Y tế (115), CSGT và Cứu hộ dịch vụ cùng hiệp đồng tác chiến.</li>
+                            <li><strong>2. Định tuyến Đa cơ sở (Multi-Facility 1-to-N):</strong> Hiển thị đầy đủ Trụ sở chính và các Cơ sở 2, 3, 4 trong cùng 1 phường sau sáp nhập; tự động gắn nhãn <code>[Cơ sở gần nhất]</code>.</li>
+                            <li><strong>3. Chuyển cấp tự động 15 phút (Timeout Escalation):</strong> Đếm ngược 15 phút trên từng ca; tự động báo đỏ và chuyển cấp lên Thành phố/Tỉnh nếu cơ sở quá tải.</li>
+                            <li><strong>4. Cô lập ca trực theo từng Đơn vị:</strong> Mỗi đơn vị (username) quản lý kíp trực, bàn giao ca và nhận cảnh báo độc lập.</li>
+                            <li><strong>5. Chế tài báo khống Nghị định 144:</strong> Thu thập dấu vết số OSINT lập biên bản xử phạt 4–6 triệu đồng.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 4: TIÊU CHÍ 3 - CÔNG NGHỆ SỬ DỤNG ================= -->
+        <section class="slide" data-notes="Tiêu chí 3 - Công nghệ được sử dụng: Hệ thống được xây dựng trên kiến trúc 5 tầng Clean Architecture không phụ thuộc framework nặng: Frontend PWA + MapLibre/Leaflet GIS đồng bộ font Hubot Sans; Backend Node.js Native + SSE độ trễ 45ms; Đàm thoại WebRTC P2P + Web Audio Graph chống hú (muteGain=0) và mã hóa MP3 bằng lamejs tại trình duyệt; Bảo mật WAF L7 + PBKDF2-SHA512.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge">TIÊU CHÍ 03 // CÔNG NGHỆ ĐƯỢC SỬ DỤNG & KIẾN TRÚC KỸ THUẬT</span>
+                    <h2 class="slide-h1">Kiến Trúc 5 Tầng Tinh Gọn, Thời Gian Thực & Bảo Mật Chuẩn Nghị Định 13</h2>
+                    <p class="slide-subtitle">Thiết kế theo triết lý Zero-Framework Overhead để tối ưu tốc độ phản hồi mili-giây và khả năng chịu tải cao:</p>
+                </div>
+                <div class="grid-3">
+                    <div class="card">
+                        <div class="card-title">🌐 1. Frontend PWA & Bản Đồ Số GIS</div>
+                        <ul class="bullet-list">
+                            <li><strong>HTML5 / CSS3 / ES6+ Native:</strong> Giao diện Glassmorphism sắc nét, đồng bộ font chữ <strong>Hubot Sans</strong> toàn hệ thống, tự động co giãn vừa khít mọi khung hình.</li>
+                            <li><strong>MapLibre GL / Leaflet GIS Engine:</strong> Kết xuất mượt mà ranh giới 3.321 xã/phường (GeoJSON) và hệ thống ghim đa cơ sở (Primary & Auxiliary Ward Pins).</li>
+                            <li><strong>Service Worker Offline-First:</strong> Lưu đệm giao diện và Cẩm nang sơ cứu hoạt động không cần sóng 4G/Wi-Fi.</li>
+                        </ul>
+                    </div>
+                    <div class="card emerald">
+                        <div class="card-title">⚡ 2. Backend Lõi & Viễn Thông WebRTC</div>
+                        <ul class="bullet-list">
+                            <li><strong>Node.js Native HTTP/ESM + SSE:</strong> Kênh Server-Sent Events và WebSocket truyền phát sự cố thời gian thực với độ trễ chỉ <strong>45ms</strong>.</li>
+                            <li><strong>WebRTC P2P Đa Máy Chủ STUN:</strong> Đàm thoại 2 chiều giữa Dân ↔ Trực ban và Liên đơn vị, kèm cơ chế HTTP Long-Polling Fallback vượt tường lửa.</li>
+                            <li><strong>Web Audio Graph Chống Hú:</strong> Tách kênh Local/Remote, đặt <code>muteGain = 0.0</code> triệt tiêu 100% tiếng hú, đo VU Meter RMS và nén MP3 bằng <code>lamejs</code>.</li>
+                        </ul>
+                    </div>
+                    <div class="card gold">
+                        <div class="card-title">🔒 3. Không Gian Địa Lý & An Ninh Mạng</div>
+                        <ul class="bullet-list">
+                            <li><strong>Haversine Spatial Engine:</strong> Giải thuật tính khoảng cách cầu chính xác từ thiết bị người dùng tới 417 trạm Công an Hà Nội & 548 đơn vị toàn quốc.</li>
+                            <li><strong>Tường lửa WAF L7 & RBAC 6 Cấp:</strong> Chặn 100% (27/27) chữ ký AI Bot/Scraper, bẫy Honeypot khóa IP độc hại, điều tiết Token Bucket.</li>
+                            <li><strong>Zero-Retention (Nghị định 13/2023/NĐ-CP):</strong> Băm mật khẩu PBKDF2-SHA512 (100.000 vòng), ghi tệp nguyên tử (<code>.tmp -&gt; rename</code>), ẩn danh hóa sau đóng ca.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 5: TIÊU CHÍ 4 - TÍNH SÁNG TẠO ================= -->
+        <section class="slide" data-notes="Tiêu chí 4 - Tính sáng tạo của giải pháp: Đội thi mang đến 5 đột phá sáng tạo giải quyết đúng đặc thù Việt Nam: (1) Bộ lọc Kalman khử nhiễu GPS dưới 5m trong ngõ hẹp; (2) Định tuyến OSRM tách 2 làn xe máy và ô tô chuyên dụng; (3) Mô hình đa cơ sở 1-to-N sau sáp nhập; (4) Chuyển cấp tự động 15 phút & 3 kênh dự phòng; (5) Ký số Canvas xuất biên bản chuẩn Nghị định 30.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge gold">TIÊU CHÍ 04 // TÍNH SÁNG TẠO VÀ ĐỘT PHÁ CÔNG NGHỆ CỦA GIẢI PHÁP</span>
+                    <h2 class="slide-h1">5 Đột Phá Sáng Tạo Giải Quyết Đặc Thù Đô Thị & Địa Giới Hành Chính Việt Nam</h2>
+                    <p class="slide-subtitle">Những cải tiến giải thuật độc đáo được thiết kế riêng cho hạ tầng ngõ hẻm, sông nước và quy trình pháp lý tại Việt Nam:</p>
+                </div>
+                <div class="grid-3">
+                    <div class="card">
+                        <div class="card-title">🎯 1. Lọc Nhiễu GPS Kalman Filter</div>
+                        <ul class="bullet-list">
+                            <li><strong>Khử 92.25% sai số vệ tinh:</strong> Chống hiện tượng nhảy tọa độ khi nạn nhân ở trong nhà cao tầng hoặc ngõ sâu.</li>
+                            <li><strong>Sai số thực địa &lt; 5 mét:</strong> Hội tụ vị trí chính xác chỉ sau 3–5 mẫu đo liên tiếp.</li>
+                        </ul>
+                    </div>
+                    <div class="card emerald">
+                        <div class="card-title">🛣️ 2. Định Tuyến OSRM 2 Làn Xe</div>
+                        <ul class="bullet-list">
+                            <li><strong>Làn xanh lá (Xe 2 bánh):</strong> Dẫn đường cho Công an xã/phường luồn ngõ hẹp &lt;2m tiếp cận trước 2–4 phút.</li>
+                            <li><strong>Làn xanh dương (Ô tô lớn):</strong> Dẫn đường cho xe PCCC & Cứu thương 115 tránh ngõ cụt, cầu yếu.</li>
+                        </ul>
+                    </div>
+                    <div class="card gold">
+                        <div class="card-title">🏛️ 3. Phân Luồng Đa Cơ Sở 1-to-N</div>
+                        <ul class="bullet-list">
+                            <li><strong>Thích ứng sau sáp nhập:</strong> Hiển thị mọi cơ sở (Trụ sở chính, Cơ sở 2, 3, 4) thuộc cùng 1 phường trên 1 bảng duy nhất gọn gàng.</li>
+                            <li><strong>Đo từ thiết bị người dùng:</strong> Tự động gắn huy hiệu <code>[Cơ sở gần nhất]</code> theo vị trí thiết bị.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="grid-2" style="flex: 0.85;">
+                    <div class="card red">
+                        <div class="card-title">⏱️ 4. Chuyển Cấp Tự Động 15 Phút & 3 Kênh Truyền Tin Bất Tử</div>
+                        <ul class="bullet-list">
+                            <li><strong>Timeout Escalation 15 phút (MM:SS):</strong> Tự động chuyển cảnh báo đỏ và đẩy sự cố lên cấp Thành phố/Tỉnh nếu cơ sở quá tải chưa xử lý.</li>
+                            <li><strong>Online WSS -&gt; SMS Fallback (&lt;70 ký tự) -&gt; Offline IndexedDB:</strong> Không bỏ sót bất kỳ tín hiệu cầu cứu nào ngay cả khi mất mạng 4G/5G.</li>
+                        </ul>
+                    </div>
+                    <div class="card purple">
+                        <div class="card-title">✍️ 5. Ký Số Canvas Nghị Định 30 & Chống Báo Giả Nghị Định 144</div>
+                        <ul class="bullet-list">
+                            <li><strong>Xuất biên bản Word (.docx) chuẩn 1 trang A4:</strong> Người dân và cán bộ ký trực tiếp trên màn hình cảm ứng theo đúng thể thức Nghị định 30/2020/NĐ-CP.</li>
+                            <li><strong>Kho Báo Khống & Chứng cứ OSINT:</strong> Tự động ghi nhận thiết bị, IP, tọa độ để lập biên bản phạt 4–6 triệu đồng theo Nghị định 144/2021/NĐ-CP.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 6: TIÊU CHÍ 5 - MỨC ĐỘ HOÀN THIỆN HIỆN TẠI (80%) ================= -->
+        <section class="slide" data-notes="Tiêu chí 5 - Mức độ hoàn thiện hiện tại của sản phẩm: Đội thi xác định mức độ hoàn thiện hiện tại đạt 80% (cấp độ TRL 7 - Live Operational Prototype). Toàn bộ 80% phân hệ cốt lõi phục vụ người dân và bàn trực ban đã hoàn thành 100% và chạy thực tế. 20% còn lại là lộ trình đấu nối API VNeID chính thức của Cục C06, huấn luyện sâu AI và mở rộng từ 34 lên 63 tỉnh thành.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge emerald">TIÊU CHÍ 05 // MỨC ĐỘ HOÀN THIỆN HIỆN TẠI CỦA SẢN PHẨM (ĐẠT 80% — TRL 7)</span>
+                    <h2 class="slide-h1">Mức Độ Hoàn Thiện Hiện Tại Đạt 80%: Hệ Sinh Thái Lõi Đã Vận Hành Thực Tế</h2>
+                </div>
+
+                <!-- 80% / 20% Progress Banner -->
+                <div class="completion-banner">
+                    <div class="completion-labels">
+                        <span style="color: var(--emerald);">✓ 80% ĐÃ HOÀN THIỆN & VẬN HÀNH THỰC TẾ TRÊN WEB / PWA (TRL 7 — LIVE PROTOTYPE)</span>
+                        <span style="color: var(--gold);">🔧 20% ĐANG TIẾP TỤC TÍCH HỢP MỞ RỘNG</span>
+                    </div>
+                    <div class="completion-bar-outer">
+                        <div class="completion-bar-80">80% COMPLETED & LIVE READY</div>
+                        <div class="completion-bar-20">20% R&D</div>
+                    </div>
+                </div>
+
+                <div class="split-60-40">
+                    <div class="card emerald">
+                        <div class="card-title">✅ Chi Tiết 80% Khối Lượng Đã Hoàn Thiện & Sẵn Sàng Live Demo</div>
+                        <ul class="bullet-list">
+                            <li><strong>1. Cổng Người Dân PWA (Hoàn thiện):</strong> Nút SOS 1-chạm, chọn 5 lực lượng, lọc GPS Kalman, tính khoảng cách từ thiết bị tới từng cơ sở, gửi ảnh, cẩm nang offline.</li>
+                            <li><strong>2. Bàn Chỉ Huy C4ISR & Bản Đồ GIS (Hoàn thiện):</strong> Đồng bộ 34 tỉnh/thành, 3.321 xã/phường sáp nhập và 417 điểm Công an TP Hà Nội (hiển thị đa cơ sở & nhãn <code>[Cơ sở gần nhất]</code>).</li>
+                            <li><strong>3. Đàm Thoại WebRTC 2 Chiều & Ghi Âm (Hoàn thiện):</strong> Thoại/Video Call giữa Dân ↔ Trực ban và Liên đơn vị; mạch chống hú <code>muteGain=0</code>; xuất file MP3 tại trình duyệt.</li>
+                            <li><strong>4. Quản Trị Ca Trực & Chuyển Cấp 15 Phút (Hoàn thiện):</strong> Cô lập ca trực theo từng đơn vị, đếm ngược 15 phút và nút <em>"Chuyển cấp Thành phố"</em> tức thời.</li>
+                            <li><strong>5. Tự Động Hóa Pháp Lý NĐ 30 & NĐ 144 (Hoàn thiện):</strong> Ký số Canvas xuất biên bản Word A4, kho lưu trữ báo khống và đồng bộ danh bạ Excel 4 sheet.</li>
+                        </ul>
+                    </div>
+                    <div class="card gold" style="justify-content: space-between;">
+                        <div class="card-title">📊 Biểu Đồ Tỷ Trọng Hoàn Thiện (80% / 20%)</div>
+                        <div class="chart-box">
+                            <canvas id="completionChart"></canvas>
+                        </div>
+                        <ul class="bullet-list" style="font-size: 11.5px;">
+                            <li><strong>20% Đang hoàn thiện tiếp:</strong> Đấu nối API VNeID mức 2 chính thức từ C06 (5%), AI Vision/Speech (5%), phủ kín 63/63 tỉnh (5%), đóng gói Native App & IoT (5%).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 7: TIÊU CHÍ 6 - KHẢ NĂNG VẬN HÀNH & ỨNG DỤNG THỰC TẾ ================= -->
+        <section class="slide" data-notes="Tiêu chí 6 - Khả năng vận hành và ứng dụng trong thực tế: Sản phẩm vận hành trực tiếp trên dữ liệu thật cập nhật tháng 10/2026 gồm 34 tỉnh/thành, 3.321 xã/phường sau sáp nhập, 548 tài khoản trực ban và 417 trụ sở Công an TP Hà Nội. Chi phí triển khai cực thấp vì chạy ngay trên máy tính trực ban và điện thoại sẵn có.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge">TIÊU CHÍ 06 // KHẢ NĂNG VẬN HÀNH VÀ ỨNG DỤNG TRONG THỰC TẾ</span>
+                    <h2 class="slide-h1">Sẵn Sàng Vận Hành Thực Địa Với Cơ Sở Dữ Liệu Tháng 10/2026</h2>
+                    <p class="slide-subtitle">Hệ thống vận hành trực tiếp trên danh bạ hành chính và trụ sở thực tế, không đòi hỏi đầu tư phần cứng chuyên dụng đắt đỏ:</p>
+                </div>
+
+                <div class="grid-4-metrics">
+                    <div class="metric-card">
+                        <div class="metric-val">34 Tỉnh/TP</div>
+                        <div class="metric-lbl">Địa Giới Hành Chính</div>
+                        <div class="metric-sub">Đồng bộ chuẩn bando.com.vn</div>
+                    </div>
+                    <div class="metric-card emerald">
+                        <div class="metric-val">3.321 Xã</div>
+                        <div class="metric-lbl">Xã/Phường Sau Sáp Nhập</div>
+                        <div class="metric-sub">Cập nhật mới nhất T10/2026</div>
+                    </div>
+                    <div class="metric-card gold">
+                        <div class="metric-val">548 Đơn Vị</div>
+                        <div class="metric-lbl">Tài Khoản Trực Ban</div>
+                        <div class="metric-sub">Phân quyền RBAC 6 cấp</div>
+                    </div>
+                    <div class="metric-card red">
+                        <div class="metric-val">417 Trụ Sở</div>
+                        <div class="metric-lbl">Công An TP Hà Nội</div>
+                        <div class="metric-sub">Đủ SĐT, tọa độ & thủ tục</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">🚑 4 Kịch Bản Ứng Dụng Thực Địa Điển Hình</div>
+                        <ul class="bullet-list">
+                            <li><strong>1. Cứu nạn người yếu thế (ASXH-07):</strong> Người già đột quỵ, người câm điếc bấm 1 chạm gửi tọa độ chính xác về Công an/Y tế phường gần nhất.</li>
+                            <li><strong>2. Hiệp đồng đa lực lượng đô thị (Hà Nội, TP.HCM, Cần Thơ):</strong> Điều động đồng thời Công an phường đi xe máy mở đường và xe PCCC/115 đi đường lớn.</li>
+                            <li><strong>3. Ứng phó quá tải mùa mưa bão:</strong> Tự động chuyển tiếp ca sang đơn vị lân cận hoặc leo thang lên cấp Thành phố sau 15 phút.</li>
+                            <li><strong>4. Tra cứu dịch vụ công cơ sở:</strong> Người dân xem ngay khoảng cách từ thiết bị tới điểm làm CCCD, đăng ký thường trú gần nhất.</li>
+                        </ul>
+                    </div>
+                    <div class="card emerald">
+                        <div class="card-title">💼 Tính Khả Thi Kinh Tế & Vận Hành Bền Vững 24/7</div>
+                        <ul class="bullet-list">
+                            <li><strong>Chi phí đầu tư phần cứng bằng 0:</strong> Vận hành trực tiếp trên trình duyệt máy tính trực ban sẵn có của đơn vị và điện thoại thông minh của người dân.</li>
+                            <li><strong>Quản trị danh bạ bằng Excel 4 Sheet quen thuộc:</strong> Cán bộ tham mưu dễ dàng xuất/nhập danh sách đồn trạm, số hotline trong <strong>12ms</strong> mà không cần biết lập trình.</li>
+                            <li><strong>Dữ liệu sạch 100%:</strong> Bộ lọc phòng vệ tự động loại bỏ các thực thể phi tác chiến, bảo đảm điều phối chính xác tuyệt đối.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 8: TIÊU CHÍ 7 - KẾT QUẢ THỬ NGHIỆM / KIỂM CHỨNG ================= -->
+        <section class="slide" data-notes="Tiêu chí 7 - Kết quả thử nghiệm và kiểm chứng: Hệ thống đã được đo kiểm bằng Google Lighthouse (98/100 điểm), Autocannon Stress Test (10.000 req/s, 0% lỗi), độ trễ SSE 45ms, và bộ kiểm thử tự động Playwright E2E đạt 100% PASS trên toàn bộ kịch bản.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge emerald">TIÊU CHÍ 07 // KẾT QUẢ THỬ NGHIỆM VÀ KIỂM CHỨNG THỰC NGHIỆM</span>
+                    <h2 class="slide-h1">Kiểm Chứng Độc Lập Bằng Playwright E2E, Lighthouse & Stress Test</h2>
+                    <p class="slide-subtitle">Mọi chỉ số kỹ thuật đều có kịch bản kiểm thử tự động trong thư mục <code>playwright/</code> và báo cáo nghiệm thu <code>Reports/qa/playwright/</code>:</p>
+                </div>
+
+                <div class="grid-4-metrics">
+                    <div class="metric-card emerald">
+                        <div class="metric-val">98 / 100</div>
+                        <div class="metric-lbl">Google Lighthouse</div>
+                        <div class="metric-sub">Mở đầu 0.79s | Cache 0.135s</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-val">45 ms</div>
+                        <div class="metric-lbl">Độ Trễ SSE Thực Tế</div>
+                        <div class="metric-sub">Mục tiêu thiết kế: &lt; 100ms</div>
+                    </div>
+                    <div class="metric-card gold">
+                        <div class="metric-val">10.000 req/s</div>
+                        <div class="metric-lbl">Chịu Tải Máy Chủ</div>
+                        <div class="metric-sub">0.00% lỗi (Autocannon)</div>
+                    </div>
+                    <div class="metric-card red">
+                        <div class="metric-val">100% PASS</div>
+                        <div class="metric-lbl">Playwright E2E Suite</div>
+                        <div class="metric-sub">Kiểm thử tự động đa luồng</div>
+                    </div>
+                </div>
+
+                <div class="split-60-40">
+                    <div class="card emerald">
+                        <div class="card-title">🧪 Bằng Chứng Kiểm Thử Tự Động (Automated QA Evidence)</div>
+                        <ul class="bullet-list">
+                            <li><strong>1. Kiểm chứng khoảng cách từ thiết bị người dùng:</strong> <code>PASS</code> — Đo chính xác khoảng cách Haversine từ vị trí thiết bị tới từng cơ sở (VD: Cơ sở 4 Công an phường Ba Đình <code>0.50 km [Cơ sở gần nhất]</code>, Trụ sở chính <code>1.07 km</code>).</li>
+                            <li><strong>2. Kiểm chứng đàm thoại WebRTC 2 thiết bị & chống hú:</strong> <code>10/10 PASS</code> — Cường độ âm thanh RMS &gt; 0 đồng thời trên cả Local và Remote; không phát sinh tiếng hú (<code>muteGain = 0</code>).</li>
+                            <li><strong>3. Kiểm chứng cô lập ca trực & chuyển cấp 15 phút:</strong> <code>PASS</code> — Không báo hết ca khi chưa đăng nhập; chuyển cấp Thành phố phát sóng tức thời tới <code>catphanoi</code>, <code>pccchanoi</code>, <code>csgthanoi</code>.</li>
+                            <li><strong>4. Kiểm chứng giao diện chuẩn hóa:</strong> <code>PASS</code> — Chỉ hiển thị 1 bảng HUD gọn bên trái, các nút và thanh trượt nằm gọn 100% trong khung bo tròn.</li>
+                        </ul>
+                    </div>
+                    <div class="card" style="justify-content: space-between;">
+                        <div class="card-title">📈 Đối Sánh Mục Tiêu vs Thực Nghiệm (%)</div>
+                        <div class="chart-box">
+                            <canvas id="benchmarkChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 9: TIÊU CHÍ 8 - TIỀM NĂNG PHÁT TRIỂN & MỞ RỘNG ================= -->
+        <section class="slide" data-notes="Tiêu chí 8 - Tiềm năng phát triển và khả năng mở rộng của sản phẩm: Từ nền tảng 80% hiện tại, sản phẩm sẵn sàng hoàn thiện 20% tiếp theo để mở rộng ra 63/63 tỉnh thành, tích hợp trực tiếp Mini-App vào VNeID của Bộ Công an (Đề án 06), bổ sung AI phân tích hình ảnh/giọng nói hiện trường và kết nối mạng lưới IoT/Drone cứu nạn.">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge purple">TIÊU CHÍ 08 // TIỀM NĂNG PHÁT TRIỂN VÀ KHẢ NĂNG MỞ RỘNG CỦA SẢN PHẨM</span>
+                    <h2 class="slide-h1">Lộ Trình Hoàn Thiện 20% Tiếp Theo Để Đạt 100% Quy Mô Quốc Gia</h2>
+                    <p class="slide-subtitle">Kiến trúc phân cấp mô-đun cho phép mở rộng lên quy mô toàn quốc và tích hợp sâu vào hệ sinh thái Đề án 06/CP:</p>
+                </div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">🆔 1. Tích Hợp Sâu Định Danh Điện Tử VNeID (Bộ Công An)</div>
+                        <ul class="bullet-list">
+                            <li><strong>Nhúng Mini-App / SDK VNeID mức 2:</strong> Khi Cục C06 mở cổng kết nối API Gateway, tín hiệu SOS sẽ tự động xác thực danh tính công dân mức 2 và hồ sơ y tế cơ bản.</li>
+                            <li><strong>Loại bỏ 100% tin báo nặc danh:</strong> Rút ngắn thời gian xác minh nhân thân xuống 0 giây, nâng cao hiệu lực răn đe của Nghị định 144/2021/NĐ-CP.</li>
+                        </ul>
+                    </div>
+                    <div class="card gold">
+                        <div class="card-title">🧠 2. Trí Tuệ Nhân Tạo Đa Phương Thức (Vision & Speech AI)</div>
+                        <ul class="bullet-list">
+                            <li><strong>Computer Vision AI hiện trường:</strong> Tự động phân tích ảnh/video người dân gửi về để nhận diện đám cháy, khói độc, ngập lụt, số người mắc kẹt và gợi ý phương tiện.</li>
+                            <li><strong>Speech-to-Text khẩn cấp tiếng Việt:</strong> Tự động chuyển giọng nói hoảng loạn (đa phương ngữ Bắc - Trung - Nam) thành văn bản chỉ đạo trong vài giây.</li>
+                        </ul>
+                    </div>
+                    <div class="card emerald">
+                        <div class="card-title">🗺️ 3. Mở Rộng Toàn Diện 63/63 Tỉnh Thành & Cloud Quốc Gia</div>
+                        <ul class="bullet-list">
+                            <li><strong>Phủ kín 63/63 tỉnh/thành phố:</strong> Nhân rộng mô hình dữ liệu đa cơ sở 1-to-N từ 34 tỉnh/thành hiện tại ra toàn bộ hơn 10.000 xã/phường trên cả nước.</li>
+                            <li><strong>Triển khai cụm Kubernetes / Microservices:</strong> Sẵn sàng vận hành trên hạ tầng Trung tâm Dữ liệu Quốc gia, đáp ứng hàng triệu người dùng đồng thời.</li>
+                        </ul>
+                    </div>
+                    <div class="card purple">
+                        <div class="card-title">🚁 4. Mạng Lưới Cảm Biến IoT Đô Thị & Drone Trinh Sát</div>
+                        <ul class="bullet-list">
+                            <li><strong>Kết nối IoT báo cháy & cảnh báo lũ:</strong> Tự động kích hoạt báo động SOS về Bàn trực ban khi cảm biến khói chung cư hoặc mực nước lũ vượt ngưỡng.</li>
+                            <li><strong>Điều phối Drone / UAV cứu nạn:</strong> Bay trước tới hiện trường sạt lở, ngập lụt để truyền hình ảnh toàn cảnh trên cao và thả phao cứu sinh.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SLIDE 10: TỔNG KẾT & THÔNG TIN LIVE DEMO ================= -->
+        <section class="slide" data-notes="Kính thưa Hội đồng Giám khảo, trên màn hình là thông tin truy cập trực tiếp hệ thống Live Demo và các tài khoản trực ban đại diện các cấp để Ban Giám khảo có thể kiểm thử ngay. Đội thi xin trân trọng cảm ơn và sẵn sàng lắng nghe câu hỏi phản biện từ Hội đồng Giám khảo!">
+            <div class="slide-inner">
+                <div class="slide-header">
+                    <span class="criterion-badge gold">TỔNG KẾT & TRẢI NGHIỆM TRỰC TIẾP SẢN PHẨM (LIVE DEMO)</span>
+                    <h2 class="slide-h1">Mỗi Giây Dữ Liệu Rút Ngắn Hôm Nay Là Một Sinh Mạng Giữ Lại Ngày Mai!</h2>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">🌐 Cổng Truy Cập Hệ Thống Live Demo Cho Ban Giám Khảo</div>
+                        <ul class="bullet-list">
+                            <li><strong>Cổng Người Dân (PWA 1-Chạm):</strong> <code>https://sos-vietnam-2026.onrender.com</code></li>
+                            <li><strong>Bàn Trực Ban Chỉ Huy C4ISR:</strong> <code>https://sos-vietnam-2026.onrender.com/dispatcher.html</code></li>
+                            <li><strong>Mã PIN An Ninh Gatekeeper:</strong> <code>2002</code> &nbsp;|&nbsp; <strong>Mật khẩu tài khoản:</strong> <code>2002</code></li>
+                            <li><strong>Tài khoản khảo sát tiêu biểu:</strong>
+                                <br>• <code>admin</code> (Trung tâm Chỉ huy Quốc gia)
+                                <br>• <code>cahanoi</code> (Công an TP Hà Nội — 417 trụ sở)
+                                <br>• <code>cact</code> (Công an TP Cần Thơ) | <code>pcccninhkieu</code> | <code>115ninhkieu</code>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card emerald">
+                        <div class="card-title">🏆 Tổng Kết 8 Tiêu Chí Đánh Giá Của Đội Thi</div>
+                        <ul class="bullet-list">
+                            <li><strong>1–2. Vấn đề & Giải pháp:</strong> Giải bài toán 5 phút vàng & người yếu thế (ASXH-07) bằng PWA 1-chạm và Bản đồ 5 lực lượng.</li>
+                            <li><strong>3–4. Công nghệ & Sáng tạo:</strong> SSE 45ms, WebRTC chống hú, lọc Kalman &lt;5m, OSRM 2 làn, đa cơ sở 1-to-N, leo thang 15 phút.</li>
+                            <li><strong>5. Mức độ hoàn thiện hiện tại:</strong> <strong>Đạt 80% (TRL 7 — Live Prototype)</strong>, 100% tính năng lõi đã chạy thực tế.</li>
+                            <li><strong>6–8. Vận hành, Kiểm chứng & Mở rộng:</strong> 34 tỉnh, 3.321 xã, 417 trạm HN, 100% PASS Playwright E2E, sẵn sàng tích hợp VNeID.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="quote-banner">
+                    <p>
+                        <span>“Trong kỷ nguyên chuyển đổi số quốc gia, khi dữ liệu số có thể đi nhanh hơn cả tiếng còi xe cứu thương —</span><br>
+                        Liệu chúng ta có thể cho phép bất kỳ người dân nào phải đơn độc trong 5 phút sinh tử của cuộc đời mình chỉ vì một rào cản kết nối?”
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Speaker Notes Drawer -->
+    <div class="notes-drawer" id="notesDrawer">
+        <div class="notes-drawer-title">🎙️ Lời Thuyết Trình Gợi Ý (Nhấn phím N để đóng/mở)</div>
+        <div class="notes-drawer-body" id="notesBody"></div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <div class="nav-bar">
+        <button class="nav-btn" onclick="prevSlide()" title="Slide trước (←)">← Trước</button>
+        <div class="slide-dots" id="slideDots"></div>
+        <span class="slide-counter"><span id="curIdx">1</span> / <span id="totIdx">10</span></span>
+        <button class="nav-btn" onclick="nextSlide()" title="Slide tiếp (→ hoặc Space)">Tiếp →</button>
+        <button class="nav-btn" onclick="toggleNotes()" title="Bật/tắt lời thuyết trình (Phím N)">🎙️ Lời thoại (N)</button>
+        <button class="nav-btn" onclick="toggleFullScreen()" title="Toàn màn hình (Phím F)">⛶ Fullscreen</button>
+    </div>
+
+    <script>
+        const slides = Array.from(document.querySelectorAll('.slide'));
+        const totalSlides = slides.length;
+        let currentSlide = 0;
+        let chartsInitialized = false;
+
+        document.getElementById('totIdx').textContent = totalSlides;
+
+        // Build dots
+        const dotsContainer = document.getElementById('slideDots');
+        slides.forEach((_, idx) => {
+            const d = document.createElement('div');
+            d.className = 'dot' + (idx === 0 ? ' active' : '');
+            d.onclick = (e) => {
+                e.stopPropagation();
+                goToSlide(idx);
+            };
+            dotsContainer.appendChild(d);
+        });
+
+        function updateUI() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === currentSlide));
+            Array.from(dotsContainer.children).forEach((d, i) => d.classList.toggle('active', i === currentSlide));
+            document.getElementById('curIdx').textContent = currentSlide + 1;
+            document.getElementById('progressFill').style.width = (((currentSlide + 1) / totalSlides) * 100) + '%';
+            document.getElementById('notesBody').textContent = slides[currentSlide].getAttribute('data-notes') || '';
+
+            if ((currentSlide === 5 || currentSlide === 7) && !chartsInitialized) {
+                initCharts();
+            }
+        }
+
+        function goToSlide(idx) {
+            if (idx < 0) idx = 0;
+            if (idx >= totalSlides) idx = totalSlides - 1;
+            currentSlide = idx;
+            updateUI();
+        }
+
+        function nextSlide() { goToSlide(currentSlide + 1); }
+        function prevSlide() { goToSlide(currentSlide - 1); }
+
+        function toggleNotes() {
+            document.getElementById('notesDrawer').classList.toggle('open');
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                prevSlide();
+            } else if (e.key === 'n' || e.key === 'N') {
+                e.preventDefault();
+                toggleNotes();
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullScreen();
+            }
+        });
+
+        function initCharts() {
+            if (typeof Chart === 'undefined') return;
+            chartsInitialized = true;
+
+            const ctx1 = document.getElementById('completionChart');
+            if (ctx1) {
+                new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [
+                            'Đã hoàn thiện & Vận hành thực tế (80%)',
+                            'Tích hợp VNeID SDK & AI/IoT mở rộng (20%)'
+                        ],
+                        datasets: [{
+                            data: [80, 20],
+                            backgroundColor: ['#10B981', '#FFB800'],
+                            borderColor: ['#060B18', '#060B18'],
+                            borderWidth: 3,
+                            hoverOffset: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '66%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#CBD5E1',
+                                    font: { size: 11, weight: 'bold' },
+                                    padding: 10
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            const ctx2 = document.getElementById('benchmarkChart');
+            if (ctx2) {
+                new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: [
+                            'Lighthouse (98/100)',
+                            'Tốc độ nạp PWA (0.79s)',
+                            'Độ trễ SSE (45ms)',
+                            'Chặn Bot AI (27/27)',
+                            'Playwright E2E PASS'
+                        ],
+                        datasets: [{
+                            label: '% Đạt & Vượt Chỉ Tiêu Kỹ Thuật',
+                            data: [98, 100, 100, 100, 100],
+                            backgroundColor: [
+                                'rgba(16, 185, 129, 0.85)',
+                                'rgba(0, 229, 255, 0.85)',
+                                'rgba(0, 229, 255, 0.85)',
+                                'rgba(255, 184, 0, 0.85)',
+                                'rgba(255, 59, 92, 0.85)'
+                            ],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                max: 100,
+                                grid: { color: 'rgba(255,255,255,0.06)' },
+                                ticks: { color: '#94A3B8', callback: (v) => v + '%' }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { color: '#F8FAFC', font: { size: 11, weight: 'bold' } }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        window.goToSlide = goToSlide;
+        window.nextSlide = nextSlide;
+        window.prevSlide = prevSlide;
+        updateUI();
+        setTimeout(initCharts, 300);
+    </script>
+</body>
+</html>

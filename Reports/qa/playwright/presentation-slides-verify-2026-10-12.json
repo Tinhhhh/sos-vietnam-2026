@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-10-12T08:39:04.534Z",
+  "totalSlides": 10,
+  "allFitViewport": true,
+  "completionSlideVerified": true,
+  "slides": [
+    {
+      "slideNumber": 1,
+      "title": "HỆ THỐNG DỮ LIỆU & ĐIỀU PHỐI CỨU HỘ KHẨN CẤPĐA LỰC LƯỢNG SOS VIỆT NAM 2026",
+      "scrollHeight": 466,
+      "clientHeight": 466,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 2,
+      "title": "Bài Toán \"5 Phút Vàng\" Sinh Tử & 4 Điểm Nghẽn Cứu Nạn Hiện Nay",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 3,
+      "title": "Hợp Nhất 5 Lực Lượng Trên 1 Bản Đồ Số — Báo Nạn 1-Chạm Từ Thiết Bị",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 4,
+      "title": "Kiến Trúc 5 Tầng Tinh Gọn, Thời Gian Thực & Bảo Mật Chuẩn Nghị Định 13",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 5,
+      "title": "5 Đột Phá Sáng Tạo Giải Quyết Đặc Thù Đô Thị & Địa Giới Hành Chính Việt Nam",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 6,
+      "title": "Mức Độ Hoàn Thiện Hiện Tại Đạt 80%: Hệ Sinh Thái Lõi Đã Vận Hành Thực Tế",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 7,
+      "title": "Sẵn Sàng Vận Hành Thực Địa Với Cơ Sở Dữ Liệu Tháng 10/2026",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 8,
+      "title": "Kiểm Chứng Độc Lập Bằng Playwright E2E, Lighthouse & Stress Test",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 9,
+      "title": "Lộ Trình Hoàn Thiện 20% Tiếp Theo Để Đạt 100% Quy Mô Quốc Gia",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    },
+    {
+      "slideNumber": 10,
+      "title": "Mỗi Giây Dữ Liệu Rút Ngắn Hôm Nay Là Một Sinh Mạng Giữ Lại Ngày Mai!",
+      "scrollHeight": 684,
+      "clientHeight": 684,
+      "fitsViewport": true,
+      "notesPresent": true
+    }
+  ],
+  "overallStatus": "PASS"
+}
