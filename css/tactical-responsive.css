@@ -814,11 +814,11 @@ body.officer-authenticated .ios26-ambient-bubbles-backdrop {
     gap: 8px !important;
   }
   .header-nav-left-pill { padding: 6px 12px 6px 8px !important; gap: 8px !important; min-width: 0; }
-  .header-main-title { font-size: 13px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw; }
+  .header-main-title { font-size: clamp(11px, 3.2vw, 13px) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65vw; }
   .header-sub-title { display: none !important; }
   .header-nav-right-widgets { gap: 6px !important; min-width: 0; }
-  #weatherWidget, #locationWidget, #dutyOfficerWidget { display: none !important; }
-  #vnLiveClock .widget-secondary { display: none !important; }
+  #weatherWidget, #locationWidget, #dutyOfficerWidget, #headerDutyShiftPill { display: none !important; }
+  #vnLiveClock .widget-secondary, #vnLiveClock .clock-time-zone { display: none !important; }
 
   /* Khung điều hành: 1 vùng hiển thị/lần, tab bar ở dưới */
   body.tac-mobile-console .dispatcher-layout {
@@ -1474,7 +1474,7 @@ body.tac-keyboard-open .legal-warning-card {
   .loc-texts { min-width: 0; flex: 1; }
   .loc-label { font-size: 10px !important; padding: 4px 10px !important; letter-spacing: 0.4px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .loc-address { font-size: 13px; line-height: 1.3; }
-  .btn-refresh-loc { flex: 1 1 100%; justify-content: center; min-height: 44px; }
+  .location-banner .btn-refresh-loc { flex: 1 1 100%; justify-content: center; min-height: 44px; }
 }
 
 @media (max-width: 420px) {
@@ -3011,3 +3011,119 @@ body.tac-mobile-console[data-tac-view="detail"]:not(.tac-incident-selected) #tac
     min-height: 0 !important;
   }
 }
+
+/* =====================================================================
+   MOBILE OPTIMIZATION FOR SIDEBAR TABS, PANEL BUTTONS & ADMIN MODALS
+   ===================================================================== */
+#btnAddNewEnterpriseModal,
+#btnAddNewHospitalModal,
+#btnAddNewStationPick,
+#panelEnterprisesView .btn-refresh-loc,
+#panelHospitalsView .btn-refresh-loc,
+#panelStationsView .btn-refresh-loc {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 38px !important;
+  border-radius: 8px !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 768px) {
+  .sidebar-tabs-nav {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    display: flex !important;
+  }
+  .sidebar-tabs-nav::-webkit-scrollbar {
+    display: none !important;
+  }
+  .sidebar-tab-btn {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+    padding: 6px 12px !important;
+    font-size: 11.5px !important;
+    border-radius: 9999px !important;
+    gap: 4px !important;
+  }
+  .sidebar-tab-btn .tab-btn-text {
+    text-overflow: clip !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    display: inline !important;
+  }
+  #tabBtnIncidents,
+  #tabBtnHistory,
+  #tabBtnStations,
+  #tabBtnEnterprises,
+  #tabBtnHospitals {
+    flex: 0 0 auto !important;
+  }
+}
+
+.admin-tab-nav-btn {
+  flex: 1 1 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.35;
+  white-space: normal;
+  transition: all 0.2s ease;
+}
+.admin-tab-nav-btn.is-active {
+  background: rgba(192, 132, 252, 0.2);
+  border-color: #c084fc;
+  color: #f3e8ff;
+}
+
+@media (max-width: 640px) {
+  .admin-modal-nav-tabs {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  .admin-tab-nav-btn {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    white-space: normal !important;
+  }
+  .admin-accounts-toolbar > div {
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .admin-accounts-toolbar input,
+  .admin-accounts-toolbar select,
+  .admin-accounts-toolbar button,
+  .admin-accounts-toolbar a {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .admin-audit-filters-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .modal-form-grid-2,
+  .modal-form-grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .admin-edit-box {
+    max-width: 95vw !important;
+    padding: 14px 12px !important;
+  }
+}
+

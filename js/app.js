@@ -207,6 +207,12 @@ class SOSApp {
       if (!modal) return;
       const devTab = detectDeviceTab();
       switchTab(devTab);
+      const ua = navigator.userAgent || '';
+      const isInAppBrowser = /FBAN|FBAV|Instagram|Line|KAKAOTALK|Zalo|Snapchat|MicroMessenger/i.test(ua);
+      const iosInAppAlert = document.getElementById('iosInAppBrowserAlert');
+      if (iosInAppAlert) {
+        iosInAppAlert.style.display = isInAppBrowser ? 'block' : 'none';
+      }
       modal.classList.add('is-open');
     };
 
@@ -254,7 +260,7 @@ class SOSApp {
       if (beaconTimer) clearTimeout(beaconTimer);
       beaconTimer = setTimeout(() => {
         hideIosBeacon();
-      }, 9000);
+      }, 15000);
     };
 
     const hideIosBeacon = () => {
@@ -268,22 +274,17 @@ class SOSApp {
       btnCloseIosBeacon.addEventListener('click', hideIosBeacon);
     }
 
-    // 1-Click Trigger for iOS Safari Share Menu + Guidance Beacon
+    // Direct Guidance Trigger for iOS Safari (Apple restricts Add to Home Screen to native Safari toolbar [↑])
     if (btnIosShare) {
-      btnIosShare.addEventListener('click', async () => {
+      btnIosShare.addEventListener('click', () => {
+        const ua = navigator.userAgent || '';
+        const isInAppBrowser = /FBAN|FBAV|Instagram|Line|KAKAOTALK|Zalo|Snapchat|MicroMessenger/i.test(ua);
+        if (isInAppBrowser) {
+          alert('⚠️ Bạn đang mở SOS Việt Nam bên trong ứng dụng khác (Zalo/Facebook). Trình duyệt này bị hạn chế quyền tạo lối tắt màn hình chính.\n\n👉 Vui lòng nhấn vào dấu [ ⋮ ] hoặc [ ⋯ ] ở góc trên màn hình và chọn "Mở bằng trình duyệt Safari" (Open in Safari) để tạo lối tắt!');
+          return;
+        }
         closeModal();
         showIosBeacon();
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: 'SOS Việt Nam 2026 - Cứu Trợ & Khẩn Cấp',
-              text: 'Cài đặt lối tắt SOS Việt Nam 2026 ra Màn hình chính (Home Screen) để sẵn sàng sử dụng 1 chạm khẩn cấp.',
-              url: window.location.href
-            });
-          } catch (err) {
-            console.log('iOS Safari Share dismissed:', err);
-          }
-        }
       });
     }
 

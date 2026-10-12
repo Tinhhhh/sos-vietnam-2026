@@ -840,19 +840,19 @@
       </div>
 
       <!-- Navigation Tabs: Accounts vs Security & Audit Logs -->
-      <div style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
-        <button type="button" id="tabAdminAccounts" class="sidebar-tab-btn is-active" onclick="window.dispatcher?.switchAdminTab('accounts')" style="flex: 1; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
-          <svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Quản Lý Tài Khoản & Phân Quyền (34 Tỉnh)
+      <div class="admin-modal-nav-tabs" style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+        <button type="button" id="tabAdminAccounts" class="admin-tab-nav-btn is-active" onclick="window.dispatcher?.switchAdminTab('accounts')">
+          <svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> <span>Quản Lý Tài Khoản & Phân Quyền (34 Tỉnh)</span>
         </button>
-        <button type="button" id="tabAdminSecurityLogs" class="sidebar-tab-btn" onclick="window.dispatcher?.switchAdminTab('security')" style="flex: 1; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
-          <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 16px; height: 16px; object-fit: contain;" alt="Khiên"> Cấu Hình An Ninh & Nhật Ký Đăng Nhập
+        <button type="button" id="tabAdminSecurityLogs" class="admin-tab-nav-btn" onclick="window.dispatcher?.switchAdminTab('security')">
+          <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 16px; height: 16px; object-fit: contain;" alt="Khiên"> <span>Cấu Hình An Ninh & Nhật Ký Đăng Nhập</span>
         </button>
       </div>
 
       <!-- TAB 1: ACCOUNTS & DISPATCHER MANAGEMENT -->
       <div id="viewAdminAccountsTab" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
         <!-- Toolbar: Search, Filter, Excel Export, and Create Button -->
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div class="admin-accounts-toolbar" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 12px;">
           <div style="display: flex; gap: 8px; flex: 1; min-width: 280px;">
             <input type="text" id="inputSearchAdminAccounts" class="input-field" placeholder="Tìm tài khoản, tên đơn vị, xã/phường, cán bộ..." style="flex: 1; font-size: 12px; padding: 7px 12px;">
             <select id="selectFilterAdminAgency" class="input-field" style="width: 160px; font-size: 12px; padding: 7px 10px; cursor: pointer;">
@@ -1023,7 +1023,7 @@
           </div>
 
           <!-- Filters: Province, Agency, Status -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px;">
+          <div class="admin-audit-filters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px;">
             <input type="text" id="inputFilterAuditSearch" class="input-field" placeholder="Lọc tài khoản, cán bộ, IP..." style="font-size: 11px; padding: 6px 10px;">
             <select id="selectFilterAuditProvince" class="input-field" style="font-size: 11px; padding: 6px 8px; cursor: pointer;">
               <option value="all">Tất cả Tỉnh/Thành</option>
@@ -1046,8 +1046,8 @@
           </div>
 
           <!-- Audit Table -->
-          <div style="max-height: 280px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+          <div style="max-height: 280px; overflow-y: auto; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;">
+            <table style="width: 100%; min-width: 620px; border-collapse: collapse; font-size: 11px; text-align: left;">
               <thead>
                 <tr style="background: rgba(30, 58, 138, 0.4); color: #93c5fd; position: sticky; top: 0;">
                   <th style="padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">Thời gian</th>
@@ -2847,7 +2847,7 @@
       </div>
 
       <!-- Button Pick Location on Map -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+      <div class="modal-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
         <button type="button" id="btnTriggerEntPickOnMap" class="btn-refresh-loc" style="justify-content: center; background: rgba(249, 115, 22, 0.2); border-color: #f97316; color: #fb923c; font-weight: 700; padding: 8px; font-size: 11px; display: flex; align-items: center; gap: 5px;">
           <svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> CHẤM VỊ TRÍ TRÊN MAP (CLICK)
         </button>
@@ -2863,7 +2863,7 @@
           <input type="text" id="inputEntName" class="input-field" placeholder="Ví dụ: Cứu Hộ Giao Thông 911 Cần Thơ" required>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="modal-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
             <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Số điện thoại (Di động)</label>
             <input type="text" id="inputEntPhone" class="input-field" placeholder="0939911114" required>
@@ -2879,7 +2879,7 @@
           <input type="text" id="inputEntAddress" class="input-field" placeholder="Số 128 Đường 3/2, Xuân Khánh, Ninh Kiều, Cần Thơ" required>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+        <div class="modal-form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
           <div>
             <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Tỉnh / Thành phố</label>
             <input type="text" id="inputEntProvince" class="input-field" placeholder="Cần Thơ" required>
@@ -2902,7 +2902,7 @@
           </label>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="modal-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
             <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Mức giá tham khảo</label>
             <input type="text" id="inputEntPrice" class="input-field" placeholder="300.000đ - 1.500.000đ">
@@ -2915,9 +2915,71 @@
 
         <button type="submit" class="btn-submit-sos" style="margin-top: 8px; background: linear-gradient(135deg, #f97316, #ea580c); justify-content: center; font-size: 13px; display: flex; align-items: center; gap: 6px;">
           <svg class="svg-ico ico-sm ico-white" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg> DUYỆT CẤP PHÉP DOANH NGHIỆP CỨU HỘ
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ĐĂNG KÝ / CHỈNH SỬA BỆNH VIỆN & TRẠM CẤP CỨU 115 -->
+  <div id="adminHospitalModal" class="admin-edit-modal">
+    <div class="admin-edit-box" style="max-width: 540px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="svg-ico ico-lg ico-emerald" viewBox="0 0 24 24"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 9h6M9 13h6M9 17h6"></path></svg>
+          <span style="font-size: 15px; font-weight: 800; color: #34d399;" id="admHospModalTitle">ĐĂNG KÝ BỆNH VIỆN / TRẠM CẤP CỨU 115</span>
+        </div>
+        <button id="btnCloseAdminHospModal" class="btn-refresh-loc" style="padding: 4px 8px; display: flex; align-items: center; gap: 4px;"><svg class="svg-ico ico-xs ico-white" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Đóng</button>
+      </div>
+
+      <!-- Button Pick Location on Map -->
+      <div class="modal-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+        <button type="button" id="btnTriggerHospPickOnMap" class="btn-refresh-loc" style="justify-content: center; background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #34d399; font-weight: 700; padding: 8px; font-size: 11px; display: flex; align-items: center; gap: 5px;">
+          <svg class="svg-ico ico-xs ico-emerald" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> CHẤM VỊ TRÍ TRÊN MAP (CLICK)
+        </button>
+        <button type="button" id="btnGetHospCurrentGps" class="btn-refresh-loc" style="justify-content: center; background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #7dd3fc; font-weight: 700; padding: 8px; font-size: 11px; display: flex; align-items: center; gap: 5px;">
+          <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"></path></svg> LẤY GPS HIỆN TẠI THIẾT BỊ
+        </button>
+      </div>
+
+      <form id="formAdminHospital" style="display: flex; flex-direction: column; gap: 10px;">
+        <input type="hidden" id="editHospitalId">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Tên Bệnh viện / Trung tâm Y tế</label>
+          <input type="text" id="inputHospName" class="input-field" placeholder="Ví dụ: Bệnh viện Đa khoa Trung ương Cần Thơ" required>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="modal-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Phân cấp bệnh viện</label>
+            <input type="text" id="inputHospType" class="input-field" placeholder="Bệnh viện Tuyến 1 / Đa khoa" required>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Số điện thoại / Cấp cứu 115</label>
+            <input type="text" id="inputHospPhone" class="input-field" placeholder="0292 3820 071" required>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Địa chỉ cơ sở y tế</label>
+          <input type="text" id="inputHospAddress" class="input-field" placeholder="315 Nguyễn Văn Linh, An Khánh, Ninh Kiều, Cần Thơ" required>
+        </div>
+
+        <div class="modal-form-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Tỉnh / Thành phố</label>
+            <input type="text" id="inputHospProvince" class="input-field" placeholder="Cần Thơ" required>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Vĩ độ (Lat)</label>
+            <input type="number" step="0.000001" id="inputHospLat" class="input-field" placeholder="10.0335" required>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Kinh độ (Lng)</label>
+            <input type="number" step="0.000001" id="inputHospLng" class="input-field" placeholder="105.7533" required>
+          </div>
+        </div>
+
+        <div class="modal-form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
             <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 2px;">Giờ Mở Cửa / Tiếp Nhận</label>
             <input type="text" id="inputHospHours" class="input-field" placeholder="24/7 Cấp cứu">

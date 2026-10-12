@@ -1,0 +1,221 @@
+{
+  "testName": "Mobile UI Layout Optimization & iOS Safari Shortcut Verification Suite",
+  "timestamp": "2026-10-12T17:13:50.155Z",
+  "baseUrl": "http://localhost:3000",
+  "assertions": [
+    {
+      "name": "Header title is present and visible",
+      "pass": true,
+      "details": {
+        "titleText": "Trung Tâm Chỉ Huy Tác Chiến",
+        "titleWidth": 140,
+        "clockText": "00:13:53 (VN)",
+        "dutyPillDisplay": "none"
+      }
+    },
+    {
+      "name": "Header duty shift pill hidden on mobile to avoid overcrowding",
+      "pass": true,
+      "details": {
+        "titleText": "Trung Tâm Chỉ Huy Tác Chiến",
+        "titleWidth": 140,
+        "clockText": "00:13:53 (VN)",
+        "dutyPillDisplay": "none"
+      }
+    },
+    {
+      "name": "Sidebar tabs nav has overflow-x auto for smooth swipe",
+      "pass": true,
+      "details": {
+        "overflowX": "auto",
+        "tabs": [
+          {
+            "id": "tabBtnIncidents",
+            "text": "Sự Cố (0)",
+            "width": 91,
+            "textOverflow": "clip"
+          },
+          {
+            "id": "tabBtnHistory",
+            "text": "Lịch Sử (0)",
+            "width": 99,
+            "textOverflow": "clip"
+          },
+          {
+            "id": "tabBtnStations",
+            "text": "Công An",
+            "width": 89,
+            "textOverflow": "clip"
+          },
+          {
+            "id": "tabBtnEnterprises",
+            "text": "Cứu Hộ",
+            "width": 82,
+            "textOverflow": "clip"
+          },
+          {
+            "id": "tabBtnHospitals",
+            "text": "Bệnh Viện",
+            "width": 98,
+            "textOverflow": "clip"
+          }
+        ]
+      }
+    },
+    {
+      "name": "All 5 sidebar tabs exist with full text",
+      "pass": true,
+      "details": [
+        {
+          "id": "tabBtnIncidents",
+          "text": "Sự Cố (0)",
+          "width": 91,
+          "textOverflow": "clip"
+        },
+        {
+          "id": "tabBtnHistory",
+          "text": "Lịch Sử (0)",
+          "width": 99,
+          "textOverflow": "clip"
+        },
+        {
+          "id": "tabBtnStations",
+          "text": "Công An",
+          "width": 89,
+          "textOverflow": "clip"
+        },
+        {
+          "id": "tabBtnEnterprises",
+          "text": "Cứu Hộ",
+          "width": 82,
+          "textOverflow": "clip"
+        },
+        {
+          "id": "tabBtnHospitals",
+          "text": "Bệnh Viện",
+          "width": 98,
+          "textOverflow": "clip"
+        }
+      ]
+    },
+    {
+      "name": "Enterprise button height is normal (~35-48px), NOT giant 340px circle",
+      "pass": true,
+      "details": {
+        "width": 152,
+        "height": 48,
+        "borderRadius": "8px",
+        "display": "flex"
+      }
+    },
+    {
+      "name": "adminEnterpriseModal is visible with its own submit button",
+      "pass": true,
+      "details": {
+        "modalVisible": true,
+        "hasHospitalFieldInside": false,
+        "submitBtnText": "DUYỆT CẤP PHÉP DOANH NGHIỆP CỨU HỘ",
+        "boxWidth": 366
+      }
+    },
+    {
+      "name": "Hospital fields are NOT inside adminEnterpriseModal (clean separation)",
+      "pass": true,
+      "details": {
+        "modalVisible": true,
+        "hasHospitalFieldInside": false,
+        "submitBtnText": "DUYỆT CẤP PHÉP DOANH NGHIỆP CỨU HỘ",
+        "boxWidth": 366
+      }
+    },
+    {
+      "name": "adminHospitalModal exists separately with hospital fields and green submit button",
+      "pass": true,
+      "details": {
+        "modalVisible": true,
+        "hasHospitalField": true,
+        "submitBtnText": "LƯU & XÁC THỰC BỆNH VIỆN VÀO HỆ THỐNG"
+      }
+    },
+    {
+      "name": "Admin Officer Modal tabs use admin-tab-nav-btn with full readable text",
+      "pass": true,
+      "details": {
+        "tab1Class": "admin-tab-nav-btn is-active",
+        "tab1Text": "Quản Lý Tài Khoản & Phân Quyền (34 Tỉnh)",
+        "tab2Class": "admin-tab-nav-btn",
+        "tab2Text": "Cấu Hình An Ninh & Nhật Ký Đăng Nhập",
+        "toolbarExists": true
+      }
+    },
+    {
+      "name": "Audit table is wrapped in overflow-x: auto with min-width >= 600px",
+      "pass": true,
+      "details": {
+        "scrollWrapOverflowX": "auto",
+        "tableMinWidth": "620px"
+      }
+    },
+    {
+      "name": "iOS shortcut button has clear Safari guidance label",
+      "pass": true,
+      "details": {
+        "btnText": "👇 CHỈ DẪN TẠO LỐI TẮT BẰNG SAFARI (BẤM NÚT [↑])",
+        "boxText": "👇 CHỈ DẪN TẠO LỐI TẮT BẰNG SAFARI (BẤM NÚT [↑])\n          \n          \n            ⚠️ Quy định bảo mật của Apple iOS: Web không được phép tự động ghim icon mà bắt buộc người dùng bấm biểu tượng Chia sẻ [↑] ở thanh dưới cùng Safari rồi chọn \"Thêm vào MH chính\".\n          \n          \n            🚨 Bạn đang mở trong ứng dụng khác (Zalo / Facebook / Messenger): Trình duyệt này bị chặn quyền tạo lối tắt. Hãy nhấn dấu ⋯ hoặc ⋮ ở góc trên và chọn \"Mở bằng trình duyệt Safari\" để tạo lối tắt ra màn hình chính."
+      }
+    },
+    {
+      "name": "iOS shortcut guidance explains Apple security requirement",
+      "pass": true,
+      "details": {
+        "btnText": "👇 CHỈ DẪN TẠO LỐI TẮT BẰNG SAFARI (BẤM NÚT [↑])",
+        "boxText": "👇 CHỈ DẪN TẠO LỐI TẮT BẰNG SAFARI (BẤM NÚT [↑])\n          \n          \n            ⚠️ Quy định bảo mật của Apple iOS: Web không được phép tự động ghim icon mà bắt buộc người dùng bấm biểu tượng Chia sẻ [↑] ở thanh dưới cùng Safari rồi chọn \"Thêm vào MH chính\".\n          \n          \n            🚨 Bạn đang mở trong ứng dụng khác (Zalo / Facebook / Messenger): Trình duyệt này bị chặn quyền tạo lối tắt. Hãy nhấn dấu ⋯ hoặc ⋮ ở góc trên và chọn \"Mở bằng trình duyệt Safari\" để tạo lối tắt ra màn hình chính."
+      }
+    },
+    {
+      "name": "Clicking iOS trigger closes modal and displays 3-step bottom beacon pointing to Safari toolbar",
+      "pass": true,
+      "details": {
+        "modalClosed": true,
+        "beaconVisible": true,
+        "beaconText": "3 BƯỚC TẠO LỐI TẮT\n          Thêm vào MH chính\n        \n        ✕\n      \n      \n        1. Bấm biểu tượng Chia sẻ [↑] ở thanh công cụ dưới cùng Safari 👇\n        2. Kéo lên và chọn dòng \"Thêm vào MH chính\" (Add to Home Screen)\n        3. Bấm \"Thêm\" (Add) ở góc trên bên phải để hoàn tất!\n      \n    \n    \n      \n      ▼"
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "01-dispatcher-mobile-tabs-and-enterprise-btn",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\01-dispatcher-mobile-tabs-and-enterprise-btn.png"
+    },
+    {
+      "name": "02-dispatcher-admin-enterprise-modal-mobile",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\02-dispatcher-admin-enterprise-modal-mobile.png"
+    },
+    {
+      "name": "03-dispatcher-admin-hospital-modal-mobile",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\03-dispatcher-admin-hospital-modal-mobile.png"
+    },
+    {
+      "name": "04-dispatcher-admin-officer-accounts-mobile",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\04-dispatcher-admin-officer-accounts-mobile.png"
+    },
+    {
+      "name": "05-dispatcher-admin-security-audit-mobile",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\05-dispatcher-admin-security-audit-mobile.png"
+    },
+    {
+      "name": "06-citizen-ios-install-modal",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\06-citizen-ios-install-modal.png"
+    },
+    {
+      "name": "07-citizen-ios-beacon-active",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\07-citizen-ios-beacon-active.png"
+    }
+  ],
+  "summary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "status": "PASSED"
+  }
+}
