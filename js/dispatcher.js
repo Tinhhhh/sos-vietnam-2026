@@ -9033,49 +9033,25 @@ class DispatcherApp {
       return null;
     };
 
-    // 1. Currently selected incident (citizen's SOS coordinates)
-    const activeInc = (this.selectedIncidentId && this.incidents instanceof Map)
-      ? this.incidents.get(this.selectedIncidentId)
-      : this.activeIncident;
-    if (activeInc) {
-      const p = validPair(activeInc.lat, activeInc.lng);
+    // 1. Live GPS of the device currently running the dispatcher app
+    if (this.currentGps) {
+      const p = validPair(this.currentGps.lat, this.currentGps.lng);
       if (p) return p;
     }
-
-    // 2. Citizen marker on MapController
-    if (this.mapController) {
-      if (this.mapController.citizenCoords) {
-        const p = validPair(this.mapController.citizenCoords.lat, this.mapController.citizenCoords.lng);
-        if (p) return p;
-      }
-      const citMarker = this.mapController.markers?.get?.('citizen');
-      if (citMarker && typeof citMarker.getLngLat === 'function') {
-        const ll = citMarker.getLngLat();
-        const p = validPair(ll?.lat, ll?.lng);
-        if (p) return p;
-      }
+    if (this.currentLocation) {
+      const p = validPair(this.currentLocation.lat, this.currentLocation.lng);
+      if (p) return p;
     }
-
-    // 3. Active citizen incident in this ward (or latest active citizen incident)
-    if (this.incidents instanceof Map && this.incidents.size > 0) {
-      const incList = Array.from(this.incidents.values()).filter(i => this.isIncidentActive(i));
-      if (cleanTargetWard) {
-        const wardMatch = incList.find(i => {
-          const w = String(i.jurisdiction?.ward || i.ward || i.address || '').toLowerCase();
-          return w.includes(cleanTargetWard);
-        });
-        if (wardMatch) {
-          const p = validPair(wardMatch.lat, wardMatch.lng);
-          if (p) return p;
-        }
-      }
-      if (incList.length > 0) {
-        const p = validPair(incList[0].lat, incList[0].lng);
+    try {
+      const rawDispGps = localStorage.getItem('sos_dispatcher_current_gps');
+      if (rawDispGps) {
+        const parsed = JSON.parse(rawDispGps);
+        const p = validPair(parsed?.lat, parsed?.lng);
         if (p) return p;
       }
-    }
+    } catch (e) {}
 
-    // 4. Citizen live GPS persisted from citizen app (LocationService)
+    // 2. Live GPS from citizen app LocationService on this device
     if (window.app?.locationService?.currentCoords) {
       const c = window.app.locationService.currentCoords;
       const p = validPair(c.lat, c.lng);
@@ -9090,24 +9066,13 @@ class DispatcherApp {
       }
     } catch (e) {}
 
-    // 5. Browser's live GPS location in dispatcher (currentGps / sos_dispatcher_current_gps)
-    if (this.currentGps) {
-      const p = validPair(this.currentGps.lat, this.currentGps.lng);
-      if (p) return p;
-    }
-    try {
-      const rawDispGps = localStorage.getItem('sos_dispatcher_current_gps');
-      if (rawDispGps) {
-        const parsed = JSON.parse(rawDispGps);
-        const p = validPair(parsed?.lat, parsed?.lng);
+    // 3. MapController's device/user GPS coordinates if present
+    if (this.mapController) {
+      const mcUser = this.mapController.userLocation || this.mapController.currentGps || this.mapController.citizenCoords;
+      if (mcUser) {
+        const p = validPair(mcUser.lat, mcUser.lng);
         if (p) return p;
       }
-    } catch (e) {}
-
-    // 6. Delegate fallback to mapController if available
-    if (this.mapController && typeof this.mapController.resolveCitizenReferenceCoords === 'function') {
-      const p = this.mapController.resolveCitizenReferenceCoords(cleanTargetWard, cleanTargetProv);
-      if (p) return p;
     }
 
     return null;
@@ -9177,7 +9142,7 @@ class DispatcherApp {
                   stationsPool.find(s => s && String(s.postal_code || s.raw_id) === String(maXa));
     }
 
-    // Priority 2: Match all ward facilities and select closest to citizen location
+    // Priority 2: Match all ward facilities and select closest to device's live GPS location
     let wardStations = [];
     if (cleanTargetWard && stationsPool.length) {
       wardStations = stationsPool.filter(s => {
@@ -9201,10 +9166,35 @@ class DispatcherApp {
       }
     }
 
-    // Strictly calculate distance from citizen's location to each facility (never from ward centroid props.center)
+    // Strictly calculate distance from the device's live GPS location to each facility
     const citizenRef = this.resolveCitizenReferenceCoords(cleanTargetWard, cleanTargetProv);
     const refLat = citizenRef ? citizenRef.lat : null;
     const refLng = citizenRef ? citizenRef.lng : null;
+
+    // If device GPS hasn't been acquired yet, request geolocation once and re-render HUD when resolved
+    if (!citizenRef && typeof navigator !== 'undefined' && navigator.geolocation && !this._locatingDeviceForWardHud) {
+      this._locatingDeviceForWardHud = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          this._locatingDeviceForWardHud = false;
+          const lat = Number(pos?.coords?.latitude);
+          const lng = Number(pos?.coords?.longitude);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            this.currentGps = { lat, lng, timestamp: Date.now() };
+            try {
+              localStorage.setItem('sos_dispatcher_current_gps', JSON.stringify(this.currentGps));
+            } catch (_) {}
+            if (hud.style.display !== 'none' && this._lastWardHudFeature) {
+              this.showWardHud(this._lastWardHudFeature, this._lastWardHudOverrideStation);
+            }
+          }
+        },
+        () => {
+          this._locatingDeviceForWardHud = false;
+        },
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
+      );
+    }
 
     if (wardStations.length) {
       wardStations = wardStations.map(s => ({
@@ -9273,26 +9263,26 @@ class DispatcherApp {
       if (wardStations.length > 0) {
         multiContainer.style.display = 'block';
         multiContainer.innerHTML = `
-          <div style="font-size: 11px; font-weight: 800; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="font-size: 10.5px; font-weight: 800; color: #38bdf8; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between;">
             <span>🏛️ Toàn bộ cơ sở tại ${props.ward || unitTitle} (${wardStations.length} cơ sở)</span>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; flex-direction: column; gap: 5px;">
             ${wardStations.map((st, idx) => {
               const roleLabel = st.facility_type || (idx === 0 ? 'Trụ sở chính' : `Cơ sở ${idx + 1}`);
               const isNearest = Boolean(st.isNearest || idx === 0);
               const distText = st.distanceKm !== null && st.distanceKm !== undefined ? `${st.distanceKm} km` : '';
               return `
-                <div class="hud-ward-facility-item" data-idx="${idx}" style="background: ${isNearest ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 255, 255, 0.05)'}; border: 1px solid ${isNearest ? '#10b981' : 'rgba(255, 255, 255, 0.12)'}; border-radius: 6px; padding: 6px 8px; cursor: pointer; transition: all 0.2s;">
+                <div class="hud-ward-facility-item" data-idx="${idx}" style="background: ${isNearest ? 'rgba(16, 185, 129, 0.14)' : 'rgba(255, 255, 255, 0.05)'}; border: 1px solid ${isNearest ? '#10b981' : 'rgba(255, 255, 255, 0.12)'}; border-radius: 6px; padding: 5px 7px; cursor: pointer; transition: all 0.2s;">
                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; flex-wrap: wrap; margin-bottom: 2px;">
-                    <span style="font-size: 11.5px; font-weight: 800; color: ${isNearest ? '#34d399' : '#f8fafc'};">${st.name || unitTitle}</span>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      <span style="font-size: 9.5px; font-weight: 700; background: rgba(56, 189, 248, 0.18); color: #7dd3fc; padding: 1px 5px; border-radius: 4px;">${roleLabel}</span>
-                      ${isNearest ? `<span class="nearest-facility-badge" style="font-size: 9.5px; font-weight: 800; background: #10b981; color: #052e16; padding: 1px 6px; border-radius: 4px;">[Cơ sở gần nhất${distText ? ' · ' + distText : ''}]</span>` : (distText ? `<span style="font-size: 9.5px; color: #94a3b8; font-weight: 700;">Cách ${distText}</span>` : '')}
+                    <span style="font-size: 11px; font-weight: 800; color: ${isNearest ? '#34d399' : '#f8fafc'};">${st.name || unitTitle}</span>
+                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                      <span style="font-size: 9px; font-weight: 700; background: rgba(56, 189, 248, 0.18); color: #7dd3fc; padding: 1px 5px; border-radius: 4px;">${roleLabel}</span>
+                      ${isNearest ? `<span class="nearest-facility-badge" style="font-size: 9px; font-weight: 800; background: #10b981; color: #052e16; padding: 1px 5px; border-radius: 4px;">[Cơ sở gần nhất${distText ? ' · ' + distText : ''}]</span>` : (distText ? `<span style="font-size: 9px; color: #94a3b8; font-weight: 700;">Cách ${distText}</span>` : '')}
                     </div>
                   </div>
-                  <div style="font-size: 11px; color: #cbd5e1; line-height: 1.35;">📍 ${st.address || 'Đang cập nhật'}</div>
-                  <div style="font-size: 11px; color: #22c55e; font-weight: 700; margin-top: 2px;">📞 ${st.phone || '0692196550'}</div>
-                  ${st.services ? `<div style="font-size: 10px; color: #94a3b8; margin-top: 2px; line-height: 1.3;">📋 ${st.services}</div>` : ''}
+                  <div style="font-size: 10.5px; color: #cbd5e1; line-height: 1.3;">📍 ${st.address || 'Đang cập nhật'}</div>
+                  <div style="font-size: 10.5px; color: #22c55e; font-weight: 700; margin-top: 1px;">📞 ${st.phone || '0692196550'}</div>
+                  ${st.services ? `<div style="font-size: 9.5px; color: #94a3b8; margin-top: 1px; line-height: 1.25;">📋 ${st.services}</div>` : ''}
                 </div>
               `;
             }).join('')}
@@ -9350,6 +9340,7 @@ class DispatcherApp {
     }
 
     hud.style.display = 'block';
+    hud.scrollTop = 0;
   }
 
   

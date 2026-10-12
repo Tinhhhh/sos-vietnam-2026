@@ -701,57 +701,8 @@ export class MapController {
     };
 
     const disp = window.dispatcher || window.dispatcherApp;
-    if (disp && typeof disp.resolveCitizenReferenceCoords === 'function') {
-      const resolved = disp.resolveCitizenReferenceCoords(cleanWard, cleanProv);
-      if (resolved && isValidCoord(resolved.lat, resolved.lng)) {
-        return { lat: Number(resolved.lat), lng: Number(resolved.lng) };
-      }
-    }
 
-    // 1. Selected incident in dispatcher (supports Map or Array)
-    if (disp && disp.selectedIncidentId && disp.incidents) {
-      let activeInc = null;
-      if (typeof disp.incidents.get === 'function') {
-        activeInc = disp.incidents.get(disp.selectedIncidentId) ||
-                    disp.incidents.get(String(disp.selectedIncidentId)) ||
-                    disp.incidents.get(Number(disp.selectedIncidentId));
-      } else if (Array.isArray(disp.incidents)) {
-        activeInc = disp.incidents.find(i => String(i.id) === String(disp.selectedIncidentId));
-      }
-      if (activeInc && isValidCoord(activeInc.lat, activeInc.lng)) {
-        return { lat: Number(activeInc.lat), lng: Number(activeInc.lng) };
-      }
-    }
-
-    // 2. Citizen marker on map
-    if (this.citizenCoords && isValidCoord(this.citizenCoords.lat, this.citizenCoords.lng)) {
-      return { lat: Number(this.citizenCoords.lat), lng: Number(this.citizenCoords.lng) };
-    }
-    if (this.markers && this.markers.has('citizen')) {
-      try {
-        const ll = this.markers.get('citizen').getLngLat();
-        if (ll && isValidCoord(ll.lat, ll.lng)) {
-          return { lat: Number(ll.lat), lng: Number(ll.lng) };
-        }
-      } catch (_) {}
-    }
-
-    // 3. Citizen app LocationService or saved citizen GPS
-    const appCoords = window.app?.locationService?.currentCoords || window.app?.currentLocation || window.app?.citizenCoords;
-    if (appCoords && isValidCoord(appCoords.lat, appCoords.lng)) {
-      return { lat: Number(appCoords.lat), lng: Number(appCoords.lng) };
-    }
-    try {
-      const savedCitizenGps = localStorage.getItem('sos_citizen_last_gps');
-      if (savedCitizenGps) {
-        const parsed = JSON.parse(savedCitizenGps);
-        if (parsed && isValidCoord(parsed.lat, parsed.lng)) {
-          return { lat: Number(parsed.lat), lng: Number(parsed.lng) };
-        }
-      }
-    } catch (_) {}
-
-    // 4. Current live GPS in dispatcher
+    // 1. Current live GPS of the device running dispatcher
     if (disp?.currentGps && isValidCoord(disp.currentGps.lat, disp.currentGps.lng)) {
       return { lat: Number(disp.currentGps.lat), lng: Number(disp.currentGps.lng) };
     }
@@ -767,6 +718,27 @@ export class MapController {
         }
       }
     } catch (_) {}
+
+    // 2. Citizen app LocationService or saved citizen GPS on this device
+    const appCoords = window.app?.locationService?.currentCoords || window.app?.currentLocation || window.app?.citizenCoords;
+    if (appCoords && isValidCoord(appCoords.lat, appCoords.lng)) {
+      return { lat: Number(appCoords.lat), lng: Number(appCoords.lng) };
+    }
+    try {
+      const savedCitizenGps = localStorage.getItem('sos_citizen_last_gps');
+      if (savedCitizenGps) {
+        const parsed = JSON.parse(savedCitizenGps);
+        if (parsed && isValidCoord(parsed.lat, parsed.lng)) {
+          return { lat: Number(parsed.lat), lng: Number(parsed.lng) };
+        }
+      }
+    } catch (_) {}
+
+    // 3. Device / user coordinates on MapController
+    const mcUser = this.userLocation || this.currentGps || this.citizenCoords;
+    if (mcUser && isValidCoord(mcUser.lat, mcUser.lng)) {
+      return { lat: Number(mcUser.lat), lng: Number(mcUser.lng) };
+    }
 
     return null;
   }
