@@ -1041,13 +1041,13 @@ body.tac-portal-open .floating-chat-dock { display: none !important; }
     max-width: 520px !important;
   }
   .crystal-orb-wrapper {
-    margin: 12px auto 10px !important;
-    width: clamp(190px, 13vw, 220px) !important;
-    height: clamp(190px, 13vw, 220px) !important;
+    margin: clamp(68px, 8.5vh, 96px) auto 10px !important;
+    width: clamp(238px, 16.5vw, 272px) !important;
+    height: clamp(238px, 16.5vw, 272px) !important;
   }
   .btn-crystal-orb {
-    width: clamp(150px, 10.5vw, 172px) !important;
-    height: clamp(150px, 10.5vw, 172px) !important;
+    width: clamp(192px, 13.5vw, 218px) !important;
+    height: clamp(192px, 13.5vw, 218px) !important;
   }
 }
 
@@ -1058,8 +1058,8 @@ body.tac-portal-open .floating-chat-dock { display: none !important; }
   .hero-badge-pill { display: none !important; }
   .sos-hero-title { font-size: 18px !important; margin-bottom: 2px !important; }
   .sos-hero-sub { display: none !important; }
-  .crystal-orb-wrapper { width: 140px !important; height: 140px !important; margin: 4px auto !important; }
-  .btn-crystal-orb { width: 110px !important; height: 110px !important; }
+  .crystal-orb-wrapper { width: 156px !important; height: 156px !important; margin: 16px auto 4px !important; }
+  .btn-crystal-orb { width: 126px !important; height: 126px !important; }
   .header-nav-center { bottom: 6px !important; }
   .nav-center-pill { padding: 4px 8px !important; }
   .nav-pill-item { font-size: 10px !important; padding: 6px 6px !important; }
@@ -1071,8 +1071,8 @@ body.tac-portal-open .floating-chat-dock { display: none !important; }
   .sos-hero { margin: 6px 0 6px !important; }
   .sos-hero-title { font-size: 24px !important; margin-bottom: 4px !important; }
   .sos-hero-sub { font-size: 12px !important; margin-bottom: 10px !important; }
-  .crystal-orb-wrapper { width: 185px !important; height: 185px !important; margin: 8px auto 8px !important; }
-  .btn-crystal-orb { width: 146px !important; height: 146px !important; }
+  .crystal-orb-wrapper { width: 228px !important; height: 228px !important; margin: clamp(52px, 7.2vh, 78px) auto 8px !important; }
+  .btn-crystal-orb { width: 186px !important; height: 186px !important; }
 }
 
 /* 4. Portrait devices: Mobile (iOS/Android), iPad Portrait, Ford Mach-E Vertical (aspect-ratio <= 1/1) */
@@ -1109,13 +1109,13 @@ body.tac-portal-open .floating-chat-dock { display: none !important; }
     max-width: 360px !important;
   }
   .crystal-orb-wrapper {
-    width: clamp(165px, 44vw, 195px) !important;
-    height: clamp(165px, 44vw, 195px) !important;
-    margin: 6px auto 10px !important;
+    width: clamp(202px, 52vw, 234px) !important;
+    height: clamp(202px, 52vw, 234px) !important;
+    margin: clamp(108px, 14.5vh, 148px) auto 10px !important;
   }
   .btn-crystal-orb {
-    width: clamp(130px, 35vw, 154px) !important;
-    height: clamp(130px, 35vw, 154px) !important;
+    width: clamp(164px, 43vw, 188px) !important;
+    height: clamp(164px, 43vw, 188px) !important;
   }
 }
 
@@ -1126,8 +1126,8 @@ body.tac-portal-open .floating-chat-dock { display: none !important; }
     transform: translateY(3vh) !important;
   }
   .sos-hero { margin-top: 18px !important; }
-  .crystal-orb-wrapper { width: 210px !important; height: 210px !important; margin: 16px auto !important; }
-  .btn-crystal-orb { width: 165px !important; height: 165px !important; }
+  .crystal-orb-wrapper { width: 248px !important; height: 248px !important; margin: 110px auto 16px !important; }
+  .btn-crystal-orb { width: 198px !important; height: 198px !important; }
 }
 
 /* 6. Ford Mustang Mach-E Vertical Touchscreen (1200x1920) */
@@ -1137,8 +1137,8 @@ body.tac-portal-open .floating-chat-dock { display: none !important; }
     transform: translateY(4vh) !important;
   }
   .sos-hero { margin-top: 36px !important; }
-  .crystal-orb-wrapper { width: 280px !important; height: 280px !important; margin: 28px auto !important; }
-  .btn-crystal-orb { width: 220px !important; height: 220px !important; }
+  .crystal-orb-wrapper { width: 310px !important; height: 310px !important; margin: 140px auto 24px !important; }
+  .btn-crystal-orb { width: 248px !important; height: 248px !important; }
   .sos-hero-title { font-size: 42px !important; }
   .sos-hero-sub { font-size: 18px !important; max-width: 600px !important; }
 }
@@ -1416,7 +1416,8 @@ body.tac-keyboard-open .legal-warning-card {
 /* Màn hình lớn: hero to hơn, giữ tỷ lệ */
 @media (min-width: 1600px) {
   .main-wrapper { max-width: 860px !important; }
-  .crystal-orb-wrapper { width: clamp(210px, 14vw, 280px) !important; height: clamp(210px, 14vw, 280px) !important; }
+  .crystal-orb-wrapper { width: clamp(248px, 15vw, 276px) !important; height: clamp(248px, 15vw, 276px) !important; margin: clamp(72px, 8.8vh, 102px) auto 12px !important; }
+  .btn-crystal-orb { width: clamp(202px, 12vw, 224px) !important; height: clamp(202px, 12vw, 224px) !important; }
 }
 
 /* ---------------------------------------------------------------------

@@ -527,9 +527,9 @@ body.in-sos-tracking .header-nav-center,
 /* ==================== 3D CRYSTAL WATER SPHERE SOS BUTTON ==================== */
 .crystal-orb-wrapper {
   position: relative;
-  width: 210px;
-  height: 210px;
-  margin: 0 auto 16px;
+  width: 248px;
+  height: 248px;
+  margin: 56px auto 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -598,8 +598,8 @@ body.in-sos-tracking .header-nav-center,
 /* The Main Crystal Sphere Button */
 .btn-crystal-orb {
   position: relative;
-  width: 165px;
-  height: 165px;
+  width: 198px;
+  height: 198px;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -612,9 +612,9 @@ body.in-sos-tracking .header-nav-center,
   z-index: 10;
   overflow: hidden;
   box-shadow: 
-    0 0 50px rgba(255, 42, 75, 0.5),
-    0 20px 40px rgba(0, 0, 0, 0.75),
-    inset 0 0 25px rgba(255, 42, 75, 0.4);
+    0 0 55px rgba(255, 42, 75, 0.55),
+    0 20px 44px rgba(0, 0, 0, 0.75),
+    inset 0 0 28px rgba(255, 42, 75, 0.45);
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
   user-select: none;
 }
@@ -788,7 +788,7 @@ body.in-sos-tracking .header-nav-center,
 
 .orb-sos-text {
   font-family: var(--font-family);
-  font-size: 38px;
+  font-size: 44px;
   font-weight: 900;
   letter-spacing: 2px;
   color: #ffffff;
@@ -807,7 +807,7 @@ body.in-sos-tracking .header-nav-center,
 
 .orb-sos-sub {
   font-family: var(--font-family);
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 1.8px;
   text-transform: uppercase;
