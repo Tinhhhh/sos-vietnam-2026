@@ -2157,7 +2157,7 @@
       </div>
 
       <!-- Compact Sub-Tabs (Sự Cố, Lịch Sử, Công An, Cứu Hộ, Bệnh Viện - Matches User Screenshot) -->
-      <div class="sidebar-tabs-nav" id="sidebarTabsNav" style="display: flex; gap: 4px; overflow-x: auto; padding: 6px 10px; background: rgba(0,0,0,0.25);">
+      <div class="sidebar-tabs-nav" id="sidebarTabsNav" style="display: flex; gap: 3px; overflow-x: auto; padding: 4px 6px; background: rgba(0,0,0,0.25);">
         <button id="tabBtnIncidents" class="sidebar-tab-btn is-active" title="Danh sách sự cố khẩn cấp tiếp nhận">
           <span><svg class="svg-ico ico-xs ico-red" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Sự Cố (<span id="activeCountBadge">0</span>)</span>
         </button>
@@ -3375,19 +3375,20 @@
         </table>
 
         <!-- National Standard Footer for Print (Hidden on Screen, Visible on Print) -->
-        <div class="print-official-footer" style="display: none; margin-top: 30px; font-family: 'Times New Roman', Times, serif; page-break-inside: avoid;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div style="width: 40%; font-size: 11pt;">
+        <div class="print-official-footer" style="display: none; margin-top: 28px; width: 100%; box-sizing: border-box; font-family: 'Times New Roman', Times, serif; page-break-inside: avoid;">
+          <div class="print-official-footer-row" style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+            <div class="print-official-footer-recipient" style="width: 38%; font-size: 11pt; line-height: 1.5; text-align: left;">
               <div style="font-weight: 700; font-style: italic;">Nơi nhận:</div>
               <div>- Ban Chỉ Huy Đơn Vị (để b/c);</div>
               <div>- Trung Tâm Tác Chiến Cấp Trên;</div>
               <div>- Lưu: Hồ sơ trực ban điều phối.</div>
             </div>
-            <div style="width: 50%; text-align: center; font-size: 12pt;">
-              <div style="font-weight: 700; text-transform: uppercase;">CÁN BỘ LẬP BIỂU THỐNG KÊ</div>
-              <div style="font-size: 10.5pt; font-style: italic;">(Ký, ghi rõ họ tên và cấp bậc)</div>
-              <div style="height: 70px;"></div>
-              <div style="font-weight: 700;" id="printOfficerNameFooter">Cán bộ trực ban</div>
+            <div class="print-official-footer-sign" style="width: 48%; margin-left: auto; text-align: center; font-size: 11.5pt; line-height: 1.45;">
+              <div style="font-style: italic; font-size: 10.5pt; margin-bottom: 4px;" id="printDatePlaceFooter">..., ngày ... tháng ... năm 2026</div>
+              <div class="print-official-footer-sign-title" style="font-weight: 700; text-transform: uppercase; white-space: nowrap; font-size: 11.5pt;">CÁN BỘ LẬP BIỂU THỐNG KÊ</div>
+              <div style="font-size: 10.5pt; font-style: italic; margin-top: 2px;">(Ký, ghi rõ họ tên và cấp bậc)</div>
+              <div style="height: 65px;"></div>
+              <div style="font-weight: 700; font-size: 11.5pt;" id="printOfficerNameFooter">Cán bộ trực ban</div>
             </div>
           </div>
         </div>

@@ -14539,7 +14539,10 @@ class DispatcherApp {
     if (modalSubtitle) modalSubtitle.textContent = `${officer?.level === 'ward' ? 'CÔNG AN ' + ward.toUpperCase() + ' - ' : ''}${prov.toUpperCase()}`;
     
     const now = new Date();
-    if (datePlace) datePlace.textContent = `${prov}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+    const formattedDate = `${prov}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+    if (datePlace) datePlace.textContent = formattedDate;
+    const datePlaceFooter = document.getElementById('printDatePlaceFooter');
+    if (datePlaceFooter) datePlaceFooter.textContent = formattedDate;
     if (officerFooter) officerFooter.textContent = officerName;
 
     // Active đúng tab
@@ -14688,14 +14691,50 @@ class DispatcherApp {
     if (!modal) return;
     document.body.classList.add('printing-territory-stats');
 
-    // Dynamic @page rule for landscape printing to ensure Chrome/Edge print dialog defaults to Landscape
+    // Dynamic @page rule for landscape printing to ensure Chrome/Edge print dialog defaults to Landscape and zero blank pages
     let printStyle = document.getElementById('territoryStatsPrintPageStyle');
     if (!printStyle) {
       printStyle = document.createElement('style');
       printStyle.id = 'territoryStatsPrintPageStyle';
       document.head.appendChild(printStyle);
     }
-    printStyle.textContent = '@media print { @page { size: A4 landscape !important; margin: 8mm 10mm 8mm 10mm !important; } }';
+    printStyle.textContent = `
+      @media print {
+        @page { size: A4 landscape !important; margin: 6mm 10mm 6mm 10mm !important; }
+        html, body {
+          background: #ffffff !important;
+          color: #000000 !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          overflow: visible !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        body.printing-territory-stats > *:not(#territoryStatsModal) {
+          display: none !important;
+          height: 0 !important;
+          max-height: 0 !important;
+          overflow: hidden !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        body.printing-territory-stats #territoryStatsModal {
+          display: block !important;
+          visibility: visible !important;
+          position: static !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          inset: auto !important;
+          transform: none !important;
+        }
+      }
+    `;
 
     const oldTitle = document.title;
     document.title = 'BaoCao_ThongKe_SuCo_SOS_VietNam_2026';

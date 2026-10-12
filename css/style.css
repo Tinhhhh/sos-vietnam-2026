@@ -2654,8 +2654,8 @@ body.theme-light #adminStatsBanner * {
 .sidebar-tabs-nav {
   display: flex !important;
   align-items: center !important;
-  gap: 4px !important;
-  padding: 4px 8px !important;
+  gap: 3px !important;
+  padding: 4px 6px !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
   background: rgba(8, 14, 28, 0.48) !important;
   backdrop-filter: blur(20px) !important;
@@ -2663,22 +2663,33 @@ body.theme-light #adminStatsBanner * {
   overflow-x: auto !important;
   overflow-y: hidden !important;
   white-space: nowrap !important;
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 236, 243, 0.4) transparent !important;
   flex-shrink: 0 !important;
   width: 100% !important;
   box-sizing: border-box !important;
 }
 
 .sidebar-tabs-nav::-webkit-scrollbar {
-  display: none !important;
+  height: 3px !important;
+  display: block !important;
+}
+
+.sidebar-tabs-nav::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 9999px !important;
+}
+
+.sidebar-tabs-nav::-webkit-scrollbar-thumb {
+  background: rgba(0, 236, 243, 0.45) !important;
+  border-radius: 9999px !important;
 }
 
 .sidebar-tab-btn {
-  flex: 1 1 auto !important;
-  min-width: fit-content !important;
-  padding: 5px 8px !important;
-  font-size: 11px !important;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  padding: 5px 3px !important;
+  font-size: 10.5px !important;
   font-weight: 700 !important;
   border-radius: 8px !important;
   background: rgba(255, 255, 255, 0.06) !important;
@@ -2688,9 +2699,22 @@ body.theme-light #adminStatsBanner * {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 4px !important;
+  gap: 3px !important;
   white-space: nowrap !important;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.sidebar-tab-btn span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  white-space: nowrap !important;
+}
+
+.sidebar-tab-btn .svg-ico {
+  width: 12px !important;
+  height: 12px !important;
+  flex-shrink: 0 !important;
 }
 
 .sidebar-tab-btn:hover {
@@ -8396,33 +8420,57 @@ textarea:focus {
 
 /* --- PRINT RULES (IN MÁY / IN PDF KHỔ A4 TIÊU CHUẨN) --- */
 @media print {
-  body * {
+  body.printing-territory-stats {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* ẨN HOÀN TOÀN TẤT CẢ PHẦN TỬ CON CỦA BODY NGOẠI TRỪ MODAL IN ĐỂ TRIỆT TIÊU 100% CÁC TRANG TRẮNG THỪA */
+  body.printing-territory-stats > *:not(#territoryStatsModal) {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-territory-stats #territoryStatsModal {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    float: none !important;
+    inset: auto !important;
+    transform: none !important;
+  }
+
+  body:not(.printing-territory-stats) * {
     visibility: hidden !important;
   }
 
   #territoryStatsModal,
   #territoryStatsModal * {
     visibility: visible !important;
-  }
-
-  #territoryStatsModal {
-    position: static !important;
-    left: auto !important;
-    top: auto !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: auto !important;
-    max-height: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    display: block !important;
-    box-shadow: none !important;
-    border: none !important;
-    overflow: visible !important;
-    float: none !important;
-    inset: auto !important;
   }
 
   .report-docx-modal-dialog {
@@ -8479,9 +8527,50 @@ textarea:focus {
   }
 
   .print-official-footer {
-    display: flex !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
     margin-top: 24px !important;
+    font-family: 'Times New Roman', Times, serif !important;
+    color: #000000 !important;
+  }
+
+  .print-official-footer-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .print-official-footer-recipient {
+    width: 38% !important;
+    text-align: left !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+  }
+
+  .print-official-footer-sign {
+    width: 48% !important;
+    margin-left: auto !important;
+    text-align: center !important;
+    font-size: 11.5pt !important;
+    line-height: 1.45 !important;
+    box-sizing: border-box !important;
+  }
+
+  .print-official-footer-sign-title {
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+    font-size: 11.5pt !important;
+    letter-spacing: 0.5px !important;
+    margin-top: 3px !important;
+    margin-bottom: 2px !important;
   }
 
   /* Support named landscape page for modern printing engines */
