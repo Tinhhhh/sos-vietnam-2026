@@ -1,0 +1,49 @@
+{
+  "testName": "Khớp thông tin & Tọa độ Công An Phường Tân An theo Hình 1 (CATP Cần Thơ)",
+  "timestamp": "2026-10-11T07:30:10.572Z",
+  "steps": [
+    {
+      "step": "1. Tải trang dispatcher.html & Đăng nhập thành công",
+      "status": "SUCCESS"
+    },
+    {
+      "step": "3. Chọn và khoanh vùng Phường Tân An (Cần Thơ)",
+      "status": "SUCCESS"
+    }
+  ],
+  "passed": true,
+  "hudData": {
+    "unitTitle": "Phường Tân An",
+    "address": "02 Nguyễn Tri Phương, Kv.10, phường Tân An, thành phố Cần Thơ",
+    "phone": "02923894939",
+    "phoneLink": "tel:02923894939",
+    "officer": "Trung tá Nguyễn Minh Hoàng (SĐT: 0919123419)",
+    "email": "phuongtanan@cantho.gov.vn",
+    "services": "Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT",
+    "gmapsBtn": "https://www.google.com/maps/dir/?api=1&destination=10.039822,105.75825",
+    "sapNhap": "An Khánh, Hưng Lợi",
+    "dienTich": "8,06 (km²)",
+    "danSo": "85.997 (người)",
+    "maDVHC": "31147",
+    "canCu": "Nghị quyết số 1668/NQ-UBTVQH15"
+  },
+  "pinData": {
+    "pinExists": true,
+    "pinLabel": "Phường Tân An",
+    "markerPos": {
+      "lng": 105.75825,
+      "lat": 10.039822
+    }
+  },
+  "assertions": {
+    "isTitleOk": true,
+    "isAddressOk": true,
+    "isPhoneOk": true,
+    "isOfficerOk": true,
+    "isEmailOk": true,
+    "isGmapsOk": true,
+    "isPinPosOk": true,
+    "noUnverifiedLabel": true
+  },
+  "screenshotPath": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\tan-an-qa-screenshot.png"
+}

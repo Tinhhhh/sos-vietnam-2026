@@ -428,7 +428,7 @@ def build_pptx_deck():
         s4, 8.85, 1.70, 3.80, 5.30,
         "3. Không Gian & An Ninh Mạng",
         [
-            ("• Haversine Spatial Engine: ", "Tính khoảng cách cầu chính xác từ thiết bị người dân tới 417 điểm Công an Hà Nội & 548 đơn vị toàn quốc."),
+            ("• Haversine Spatial Engine: ", "Tính khoảng cách cầu chính xác từ thiết bị người dân tới 874 trạm tác chiến trên 34 tỉnh/thành (gồm 417 điểm Công an Hà Nội, 105 trạm Cần Thơ...)."),
             ("• Tường lửa WAF L7 & RBAC: ", "Chặn 27 chữ ký AI Bot/Scraper, bẫy Honeypot, giới hạn tốc độ Token Bucket."),
             ("• Mật mã PBKDF2-SHA512: ", "100.000 vòng lặp băm mật khẩu + lưu trữ nguyên tử (.tmp -> rename) & Zero-Retention theo NĐ 13/2023/NĐ-CP."),
         ],
@@ -504,7 +504,7 @@ def build_pptx_deck():
         s5, 6.80, 4.45, 5.85, 2.55,
         "5. Ký Số Canvas NĐ 30 & Chống Báo Giả NĐ 144",
         [
-            ("• Tự động sinh Biên bản Word (.docx) 1 trang A4: ", "Người dân và chiến sĩ ký trực tiếp trên màn hình cảm ứng, đúng chuẩn thể thức Nghị định 30/2020/NĐ-CP."),
+            ("• Tự động sinh Biên bản Word (.docx) 1 trang A4: ", "Người dân và chiến sĩ ký trực tiếp trên màn hình cảm ứng, 100% font Times New Roman, ký hiệu chuẩn động (/BC-TTCH, /BC-CATP, /BC-CSGT, /BC-PCCC, /BC-BYT, /BC-CAP, /BC-CAX; xóa bỏ hoàn toàn CATT) đúng chuẩn Nghị định 30/2020/NĐ-CP."),
             ("• Kho lưu trữ Báo Khống & OSINT: ", "Tự động trích xuất IP, tọa độ, thiết bị để lập biên bản xử phạt 4–6 triệu đồng theo Nghị định 144/2021/NĐ-CP."),
         ],
         accent_color=PURPLE_ACCENT,
@@ -613,8 +613,8 @@ def build_pptx_deck():
     # 4 Top Metric Boxes
     add_metric_box(s7, 0.65, 1.70, 2.80, 1.55, "34 Tỉnh/TP", "Địa Giới Hành Chính Mới", "Đồng bộ từ bando.com.vn", CYAN_ACCENT)
     add_metric_box(s7, 3.70, 1.70, 2.80, 1.55, "3.321 Xã", "Xã/Phường Sau Sáp Nhập", "Cập nhật chuẩn T10/2026", GREEN_ACCENT)
-    add_metric_box(s7, 6.75, 1.70, 2.80, 1.55, "548 Đơn Vị", "Tài Khoản Trực Ban", "Phân quyền RBAC 6 cấp", GOLD_ACCENT)
-    add_metric_box(s7, 9.80, 1.70, 2.85, 1.55, "417 Trụ Sở", "Công An TP Hà Nội", "Đủ tọa độ, SĐT & thủ tục", RED_ACCENT)
+    add_metric_box(s7, 6.75, 1.70, 2.80, 1.55, "874 Trạm", "Cơ Sở Toàn Quốc", "846 tài khoản phân quyền", GOLD_ACCENT)
+    add_metric_box(s7, 9.80, 1.70, 2.85, 1.55, "417 HN • 105 CT", "Trụ Sở Đã Xác Minh", "Đủ tọa độ, SĐT & geofence", RED_ACCENT)
 
     add_card(
         s7, 0.65, 3.45, 5.85, 3.55,
@@ -943,7 +943,7 @@ def build_docx_presentation_script():
 
     # 3. CÔNG NGHỆ SỬ DỤNG
     add_section_h1("3. CÔNG NGHỆ ĐƯỢC SỬ DỤNG")
-    add_bullet("• Giao diện & Bản đồ số (Frontend & GIS): ", "HTML5/CSS3/ES6+ Native (Zero-Framework Overhead) kết hợp Progressive Web App (Service Worker Offline-First), đồng bộ nhận diện font chữ Hubot Sans hiện đại; bản đồ số MapLibre GL / Leaflet tích hợp lớp phủ GeoJSON 3.321 xã/phường.")
+    add_bullet("• Giao diện & Bản đồ số (Frontend & GIS): ", "HTML5/CSS3/ES6+ Native (Zero-Framework Overhead) kết hợp Progressive Web App (Service Worker Offline-First), đồng bộ nhận diện font chữ Hubot Sans hiện đại; bản đồ số MapLibre GL / Leaflet tích hợp lớp phủ GeoJSON 3.321 xã/phường; Quả cầu Master SOS Orb căn giữa tâm sóng video; Trợ lý AI giọng nói 4 vùng miền (VieNeu-TTS) với 4 giọng nữ 4 miền tốc độ 1.2x (Mỹ Duyên, Thùy Dung, Ngọc Trân, Mai Anh).")
     add_bullet("• Máy chủ & Truyền dẫn thời gian thực (Backend & Real-time): ", "Node.js Native HTTP/ESM kết hợp Server-Sent Events (SSE) và WebSocket truyền phát sự cố với độ trễ chỉ 45ms.")
     add_bullet("• Đàm thoại WebRTC P2P & Web Audio Graph chống hú: ", "Đàm thoại thoại/video 2 chiều ngang hàng (Multi-STUN + HTTP Long-Polling Fallback). Mạch âm thanh Web Audio API tách kênh Local/Remote với muteGain = 0.0 triệt tiêu 100% tiếng hú, đo cường độ âm thanh RMS 2 chiều và mã hóa MP3 trực tiếp trên RAM trình duyệt bằng lamejs (Zero Server Storage Retention — tuân thủ Nghị định 13/2023/NĐ-CP).")
     add_bullet("• An toàn thông tin & Bảo mật: ", "Tường lửa ứng dụng WAF L7 chặn 27 chữ ký AI Bot/Scraper, thuật toán băm mật khẩu PBKDF2-SHA512 (100.000 vòng lặp) và cơ chế ghi dữ liệu nguyên tử (.tmp -> rename).")
@@ -953,12 +953,12 @@ def build_docx_presentation_script():
     add_bullet("• Thuật toán lọc nhiễu GPS Kalman Filter 1D/2 trục: ", "Khử 92.25% sai số nhảy tọa độ vệ tinh trong ngõ hẹp hoặc nhà cao tầng, hội tụ vị trí chính xác dưới 5 mét.")
     add_bullet("• Phân tuyến thông minh OSRM 2 làn phương tiện: ", "Tách biệt đường nét đứt màu xanh lá cho xe máy Công an xã/phường luồn ngõ hẹp (<2m) tiếp cận trước 2–4 phút và đường nét liền màu xanh dương cho xe chữa cháy/xe cứu thương cỡ lớn.")
     add_bullet("• Cơ chế truyền tin 3 kênh bất tử: ", "Tự động chuyển đổi mượt mà từ kênh Online (WSS/SSE) sang kênh SMS Fallback nén dưới 70 ký tự khi mất sóng 4G và lưu trữ ngoại tuyến IndexedDB tự đồng bộ lại khi có mạng.")
-    add_bullet("• Số hóa pháp lý hiện trường (Nghị định 30 & Nghị định 144): ", "Bảng vẽ chữ ký số cảm ứng HTML5 Canvas xuất biên bản Word (.docx) đúng chuẩn 1 trang A4 Nghị định 30/2020/NĐ-CP; tự động trích xuất chứng cứ số OSINT lập hồ sơ xử phạt hành vi báo giả 4–6 triệu đồng theo Nghị định 144/2021/NĐ-CP.")
+    add_bullet("• Số hóa pháp lý hiện trường (Nghị định 30 & Nghị định 144): ", "Bảng vẽ chữ ký số cảm ứng HTML5 Canvas xuất biên bản Word (.docx) đúng chuẩn 1 trang A4 Nghị định 30/2020/NĐ-CP (100% font Times New Roman, ký hiệu chuẩn động /BC-TTCH, /BC-CATP, /BC-CSGT, /BC-PCCC, /BC-BYT, /BC-CAP, /BC-CAX; xóa bỏ hoàn toàn CATT); tự động trích xuất chứng cứ số OSINT lập hồ sơ xử phạt hành vi báo giả 4–6 triệu đồng theo Nghị định 144/2021/NĐ-CP.")
 
     # 5. MỨC ĐỘ HOÀN THIỆN HIỆN TẠI (80%)
     add_section_h1("5. MỨC ĐỘ HOÀN THIỆN HIỆN TẠI CỦA SẢN PHẨM (ĐẠT 80% — TRL 7)")
     add_bullet("• Đánh giá tổng thể — Hoàn thiện 80% (Cấp độ TRL 7 - Hệ thống nguyên mẫu vận hành thực tế): ", "Sản phẩm không dừng ở mức ý tưởng hay thiết kế giao diện mà đã hoàn thiện 80% toàn bộ khối lượng mục tiêu, đang vận hành trực tuyến ổn định và sẵn sàng Live Demo 100% luồng nghiệp vụ cốt lõi:")
-    add_bullet("  + Phần 80% ĐÃ HOÀN THIỆN & CHẠY THỰC TẾ: ", "(1) Cổng PWA Người dân 1-chạm; (2) Bàn chỉ huy C4ISR hợp nhất 5 lực lượng; (3) Cơ sở dữ liệu 34 tỉnh/thành, 3.321 xã/phường sau sáp nhập, 548 đơn vị trực ban và 417 điểm Công an TP Hà Nội; (4) Định vị Kalman & tính khoảng cách trực tiếp từ thiết bị đến cơ sở gần nhất; (5) Đàm thoại WebRTC 2 chiều chống hú & ghi âm MP3; (6) Quản lý ca trực độc lập theo đơn vị & chuyển cấp 15 phút; (7) Ký số Canvas xuất biên bản Word Nghị định 30, kho báo khống Nghị định 144 & đồng bộ Excel 4 sheet.")
+    add_bullet("  + Phần 80% ĐÃ HOÀN THIỆN & CHẠY THỰC TẾ: ", "(1) Cổng PWA Người dân 1-chạm (SOS Orb tâm sóng video & giọng nói AI 4 miền 1.2x); (2) Bàn chỉ huy C4ISR hợp nhất 5 lực lượng; (3) Cơ sở dữ liệu 34 tỉnh/thành, 3.321 xã/phường sau sáp nhập, 874 trạm tác chiến trên toàn quốc (gồm 417 điểm Công an TP Hà Nội, 105 điểm Cần Thơ); (4) Định vị Kalman & tính khoảng cách trực tiếp từ thiết bị đến cơ sở gần nhất; (5) Đàm thoại WebRTC 2 chiều video/voice chống hú & ghi âm MP3; (6) Quản lý ca trực độc lập theo đơn vị & chuyển cấp 15 phút; (7) Ký số Canvas xuất biên bản Word Nghị định 30 (ký hiệu chuẩn động, loại bỏ CATT), kho báo khống Nghị định 144 & đồng bộ Excel 4 sheet.")
     add_bullet("  + Phần 20% ĐANG TIẾP TỤC PHÁT TRIỂN HOÀN THIỆN: ", "(1) Đấu nối API định danh điện tử VNeID mức 2 chính thức từ Cục C06 (5%); (2) Huấn luyện sâu mô hình AI Thị giác máy tính & Nhận diện giọng nói tiếng Việt đa phương ngữ (5%); (3) Mở rộng dữ liệu chi tiết từ 34 tỉnh/thành lên trọn vẹn 63/63 tỉnh/thành (5%); (4) Đóng gói ứng dụng Mobile Native độc lập và cổng tích hợp cảm biến IoT/Drone (5%).")
 
     # 6. KHẢ NĂNG VẬN HÀNH VÀ ỨNG DỤNG THỰC TẾ

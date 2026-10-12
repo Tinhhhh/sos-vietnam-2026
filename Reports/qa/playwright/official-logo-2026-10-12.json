@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-10-12T03:08:52.773Z",
+  "baseUrl": "http://localhost:3000",
+  "checks": [
+    {
+      "name": "Citizen head icon links use official logo with cache-buster",
+      "passed": true,
+      "details": {
+        "iconLink": "/assets/icons/logo-police-round-192.png?v=20261012_official_logo_v1",
+        "appleLink": "/assets/icons/logo-police-round-192.png?v=20261012_official_logo_v1",
+        "shortcutLink": "/assets/icons/favicon.png?v=20261012_official_logo_v1"
+      }
+    },
+    {
+      "name": "Install Shortcut modal renders 192x192 official logo cleanly",
+      "passed": true,
+      "details": {
+        "src": "/assets/icons/logo-police-round-192.png?v=20261012_official_logo_v1",
+        "complete": true,
+        "naturalWidth": 192,
+        "naturalHeight": 192,
+        "width": 54,
+        "height": 54
+      }
+    },
+    {
+      "name": "Dispatcher Gatekeeper modal displays 512x512 official logo",
+      "passed": true,
+      "details": {
+        "src": "/assets/icons/khien.png?v=20261012_official_logo_v1",
+        "complete": true,
+        "naturalWidth": 512,
+        "naturalHeight": 512
+      }
+    },
+    {
+      "name": "Cosmic Portal CHỈ HUY TỔNG HỢP orb displays 1024x1024 official logo",
+      "passed": true,
+      "details": {
+        "src": "/assets/icons/logo-police-round-an.png?v=20261012_official_logo_v1",
+        "complete": true,
+        "naturalWidth": 1024,
+        "naturalHeight": 1024
+      }
+    },
+    {
+      "name": "Dispatcher top-left header (#headerBrandBadgeImg) renders official logo",
+      "passed": true,
+      "details": {
+        "src": "/assets/icons/khien.png?v=20261012_official_logo_v1",
+        "complete": true,
+        "naturalWidth": 512,
+        "naturalHeight": 512,
+        "renderedWidth": 36,
+        "renderedHeight": 36
+      }
+    }
+  ],
+  "allPassed": true
+}

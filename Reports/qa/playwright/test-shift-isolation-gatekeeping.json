@@ -1,0 +1,139 @@
+{
+  "testName": "Shift Isolation & Gatekeeping E2E Suite",
+  "timestamp": "2026-10-12T12:47:30.688Z",
+  "baseUrl": "http://localhost:3000",
+  "assertions": [
+    {
+      "name": "Unauthenticated visitor triggers zero alert dialogs on dispatcher.html",
+      "pass": true,
+      "details": {
+        "unauthDialogCount": 0,
+        "unauthDialogMessages": []
+      }
+    },
+    {
+      "name": "Body lacks officer-authenticated class and currentOfficer is null for unauthenticated visitor",
+      "pass": true,
+      "details": {
+        "isOfficerAuthenticatedClass": false,
+        "currentOfficer": null
+      }
+    },
+    {
+      "name": "Duty shift modal and substitute officer modal are hidden for unauthenticated visitor",
+      "pass": true,
+      "details": {
+        "dutyModalDisplay": "none",
+        "subModalDisplay": "none"
+      }
+    },
+    {
+      "name": "Polluted global storage with expired shift does NOT trigger alert dialog for unauthenticated visitor",
+      "pass": true,
+      "details": {
+        "pollutedDialogCount": 0,
+        "pollutedDialogMessages": []
+      }
+    },
+    {
+      "name": "Polluted global storage does NOT force dutyShiftModal to open without authentication",
+      "pass": true,
+      "details": {
+        "modalDisplay": "none"
+      }
+    },
+    {
+      "name": "Unit A saves duty shift under scoped key sos_duty_shift_cahanioi",
+      "pass": true,
+      "details": {
+        "currentDutyShift": {
+          "username": "cahanioi",
+          "officerName": "Đại úy Nguyễn Văn A",
+          "officerRank": "Đại úy",
+          "officerPhone": "0981112222",
+          "shiftName": "Ca Sáng (07:00 - 15:00)",
+          "startTime": "07:00",
+          "endTime": "15:00",
+          "handoverNotes": "Kíp trực Đơn vị A tiếp nhận ca trực an toàn"
+        },
+        "storedScoped": {
+          "username": "cahanioi",
+          "officerName": "Đại úy Nguyễn Văn A",
+          "officerRank": "Đại úy",
+          "officerPhone": "0981112222",
+          "shiftName": "Ca Sáng (07:00 - 15:00)",
+          "startTime": "07:00",
+          "endTime": "15:00",
+          "handoverNotes": "Kíp trực Đơn vị A tiếp nhận ca trực an toàn"
+        },
+        "hasGlobalLeak1": false,
+        "hasGlobalLeak2": false
+      }
+    },
+    {
+      "name": "Unit A does not write to deprecated global shared keys (sos_duty_shift, SOS_ACTIVE_DUTY_SHIFT)",
+      "pass": true,
+      "details": {
+        "hasGlobalLeak1": false,
+        "hasGlobalLeak2": false
+      }
+    },
+    {
+      "name": "Unit B saves duty shift under scoped key sos_duty_shift_csgthanoi",
+      "pass": true,
+      "details": {
+        "currentDutyShift": {
+          "username": "csgthanoi",
+          "officerName": "Thiếu tá Trần Văn B",
+          "officerRank": "Thiếu tá",
+          "officerPhone": "0983334444",
+          "shiftName": "Ca Chiều (15:00 - 23:00)",
+          "startTime": "15:00",
+          "endTime": "23:00",
+          "handoverNotes": "Kíp trực Đội CSGT tiếp nhận tuần tra địa bàn"
+        },
+        "storedScoped": {
+          "username": "csgthanoi",
+          "officerName": "Thiếu tá Trần Văn B",
+          "officerRank": "Thiếu tá",
+          "officerPhone": "0983334444",
+          "shiftName": "Ca Chiều (15:00 - 23:00)",
+          "startTime": "15:00",
+          "endTime": "23:00",
+          "handoverNotes": "Kíp trực Đội CSGT tiếp nhận tuần tra địa bàn"
+        },
+        "crossUnitAccessToA": false
+      }
+    },
+    {
+      "name": "Unit A shift remains strictly isolated and unaffected by Unit B operations",
+      "pass": true,
+      "details": {
+        "unitAOfficer": "Đại úy Nguyễn Văn A",
+        "storedA": {
+          "username": "cahanioi",
+          "officerName": "Đại úy Nguyễn Văn A",
+          "officerRank": "Đại úy",
+          "officerPhone": "0981112222",
+          "shiftName": "Ca Sáng (07:00 - 15:00)",
+          "startTime": "07:00",
+          "endTime": "15:00",
+          "handoverNotes": "Kíp trực Đơn vị A tiếp nhận ca trực an toàn"
+        }
+      }
+    },
+    {
+      "name": "Logout resets currentOfficer, currentDutyShift to null and removes officer-authenticated class",
+      "pass": true,
+      "details": {
+        "currentOfficer": null,
+        "currentDutyShift": null,
+        "isAuthenticatedClass": false
+      }
+    }
+  ],
+  "screenshots": [
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\screenshots\\shift-gatekeeping-unauthenticated.png"
+  ],
+  "allPassed": true
+}

@@ -292,7 +292,7 @@ def generate_perfect_7page_proposal():
     ])
     add_p_runs(doc, [
         ("• Tầng 4 - Lưu trữ Bền vững Nguyên tử (Atomic Store): ", True, False, 12),
-        ("Cơ chế ghi tệp nguyên tử (.tmp -> rename) loại bỏ xung đột ghi đè; quản lý 453 đồn trạm và ranh giới hành chính.", False, False, 12)
+        ("Cơ chế ghi tệp nguyên tử (.tmp -> rename) loại bỏ xung đột ghi đè; quản lý 874 trạm tác chiến trên 34 tỉnh/thành và 3.321 xã/phường.", False, False, 12)
     ])
     add_p_runs(doc, [
         ("• Tầng 5 - Lưới Không gian Địa lý (Spatial GIS Mesh): ", True, False, 12),
@@ -348,7 +348,7 @@ def generate_perfect_7page_proposal():
     ])
     add_p_runs(doc, [
         ("• Bảng vẽ chữ ký số Canvas và tự động xuất biên bản chuẩn Nghị định 30/2020/NĐ-CP: ", True, False, 12),
-        ("Công dân và cán bộ ký xác nhận hiện trường trên màn hình cảm ứng; hệ thống tự động sinh tệp Word (.docx) đúng 1 trang A4 hoàn chỉnh.", False, False, 12)
+        ("Công dân và cán bộ ký xác nhận hiện trường trên màn hình cảm ứng; hệ thống tự động sinh tệp Word (.docx) đúng 1 trang A4 hoàn chỉnh 100% font Times New Roman với số văn bản chuẩn động (/BC-TTCH, /BC-CATP, /BC-CSGT, /BC-PCCC, /BC-BYT, /BC-CAP, /BC-CAX; xóa bỏ hoàn toàn CATT).", False, False, 12)
     ])
     add_p_runs(doc, [
         ("• Trích xuất chứng cứ số OSINT xử phạt báo giả theo Nghị định 144/2021/NĐ-CP: ", True, False, 12),
@@ -391,7 +391,8 @@ def generate_perfect_7page_proposal():
     
     current_feats = (
         "1. Phía Cổng Người dân PWA (index.html):\n"
-        "• Nút bấm Master SOS Orb 1-chạm cứu hộ khẩn cấp không cần cài app.\n"
+        "• Nút bấm Master SOS Orb 1-chạm cứu hộ khẩn cấp căn giữa tâm sóng video WebRTC.\n"
+        "• Giọng nói thông báo AI đa vùng miền (VieNeu-TTS): 4 giọng nữ 4 miền tốc độ 1.2x.\n"
         "• Ma trận 5 lực lượng (Công an, CSGT, PCCC & CNCH, 115, Cứu hộ) kèm chip sự vụ.\n"
         "• Lọc vị trí GPS Kalman Filter 1D/2 trục khử sai số vệ tinh dưới 5m.\n"
         "• Cảnh báo người thân (Family Alert) & Cẩm nang sinh tồn ngoại tuyến.\n"
@@ -402,8 +403,8 @@ def generate_perfect_7page_proposal():
         "• Bản đồ GIS 3D tích hợp 34 tỉnh/thành và 3.321 xã/phường sáp nhập tháng 10/2026.\n"
         "• Timeout Escalation 15 phút tự động chuyển cấp & Chuyển trả cơ sở.\n"
         "• Thuật toán Fallback Nearest Auto-Routing tự động chuyển đơn vị gần nhất.\n"
-        "• Xuất phiếu tiếp nhận và biên bản xác minh Word (.docx) chuẩn Nghị định 30.\n"
-        "• Đồng bộ danh bạ hai chiều Excel 4 Sheet cho 453 đồn trạm.\n"
+        "• Xuất phiếu tiếp nhận và biên bản xác minh Word (.docx) chuẩn Nghị định 30 (100% Times New Roman, ký hiệu /BC-TTCH, /BC-CATP, /BC-CSGT, /BC-PCCC, /BC-BYT, /BC-CAP, /BC-CAX).\n"
+        "• Đồng bộ danh bạ hai chiều Excel 4 Sheet cho 874 trạm tác chiến trên 34 tỉnh thành.\n"
         "• Tường lửa WAF L7 chặn 27 bot AI, trích xuất OSINT xử phạt Nghị định 144."
     )
     
@@ -460,7 +461,7 @@ def generate_perfect_7page_proposal():
         ("2", "Thời gian nạp Cổng Người dân PWA", "0.79s (Lần đầu) / 0.135s (Cache)", "Cung cấp trải nghiệm tức thì trong giây phút nguy kịch"),
         ("3", "Độ trễ truyền phát dữ liệu tác chiến SSE", "45 mili-giây", "Phản hồi gần như tức thời giữa dân và trực ban"),
         ("4", "Kiểm thử tải máy chủ lõi (Stress Test)", "10.000 requests/giây", "0.00% tỷ lệ lỗi trên nền tảng Native Node.js"),
-        ("5", "Đồng bộ danh bạ 453 đồn trạm Excel", "36.6 KB / 12 mili-giây", "Xuất nạp trơn tru 4 sheet danh bạ không nghẽn luồng"),
+        ("5", "Đồng bộ danh bạ 874 đồn trạm Excel", "36.6 KB / 12 mili-giây", "Xuất nạp trơn tru 4 sheet danh bạ không nghẽn luồng"),
         ("6", "Độ trễ bảng vẽ chữ ký số cảm ứng Canvas", "< 15 mili-giây", "Mượt mà trên màn hình cảm ứng điện thoại thông minh")
     ]
     
@@ -494,7 +495,7 @@ def generate_perfect_7page_proposal():
     ])
     add_p_runs(doc, [
         ("• An toàn thông tin mạng & tính bền vững dữ liệu: ", True, False, 12),
-        ("453 tài khoản được băm mật khẩu PBKDF2-SHA512 với 100.000 vòng lặp; cơ chế ghi dữ liệu tệp nguyên tử (.tmp -> rename) bảo đảm không bao giờ hỏng dữ liệu khi mất điện đột ngột.", False, False, 12)
+        ("874 tài khoản được băm mật khẩu PBKDF2-SHA512 với 100.000 vòng lặp; cơ chế ghi dữ liệu tệp nguyên tử (.tmp -> rename) bảo đảm không bao giờ hỏng dữ liệu khi mất điện đột ngột.", False, False, 12)
     ])
     
     # PHẦN VII: TÁC ĐỘNG XÃ HỘI, ĐỘI NGŨ THỰC HIỆN VÀ CAM KẾT ĐỒNG HÀNH
@@ -664,6 +665,20 @@ def generate_perfect_7page_proposal():
     import shutil
     shutil.copy2(OUTPUT_DOCX, SYNC_DOCX)
     print(f"[OK] Synced proposal docx to: {SYNC_DOCX}")
+
+    # Xuất PDF đồng bộ bằng Word COM
+    try:
+        import win32com.client
+        pdf_out = OUTPUT_DOCX.replace(".docx", ".pdf")
+        word = win32com.client.Dispatch("Word.Application")
+        word.Visible = False
+        doc_w = word.Documents.Open(os.path.abspath(OUTPUT_DOCX))
+        doc_w.SaveAs(os.path.abspath(pdf_out), FileFormat=17)
+        doc_w.Close()
+        word.Quit()
+        print(f"[OK] Generated proposal PDF: {pdf_out}")
+    except Exception as e:
+        print(f"[WARN] Could not export PDF via Word COM: {e}")
 
 if __name__ == "__main__":
     generate_perfect_7page_proposal()

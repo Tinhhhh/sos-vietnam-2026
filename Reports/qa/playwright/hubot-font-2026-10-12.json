@@ -1,0 +1,88 @@
+{
+  "timestamp": "2026-10-12T03:55:54.274Z",
+  "baseUrl": "http://localhost:3000",
+  "fontFamily": "Hubot Sans",
+  "checks": [
+    {
+      "id": "hubot-sans-font-assets-http200",
+      "description": "Verify self-hosted Hubot Sans TTF files are served with HTTP 200 and full payload (>50KB)",
+      "passed": true,
+      "details": [
+        {
+          "file": "/assets/fonts/hubot-sans/HubotSans-Regular.ttf",
+          "status": 200,
+          "bytes": 99132,
+          "ok": true
+        },
+        {
+          "file": "/assets/fonts/hubot-sans/HubotSans-Medium.ttf",
+          "status": 200,
+          "bytes": 99156,
+          "ok": true
+        },
+        {
+          "file": "/assets/fonts/hubot-sans/HubotSans-SemiBold.ttf",
+          "status": 200,
+          "bytes": 99144,
+          "ok": true
+        },
+        {
+          "file": "/assets/fonts/hubot-sans/HubotSans-Bold.ttf",
+          "status": 200,
+          "bytes": 99096,
+          "ok": true
+        },
+        {
+          "file": "/assets/fonts/hubot-sans/HubotSans-ExtraBold.ttf",
+          "status": 200,
+          "bytes": 99132,
+          "ok": true
+        },
+        {
+          "file": "/assets/fonts/hubot-sans/HubotSans-Black.ttf",
+          "status": 200,
+          "bytes": 99112,
+          "ok": true
+        }
+      ]
+    },
+    {
+      "id": "index-hubot-sans-computed-and-loaded",
+      "description": "Verify index.html uses Hubot Sans in :root, body, and hero heading, and FontFace API reports loaded status",
+      "passed": true,
+      "details": {
+        "rootFontToken": "'Hubot Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        "bodyFont": "\"Hubot Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "heroFont": "\"Hubot Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontCheckRegular": true,
+        "fontCheckBold": true,
+        "loadedHubotCount": 6,
+        "totalHubotFaces": 16
+      }
+    },
+    {
+      "id": "dispatcher-hubot-sans-computed-and-loaded",
+      "description": "Verify dispatcher.html Gatekeeper, Cosmic Portal title, bubble tags, and Ward HUD use Hubot Sans",
+      "passed": true,
+      "details": {
+        "bodyFont": "\"Hubot Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "gateTitleFont": "\"Hubot Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "portalTitleFont": "\"Hubot Sans\", \"Hubot Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "bubbleTagFont": "\"Hubot Sans\", \"Hubot Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "wardHudFont": "\"Hubot Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontCheckBlack": true
+      }
+    }
+  ],
+  "screenshots": [
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\hubot-font-index-2026-10-12.png",
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\hubot-font-dispatcher-gatekeeper-2026-10-12.png",
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\hubot-font-dispatcher-portal-2026-10-12.png"
+  ],
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "status": "PASS"
+  }
+}

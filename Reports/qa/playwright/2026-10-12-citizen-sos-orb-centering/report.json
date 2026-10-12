@@ -1,0 +1,182 @@
+{
+  "suite": "verify-citizen-sos-orb-centering",
+  "timestamp": "2026-10-12T00:38:47.816Z",
+  "baseUrl": "http://localhost:3000",
+  "viewports": [
+    {
+      "viewportWidth": 1920,
+      "viewportHeight": 912,
+      "orb": {
+        "width": 224,
+        "height": 224,
+        "top": 310.8,
+        "bottom": 534.8,
+        "centerX": 960,
+        "centerY": 422.8,
+        "centerXRatio": 0.5,
+        "centerYRatio": 0.4636
+      },
+      "wrapper": {
+        "width": 276,
+        "height": 276,
+        "top": 284.8,
+        "bottom": 560.8
+      },
+      "legalTop": 792,
+      "navTop": 836.5,
+      "screenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-12-citizen-sos-orb-centering\\sos-orb-desktop-1920x912.png",
+      "label": "desktop-1920x912"
+    },
+    {
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
+      "orb": {
+        "width": 194.4,
+        "height": 194.4,
+        "top": 302.8,
+        "bottom": 497.2,
+        "centerX": 720,
+        "centerY": 400,
+        "centerXRatio": 0.5,
+        "centerYRatio": 0.4445
+      },
+      "wrapper": {
+        "width": 238,
+        "height": 238,
+        "top": 281.1,
+        "bottom": 519.1
+      },
+      "legalTop": 780,
+      "navTop": 824.5,
+      "screenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-12-citizen-sos-orb-centering\\sos-orb-laptop-1440x900.png",
+      "label": "laptop-1440x900"
+    },
+    {
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "orb": {
+        "width": 167.7,
+        "height": 167.7,
+        "top": 283.7,
+        "bottom": 451.4,
+        "centerX": 195,
+        "centerY": 367.5,
+        "centerXRatio": 0.5,
+        "centerYRatio": 0.4355
+      },
+      "wrapper": {
+        "width": 202.8,
+        "height": 202.8,
+        "top": 266.1,
+        "bottom": 468.9
+      },
+      "legalTop": 736,
+      "navTop": 770,
+      "screenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-12-citizen-sos-orb-centering\\sos-orb-mobile-390x844.png",
+      "label": "mobile-390x844"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "[desktop-1920x912] Red SOS sphere diameter >= 185px",
+      "status": "PASS",
+      "details": {
+        "actualWidth": 224,
+        "actualHeight": 224,
+        "minExpected": 185
+      }
+    },
+    {
+      "name": "[desktop-1920x912] Red SOS sphere horizontally centered in viewport",
+      "status": "PASS",
+      "details": {
+        "centerXRatio": 0.5
+      }
+    },
+    {
+      "name": "[desktop-1920x912] Red SOS sphere vertically centered inside radiating hand circles (0.43-0.54)",
+      "status": "PASS",
+      "details": {
+        "centerYRatio": 0.4636,
+        "centerY": 422.8,
+        "viewportHeight": 912
+      }
+    },
+    {
+      "name": "[desktop-1920x912] Red SOS sphere does not overlap bottom legal warning bar",
+      "status": "PASS",
+      "details": {
+        "orbBottom": 534.8,
+        "legalTop": 792
+      }
+    },
+    {
+      "name": "[laptop-1440x900] Red SOS sphere diameter >= 180px",
+      "status": "PASS",
+      "details": {
+        "actualWidth": 194.4,
+        "actualHeight": 194.4,
+        "minExpected": 180
+      }
+    },
+    {
+      "name": "[laptop-1440x900] Red SOS sphere horizontally centered in viewport",
+      "status": "PASS",
+      "details": {
+        "centerXRatio": 0.5
+      }
+    },
+    {
+      "name": "[laptop-1440x900] Red SOS sphere vertically centered inside radiating hand circles (0.43-0.54)",
+      "status": "PASS",
+      "details": {
+        "centerYRatio": 0.4445,
+        "centerY": 400,
+        "viewportHeight": 900
+      }
+    },
+    {
+      "name": "[laptop-1440x900] Red SOS sphere does not overlap bottom legal warning bar",
+      "status": "PASS",
+      "details": {
+        "orbBottom": 497.2,
+        "legalTop": 780
+      }
+    },
+    {
+      "name": "[mobile-390x844] Red SOS sphere diameter >= 150px",
+      "status": "PASS",
+      "details": {
+        "actualWidth": 167.7,
+        "actualHeight": 167.7,
+        "minExpected": 150
+      }
+    },
+    {
+      "name": "[mobile-390x844] Red SOS sphere horizontally centered in viewport",
+      "status": "PASS",
+      "details": {
+        "centerXRatio": 0.5
+      }
+    },
+    {
+      "name": "[mobile-390x844] Red SOS sphere vertically centered inside radiating hand circles (0.4-0.56)",
+      "status": "PASS",
+      "details": {
+        "centerYRatio": 0.4355,
+        "centerY": 367.5,
+        "viewportHeight": 844
+      }
+    },
+    {
+      "name": "[mobile-390x844] Red SOS sphere does not overlap bottom legal warning bar",
+      "status": "PASS",
+      "details": {
+        "orbBottom": 451.4,
+        "legalTop": 736
+      }
+    }
+  ],
+  "passed": 12,
+  "failed": 0
+}

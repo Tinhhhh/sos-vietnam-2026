@@ -1,10 +1,10 @@
 # QA Report — Header Pills, Top Bar Last Button, Inset Scrollbar & Device GPS Distance
 
-- **Timestamp**: 2026-10-12T08:20:33.699Z
+- **Timestamp**: 2026-10-12T16:05:05.214Z
 - **Overall Status**: **PASS**
 - **Gatekeeper Warning Icon Aligned**: `true` (verticalDiff=0.5px, gap=4px)
 - **All 5 Header Pills Clean (No Orphan Wrap & Fits Pill)**: `true`
-- **Last Top Bar Button (#btnOpenFakeArchivePill) Fits Without Clipping**: `true` (fakePillRight=1079.1px <= topBarRight=1355px)
+- **Last Top Bar Button (#btnOpenFakeArchivePill) Fits Without Clipping**: `true` (fakePillRight=1219.1px <= topBarRight=1355px)
 - **Sidebar Queue Uses Inset WebKit Scrollbar Track**: `true` (marginRight=3px, marginBottom=8px)
 - **Left HUD Visible & Title Visible at Top**: `true` / `true`
 - **HUD Fits Inside Viewport**: `true`

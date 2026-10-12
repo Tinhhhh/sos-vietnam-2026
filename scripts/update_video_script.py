@@ -118,14 +118,14 @@ def create_video_script_doc():
          "Vào thẳng hiện trường nguy cấp: Tai nạn đêm khuya, hỏa hoạn, đột quỵ, thiên tai. Nỗi đau: Người dân hoảng loạn không biết gọi 113, 114 hay 115, không rõ vị trí sau sáp nhập xã phường. Tổng đài rời rạc, lãng phí thời gian vàng. Ra mắt giải pháp SOS Việt Nam 2026.",
          "Vào thẳng vấn đề • 5 phút vàng • Bối rối gọi ai • Đứt gãy thông tin • SOS 2026"),
         ("Phần 2: Giới thiệu hệ thống app\n(2.5 phút)",
-         "• Dân: Không tải app, không đăng ký, mở trong 0.79s, 1 chạm gửi GPS + tự báo người thân.\n• Cán bộ: 1 bản đồ 3D cho 5 lực lượng (Cảnh sát, CSGT, PCCC, Y tế, Cứu hộ), 453 đơn vị, 34 tỉnh, 3.321 xã sáp nhập (T10/2026), 2 tuyến đường.",
-         "1 chạm 0.79s • 1 Bản đồ chung • 5 Lực lượng • 453 Đơn vị • 3.321 xã (T10/2026) • 2 làn đường"),
+         "• Dân: Không tải app, không đăng ký, mở trong 0.79s, 1 chạm gửi GPS + quả cầu SOS Orb tâm sóng video + trợ lý giọng nói AI 4 vùng miền (1.2x) + tự báo người thân.\n• Cán bộ: 1 bản đồ 3D cho 5 lực lượng (Cảnh sát, CSGT, PCCC, Y tế, Cứu hộ), 874 trạm tác chiến, 34 tỉnh, 3.321 xã sáp nhập (T10/2026), 2 tuyến đường.",
+         "1 chạm 0.79s • 1 Bản đồ chung • 5 Lực lượng • 874 Trạm tác chiến • 3.321 xã (T10/2026) • 2 làn đường"),
         ("Phần 3: 4 Tình huống thực tế\n(2.5 phút)",
-         "1. Yếu thế / không nói được (chạm nút gửi tọa độ bay về đơn vị gần nhất).\n2. Tai nạn liên hoàn / cháy lớn (video call + hiệp đồng 5 lực lượng).\n3. Thiên tai bão lũ (quá 15p tự leo thang cấp Tỉnh/TW).\n4. Chống báo giả (NĐ 144 phạt 4-6tr) & Ký số (NĐ 30 1 trang).",
-         "1. Chạm không cần nói • 2. Video + Hiệp đồng • 3. Lưới 15 phút không bỏ sót • 4. Phạt NĐ 144 & Ký số NĐ 30"),
+         "1. Yếu thế / không nói được (chạm nút gửi tọa độ bay về đơn vị gần nhất).\n2. Tai nạn liên hoàn / cháy lớn (Video Call WebRTC 2 chiều + hiệp đồng 5 lực lượng).\n3. Thiên tai bão lũ (quá 15p tự leo thang cấp Tỉnh/TW).\n4. Chống báo giả (NĐ 144 phạt 4-6tr) & Ký số (NĐ 30 1 trang, số chuẩn /BC-TTCH, /BC-CATP, /BC-CSGT...).",
+         "1. Chạm không cần nói • 2. Video WebRTC + Hiệp đồng • 3. Lưới 15 phút không bỏ sót • 4. Phạt NĐ 144 & Ký số NĐ 30"),
         ("Phần 4: Tổng kết & Câu hỏi đọng lại\n(1 phút)",
-         "Đã giới thiệu trọn vẹn toàn bộ hệ sinh thái app & bàn chỉ huy 453 đơn vị (T10/2026). Một chạm cho dân — Bàn chỉ huy cho chiến sĩ. Câu hỏi đắt giá: Liệu có thể để người dân đơn độc trong 5 phút sinh tử vì rào cản kết nối?",
-         "453 đơn vị • T10/2026 • Dữ liệu cho cuộc sống • Câu hỏi đọng lại")
+         "Đã giới thiệu trọn vẹn toàn bộ hệ sinh thái app & bàn chỉ huy 874 trạm tác chiến (T10/2026). Một chạm cho dân — Bàn chỉ huy cho chiến sĩ. Câu hỏi đắt giá: Liệu có thể để người dân đơn độc trong 5 phút sinh tử vì rào cản kết nối?",
+         "874 trạm tác chiến • T10/2026 • Dữ liệu cho cuộc sống • Câu hỏi đọng lại")
     ]
 
     for r_idx, r_data in enumerate(table_data):
@@ -207,9 +207,9 @@ def create_video_script_doc():
 
     add_speech("Để cả người dân lẫn cán bộ chiến sĩ đều sử dụng được ngay mà không cần qua đào tạo phức tạp, ", "SOS Việt Nam 2026 được thiết kế với hai phân hệ tác chiến rõ ràng:")
     add_speech("1. VỚI NGƯỜI DÂN — Mở chưa tới 1 giây, báo nạn trong 5 giây:\n", 
-               "• KHÔNG CẦN TẢI APP, KHÔNG CẦN ĐĂNG KÝ:\n  Chỉ cần chạm biểu tượng SOS trên màn hình hoặc quét mã QR, ứng dụng mở ngay trong 0.79 GIÂY (kể cả mất sóng 4G vẫn mở được nhờ bộ nhớ ngoại tuyến kèm Cẩm nang sinh tồn).\n• CHẠM NÚT LÀ GỬI VỊ TRÍ:\n  Bà con chỉ cần chạm nút SOS to tròn và bấm hình ảnh tình huống: Cấp cứu, Cháy nổ, Tai nạn hay Mưa lũ. Hệ thống tự động gửi tọa độ GPS chính xác về Trung tâm gần nhất, đồng thời tự động nhắn tin vị trí cho người thân gia đình.")
+               "• KHÔNG CẦN TẢI APP, KHÔNG CẦN ĐĂNG KÝ:\n  Chỉ cần chạm biểu tượng SOS trên màn hình hoặc quét mã QR, ứng dụng mở ngay trong 0.79 GIÂY (kể cả mất sóng 4G vẫn mở được nhờ bộ nhớ ngoại tuyến kèm Cẩm nang sinh tồn).\n• QUẢ CẦU SOS ORB TÂM SÓNG & TRỢ LÝ GIỌNG NÓI AI 4 VÙNG MIỀN:\n  Nút báo động Master SOS Orb căn ngay giữa tâm sóng video; đồng thời AI VieNeu-TTS tự động phát giọng nữ thân quen theo 4 vùng miền (Mỹ Duyên - Miền Tây, Thùy Dung - Miền Nam, Ngọc Trân - Miền Trung, Mai Anh - Miền Bắc) với tốc độ tăng 1.2x để trấn an và hướng dẫn người dân trong tích tắc.\n• CHẠM NÚT LÀ GỬI VỊ TRÍ:\n  Hệ thống tự động gửi tọa độ GPS chính xác về Trung tâm gần nhất, đồng thời tự động nhắn tin vị trí cho người thân gia đình.")
     add_speech("2. VỚI CÁN BỘ & LỰC LƯỢNG — 1 Bản đồ chung kết nối 5 Lực lượng:\n",
-               "• Lần đầu tiên, cả 5 LỰC LƯỢNG gồm: CẢNH SÁT, CSGT, PCCC & CNCH, CẤP CỨU Y TẾ VÀ CỨU HỘ DỊCH VỤ cùng hiệp đồng tác chiến trên một BẢN ĐỒ 3D DUY NHẤT.\n• ĐẶC BIỆT: Hệ thống đã đồng bộ trực tiếp với Cơ sở dữ liệu Quốc gia bando.com.vn, CẬP NHẬT MỚI NHẤT TÍNH ĐẾN THÁNG 10 NĂM 2026, bao phủ toàn bộ 34 TỈNH THÀNH và 3.321 XÃ PHƯỜNG sáp nhập, với 453 TÀI KHOẢN ĐIỀU PHỐI TRỰC BAN THỰC TẾ từ cấp Trung ương, Tỉnh đến tận Xã/Phường.\n• TỰ ĐỘNG CHỈ ĐƯỜNG:\n  Hệ thống tự động lọc nhiễu định vị trong ngõ hẹp và vẽ sẵn 2 đường đi: ĐƯỜNG CHO CÁC PHƯƠNG TIỆN XE NHỎ NHƯ XE 2 BÁNH VÀ ĐƯỜNG LỚN CHO Ô TÔ ĐI.")
+               "• Lần đầu tiên, cả 5 LỰC LƯỢNG gồm: CẢNH SÁT, CSGT, PCCC & CNCH, CẤP CỨU Y TẾ VÀ CỨU HỘ DỊCH VỤ cùng hiệp đồng tác chiến trên một BẢN ĐỒ 3D DUY NHẤT.\n• ĐẶC BIỆT: Hệ thống đã đồng bộ trực tiếp với Cơ sở dữ liệu Quốc gia bando.com.vn, CẬP NHẬT MỚI NHẤT TÍNH ĐẾN THÁNG 10 NĂM 2026, bao phủ toàn bộ 34 TỈNH THÀNH và 3.321 XÃ PHƯỜNG sáp nhập, với 874 TRẠM TÁC CHIẾN ĐIỀU PHỐI THỰC TẾ từ cấp Trung ương, Tỉnh đến tận Xã/Phường.\n• TỰ ĐỘNG CHỈ ĐƯỜNG:\n  Hệ thống tự động lọc nhiễu định vị trong ngõ hẹp và vẽ sẵn 2 đường đi: ĐƯỜNG CHO CÁC PHƯƠNG TIỆN XE NHỎ NHƯ XE 2 BÁNH VÀ ĐƯỜNG LỚN CHO Ô TÔ ĐI.")
 
     # =========================================================================
     # PHẦN 3: 4 TÌNH HUỐNG ỨNG DỤNG THỰC TẾ TRONG ĐỜI SỐNG
@@ -221,11 +221,11 @@ def create_video_script_doc():
     add_speech("• TÌNH HUỐNG 1 — Nhóm yếu thế hoặc không thể nói chuyện:\n",
                "Như người già đột quỵ, người khuyết tật câm điếc, hay nạn nhân ngạt khói không thể nói qua điện thoại. Thay vì phải giải thích, họ chỉ cần chạm nhẹ vào thẻ tình huống trên màn hình là tín hiệu cầu cứu cùng vị trí chính xác đã bay thẳng tới đơn vị gần nhất.")
     add_speech("• TÌNH HUỐNG 2 — Sự cố nghiêm trọng cần nhiều lực lượng cùng lúc:\n",
-               "Như tai nạn giao thông liên hoàn hay cháy lớn. Người dân có thể bật VIDEO TRỰC TIẾP ngay trên màn hình. Chỉ với 1 cú nhấp chuột, Trung tâm điều động đồng thời cả CSGT phân luồng, PCCC dập lửa, Cấp cứu Y tế và Cứu hộ dịch vụ mà không cần gọi bộ đàm vòng vo.")
+               "Như tai nạn giao thông liên hoàn hay cháy lớn. Người dân có thể bật VIDEO CALL WEBRTC 2 CHIỀU trực tiếp ngay trên màn hình. Chỉ với 1 cú nhấp chuột, Trung tâm điều động đồng thời cả CSGT phân luồng, PCCC dập lửa, Cấp cứu Y tế và Cứu hộ dịch vụ mà không cần gọi bộ đàm vòng vo.")
     add_speech("• TÌNH HUỐNG 3 — Thiên tai bão lũ, khi cấp cơ sở bị quá tải (Không bỏ sót ca nào):\n",
                "Nếu lực lượng xã/phường bận ứng cứu nơi khác, hệ thống tự chuyển ca sang đơn vị lân cận. Đặc biệt, QUÁ 15 PHÚT mà chưa có người nhận, hệ thống TỰ ĐỘNG BÁO ĐỘNG ĐỎ VÀ PHÁT LOA CẢNH BÁO LÊN CẤP TỈNH VÀ TRUNG ƯƠNG. Không một lời cầu cứu nào của nhân dân bị bỏ quên!")
     add_speech("• TÌNH HUỐNG 4 — Ngăn chặn báo tin giả & Tự động hóa giấy tờ:\n",
-               "Kẻ xấu bấm trêu đùa? Cán bộ chỉ cần bấm 'Báo khống NĐ 144' — máy tự ghi nhận thiết bị, khóa vĩnh viễn và xuất Biên bản xử phạt 4 đến 6 triệu đồng theo Nghị định 144. Còn ca thật xong việc, dân và chiến sĩ KÝ TÊN BẰNG NGÓN TAY TRÊN MÀN HÌNH để xuất biên bản chuẩn Nghị định 30 trong 1 giây, kèm quản lý danh bạ bằng file Excel quen thuộc.")
+               "Kẻ xấu bấm trêu đùa? Cán bộ chỉ cần bấm 'Báo khống NĐ 144' — máy tự ghi nhận thiết bị, khóa vĩnh viễn và xuất Biên bản xử phạt 4 đến 6 triệu đồng theo Nghị định 144. Còn ca thật xong việc, dân và chiến sĩ KÝ TÊN BẰNG NGÓN TAY TRÊN MÀN HÌNH để xuất biên bản chuẩn Nghị định 30 (100% Times New Roman, ký hiệu /BC-TTCH, /BC-CATP, /BC-CSGT...) trong 1 giây, kèm quản lý danh bạ bằng file Excel quen thuộc.")
 
     # =========================================================================
     # PHẦN 4: TỔNG KẾT HỆ THỐNG VÀ THÔNG ĐIỆP ĐỌNG LẠI (ĐẶT CÂU HỎI ĐẮT GIÁ)
@@ -234,7 +234,7 @@ def create_video_script_doc():
     add_tip("👉 GỢI Ý VIDEO & GIỌNG ĐỌC: Nhạc nền chuyển sang sâu lắng rồi cao trào; màn hình hiển thị toàn cảnh bản đồ số kết nối 34 tỉnh thành và logo SOS Việt Nam 2026; giọng đọc truyền cảm, sâu sắc, giàu nội lực.")
 
     add_speech("Như vậy, toàn bộ hệ sinh thái SOS Việt Nam 2026 — ", 
-               "từ ứng dụng báo nạn siêu nhẹ của người dân đến hệ thống điều phối tác chiến 453 đơn vị trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập, cập nhật mới nhất tính đến tháng 10 năm 2026 — đã được xây dựng hoàn chỉnh, sẵn sàng bảo vệ an toàn cho nhân dân trong mọi tình huống khẩn cấp.")
+               "từ ứng dụng báo nạn siêu nhẹ của người dân đến hệ thống điều phối tác chiến 874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập, cập nhật mới nhất tính đến tháng 10 năm 2026 — đã được xây dựng hoàn chỉnh, sẵn sàng bảo vệ an toàn cho nhân dân trong mọi tình huống khẩn cấp.")
     add_speech("MỘT CHẠM GIẢN DỊ CHO DÂN LÚC NGUY NAN — ", "MỘT BÀN CHỈ HUY THÔNG MINH GIÚP CÁN BỘ CHIẾN SĨ TIẾP CẬN HIỆN TRƯỜNG NHANH HƠN VÀ BỚT VẤT VẢ HƠN.")
     add_speech("Bởi với chúng tôi, ", "mỗi giây dữ liệu được rút ngắn hôm nay chính là một sinh mạng con người được giữ lại ngày mai!")
     add_speech("Và câu hỏi lớn đặt ra cho tất cả chúng ta hôm nay là: \n", 
@@ -256,3 +256,17 @@ if __name__ == "__main__":
     doc.save(p1)
     shutil.copy2(p1, p2)
     print(f"[OK] Generated and saved script docx to:\n - {p1}\n - {p2}")
+
+    try:
+        import win32com.client
+        pdf_path = p1.replace(".docx", ".pdf")
+        word = win32com.client.Dispatch("Word.Application")
+        word.Visible = False
+        doc_w = word.Documents.Open(os.path.abspath(p1))
+        doc_w.SaveAs(os.path.abspath(pdf_path), FileFormat=17)
+        doc_w.Close()
+        word.Quit()
+        shutil.copy2(pdf_path, p2.replace(".docx", ".pdf"))
+        print(f"[OK] Generated and synced script PDF to:\n - {pdf_path}")
+    except Exception as e:
+        print(f"[WARN] Could not export PDF via Word COM: {e}")

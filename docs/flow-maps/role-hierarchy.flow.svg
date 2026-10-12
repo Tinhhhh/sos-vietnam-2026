@@ -237,7 +237,7 @@
   </g>
   <g id="edge-nat-monitor-to-excel-sync" data-type="edge" data-edge-type="DATA_FLOW" data-from="node-nat-monitor-all" data-to="node-nat-excel-sync" data-condition="directory_sync_requested" data-flow="FLOW_NATIONAL_OVERSIGHT" data-source-ref="services/accounts-excel-generator.js#L92-100">
     <title>node-nat-monitor-all ➔ node-nat-excel-sync</title>
-    <desc>Đồng bộ 453 Tài khoản / 192 Trạm (Condition: directory_sync_requested)</desc>
+    <desc>Đồng bộ 846 Tài khoản / 874 Trạm (Condition: directory_sync_requested)</desc>
     <path d="M565,1820 L565,1850 L1270,1850 L1270,1815" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#marker-arrow-solid)" />
   </g>
   <g id="edge-nat-monitor-to-audit-log" data-type="edge" data-edge-type="DATA_FLOW" data-from="node-nat-monitor-all" data-to="node-nat-audit-log-store" data-condition="audit_event_logged" data-flow="FLOW_NATIONAL_OVERSIGHT" data-source-ref="services/security-firewall-middleware.js#L19-20">
@@ -539,7 +539,7 @@
     <text x="1025" y="1789" fill="#cbd5e1" font-size="10" text-anchor="middle">Chi viện liên tỉnh</text>
   </g>
   <g id="node-nat-excel-sync" data-type="DATA_STORE" data-flow="FLOW_NATIONAL_OVERSIGHT" data-status="defined" data-lane="NATIONAL_COMMAND" data-source-ref="services/accounts-excel-generator.js#L92-100">
-    <title>CSDL 453 Tài Khoản &amp; 192 Trạm</title>
+    <title>CSDL 846 Tài Khoản &amp; 874 Trạm</title>
     <desc>Đồng bộ hai chiều Excel 4 Sheet danh bạ tài khoản &amp; trạm tác chiến quốc gia</desc>
     <rect x="1180" y="1735" width="180" height="80" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="2" stroke-dasharray="2,2" filter="url(#shadow)" />
     <ellipse cx="1270" cy="1747" rx="82" ry="8" fill="#0369a1" />
@@ -616,12 +616,12 @@
     {
       &quot;path&quot;: &quot;services/accounts-excel-generator.js&quot;,
       &quot;type&quot;: &quot;directory_source&quot;,
-      &quot;scope&quot;: &quot;National Directory 4-Sheet Excel Export, 453 Accounts, 192 Stations&quot;
+      &quot;scope&quot;: &quot;National Directory 4-Sheet Excel Export, 846 Accounts, 874 Stations&quot;
     },
     {
       &quot;path&quot;: &quot;assets/agency-accounts.json&quot;,
       &quot;type&quot;: &quot;data_source&quot;,
-      &quot;scope&quot;: &quot;453 accounts: 1 National, 141 Province, 273 Ward, 38 Enterprise&quot;
+      &quot;scope&quot;: &quot;846 accounts: 1 National, 141 Province, 273 Ward, 38 Enterprise&quot;
     }
   ],
   &quot;nodes&quot;: [

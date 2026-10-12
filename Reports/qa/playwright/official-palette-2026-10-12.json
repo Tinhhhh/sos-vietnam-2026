@@ -1,0 +1,75 @@
+{
+  "timestamp": "2026-10-12T03:29:06.326Z",
+  "baseUrl": "http://localhost:3000",
+  "expectedPalette": {
+    "--brand-mahogany-red": "#ac0015",
+    "--brand-prussian-blue": "#042348",
+    "--brand-baltic-blue": "#00669a",
+    "--brand-neon-ice": "#00ecf3",
+    "--brand-cornsilk": "#f1eccb",
+    "--brand-sandy-clay": "#dfb077"
+  },
+  "checks": [
+    {
+      "id": "index-root-brand-tokens",
+      "description": "Verify all 6 official brand color tokens (--brand-*) in :root on index.html",
+      "passed": true,
+      "details": {
+        "--brand-mahogany-red": "#ac0015",
+        "--brand-prussian-blue": "#042348",
+        "--brand-baltic-blue": "#00669a",
+        "--brand-neon-ice": "#00ecf3",
+        "--brand-cornsilk": "#f1eccb",
+        "--brand-sandy-clay": "#dfb077",
+        "--bg-main": "#042348",
+        "--text-main": "#f1eccb",
+        "--sos-red": "#ac0015",
+        "--police-blue": "#00669a"
+      }
+    },
+    {
+      "id": "index-body-and-meta-colors",
+      "description": "Verify index.html meta theme-color (#042348), body background rgb(4, 35, 72) and text rgb(241, 236, 203)",
+      "passed": true,
+      "details": {
+        "themeMeta": "#042348",
+        "bodyBgColor": "rgb(4, 35, 72)",
+        "bodyTextColor": "rgb(241, 236, 203)",
+        "orbBorder": "rgb(255, 255, 255)"
+      }
+    },
+    {
+      "id": "manifest-palette-sync",
+      "description": "Verify manifest.json background_color (#042348) and theme_color (#AC0015)",
+      "passed": true,
+      "details": {
+        "background_color": "#042348",
+        "theme_color": "#AC0015"
+      }
+    },
+    {
+      "id": "dispatcher-palette-sync",
+      "description": "Verify dispatcher.html tactical variables, Gatekeeper button Mahogany Red (#AC0015) + Cornsilk (#F1ECCB), and Cosmic Portal Prussian Blue (#042348)",
+      "passed": true,
+      "details": {
+        "tacBgMain": "#042348",
+        "bodyBgColor": "rgb(4, 35, 72)",
+        "bodyTextColor": "rgb(241, 236, 203)",
+        "gateBtnBgImage": "linear-gradient(135deg, rgb(172, 0, 21), rgb(122, 0, 15))",
+        "gateBtnColor": "rgb(241, 236, 203)",
+        "portalBgColor": "rgb(4, 35, 72)"
+      }
+    }
+  ],
+  "screenshots": [
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\official-palette-index-2026-10-12.png",
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\official-palette-dispatcher-gatekeeper-2026-10-12.png",
+    "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\official-palette-dispatcher-portal-2026-10-12.png"
+  ],
+  "summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "status": "PASS"
+  }
+}

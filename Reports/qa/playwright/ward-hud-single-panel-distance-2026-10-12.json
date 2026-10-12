@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-12T08:20:33.699Z",
+  "timestamp": "2026-10-12T16:05:05.214Z",
   "feature": "Device GPS Facility Distance, Header/TopBar Pill Alignment & Inset Scrollbar Polish",
   "deviceCoords": {
     "latitude": 11.035,
@@ -44,7 +44,7 @@
     "titleVisibleAtTop": true,
     "hudFitsInViewport": true,
     "topBarRight": 1355,
-    "fakePillRight": 1079.1,
+    "fakePillRight": 1219.1,
     "fakePillFitsInTopBar": true,
     "headerPillsReport": [
       {
