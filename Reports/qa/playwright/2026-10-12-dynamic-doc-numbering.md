@@ -1,5 +1,5 @@
 # BÁO CÁO KIỂM THỬ E2E: CHUẨN HÓA ĐỘNG SỐ KÝ HIỆU VĂN BẢN HÀNH CHÍNH
-**Thời gian thực hiện**: 2026-10-12T15:26:16.127Z
+**Thời gian thực hiện**: 2026-10-12T15:31:08.815Z
 **Trạng thái tổng thể**: ✅ 100% PASS
 **Tỷ lệ đạt**: 100.0% (21/21 kiểm tra đạt)
 
@@ -11,13 +11,12 @@ Kiểm chứng tính chuẩn hóa động của ký hiệu văn bản hành chí
 2. **Cấp Tỉnh / TP trực thuộc TW**: 
    - TP trực thuộc TW (Cần Thơ, Hà Nội, TP.HCM...): `Số: ...... /BC-CATP [TÊN TP]`.
    - Các Tỉnh (Đồng Nai, An Giang...): `Số: ...... /BC-CAT [TÊN TỈNH]`.
-3. **Cấp Xã**: `Số: ...... /BC-CAX [TÊN XÃ]` (Ví dụ: `Số: ...... /BC-CAX PHÚ TÂM`, `Số: ...... /BC-CAX THUẬN HÒA`).
+3. **Cấp Xã**: `Số: ...... /BC-CAX [TÊN XÃ]` (Ví dụ: `Số: ...... /BC-CAX PHÚ TÂM`, `Số: ...... /BC-CAX THUẬN HÒA`, `Số: ...... /BC-CAX PHONG ĐIỀN`).
 4. **Cấp Phường**: `Số: ...... /BC-CAP [TÊN PHƯỜNG]` (Ví dụ: `Số: ...... /BC-CAP TÂN AN`, `Số: ...... /BC-CAP AN KHÁNH`).
-5. **Cấp Thị Trấn**: `Số: ...... /BC-CATT [TÊN THỊ TRẤN]` (Ví dụ: `Số: ...... /BC-CATT PHONG ĐIỀN`).
-6. **Lực lượng CSGT**: `Số: ...... /BC-CSGT [TÊN TỈNH/TP]` (Ví dụ: `Số: ...... /BC-CSGT CẦN THƠ`).
-7. **Lực lượng PCCC**: `Số: ...... /BC-PCCC [TÊN TỈNH/TP]` (Ví dụ: `Số: ...... /BC-PCCC CẦN THƠ`).
-8. **Lực lượng Y tế / 115**: `Số: ...... /BC-BYT` (Bộ Y Tế).
-9. **Tương tác động UI**: Chuyển đổi tab trên modal thống kê địa bàn cập nhật tức thì trên DOM (`#printDocNumber`) và file Word tải về.
+5. **Lực lượng CSGT**: `Số: ...... /BC-CSGT [TÊN TỈNH/TP]` (Ví dụ: `Số: ...... /BC-CSGT CẦN THƠ`).
+6. **Lực lượng PCCC**: `Số: ...... /BC-PCCC [TÊN TỈNH/TP]` (Ví dụ: `Số: ...... /BC-PCCC CẦN THƠ`).
+7. **Lực lượng Y tế / 115**: `Số: ...... /BC-BYT` (Bộ Y Tế).
+8. **Tương tác động UI**: Chuyển đổi tab trên modal thống kê địa bàn cập nhật tức thì trên DOM (`#printDocNumber`) và file Word tải về.
 
 ---
 
@@ -35,7 +34,7 @@ Kiểm chứng tính chuẩn hóa động của ký hiệu văn bản hành chí
 | 8 | `DOC-NUM-08` | Cấp Xã (Thuận Hòa) - All -> Kỳ vọng "Số: ...... /BC-CAX THUẬN HÒA" | ✅ PASS | `{"expected":"Số: ...... /BC-CAX THUẬN HÒA","actual":"Số: ...... /BC-CAX THUẬN HÒA"}` |
 | 9 | `DOC-NUM-09` | Cấp Phường (Phường Tân An) - All -> Kỳ vọng "Số: ...... /BC-CAP TÂN AN" | ✅ PASS | `{"expected":"Số: ...... /BC-CAP TÂN AN","actual":"Số: ...... /BC-CAP TÂN AN"}` |
 | 10 | `DOC-NUM-010` | Cấp Phường (An Khánh) - All -> Kỳ vọng "Số: ...... /BC-CAP AN KHÁNH" | ✅ PASS | `{"expected":"Số: ...... /BC-CAP AN KHÁNH","actual":"Số: ...... /BC-CAP AN KHÁNH"}` |
-| 11 | `DOC-NUM-011` | Cấp Thị Trấn (Thị trấn Phong Điền) - All -> Kỳ vọng "Số: ...... /BC-CATT PHONG ĐIỀN" | ✅ PASS | `{"expected":"Số: ...... /BC-CATT PHONG ĐIỀN","actual":"Số: ...... /BC-CATT PHONG ĐIỀN"}` |
+| 11 | `DOC-NUM-011` | Cấp Xã/Thị bàn Phong Điền (Quy chuẩn CAX, không dùng CATT) - All -> Kỳ vọng "Số: ...... /BC-CAX PHONG ĐIỀN" | ✅ PASS | `{"expected":"Số: ...... /BC-CAX PHONG ĐIỀN","actual":"Số: ...... /BC-CAX PHONG ĐIỀN"}` |
 | 12 | `DOC-NUM-012` | Lực lượng CSGT (Cần Thơ) - Filter CSGT -> Kỳ vọng "Số: ...... /BC-CSGT CẦN THƠ" | ✅ PASS | `{"expected":"Số: ...... /BC-CSGT CẦN THƠ","actual":"Số: ...... /BC-CSGT CẦN THƠ"}` |
 | 13 | `DOC-NUM-013` | Lực lượng PCCC (Cần Thơ) - Filter Fire -> Kỳ vọng "Số: ...... /BC-PCCC CẦN THƠ" | ✅ PASS | `{"expected":"Số: ...... /BC-PCCC CẦN THƠ","actual":"Số: ...... /BC-PCCC CẦN THƠ"}` |
 | 14 | `DOC-NUM-014` | Lực lượng Y tế (Cấp Cứu 115 / Bệnh Viện) - Filter Hospital -> Kỳ vọng "Số: ...... /BC-BYT" | ✅ PASS | `{"expected":"Số: ...... /BC-BYT","actual":"Số: ...... /BC-BYT"}` |

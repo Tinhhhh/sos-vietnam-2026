@@ -14553,15 +14553,13 @@ class DispatcherApp {
       return `Số: ...... /BC-CHGT${loc}`;
     }
 
-    // 3. Cấp Xã / Phường / Thị trấn (level === 'ward' hoặc có thông tin ward)
+    // 3. Cấp Xã / Phường (level === 'ward' hoặc có thông tin ward)
     if (level === 'ward' || rawWard) {
       let wardUpper = rawWard.toUpperCase();
       let type = 'CAX';
 
       if (wardUpper.startsWith('PHƯỜNG ') || wardUpper.startsWith('P. ') || agencyName.includes('phường')) {
         type = 'CAP';
-      } else if (wardUpper.startsWith('THỊ TRẤN ') || wardUpper.startsWith('TT. ') || agencyName.includes('thị trấn')) {
-        type = 'CATT';
       } else if (wardUpper.startsWith('XÃ ') || wardUpper.startsWith('X. ') || agencyName.includes('xã')) {
         type = 'CAX';
       } else {
@@ -14573,7 +14571,7 @@ class DispatcherApp {
         }
       }
 
-      const cleanWard = wardUpper.replace(/^(PHƯỜNG|THỊ TRẤN|XÃ|P\.|TT\.|X\.)\s*/i, '').trim();
+      const cleanWard = wardUpper.replace(/^(PHƯỜNG|XÃ|THỊ TRẤN|P\.|TT\.|X\.)\s*/i, '').trim();
       return `Số: ...... /BC-${type} ${cleanWard}`.trim();
     }
 

@@ -20,8 +20,7 @@ Chuẩn hóa động số ký hiệu văn bản hành chính (`Số: ...... /BC-
    - Lực lượng PCCC: `Số: ...... /BC-PCCC [TÊN ĐỊA PHƯƠNG]` (Ví dụ: `Số: ...... /BC-PCCC CẦN THƠ`).
    - Lực lượng Y tế / Cấp cứu: `Số: ...... /BC-BYT` (BYT = Bộ Y Tế).
 3. **Cấp Phường**: `Số: ...... /BC-CAP [TÊN PHƯỜNG]` (Ví dụ: `Số: ...... /BC-CAP TÂN AN`).
-4. **Cấp Xã**: `Số: ...... /BC-CAX [TÊN XÃ]` (Ví dụ: `Số: ...... /BC-CAX PHÚ TÂM`, `Số: ...... /BC-CAX THUẬN HÒA`).
-5. **Cấp Thị Trấn**: `Số: ...... /BC-CATT [TÊN THỊ TRẤN]` (Ví dụ: `Số: ...... /BC-CATT PHONG ĐIỀN`).
+4. **Cấp Xã**: `Số: ...... /BC-CAX [TÊN XÃ]` (Ví dụ: `Số: ...... /BC-CAX PHÚ TÂM`, `Số: ...... /BC-CAX THUẬN HÒA`, `Số: ...... /BC-CAX PHONG ĐIỀN`).
 
 Áp dụng đồng bộ cho toàn bộ các điểm hiển thị và xuất báo cáo:
 - Header bản in trực tiếp và modal thống kê địa bàn (`#printDocNumber`).
@@ -66,10 +65,9 @@ Chuẩn hóa động số ký hiệu văn bản hành chính (`Số: ...... /BC-
    - Cấp Tỉnh/TP:
      - 5 TP trực thuộc TW (Hà Nội, TP.HCM, Hải Phòng, Đà Nẵng, Cần Thơ) -> `/BC-CATP [TÊN TP]`
      - Các tỉnh còn lại -> `/BC-CAT [TÊN TỈNH]`
-   - Cấp Xã / Phường / Thị trấn:
+   - Cấp Xã / Phường:
      - Phường -> `/BC-CAP [TÊN PHƯỜNG]`
      - Xã -> `/BC-CAX [TÊN XÃ]`
-     - Thị trấn -> `/BC-CATT [TÊN THỊ TRẤN]`
    - Lực lượng chuyên trách:
      - CSGT -> `/BC-CSGT [TÊN TỈNH/TP]`
      - PCCC -> `/BC-PCCC [TÊN TỈNH/TP]`

@@ -22,7 +22,6 @@ Matching plan item(s): `P0-A`
   - Cấp Tỉnh/TP -> `Số: ...... /BC-CATP CẦN THƠ` (với TP) hoặc `Số: ...... /BC-CAT [TỈNH]` (với tỉnh)
   - Cấp Xã -> `Số: ...... /BC-CAX PHÚ TÂM` (hoặc `/BC-CAX THUẬN HÒA`)
   - Cấp Phường -> `Số: ...... /BC-CAP TÂN AN`
-  - Cấp Thị Trấn -> `Số: ...... /BC-CATT`
   - CSGT -> `Số: ...... /BC-CSGT CẦN THƠ`
   - PCCC -> `Số: ...... /BC-PCCC CẦN THƠ`
   - Y tế -> `Số: ...... /BC-BYT`
@@ -37,9 +36,8 @@ Matching plan item(s): `P1-A`, `P1-B`, `P1-C`, `P1-D`
   - Cấp Quốc gia -> `Số: ...... /BC-TTCH`
   - Cấp TP trực thuộc TW -> `Số: ...... /BC-CATP [TÊN TP]` (Ví dụ: `Số: ...... /BC-CATP CẦN THƠ`, `Số: ...... /BC-CATP HÀ NỘI`)
   - Cấp Tỉnh -> `Số: ...... /BC-CAT [TÊN TỈNH]` (Ví dụ: `Số: ...... /BC-CAT ĐỒNG NAI`, `Số: ...... /BC-CAT AN GIANG`)
-  - Cấp Xã -> `Số: ...... /BC-CAX [TÊN XÃ]` (Ví dụ: `Số: ...... /BC-CAX PHÚ TÂM`, `Số: ...... /BC-CAX THUẬN HÒA`)
+  - Cấp Xã -> `Số: ...... /BC-CAX [TÊN XÃ]` (Ví dụ: `Số: ...... /BC-CAX PHÚ TÂM`, `Số: ...... /BC-CAX THUẬN HÒA`, `Số: ...... /BC-CAX PHONG ĐIỀN`)
   - Cấp Phường -> `Số: ...... /BC-CAP [TÊN PHƯỜNG]` (Ví dụ: `Số: ...... /BC-CAP TÂN AN`, `Số: ...... /BC-CAP AN KHÁNH`)
-  - Cấp Thị Trấn -> `Số: ...... /BC-CATT [TÊN THỊ TRẤN]` (Ví dụ: `Số: ...... /BC-CATT PHONG ĐIỀN`)
   - Lực lượng CSGT -> `Số: ...... /BC-CSGT [TÊN TỈNH/TP]`
   - Lực lượng PCCC -> `Số: ...... /BC-PCCC [TÊN TỈNH/TP]`
   - Lực lượng Y tế / 115 -> `Số: ...... /BC-BYT`

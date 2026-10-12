@@ -1,6 +1,6 @@
 {
   "testName": "Dynamic-Administrative-Doc-Numbering",
-  "timestamp": "2026-10-12T15:26:16.127Z",
+  "timestamp": "2026-10-12T15:31:08.815Z",
   "assertions": [
     {
       "id": "DOC-NUM-01",
@@ -94,11 +94,11 @@
     },
     {
       "id": "DOC-NUM-011",
-      "description": "Cấp Thị Trấn (Thị trấn Phong Điền) - All -> Kỳ vọng \"Số: ...... /BC-CATT PHONG ĐIỀN\"",
+      "description": "Cấp Xã/Thị bàn Phong Điền (Quy chuẩn CAX, không dùng CATT) - All -> Kỳ vọng \"Số: ...... /BC-CAX PHONG ĐIỀN\"",
       "passed": true,
       "details": {
-        "expected": "Số: ...... /BC-CATT PHONG ĐIỀN",
-        "actual": "Số: ...... /BC-CATT PHONG ĐIỀN"
+        "expected": "Số: ...... /BC-CAX PHONG ĐIỀN",
+        "actual": "Số: ...... /BC-CAX PHONG ĐIỀN"
       }
     },
     {

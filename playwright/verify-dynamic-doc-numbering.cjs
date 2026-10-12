@@ -6,7 +6,6 @@
  * - Cấp Tỉnh (Đồng Nai): Số: ...... /BC-CAT ĐỒNG NAI
  * - Cấp Xã (Phú Tâm, Thuận Hòa): Số: ...... /BC-CAX PHÚ TÂM, Số: ...... /BC-CAX THUẬN HÒA
  * - Cấp Phường (Tân An): Số: ...... /BC-CAP TÂN AN
- * - Cấp Thị Trấn (Phong Điền): Số: ...... /BC-CATT PHONG ĐIỀN
  * - Lực lượng CSGT: Số: ...... /BC-CSGT CẦN THƠ
  * - Lực lượng PCCC: Số: ...... /BC-PCCC CẦN THƠ
  * - Lực lượng Y tế: Số: ...... /BC-BYT
@@ -130,10 +129,10 @@ async function run() {
           expected: 'Số: ...... /BC-CAP AN KHÁNH'
         },
         {
-          name: 'Cấp Thị Trấn (Thị trấn Phong Điền) - All',
+          name: 'Cấp Xã/Thị bàn Phong Điền (Quy chuẩn CAX, không dùng CATT) - All',
           officer: { level: 'ward', username: 'phongdien_cop', agency: 'police', province: 'Cần Thơ', ward: 'Thị trấn Phong Điền' },
           filter: 'all',
-          expected: 'Số: ...... /BC-CATT PHONG ĐIỀN'
+          expected: 'Số: ...... /BC-CAX PHONG ĐIỀN'
         },
         {
           name: 'Lực lượng CSGT (Cần Thơ) - Filter CSGT',
@@ -375,13 +374,12 @@ Kiểm chứng tính chuẩn hóa động của ký hiệu văn bản hành chí
 2. **Cấp Tỉnh / TP trực thuộc TW**: 
    - TP trực thuộc TW (Cần Thơ, Hà Nội, TP.HCM...): \`Số: ...... /BC-CATP [TÊN TP]\`.
    - Các Tỉnh (Đồng Nai, An Giang...): \`Số: ...... /BC-CAT [TÊN TỈNH]\`.
-3. **Cấp Xã**: \`Số: ...... /BC-CAX [TÊN XÃ]\` (Ví dụ: \`Số: ...... /BC-CAX PHÚ TÂM\`, \`Số: ...... /BC-CAX THUẬN HÒA\`).
+3. **Cấp Xã**: \`Số: ...... /BC-CAX [TÊN XÃ]\` (Ví dụ: \`Số: ...... /BC-CAX PHÚ TÂM\`, \`Số: ...... /BC-CAX THUẬN HÒA\`, \`Số: ...... /BC-CAX PHONG ĐIỀN\`).
 4. **Cấp Phường**: \`Số: ...... /BC-CAP [TÊN PHƯỜNG]\` (Ví dụ: \`Số: ...... /BC-CAP TÂN AN\`, \`Số: ...... /BC-CAP AN KHÁNH\`).
-5. **Cấp Thị Trấn**: \`Số: ...... /BC-CATT [TÊN THỊ TRẤN]\` (Ví dụ: \`Số: ...... /BC-CATT PHONG ĐIỀN\`).
-6. **Lực lượng CSGT**: \`Số: ...... /BC-CSGT [TÊN TỈNH/TP]\` (Ví dụ: \`Số: ...... /BC-CSGT CẦN THƠ\`).
-7. **Lực lượng PCCC**: \`Số: ...... /BC-PCCC [TÊN TỈNH/TP]\` (Ví dụ: \`Số: ...... /BC-PCCC CẦN THƠ\`).
-8. **Lực lượng Y tế / 115**: \`Số: ...... /BC-BYT\` (Bộ Y Tế).
-9. **Tương tác động UI**: Chuyển đổi tab trên modal thống kê địa bàn cập nhật tức thì trên DOM (\`#printDocNumber\`) và file Word tải về.
+5. **Lực lượng CSGT**: \`Số: ...... /BC-CSGT [TÊN TỈNH/TP]\` (Ví dụ: \`Số: ...... /BC-CSGT CẦN THƠ\`).
+6. **Lực lượng PCCC**: \`Số: ...... /BC-PCCC [TÊN TỈNH/TP]\` (Ví dụ: \`Số: ...... /BC-PCCC CẦN THƠ\`).
+7. **Lực lượng Y tế / 115**: \`Số: ...... /BC-BYT\` (Bộ Y Tế).
+8. **Tương tác động UI**: Chuyển đổi tab trên modal thống kê địa bàn cập nhật tức thì trên DOM (\`#printDocNumber\`) và file Word tải về.
 
 ---
 
