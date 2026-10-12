@@ -19,11 +19,10 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 # Thông điệp chính xác, truyền cảm, rõ ràng, dứt khoát
-# "Hệ thống khẩn cấp ét-ô-ét đã kích hoạt. Xin giữ bình tĩnh, chọn ngay loại sự cố trên màn hình. Tọa độ của bạn đang được chuyển trực tiếp tới trực ban và lực lượng cứu hộ gần nhất."
 PROMPT_TEXT = (
-    "Hệ thống khẩn cấp ét-ô-ét đã ghi nhận. "
-    "Xin giữ bình tĩnh, chọn ngay loại sự cố trên màn hình. "
-    "Tọa độ của bạn đang được chuyển trực tiếp tới trực ban và lực lượng cứu hộ gần nhất."
+    "Hệ thống khẩn cấp ét-ô-ét đã kích hoạt. "
+    "Xin giữ bình tĩnh, vui lòng chọn đơn vị bạn muốn báo trên màn hình. "
+    "Sau đó, thông tin sẽ được chuyển tiếp ngay đến trực ban của đơn vị để điều phối lực lượng cứu hộ."
 )
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "sounds")
