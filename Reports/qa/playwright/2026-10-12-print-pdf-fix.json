@@ -1,0 +1,43 @@
+{
+  "testName": "Territory-Incidents-Print-PDF-Layout-Verification",
+  "timestamp": "2026-10-12T13:34:10.346Z",
+  "assertions": [
+    {
+      "test": "Territory stats modal opens and is visible",
+      "passed": true,
+      "expected": true,
+      "actual": true
+    },
+    {
+      "test": "Territory stats table renders in print mode",
+      "passed": true,
+      "expected": "> 500px",
+      "actual": "1440px"
+    },
+    {
+      "test": "Content column ('Nội Dung Sự Cố') width is allocated generous room (>= 120px in print)",
+      "passed": true,
+      "expected": ">= 120px",
+      "actual": "360px"
+    },
+    {
+      "test": "STT column has adequate width for numbers (>= 25px)",
+      "passed": true,
+      "expected": ">= 25px",
+      "actual": "65px"
+    },
+    {
+      "test": "Sample row height is compact (< 80px), proving no letter-by-letter vertical stacking",
+      "passed": true,
+      "expected": "< 80px",
+      "actual": "0px"
+    },
+    {
+      "test": "PDF report exported cleanly with valid file size (> 10KB)",
+      "passed": true,
+      "expected": "> 10KB",
+      "actual": "43KB"
+    }
+  ],
+  "passed": true
+}

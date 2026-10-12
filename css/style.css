@@ -8484,13 +8484,26 @@ textarea:focus {
     margin-top: 24px !important;
   }
 
+  /* Support named landscape page for modern printing engines */
+  body.printing-territory-stats {
+    page: territory-stats-landscape;
+  }
+
+  @page territory-stats-landscape {
+    size: A4 landscape;
+    margin: 6mm 10mm 6mm 10mm;
+  }
+
   .territory-stats-table {
     width: 100% !important;
+    max-width: 100% !important;
     color: #000000 !important;
     border: 1.5px solid #000000 !important;
     border-collapse: collapse !important;
+    table-layout: fixed !important;
     font-family: 'Times New Roman', Times, serif !important;
     page-break-inside: auto !important;
+    margin: 0 !important;
   }
 
   .territory-stats-table thead {
@@ -8505,23 +8518,109 @@ textarea:focus {
     background: transparent !important;
     page-break-inside: avoid !important;
     page-break-after: auto !important;
+    border-bottom: 1px solid #333333 !important;
   }
 
   .territory-stats-table th,
   .territory-stats-table td {
-    border: 1px solid #000000 !important;
+    border: 1px solid #333333 !important;
     color: #000000 !important;
-    padding: 6px 8px !important;
-    font-size: 10pt !important;
+    padding: 4px 6px !important;
+    font-size: 8.5pt !important;
+    line-height: 1.3 !important;
     page-break-inside: avoid !important;
-    word-break: break-word !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
+    hyphens: auto !important;
+    vertical-align: top !important;
+    box-sizing: border-box !important;
   }
 
   .territory-stats-table th {
     background: #e2e8f0 !important;
     color: #000000 !important;
-    font-weight: bold !important;
+    font-weight: 700 !important;
     text-align: center !important;
+    font-size: 9pt !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+    padding: 6px 4px !important;
+  }
+
+  /* 8 Cột phân bổ tỷ lệ phần trăm chuẩn (Tổng = 100%) */
+  .territory-stats-table th:nth-child(1),
+  .territory-stats-table td:nth-child(1) {
+    width: 4.5% !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+
+  .territory-stats-table th:nth-child(2),
+  .territory-stats-table td:nth-child(2) {
+    width: 12% !important;
+    font-family: 'Consolas', 'SF Mono', monospace !important;
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    word-break: break-all !important;
+  }
+
+  .territory-stats-table th:nth-child(3),
+  .territory-stats-table td:nth-child(3) {
+    width: 10.5% !important;
+    font-size: 8pt !important;
+    text-align: center !important;
+  }
+
+  .territory-stats-table th:nth-child(4),
+  .territory-stats-table td:nth-child(4) {
+    width: 11% !important;
+    font-size: 8.5pt !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+  }
+
+  .territory-stats-table th:nth-child(5),
+  .territory-stats-table td:nth-child(5) {
+    width: 25% !important; /* DÀNH 25% CHO NỘI DUNG SỰ CỐ - KHÔNG BỊ CO HẸP */
+    font-size: 8.5pt !important;
+    text-align: left !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .territory-stats-table th:nth-child(6),
+  .territory-stats-table td:nth-child(6) {
+    width: 13.5% !important;
+    font-size: 8.5pt !important;
+    text-align: left !important;
+  }
+
+  .territory-stats-table th:nth-child(7),
+  .territory-stats-table td:nth-child(7) {
+    width: 15% !important;
+    font-size: 8pt !important;
+    text-align: left !important;
+  }
+
+  .territory-stats-table th:nth-child(8),
+  .territory-stats-table td:nth-child(8) {
+    width: 8.5% !important;
+    font-size: 8pt !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+
+  .territory-stats-table td span {
+    color: #000000 !important;
+    border: 1px solid #666666 !important;
+    background: transparent !important;
+    font-weight: 600 !important;
+    font-size: 7.5pt !important;
+    padding: 1px 4px !important;
+    border-radius: 2px !important;
+    white-space: nowrap !important;
   }
 }
 

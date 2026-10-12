@@ -14687,6 +14687,16 @@ class DispatcherApp {
     const modal = document.getElementById('territoryStatsModal');
     if (!modal) return;
     document.body.classList.add('printing-territory-stats');
+
+    // Dynamic @page rule for landscape printing to ensure Chrome/Edge print dialog defaults to Landscape
+    let printStyle = document.getElementById('territoryStatsPrintPageStyle');
+    if (!printStyle) {
+      printStyle = document.createElement('style');
+      printStyle.id = 'territoryStatsPrintPageStyle';
+      document.head.appendChild(printStyle);
+    }
+    printStyle.textContent = '@media print { @page { size: A4 landscape !important; margin: 8mm 10mm 8mm 10mm !important; } }';
+
     const oldTitle = document.title;
     document.title = 'BaoCao_ThongKe_SuCo_SOS_VietNam_2026';
 
@@ -14695,7 +14705,8 @@ class DispatcherApp {
       setTimeout(() => {
         document.body.classList.remove('printing-territory-stats');
         document.title = oldTitle;
-      }, 800);
+        if (printStyle) printStyle.remove();
+      }, 1000);
     }, 150);
   }
 
