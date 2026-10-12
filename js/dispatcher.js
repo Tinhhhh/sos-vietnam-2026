@@ -1377,10 +1377,10 @@ class DispatcherApp {
 
     if (this.headerBrandIcon) {
       if (officer.username === 'admin') {
-        // Admin: show personal logo
+        // Admin: show official logo
         const isVinhAn = (officer.officerName || '').includes('Điền Trần Vĩnh An');
-        const adminLogo = isVinhAn ? '/assets/icons/logo-police-round-an.png' : '/assets/icons/logo-admin-login.png';
-        this.headerBrandIcon.innerHTML = `<img src="${adminLogo}" style="width: 34px; height: 34px; object-fit: contain; border-radius: 50%; box-shadow: 0 0 12px rgba(59,130,246,0.5);" alt="Logo Chỉ Huy">`;
+        const adminLogo = isVinhAn ? '/assets/icons/logo-police-round-an.png?v=20261012_official_logo_v1' : '/assets/icons/logo-admin-login.png?v=20261012_official_logo_v1';
+        this.headerBrandIcon.innerHTML = `<img src="${adminLogo}" style="width: 34px; height: 34px; object-fit: contain; border-radius: 8px; box-shadow: 0 0 12px rgba(59,130,246,0.5);" alt="Logo Chỉ Huy">`;
         if (this.headerBrandAgencyCode) this.headerBrandAgencyCode.style.display = 'none';
       } else {
         // Other agencies: show their official logo
@@ -1406,8 +1406,8 @@ class DispatcherApp {
     if (this.dutyAvatar) {
       if (officer.agency === 'all' || officer.username === 'admin') {
         const isVinhAnAvatar = (officer.officerName || '').includes('Điền Trần Vĩnh An');
-        const avatarLogo = isVinhAnAvatar ? '/assets/icons/logo-police-round-an.png' : '/assets/icons/logo-admin-login.png';
-        this.dutyAvatar.innerHTML = `<img src="${avatarLogo}" style="width: 34px; height: 34px; object-fit: contain; border-radius: 50%; box-shadow: 0 0 10px rgba(59,130,246,0.7);" alt="Avatar">`;
+        const avatarLogo = isVinhAnAvatar ? '/assets/icons/logo-police-round-an.png?v=20261012_official_logo_v1' : '/assets/icons/logo-admin-login.png?v=20261012_official_logo_v1';
+        this.dutyAvatar.innerHTML = `<img src="${avatarLogo}" style="width: 34px; height: 34px; object-fit: contain; border-radius: 8px; box-shadow: 0 0 10px rgba(59,130,246,0.7);" alt="Avatar">`;
       } else {
         this.dutyAvatar.textContent = officer.badgeIcon || 'CA';
       }
