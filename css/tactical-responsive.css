@@ -11,28 +11,28 @@
    0. DESIGN TOKENS — 5 lực lượng + Chỉ huy + Glass
    --------------------------------------------------------------------- */
 :root {
-  /* Nền vũ trụ */
-  --tac-bg-deep: #030712;
-  --tac-bg-main: #060912;
-  --tac-bg-surface: #0e1424;
+  /* Nền vũ trụ — Prussian Blue */
+  --tac-bg-deep: #042348;
+  --tac-bg-main: #042348;
+  --tac-bg-surface: #042348;
 
-  /* Liquid Glass */
-  --tac-glass-bg: rgba(14, 20, 36, 0.85);
-  --tac-glass-bg-soft: rgba(10, 16, 32, 0.72);
-  --tac-glass-border: rgba(255, 255, 255, 0.12);
-  --tac-glass-border-active: rgba(56, 189, 248, 0.35);
+  /* Liquid Glass — Prussian Blue + Sandy Clay + Neon Ice */
+  --tac-glass-bg: rgba(4, 35, 72, 0.86);
+  --tac-glass-bg-soft: rgba(4, 35, 72, 0.74);
+  --tac-glass-border: rgba(223, 176, 119, 0.26);
+  --tac-glass-border-active: rgba(0, 236, 243, 0.5);
   --tac-glass-blur: 28px;
   --tac-glass-blur-min: 24px;
   --tac-glass-blur-max: 32px;
-  --tac-glass-shadow: 0 16px 48px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+  --tac-glass-shadow: 0 16px 48px rgba(4, 35, 72, 0.75), inset 0 1px 1px rgba(241, 236, 203, 0.22);
 
-  /* Lực lượng — (đậm / neon) */
-  --force-congan: #0088ff;      --force-congan-neon: #38bdf8;
-  --force-csgt: #f59e0b;        --force-csgt-neon: #fbbf24;
-  --force-pccc: #ff2a4b;        --force-pccc-neon: #ef4444;
-  --force-115: #10b981;         --force-115-neon: #34d399;
-  --force-cuuho: #ff9100;       --force-cuuho-neon: #fb923c;
-  --force-chihuy: #8b5cf6;      --force-chihuy-neon: #c084fc;
+  /* Lực lượng — (đậm / neon) theo bảng 6 màu chính thức */
+  --force-congan: #00669A;      --force-congan-neon: #00ECF3;
+  --force-csgt: #DFB077;        --force-csgt-neon: #F1ECCB;
+  --force-pccc: #AC0015;        --force-pccc-neon: #AC0015;
+  --force-115: #00669A;         --force-115-neon: #00ECF3;
+  --force-cuuho: #DFB077;       --force-cuuho-neon: #F1ECCB;
+  --force-chihuy: #00669A;      --force-chihuy-neon: #DFB077;
 
   /* Safe-area (iOS notch / Home Indicator / Android gesture bar) */
   --sa-top: env(safe-area-inset-top, 0px);

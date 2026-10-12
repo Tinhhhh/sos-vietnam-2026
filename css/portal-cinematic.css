@@ -14,13 +14,13 @@
 }
 #cosmicPortalView .cosmic-bubble-item:hover {
   transform: scale(1.08) translateY(-4px) !important;
-  filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.6));
+  filter: drop-shadow(0 0 24px rgba(0, 236, 243, 0.65));
 }
 #cosmicPortalView .bubble-glass-sphere {
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 #cosmicPortalView .cosmic-bubble-item:hover .bubble-glass-sphere {
-  box-shadow: 0 0 35px rgba(255, 255, 255, 0.45), inset 0 0 20px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 35px rgba(241, 236, 203, 0.45), inset 0 0 20px rgba(223, 176, 119, 0.35);
 }
 #cosmicPortalView {
   overflow-y: auto !important;
@@ -33,7 +33,7 @@
   width: min(900px, 100%) !important; inline-size: min(900px, 100%) !important;
   max-inline-size: 100% !important; max-width: 100% !important;
   padding: 16px 22px !important; border-radius: 22px;
-  background: rgba(6, 19, 35, .88) !important;
+  background: rgba(4, 35, 72, 0.88) !important;
 }
 #cosmicPortalView .cosmic-portal-title { font-size: clamp(18px, 2vw, 30px) !important; line-height: 1.22 !important; text-shadow: none; }
 #cosmicPortalView .cosmic-portal-desc { line-height: 1.5 !important; }
@@ -75,25 +75,25 @@
   display: none !important;
 }
 .cinematic-toolbar button, .cinematic-toolbar a {
-  font: 600 12px/1.4 system-ui, sans-serif; color: #e5f0fc; background: #09172ce8;
-  border: 1px solid #52687f; border-radius: 999px; padding: 9px 15px; min-height: 44px;
+  font: 600 12px/1.4 system-ui, sans-serif; color: #F1ECCB; background: rgba(4, 35, 72, 0.9);
+  border: 1px solid #00669A; border-radius: 999px; padding: 9px 15px; min-height: 44px;
   text-decoration: none; cursor: pointer; transition: transform 140ms ease-out, background-color 140ms ease-out;
 }
 .cinematic-toolbar button:active { transform: scale(.97); }
 .cinematic-toolbar button:disabled { opacity: .5; cursor: default; }
-.cinematic-toolbar :focus-visible, #cosmicPortalView .cosmic-bubble-item:focus-visible { outline: 3px solid #ffde96; outline-offset: 5px; }
-#cinematicStatus { font: 500 12px/1.5 system-ui, sans-serif; color: #d5e4f5; width: 100%; text-align: center; text-shadow: 0 1px 4px #000; }
+.cinematic-toolbar :focus-visible, #cosmicPortalView .cosmic-bubble-item:focus-visible { outline: 3px solid #DFB077; outline-offset: 5px; }
+#cinematicStatus { font: 500 12px/1.5 system-ui, sans-serif; color: #F1ECCB; width: 100%; text-align: center; text-shadow: 0 1px 4px #042348; }
 .portal-cinematic-scene { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; opacity: 0; }
 .portal-cinematic-scene.is-ready { opacity: 1; }
 .cinematic-globe-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.cinematic-geography { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at 48% 48%, #16394a 0%, #081c30 42%, #020711 90%); }
-.cinematic-geography::after { content: ''; position: absolute; inset: 0; background: linear-gradient(#020711aa, transparent 30%, transparent 72%, #020711bb); }
+.cinematic-geography { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at 48% 48%, #00669A 0%, #042348 52%, #021226 92%); }
+.cinematic-geography::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(4, 35, 72, 0.7), transparent 30%, transparent 72%, rgba(4, 35, 72, 0.8)); }
 .cinematic-geography svg { width: 100%; height: 100%; overflow: visible; }
-.cinematic-land { fill: url(#cinematicLand); stroke: #ffd589; stroke-width: .65; stroke-linejoin: round; }
-.cinematic-grid { stroke: #427994; stroke-opacity: .17; stroke-width: .7; fill: none; }
-.cinematic-label { font: 14px system-ui, sans-serif; fill: #d9e6eb; paint-order: stroke; stroke: #061425; stroke-width: 3px; stroke-linejoin: round; }
-.cinematic-city { fill: #ffe1a0; }
-.cinematic-country { font: 600 30px system-ui, sans-serif; letter-spacing: 8px; fill: #ffe1a0; }
+.cinematic-land { fill: url(#cinematicLand); stroke: #DFB077; stroke-width: .65; stroke-linejoin: round; }
+.cinematic-grid { stroke: #00ECF3; stroke-opacity: .18; stroke-width: .7; fill: none; }
+.cinematic-label { font: 14px system-ui, sans-serif; fill: #F1ECCB; paint-order: stroke; stroke: #042348; stroke-width: 3px; stroke-linejoin: round; }
+.cinematic-city { fill: #DFB077; }
+.cinematic-country { font: 600 30px system-ui, sans-serif; letter-spacing: 8px; fill: #F1ECCB; }
 @media (max-width: 800px) {
   #cosmicPortalView .cosmic-stage { gap: 46px 12%; }
   #cosmicPortalView .cosmic-stage-wrapper { min-height: max(350px, calc(100dvh - 350px)); }
@@ -129,15 +129,15 @@
   pointer-events: none;
 }
 .cloud-layer-high {
-  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.45) 0%, rgba(56, 189, 248, 0.25) 40%, transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(241, 236, 203, 0.45) 0%, rgba(0, 236, 243, 0.25) 40%, transparent 70%);
 }
 .cloud-layer-mid {
-  background: radial-gradient(ellipse at 50% 50%, rgba(224, 242, 254, 0.35) 0%, rgba(14, 165, 233, 0.2) 50%, transparent 80%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(241, 236, 203, 0.35) 0%, rgba(0, 102, 154, 0.25) 50%, transparent 80%);
 }
 .warp-speed-rays {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, transparent 20%, rgba(56, 189, 248, 0.15) 60%, rgba(255, 255, 255, 0.3) 100%);
+  background: radial-gradient(circle at 50% 50%, transparent 20%, rgba(0, 236, 243, 0.16) 60%, rgba(241, 236, 203, 0.3) 100%);
   filter: blur(4px);
 }
 
@@ -152,32 +152,32 @@
   cursor: pointer;
   user-select: none;
   touch-action: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.6);
+  border-bottom: 1px solid rgba(223, 176, 119, 0.16);
+  background: rgba(4, 35, 72, 0.72);
   border-radius: 12px 12px 0 0;
   transition: background 0.2s;
 }
 .history-pull-handle:hover, .history-pull-handle:focus-visible {
-  background: rgba(30, 41, 59, 0.85);
-  outline: 2px solid #38bdf8;
+  background: rgba(0, 102, 154, 0.65);
+  outline: 2px solid #00ECF3;
   outline-offset: -2px;
 }
 .history-pull-pill {
   width: 42px;
   height: 4px;
   border-radius: 9999px;
-  background: rgba(148, 163, 184, 0.5);
+  background: rgba(223, 176, 119, 0.55);
   transition: all 0.2s ease;
 }
 .history-pull-handle:hover .history-pull-pill {
-  background: #38bdf8;
+  background: #00ECF3;
   width: 54px;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 10px rgba(0, 236, 243, 0.65);
 }
 .history-pull-text {
   font-size: 10.5px;
   font-weight: 700;
-  color: #93c5fd;
+  color: #00ECF3;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -193,10 +193,10 @@
   height: auto !important;
   max-height: 100% !important;
   z-index: 100020 !important;
-  background: rgba(8, 15, 28, 0.96) !important;
+  background: rgba(4, 35, 72, 0.96) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+  border: 1px solid rgba(0, 236, 243, 0.45) !important;
   border-bottom: none !important;
   border-radius: 20px 20px 0 0 !important;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.25) !important;

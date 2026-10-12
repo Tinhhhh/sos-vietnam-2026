@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#030712">
+  <meta name="theme-color" content="#042348">
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -18,15 +18,15 @@
     document.addEventListener('contextmenu', function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
     window.addEventListener('contextmenu', function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
   </script>
-  <link rel="manifest" href="/manifest.json?v=20261012_official_logo_v1">
+  <link rel="manifest" href="/manifest.json?v=20261012_official_palette_v1">
   <link rel="apple-touch-icon" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261012_official_logo_v1">
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261012_official_logo_v1">
   <link rel="shortcut icon" href="/assets/icons/favicon.png?v=20261012_official_logo_v1">
   <link rel="stylesheet" href="/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/css/style.css?v=20261012_official_logo_v1">
-  <link rel="stylesheet" href="/css/map.css?v=20260921_mobile_fix2">
-  <link rel="stylesheet" href="/css/tactical-responsive.css?v=20260918_rootfix_v5">
-  <link rel="stylesheet" href="/css/portal-cinematic.css?v=20260905_3">
+  <link rel="stylesheet" href="/css/style.css?v=20261012_official_palette_v1">
+  <link rel="stylesheet" href="/css/map.css?v=20261012_official_palette_v1">
+  <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261012_official_palette_v1">
+  <link rel="stylesheet" href="/css/portal-cinematic.css?v=20261012_official_palette_v1">
   <style>
     body {
       min-height: 100vh; min-height: 100dvh;
@@ -52,7 +52,7 @@
 
     .auth-gate-backdrop {
       position: fixed; inset: 0;
-      background: rgba(3, 7, 18, 0.28) !important;
+      background: rgba(4, 35, 72, 0.38) !important;
       backdrop-filter: blur(10px) saturate(150%);
       -webkit-backdrop-filter: blur(10px) saturate(150%);
       z-index: 999999;
@@ -64,14 +64,14 @@
       box-sizing: border-box;
     }
     .auth-gate-box {
-      background: rgba(10, 16, 32, 0.78) !important;
+      background: rgba(4, 35, 72, 0.84) !important;
       background-blend-mode: luminosity;
       backdrop-filter: blur(32px) saturate(180%);
       -webkit-backdrop-filter: blur(32px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.16) !important;
+      border: 1px solid rgba(223, 176, 119, 0.32) !important;
       border-radius: 28px !important;
       width: 100%; max-width: 490px; padding: 32px 28px;
-      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8), 0 0 50px rgba(239, 68, 68, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      box-shadow: 0 25px 80px rgba(2, 16, 36, 0.85), 0 0 50px rgba(172, 0, 21, 0.32), inset 0 1px 1px rgba(241, 236, 203, 0.25);
       text-align: center;
       position: relative;
       overflow: hidden;
@@ -107,7 +107,7 @@
       #btnSubmitGatekeeper { min-height: 40px !important; margin-top: 0 !important; }
     }
     .admin-edit-modal {
-      position: fixed; inset: 0; background: rgba(4, 7, 18, 0.75);
+      position: fixed; inset: 0; background: rgba(4, 35, 72, 0.78);
       backdrop-filter: blur(28px) saturate(180%);
       -webkit-backdrop-filter: blur(28px) saturate(180%);
       z-index: 9990;
@@ -115,49 +115,50 @@
       overflow-y: auto !important;
     }
     .admin-edit-box {
-      background: rgba(12, 18, 34, 0.92) !important;
+      background: rgba(4, 35, 72, 0.94) !important;
       background-blend-mode: luminosity;
       backdrop-filter: blur(32px) saturate(160%);
       -webkit-backdrop-filter: blur(32px) saturate(160%);
-      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      border: 1px solid rgba(223, 176, 119, 0.28) !important;
       border-radius: 24px;
       width: 100%; max-width: 680px; max-height: calc(100dvh - 32px) !important;
       overflow-y: auto !important; padding: 22px;
-      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      box-shadow: 0 25px 70px rgba(2, 16, 36, 0.92), inset 0 1px 1px rgba(241, 236, 203, 0.22);
       position: relative;
       overflow-x: hidden !important;
       margin: auto !important;
       scrollbar-width: thin;
-      scrollbar-color: rgba(192, 132, 252, 0.4) rgba(255, 255, 255, 0.05);
+      scrollbar-color: rgba(0, 236, 243, 0.4) rgba(4, 35, 72, 0.3);
     }
     .station-card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 102, 154, 0.14);
+      border: 1px solid rgba(223, 176, 119, 0.18);
       border-radius: 12px; padding: 12px; margin-bottom: 10px;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .station-card:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(0, 102, 154, 0.28);
+      border-color: rgba(0, 236, 243, 0.55);
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      box-shadow: 0 8px 20px rgba(2, 16, 36, 0.55);
     }
     .sidebar-tab-btn {
       flex: 1; padding: 8px 10px; font-size: 12px; font-weight: 700;
-      background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px;
+      background: rgba(4, 35, 72, 0.55); color: rgba(241, 236, 203, 0.78);
+      border: 1px solid rgba(223, 176, 119, 0.22); border-radius: 10px;
       cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .sidebar-tab-btn.is-active {
-      background: rgba(0, 136, 255, 0.25); color: #60a5fa;
-      border-color: #38bdf8; box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+      background: rgba(0, 102, 154, 0.45); color: #00ECF3;
+      border-color: #00ECF3; box-shadow: 0 0 14px rgba(0, 236, 243, 0.35);
     }
     .pick-mode-banner {
       position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
-      background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white;
+      background: linear-gradient(135deg, #00669A, #042348); color: #F1ECCB;
+      border: 1px solid #00ECF3;
       padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 800;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.8); z-index: 500; display: none;
+      box-shadow: 0 8px 25px rgba(2, 16, 36, 0.85); z-index: 500; display: none;
       align-items: center; gap: 8px; animation: pulse-pin 2s infinite;
     }
 
@@ -269,7 +270,7 @@
     .cyber-radar-ring {
       position: absolute;
       inset: 0;
-      border: 2px dashed rgba(239, 68, 68, 0.65);
+      border: 2px dashed rgba(172, 0, 21, 0.75);
       border-radius: 50%;
       animation: cyberSpin 9s linear infinite;
       pointer-events: none;
@@ -277,7 +278,7 @@
     .cyber-ping-ring {
       position: absolute;
       inset: -12px;
-      border: 1.5px solid rgba(239, 68, 68, 0.35);
+      border: 1.5px solid rgba(223, 176, 119, 0.45);
       border-radius: 50%;
       animation: cyberPing 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
       pointer-events: none;
@@ -286,7 +287,7 @@
       position: absolute;
       width: 100px;
       height: 100px;
-      background: radial-gradient(circle, rgba(239, 68, 68, 0.85) 0%, rgba(245, 158, 11, 0.45) 45%, transparent 70%);
+      background: radial-gradient(circle, rgba(172, 0, 21, 0.85) 0%, rgba(223, 176, 119, 0.45) 45%, transparent 70%);
       filter: blur(22px);
       border-radius: 50%;
       animation: flameAura 2s ease-in-out infinite;
@@ -298,8 +299,8 @@
       left: 0;
       right: 0;
       height: 3px;
-      background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.95), transparent);
-      box-shadow: 0 0 15px rgba(239, 68, 68, 0.85);
+      background: linear-gradient(90deg, transparent, rgba(0, 236, 243, 0.95), transparent);
+      box-shadow: 0 0 15px rgba(0, 236, 243, 0.85);
       animation: cyberScanline 2.2s ease-in-out infinite;
       pointer-events: none;
     }
@@ -332,30 +333,29 @@
         pointer-events: none !important;
       }
     }  </style>
-  <link rel="stylesheet" href="/css/portal-cinematic.css?v=20260905_1">
 </head>
 <body class="theme-police">
 
   <!-- Atmospheric Cosmic Tactical Orbit Background for Command Center (Video 1 - Fixed z-[0]) -->
   <div class="bg-video-container" style="position: fixed; inset: 0; width: 100%; height: 100dvh; overflow: hidden; z-index: 0; pointer-events: none;">
     <video class="bg-video" id="dispatcherBgVideo" autoplay muted loop playsinline webkit-playsinline preload="auto" poster="/assets/tactical-earth-orbit.jpg" src="/assets/videos/dispatcher-bg.mp4" controlslist="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableremoteplayback x-webkit-airplay="deny" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; -webkit-user-select: none; user-select: none;" oncontextmenu="return false;"></video>
-    <div class="bg-video-overlay" style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(3, 7, 18, 0.1) 0%, rgba(3, 7, 18, 0.6) 100%); pointer-events: none;"></div>
+    <div class="bg-video-overlay" style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(4, 35, 72, 0.14) 0%, rgba(4, 35, 72, 0.65) 100%); pointer-events: none;"></div>
   </div>
 
   <!-- LEVEL-0.5: CYBER DEFENSE INTRO CINEMATIC (AUTO TRANSITION - MOBILE PURE-CSS SAFE, DESKTOP INLINE VIDEO) -->
-  <div id="cyberIntroVideoOverlay" style="position: fixed; inset: 0; z-index: 9999999; background: #000000; display: none; align-items: center; justify-content: center; opacity: 1; transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: auto;">
+  <div id="cyberIntroVideoOverlay" style="position: fixed; inset: 0; z-index: 9999999; background: #042348; display: none; align-items: center; justify-content: center; opacity: 1; transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: auto;">
     <!-- Desktop Video (Strictly Muted + PlaysInline) -->
     <video id="cyberIntroVideo" muted playsinline webkit-playsinline preload="none" src="/assets/videos/dispatcher-intro.mp4" controlslist="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableremoteplayback x-webkit-airplay="deny" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-select: none; user-select: none;" oncontextmenu="return false;"></video>
     
     <!-- Desktop Badge -->
-    <div class="desktop-intro-badge" style="position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 20px; background: rgba(0, 0, 0, 0.7); border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 9999px; backdrop-filter: blur(12px); pointer-events: none;">
-      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 10px #ef4444; animation: ping 1.5s infinite;"></span>
-      <span style="font-size: 11px; font-weight: 800; color: #fecaca; letter-spacing: 1.5px; text-transform: uppercase;">KHỞI ĐỘNG HỆ THỐNG TRỰC BAN TÁC CHIẾN QUỐC GIA...</span>
+    <div class="desktop-intro-badge" style="position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 20px; background: rgba(4, 35, 72, 0.85); border: 1px solid rgba(223, 176, 119, 0.55); border-radius: 9999px; backdrop-filter: blur(12px); pointer-events: none;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #AC0015; box-shadow: 0 0 10px #AC0015; animation: ping 1.5s infinite;"></span>
+      <span style="font-size: 11px; font-weight: 800; color: #F1ECCB; letter-spacing: 1.5px; text-transform: uppercase;">KHỞI ĐỘNG HỆ THỐNG TRỰC BAN TÁC CHIẾN QUỐC GIA...</span>
     </div>
 
     <!-- Mobile Cyber Cinematic Transition (NO VIDEO TAG - 100% IMMUNE TO IOS AVPLAYER / MEDIA CONTROLS) -->
-    <div id="cyberIntroMobileCard" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 24px; position: relative; z-index: 10; background: radial-gradient(circle at center, #0f172a 0%, #030712 65%, #000000 100%); pointer-events: none;">
-      <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(239, 68, 68, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(239, 68, 68, 0.05) 1px, transparent 1px); background-size: 30px 30px; pointer-events: none;"></div>
+    <div id="cyberIntroMobileCard" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 24px; position: relative; z-index: 10; background: radial-gradient(circle at center, #00669A 0%, #042348 65%, #021024 100%); pointer-events: none;">
+      <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(0, 236, 243, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 236, 243, 0.06) 1px, transparent 1px); background-size: 30px 30px; pointer-events: none;"></div>
       <div class="cyber-laser-scanner"></div>
 
       <!-- Holographic Central Shield with Fire Aura -->
@@ -363,56 +363,56 @@
         <div class="cyber-radar-ring"></div>
         <div class="cyber-ping-ring"></div>
         <div class="cyber-flame-core"></div>
-        <div style="width: 88px; height: 88px; background: radial-gradient(circle, rgba(239, 68, 68, 0.35) 0%, rgba(185, 28, 28, 0.12) 75%); border: 2px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 45px rgba(239, 68, 68, 0.75), inset 0 0 20px rgba(239, 68, 68, 0.4); position: relative; z-index: 2;">
-          <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.95));" alt="Khiên An Ninh">
+        <div style="width: 88px; height: 88px; background: radial-gradient(circle, rgba(172, 0, 21, 0.42) 0%, rgba(4, 35, 72, 0.5) 75%); border: 2px solid #DFB077; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 45px rgba(172, 0, 21, 0.75), inset 0 0 20px rgba(223, 176, 119, 0.35); position: relative; z-index: 2;">
+          <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 56px; height: 56px; object-fit: contain; filter: drop-shadow(0 0 16px rgba(172, 0, 21, 0.95));" alt="Khiên An Ninh">
         </div>
       </div>
 
       <!-- Title -->
       <div style="text-align: center; margin-bottom: 20px; position: relative; z-index: 2;">
-        <div style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 16px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.45); border-radius: 9999px; margin-bottom: 10px; backdrop-filter: blur(8px);">
-          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
-          <span style="font-size: 11px; font-weight: 800; color: #fca5a5; letter-spacing: 2px; text-transform: uppercase;">VIỆT NAM • AN NINH QUỐC GIA</span>
+        <div style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 16px; background: rgba(172, 0, 21, 0.25); border: 1px solid rgba(223, 176, 119, 0.5); border-radius: 9999px; margin-bottom: 10px; backdrop-filter: blur(8px);">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00ECF3; box-shadow: 0 0 8px #00ECF3;"></span>
+          <span style="font-size: 11px; font-weight: 800; color: #F1ECCB; letter-spacing: 2px; text-transform: uppercase;">VIỆT NAM • AN NINH QUỐC GIA</span>
         </div>
-        <h2 style="font-size: 18px; font-weight: 900; color: #ffffff; letter-spacing: 1.2px; text-transform: uppercase; margin: 0; text-shadow: 0 0 20px rgba(239, 68, 68, 0.7);">HỆ THỐNG TRỰC BAN TÁC CHIẾN</h2>
-        <div style="font-size: 11px; color: #94a3b8; margin-top: 5px; font-weight: 600; letter-spacing: 0.5px;">XÁC THỰC MẬT MÃ THÀNH CÔNG • ĐANG KHỞI TẠO BÀN ĐIỀU PHỐI</div>
+        <h2 style="font-size: 18px; font-weight: 900; color: #F1ECCB; letter-spacing: 1.2px; text-transform: uppercase; margin: 0; text-shadow: 0 0 20px rgba(172, 0, 21, 0.75);">HỆ THỐNG TRỰC BAN TÁC CHIẾN</h2>
+        <div style="font-size: 11px; color: #DFB077; margin-top: 5px; font-weight: 600; letter-spacing: 0.5px;">XÁC THỰC MẬT MÃ THÀNH CÔNG • ĐANG KHỞI TẠO BÀN ĐIỀU PHỐI</div>
       </div>
 
       <!-- High-tech Progress Bar -->
-      <div style="width: 80%; max-width: 290px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(239, 68, 68, 0.45); border-radius: 9999px; padding: 3px; position: relative; overflow: hidden; box-shadow: 0 0 20px rgba(239, 68, 68, 0.25); z-index: 2;">
-        <div id="cyberIntroProgressBar" style="height: 6px; width: 0%; background: linear-gradient(90deg, #dc2626, #ef4444, #fca5a5); border-radius: 9999px; box-shadow: 0 0 12px #ef4444; transition: width 1.8s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+      <div style="width: 80%; max-width: 290px; background: rgba(4, 35, 72, 0.9); border: 1px solid rgba(223, 176, 119, 0.45); border-radius: 9999px; padding: 3px; position: relative; overflow: hidden; box-shadow: 0 0 20px rgba(172, 0, 21, 0.28); z-index: 2;">
+        <div id="cyberIntroProgressBar" style="height: 6px; width: 0%; background: linear-gradient(90deg, #AC0015, #DFB077, #00ECF3); border-radius: 9999px; box-shadow: 0 0 12px #00ECF3; transition: width 1.8s cubic-bezier(0.16, 1, 0.3, 1);"></div>
       </div>
 
       <!-- Subtext Status -->
-      <div id="cyberIntroStatusText" style="font-size: 10px; color: #fca5a5; font-family: monospace; font-weight: 700; margin-top: 14px; letter-spacing: 1px; text-align: center; position: relative; z-index: 2;">
+      <div id="cyberIntroStatusText" style="font-size: 10px; color: #00ECF3; font-family: monospace; font-weight: 700; margin-top: 14px; letter-spacing: 1px; text-align: center; position: relative; z-index: 2;">
         KẾT NỐI MẠNG ĐIỀU PHỐI KHẨN CẤP [113 • 114 • 115]...
       </div>
     </div>
   </div>
 
   <!-- LEVEL-OUTRO: CYBER DEFENSE LOGOUT CINEMATIC (AUTO TRANSITION - MOBILE PURE-CSS SAFE, DESKTOP INLINE VIDEO) -->
-  <div id="cyberLogoutVideoOverlay" style="position: fixed; inset: 0; z-index: 99999999; background: #000000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: auto; cursor: pointer;">
+  <div id="cyberLogoutVideoOverlay" style="position: fixed; inset: 0; z-index: 99999999; background: #042348; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: auto; cursor: pointer;">
     <!-- Desktop Video -->
     <video id="cyberLogoutVideo" muted playsinline webkit-playsinline preload="none" src="/assets/videos/dispatcher-bg.mp4" controlslist="nodownload nofullscreen noremoteplayback" disablePictureInPicture disableremoteplayback x-webkit-airplay="deny" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-select: none; user-select: none;" oncontextmenu="return false;"></video>
     
     <!-- Desktop Badge -->
-    <div class="desktop-logout-badge" style="position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 10px 24px; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(56, 189, 248, 0.5); border-radius: 9999px; backdrop-filter: blur(14px); pointer-events: none; box-shadow: 0 0 30px rgba(0, 136, 255, 0.4);">
-      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 10px #38bdf8; animation: ping 1.5s infinite;"></span>
-      <span style="font-size: 11.5px; font-weight: 800; color: #e0f2fe; letter-spacing: 1.5px; text-transform: uppercase;">ĐANG ĐĂNG XUẤT &amp; KHÓA AN NINH TRỰC BAN QUỐC GIA...</span>
+    <div class="desktop-logout-badge" style="position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 10px 24px; background: rgba(4, 35, 72, 0.85); border: 1px solid rgba(0, 236, 243, 0.55); border-radius: 9999px; backdrop-filter: blur(14px); pointer-events: none; box-shadow: 0 0 30px rgba(0, 102, 154, 0.5);">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ECF3; box-shadow: 0 0 10px #00ECF3; animation: ping 1.5s infinite;"></span>
+      <span style="font-size: 11.5px; font-weight: 800; color: #F1ECCB; letter-spacing: 1.5px; text-transform: uppercase;">ĐANG ĐĂNG XUẤT &amp; KHÓA AN NINH TRỰC BAN QUỐC GIA...</span>
     </div>
 
     <!-- Mobile Logout Card -->
-    <div id="cyberLogoutMobileCard" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 24px; position: relative; z-index: 10; background: radial-gradient(circle at center, #082f49 0%, #030712 70%, #000000 100%); pointer-events: none;">
+    <div id="cyberLogoutMobileCard" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 24px; position: relative; z-index: 10; background: radial-gradient(circle at center, #00669A 0%, #042348 70%, #021024 100%); pointer-events: none;">
       <div style="position: relative; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
-        <div class="cyber-radar-ring" style="border-color: rgba(56, 189, 248, 0.65);"></div>
-        <div class="cyber-ping-ring" style="border-color: rgba(56, 189, 248, 0.35);"></div>
-        <div style="width: 80px; height: 80px; background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, rgba(3, 105, 161, 0.1) 75%); border: 2px solid #38bdf8; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 35px rgba(56, 189, 248, 0.6);">
-          <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 50px; height: 50px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.9));" alt="Đăng Xuất">
+        <div class="cyber-radar-ring" style="border-color: rgba(0, 236, 243, 0.65);"></div>
+        <div class="cyber-ping-ring" style="border-color: rgba(223, 176, 119, 0.45);"></div>
+        <div style="width: 80px; height: 80px; background: radial-gradient(circle, rgba(0, 102, 154, 0.4) 0%, rgba(4, 35, 72, 0.5) 75%); border: 2px solid #00ECF3; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 35px rgba(0, 236, 243, 0.55);">
+          <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 50px; height: 50px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(0, 236, 243, 0.9));" alt="Đăng Xuất">
         </div>
       </div>
-      <h3 style="font-size: 16px; font-weight: 800; color: #e0f2fe; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; text-align: center;">ĐANG ĐĂNG XUẤT &amp; KHÓA BÀN ĐIỀU PHỐI...</h3>
-      <div style="width: 75%; max-width: 250px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 9999px; padding: 3px; overflow: hidden;">
-        <div id="cyberLogoutProgressBar" style="height: 5px; width: 0%; background: linear-gradient(90deg, #0284c7, #38bdf8, #bae6fd); border-radius: 9999px; box-shadow: 0 0 10px #38bdf8; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+      <h3 style="font-size: 16px; font-weight: 800; color: #F1ECCB; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; text-align: center;">ĐANG ĐĂNG XUẤT &amp; KHÓA BÀN ĐIỀU PHỐI...</h3>
+      <div style="width: 75%; max-width: 250px; background: rgba(4, 35, 72, 0.85); border: 1px solid rgba(0, 236, 243, 0.45); border-radius: 9999px; padding: 3px; overflow: hidden;">
+        <div id="cyberLogoutProgressBar" style="height: 5px; width: 0%; background: linear-gradient(90deg, #00669A, #00ECF3, #F1ECCB); border-radius: 9999px; box-shadow: 0 0 10px #00ECF3; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);"></div>
       </div>
     </div>
   </div>
@@ -425,36 +425,36 @@
       <!-- Glowing Animated Shield Badge -->
       <div style="margin-bottom: 16px; display: flex; justify-content: center; position: relative; z-index: 2;">
         <div style="position: relative;">
-          <div style="width: 88px; height: 88px; background: radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, rgba(185, 28, 28, 0.08) 70%); border: 2px solid #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 40px rgba(239, 68, 68, 0.65), inset 0 0 20px rgba(239, 68, 68, 0.3);">
-            <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 58px; height: 58px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(239, 68, 68, 0.95));" alt="Khiên Bảo Vệ">
+          <div style="width: 88px; height: 88px; background: radial-gradient(circle, rgba(172, 0, 21, 0.38) 0%, rgba(4, 35, 72, 0.45) 70%); border: 2px solid #DFB077; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 40px rgba(172, 0, 21, 0.68), inset 0 0 20px rgba(223, 176, 119, 0.32);">
+            <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 58px; height: 58px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(172, 0, 21, 0.95));" alt="Khiên Bảo Vệ">
           </div>
           <!-- Pulse Ping Halo -->
-          <div style="position: absolute; inset: -8px; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 50%; animation: ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
+          <div style="position: absolute; inset: -8px; border: 1px solid rgba(223, 176, 119, 0.48); border-radius: 50%; animation: ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
         </div>
       </div>
 
-      <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 9999px; margin-bottom: 8px; position: relative; z-index: 2;">
-        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
-        <span style="font-size: 10.5px; font-weight: 800; color: #fca5a5; letter-spacing: 1.5px; text-transform: uppercase;">HỆ THỐNG PHÒNG THỦ MẠNG QUỐC GIA</span>
+      <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(172, 0, 21, 0.24); border: 1px solid rgba(223, 176, 119, 0.45); border-radius: 9999px; margin-bottom: 8px; position: relative; z-index: 2;">
+        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #00ECF3; box-shadow: 0 0 8px #00ECF3;"></span>
+        <span style="font-size: 10.5px; font-weight: 800; color: #F1ECCB; letter-spacing: 1.5px; text-transform: uppercase;">HỆ THỐNG PHÒNG THỦ MẠNG QUỐC GIA</span>
       </div>
 
-      <h2 style="font-size: 20px; font-weight: 900; color: #ffffff; margin-bottom: 6px; letter-spacing: -0.3px; position: relative; z-index: 2;">
+      <h2 style="font-size: 20px; font-weight: 900; color: #F1ECCB; margin-bottom: 6px; letter-spacing: -0.3px; position: relative; z-index: 2;">
         XÁC THỰC MÃ BẢO VỆ NỘI BỘ
       </h2>
-      <p style="font-size: 12px; color: rgba(255, 255, 255, 0.7); margin-bottom: 18px; line-height: 1.55; position: relative; z-index: 2;">
+      <p style="font-size: 12px; color: rgba(241, 236, 203, 0.78); margin-bottom: 18px; line-height: 1.55; position: relative; z-index: 2;">
         Cổng thông tin bảo mật cấp tác chiến lực lượng cứu nạn liên ngành <b>Công An — PCCC — Y Tế</b>. Vui lòng nhập mã bảo vệ nội bộ để mở khóa giao diện trực ban.
-        <br><span style="color: #fca5a5; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;"><svg class="svg-ico ico-xs ico-red" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Cảnh báo an ninh: Nhập sai 4 lần sẽ khóa IP 2 tiếng; nhật ký chỉ phục vụ rà soát có thẩm quyền.</span>
+        <br><span style="color: #DFB077; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;"><svg class="svg-ico ico-xs ico-red" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Cảnh báo an ninh: Nhập sai 4 lần sẽ khóa IP 2 tiếng; nhật ký chỉ phục vụ rà soát có thẩm quyền.</span>
       </p>
 
       <form id="formCyberGatekeeper" style="display: flex; flex-direction: column; gap: 12px; text-align: left; position: relative; z-index: 2;">
         <div>
-          <label style="font-size: 11.5px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 6px;">
+          <label style="font-size: 11.5px; font-weight: 700; color: #F1ECCB; display: block; margin-bottom: 6px;">
             Mã xác thực bảo vệ nội bộ *
           </label>
-          <input type="password" id="gatekeeperPasswordInput" class="input-field" placeholder="Nhập mã bảo vệ..." required autocomplete="off" style="letter-spacing: 8px; font-size: 22px; text-align: center; border: 1.5px solid rgba(239, 68, 68, 0.55); background: rgba(5, 8, 18, 0.6); box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 20px rgba(239, 68, 68, 0.2); border-radius: 12px;" autofocus>
+          <input type="password" id="gatekeeperPasswordInput" class="input-field" placeholder="Nhập mã bảo vệ..." required autocomplete="off" style="letter-spacing: 8px; font-size: 22px; text-align: center; border: 1.5px solid rgba(223, 176, 119, 0.55); background: rgba(4, 35, 72, 0.72); color: #F1ECCB; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 20px rgba(172, 0, 21, 0.25); border-radius: 12px;" autofocus>
         </div>
-        <div id="gatekeeperErrorMsg" style="display: none; font-size: 12px; color: #f87171; font-weight: 700; text-align: center; line-height: 1.4; background: rgba(239, 68, 68, 0.15); padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.4);"></div>
-        <button type="button" id="btnSubmitGatekeeper" class="btn-submit-sos" style="background: linear-gradient(135deg, #ef4444, #b91c1c); margin-top: 6px; justify-content: center; font-weight: 800; font-size: 13.5px; box-shadow: 0 8px 30px rgba(239, 68, 68, 0.55); display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <div id="gatekeeperErrorMsg" style="display: none; font-size: 12px; color: #F1ECCB; font-weight: 700; text-align: center; line-height: 1.4; background: rgba(172, 0, 21, 0.28); padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(223, 176, 119, 0.45);"></div>
+        <button type="button" id="btnSubmitGatekeeper" class="btn-submit-sos" style="background: linear-gradient(135deg, #AC0015, #7a000f); border: 1px solid rgba(223, 176, 119, 0.45); color: #F1ECCB; margin-top: 6px; justify-content: center; font-weight: 800; font-size: 13.5px; box-shadow: 0 8px 30px rgba(172, 0, 21, 0.65); display: flex; align-items: center; gap: 8px; cursor: pointer;">
           <img src="/assets/icons/khien.png?v=20261012_official_logo_v1" style="width: 20px; height: 20px; object-fit: contain;" alt="Khiên"> XÁC THỰC TRUY CẬP AN NINH
         </button>
       </form>
@@ -462,7 +462,7 @@
   </div>
 
   <!-- COSMIC PORTAL: 4 FLOATING AGENCY BUBBLES IN ORBIT (CLEAN LIVE MOVING VIDEO BACKGROUND) -->
-  <div id="cosmicPortalView" style="position: fixed; inset: 0; z-index: 99990; display: none; background: #030712; overflow-y: auto; overflow-x: hidden;">
+  <div id="cosmicPortalView" style="position: fixed; inset: 0; z-index: 99990; display: none; background: #042348; overflow-y: auto; overflow-x: hidden;">
     
     <!-- IMMERSIVE LIVE TACTICAL EARTH SPACE ORBIT BACKGROUND WITH THREE.JS & CINEMATIC DOLLY ZOOM -->
     <div id="tacticalSpaceOrbitMount" style="position: fixed; inset: 0; width: 100%; height: 100dvh; display: flex; align-items: center; justify-content: center; z-index: 0; overflow: hidden; pointer-events: none;">
@@ -473,7 +473,7 @@
         <img class="bg-tactical-orbit" src="/assets/tactical-earth-orbit.jpg" alt="Vietnam Tactical Satellite Orbit">
       </div>
 
-      <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(3, 7, 18, 0.05) 0%, rgba(3, 7, 18, 0.48) 100%); pointer-events: none;"></div>
+      <div style="position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(4, 35, 72, 0.08) 0%, rgba(4, 35, 72, 0.56) 100%); pointer-events: none;"></div>
       
       <!-- Atmospheric Cloud Penetration & Hyperspace Speed Rays Layer -->
       <div id="cinematicCloudDescent" class="cinematic-cloud-descent" style="position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 4;">
@@ -483,7 +483,7 @@
       </div>
 
       <!-- Full-Screen Optical Flash Bloom -->
-      <div id="cinematicFlashOverlay" style="position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #ffffff 0%, #e0f2fe 35%, #38bdf8 70%, #030712 100%); opacity: 0; pointer-events: none; z-index: 999999; mix-blend-mode: screen;"></div>
+      <div id="cinematicFlashOverlay" style="position: fixed; inset: 0; background: radial-gradient(circle at 50% 50%, #F1ECCB 0%, #00ECF3 35%, #00669A 70%, #042348 100%); opacity: 0; pointer-events: none; z-index: 999999; mix-blend-mode: screen;"></div>
     </div>
 
     <!-- Top Central Title Banner (Modern Futuristic Typography) -->
@@ -505,7 +505,7 @@
       <div class="cosmic-stage" style="position: relative; width: 100%; height: 100%; pointer-events: none;">
 
         <!-- Bubble 1: CÔNG AN (Top-Left) -->
-        <div class="cosmic-bubble-item bubble-police" data-agency="congan" data-name="CÔNG AN" data-title="CÔNG AN NHÂN DÂN" data-logo="/assets/icons/logo-bocongan.png" data-color="#0088ff" style="position: absolute; left: 14%; top: 26%; transform: translate(-50%, -50%); pointer-events: auto;">
+        <div class="cosmic-bubble-item bubble-police" data-agency="congan" data-name="CÔNG AN" data-title="CÔNG AN NHÂN DÂN" data-logo="/assets/icons/logo-bocongan.png" data-color="#00669A" style="position: absolute; left: 14%; top: 26%; transform: translate(-50%, -50%); pointer-events: auto;">
           <div class="bubble-sphere-wrapper">
             <div class="bubble-glass-sphere">
               <div class="bubble-highlight"></div>
@@ -513,13 +513,13 @@
             </div>
           </div>
           <div class="bubble-label-tag">
-            <span class="bubble-dot-indicator" style="background: #38bdf8;"></span>
+            <span class="bubble-dot-indicator" style="background: #00ECF3;"></span>
             <span>CÔNG AN</span>
           </div>
         </div>
 
         <!-- Bubble 2: CSGT (Bottom-Left) -->
-        <div class="cosmic-bubble-item bubble-csgt" data-agency="csgt" data-name="CSGT" data-title="CẢNH SÁT GIAO THÔNG" data-logo="/assets/icons/logo-csgt.png" data-color="#f59e0b" style="position: absolute; left: 14%; top: 64%; transform: translate(-50%, -50%); pointer-events: auto;">
+        <div class="cosmic-bubble-item bubble-csgt" data-agency="csgt" data-name="CSGT" data-title="CẢNH SÁT GIAO THÔNG" data-logo="/assets/icons/logo-csgt.png" data-color="#DFB077" style="position: absolute; left: 14%; top: 64%; transform: translate(-50%, -50%); pointer-events: auto;">
           <div class="bubble-sphere-wrapper">
             <div class="bubble-glass-sphere">
               <div class="bubble-highlight"></div>
@@ -527,13 +527,13 @@
             </div>
           </div>
           <div class="bubble-label-tag">
-            <span class="bubble-dot-indicator" style="background: #fbbf24;"></span>
+            <span class="bubble-dot-indicator" style="background: #DFB077;"></span>
             <span>CSGT</span>
           </div>
         </div>
 
         <!-- Bubble 3: PCCC & CNCH (Top-Right) -->
-        <div class="cosmic-bubble-item bubble-fire" data-agency="cuuho" data-name="PCCC & CNCH" data-title="CẢNH SÁT PCCC & CNCH" data-logo="/assets/icons/logo-pccc.png" data-color="#ef4444" style="position: absolute; left: 86%; top: 26%; transform: translate(-50%, -50%); pointer-events: auto;">
+        <div class="cosmic-bubble-item bubble-fire" data-agency="cuuho" data-name="PCCC & CNCH" data-title="CẢNH SÁT PCCC & CNCH" data-logo="/assets/icons/logo-pccc.png" data-color="#AC0015" style="position: absolute; left: 86%; top: 26%; transform: translate(-50%, -50%); pointer-events: auto;">
           <div class="bubble-sphere-wrapper">
             <div class="bubble-glass-sphere">
               <div class="bubble-highlight"></div>
@@ -541,13 +541,13 @@
             </div>
           </div>
           <div class="bubble-label-tag">
-            <span class="bubble-dot-indicator" style="background: #f87171;"></span>
+            <span class="bubble-dot-indicator" style="background: #AC0015;"></span>
             <span>PCCC &amp; CNCH</span>
           </div>
         </div>
 
         <!-- Bubble 4: CHỈ HUY TỔNG HỢP QUỐC GIA (Bottom-Right) -->
-        <div class="cosmic-bubble-item bubble-admin" data-agency="admin" data-name="CHỈ HUY TỔNG HỢP" data-title="TRUNG TÂM CHỈ HUY TỔNG HỢP QUỐC GIA" data-logo="/assets/icons/logo-police-round-an.png?v=20261012_official_logo_v1" data-color="#8b5cf6" style="position: absolute; left: 86%; top: 64%; transform: translate(-50%, -50%); pointer-events: auto;">
+        <div class="cosmic-bubble-item bubble-admin" data-agency="admin" data-name="CHỈ HUY TỔNG HỢP" data-title="TRUNG TÂM CHỈ HUY TỔNG HỢP QUỐC GIA" data-logo="/assets/icons/logo-police-round-an.png?v=20261012_official_logo_v1" data-color="#00ECF3" style="position: absolute; left: 86%; top: 64%; transform: translate(-50%, -50%); pointer-events: auto;">
           <div class="bubble-sphere-wrapper">
             <div class="bubble-glass-sphere">
               <div class="bubble-highlight"></div>
@@ -555,7 +555,7 @@
             </div>
           </div>
           <div class="bubble-label-tag">
-            <span class="bubble-dot-indicator" style="background: #c084fc;"></span>
+            <span class="bubble-dot-indicator" style="background: #00ECF3;"></span>
             <span>CHỈ HUY TỔNG HỢP</span>
           </div>
         </div>
@@ -573,10 +573,10 @@
         <a href="/heritage.html" id="heritageLink" target="_blank" rel="noopener">Hành trình Bác · mở tab mới</a>
         <a href="/assets/cinematic-attribution.md" target="_blank" rel="noopener">Nguồn đồ họa</a>
       </div>
-      <button type="button" id="btnBackToGatekeeper" style="pointer-events: auto; background: rgba(3, 7, 18, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); color: #cbd5e1; font-size: 11.5px; font-weight: 700; padding: 6px 16px; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+      <button type="button" id="btnBackToGatekeeper" style="pointer-events: auto; background: rgba(4, 35, 72, 0.82); backdrop-filter: blur(12px); border: 1px solid rgba(223, 176, 119, 0.35); color: #F1ECCB; font-size: 11.5px; font-weight: 700; padding: 6px 16px; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
         <svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Khóa Màn Hình (Mã Nội Bộ)
       </button>
-      <div style="font-size: 11px; color: rgba(255, 255, 255, 0.6); letter-spacing: 0.5px; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">
+      <div style="font-size: 11px; color: rgba(241, 236, 203, 0.72); letter-spacing: 0.5px; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">
         HỆ THỐNG ĐIỀU PHỐI CỨU HỘ KHẨN CẤP QUỐC GIA 2026
       </div>
     </div>
@@ -587,14 +587,14 @@
     <div class="auth-gate-box liquid-glass liquid-glass-blue" style="max-width: 480px; margin: 0 auto; position: relative;">
       
       <!-- Button to change agency / return to bubbles -->
-      <button type="button" id="btnCloseAuthModal" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 9999px; color: #cbd5e1; font-size: 11px; font-weight: 700; padding: 4px 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;" title="Quay lại chọn quả cầu đơn vị khác">
+      <button type="button" id="btnCloseAuthModal" style="position: absolute; top: 16px; right: 16px; background: rgba(4, 35, 72, 0.65); border: 1px solid rgba(223, 176, 119, 0.32); border-radius: 9999px; color: #F1ECCB; font-size: 11px; font-weight: 700; padding: 4px 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;" title="Quay lại chọn quả cầu đơn vị khác">
         <svg class="svg-ico ico-xs ico-white" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Đổi đơn vị
       </button>
 
       <!-- Agency Header with Dynamic Crest Logo -->
       <div id="authHeaderIcon" style="margin-bottom: 12px; display: flex; justify-content: center;">
         <div style="position: relative;">
-          <div style="width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle, rgba(56, 189, 248, 0.2) 0%, rgba(15, 23, 42, 0.6) 70%); border: 2px solid rgba(56, 189, 248, 0.5); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(56, 189, 248, 0.4);">
+          <div style="width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle, rgba(0, 236, 243, 0.22) 0%, rgba(4, 35, 72, 0.72) 70%); border: 2px solid rgba(0, 236, 243, 0.55); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(0, 236, 243, 0.4);">
             <img id="authHeaderLogoImg" src="/assets/icons/logo-bocongan.png" style="width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.8));" alt="Logo">
           </div>
         </div>
@@ -602,15 +602,15 @@
 
       <!-- Agency Dedicated Badge Pill -->
       <div style="margin-bottom: 8px; display: flex; justify-content: center;">
-        <span id="loginSelectedAgencyBadge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; background: rgba(0, 136, 255, 0.15); border: 1px solid #38bdf8; border-radius: 9999px; font-size: 11px; font-weight: 800; color: #38bdf8; letter-spacing: 0.5px; text-transform: uppercase;">
+        <span id="loginSelectedAgencyBadge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; background: rgba(0, 102, 154, 0.28); border: 1px solid #00ECF3; border-radius: 9999px; font-size: 11px; font-weight: 800; color: #00ECF3; letter-spacing: 0.5px; text-transform: uppercase;">
           CÔNG AN KHU VỰC — 113
         </span>
       </div>
 
-      <h2 id="authHeaderTitle" style="font-size: 18px; font-weight: 900; color: #f8fafc; margin-bottom: 4px; text-align: center;">
+      <h2 id="authHeaderTitle" style="font-size: 18px; font-weight: 900; color: #F1ECCB; margin-bottom: 4px; text-align: center;">
         ĐĂNG NHẬP TRỰC BAN
       </h2>
-      <p id="authHeaderSubtitle" style="font-size: 12px; color: #94a3b8; margin-bottom: 18px; text-align: center;">
+      <p id="authHeaderSubtitle" style="font-size: 12px; color: #DFB077; margin-bottom: 18px; text-align: center;">
         Vui lòng nhập tài khoản và mật khẩu được cấp của đơn vị để vào ca trực.
       </p>
 
@@ -624,37 +624,37 @@
 
       <form id="formDispatcherLogin" style="display: flex; flex-direction: column; gap: 12px; text-align: left;">
         <div>
-          <label style="font-size: 11.5px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 4px;">
+          <label style="font-size: 11.5px; font-weight: 700; color: #F1ECCB; display: block; margin-bottom: 4px;">
             Tài khoản cán bộ trực ban
           </label>
           <input type="text" id="loginUsername" class="input-field" placeholder="Nhập tài khoản đơn vị..." value="" required autocomplete="off" style="font-size: 13px; padding: 10px 14px; border-radius: 10px;">
         </div>
         <div>
-          <label style="font-size: 11.5px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 4px;">
+          <label style="font-size: 11.5px; font-weight: 700; color: #F1ECCB; display: block; margin-bottom: 4px;">
             Mật khẩu bảo mật đơn vị
           </label>
           <input type="password" id="loginPassword" class="input-field" placeholder="Nhập mật khẩu đơn vị..." value="" required autocomplete="off" style="font-size: 13px; padding: 10px 14px; border-radius: 10px;">
         </div>
-        <div id="loginErrorMsg" style="display: none; font-size: 12px; color: #f87171; font-weight: 700; text-align: center; background: rgba(239, 68, 68, 0.15); padding: 6px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+        <div id="loginErrorMsg" style="display: none; font-size: 12px; color: #F1ECCB; font-weight: 700; text-align: center; background: rgba(172, 0, 21, 0.25); padding: 6px; border-radius: 8px; border: 1px solid rgba(223, 176, 119, 0.45);">
           Mật khẩu không chính xác!
         </div>
-        <button type="button" id="btnSubmitLogin" class="btn-submit-sos" style="background: linear-gradient(135deg, #0088ff, #0055b3); margin-top: 6px; justify-content: center; font-weight: 800; font-size: 13px; border-radius: 10px; padding: 12px; cursor: pointer; box-shadow: 0 8px 24px rgba(0, 136, 255, 0.4); display: flex; align-items: center; gap: 6px;">
+        <button type="button" id="btnSubmitLogin" class="btn-submit-sos" style="background: linear-gradient(135deg, #00669A, #042348); border: 1px solid rgba(0, 236, 243, 0.5); color: #F1ECCB; margin-top: 6px; justify-content: center; font-weight: 800; font-size: 13px; border-radius: 10px; padding: 12px; cursor: pointer; box-shadow: 0 8px 24px rgba(0, 102, 154, 0.5); display: flex; align-items: center; gap: 6px;">
           <svg class="svg-ico ico-xs ico-white" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> ĐĂNG NHẬP TRỰC BAN
         </button>
 
         <!-- Admin & Tactical Login Progress Bar with Administrative Geodata Sync Info -->
-        <div id="adminLoginProgressBox" style="display: none; margin-top: 10px; padding: 12px 14px; background: rgba(10, 16, 30, 0.95); border: 1.5px solid rgba(56, 189, 248, 0.5); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.15);">
+        <div id="adminLoginProgressBox" style="display: none; margin-top: 10px; padding: 12px 14px; background: rgba(4, 35, 72, 0.95); border: 1.5px solid rgba(0, 236, 243, 0.55); border-radius: 12px; box-shadow: 0 10px 30px rgba(2, 16, 36, 0.75), inset 0 1px 1px rgba(241, 236, 203, 0.18);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;">
-            <span id="adminLoginProgressLabel" style="font-size: 11px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+            <span id="adminLoginProgressLabel" style="font-size: 11px; font-weight: 800; color: #00ECF3; display: flex; align-items: center; gap: 6px;">
               <span class="loading-spin-radar"></span>
               Đang xác thực bảo mật tài khoản...
             </span>
-            <span id="adminLoginProgressPercent" style="font-size: 13px; font-weight: 900; color: #facc15; text-shadow: 0 0 10px rgba(250, 204, 21, 0.6);">0%</span>
+            <span id="adminLoginProgressPercent" style="font-size: 13px; font-weight: 900; color: #DFB077; text-shadow: 0 0 10px rgba(223, 176, 119, 0.6);">0%</span>
           </div>
 
           <!-- Progress Bar Outer Track -->
-          <div style="width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 9999px; overflow: hidden; position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.06);">
-            <div id="adminLoginProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0284c7, #38bdf8, #facc15); border-radius: 9999px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);"></div>
+          <div style="width: 100%; height: 8px; background: rgba(241, 236, 203, 0.12); border-radius: 9999px; overflow: hidden; position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,0.6); border: 1px solid rgba(223, 176, 119, 0.15);">
+            <div id="adminLoginProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #00669A, #00ECF3, #DFB077); border-radius: 9999px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 12px rgba(0, 236, 243, 0.8);"></div>
           </div>
 
           <!-- Sub-steps / Administrative boundary sync detail -->
