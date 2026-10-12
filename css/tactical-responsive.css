@@ -1218,7 +1218,7 @@ body.tac-portal-open .floating-chat-dock { display: none !important; }
   .crystal-orb-wrapper {
     width: clamp(202px, 52vw, 234px) !important;
     height: clamp(202px, 52vw, 234px) !important;
-    margin: clamp(108px, 14.5vh, 148px) auto 10px !important;
+    margin: var(--orb-calc-margin-top, clamp(160px, calc(51.4vh - 215px), 260px)) auto 10px !important;
   }
   .btn-crystal-orb {
     width: clamp(164px, 43vw, 188px) !important;

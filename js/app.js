@@ -145,6 +145,7 @@ class SOSApp {
     this.unitName = document.getElementById('unitName');
     this.unitSub = document.getElementById('unitSub');
     this.btnCallUnit = document.getElementById('btnCallUnit');
+    this.btnCitizenDirectVideoCall = document.getElementById('btnCitizenDirectVideoCall');
 
     this.chatMessages = document.getElementById('chatMessages');
     this.inputChatText = document.getElementById('inputChatText');
@@ -462,6 +463,13 @@ class SOSApp {
     if (btnChooseVideo) {
       btnChooseVideo.addEventListener('click', () => {
         closeCallSelection();
+        this.initiateCitizenVideoCallToDispatcher();
+      });
+    }
+
+    if (this.btnCitizenDirectVideoCall) {
+      this.btnCitizenDirectVideoCall.addEventListener('click', (e) => {
+        e.preventDefault();
         this.initiateCitizenVideoCallToDispatcher();
       });
     }
@@ -2824,7 +2832,10 @@ class SOSApp {
 
       if (assigned.officerPhone || assigned.phone) {
         this.btnCallUnit.href = `tel:${assigned.officerPhone || assigned.phone}`;
-        this.btnCallUnit.style.display = 'flex';
+        this.btnCallUnit.style.display = 'inline-flex';
+      }
+      if (this.btnCitizenDirectVideoCall) {
+        this.btnCitizenDirectVideoCall.style.display = 'inline-flex';
       }
 
       if (this.mapController && assigned.lat && assigned.lng) {
@@ -4409,7 +4420,7 @@ class SOSApp {
         } catch(e) {}
       }
 
-      const audioSrc = `assets/sounds/sos_prompt_${voiceKey}.mp3?v=20260921_vieneu_padded`;
+      const audioSrc = `assets/sounds/sos_prompt_${voiceKey}.mp3?v=20261012_vieneu_studio_female`;
       this.sosPromptAudio = new Audio(audioSrc);
       this.sosPromptAudio.preload = 'auto';
 
@@ -4418,7 +4429,7 @@ class SOSApp {
         playPromise.catch((err) => {
           console.warn('HTML5 Audio MP3 interrupted, trying WAV fallback:', err);
           try {
-            const wavAudio = new Audio(`assets/sounds/sos_prompt_${voiceKey}.wav?v=20260921_vieneu_padded`);
+            const wavAudio = new Audio(`assets/sounds/sos_prompt_${voiceKey}.wav?v=20261012_vieneu_studio_female`);
             wavAudio.play().catch(() => this.fallbackSpeechSynthesis());
           } catch(e2) {
             this.fallbackSpeechSynthesis();
@@ -4442,7 +4453,7 @@ class SOSApp {
         if (saved) voiceConfig = { ...voiceConfig, ...JSON.parse(saved) };
       } catch (e) {}
 
-      const promptText = "Hãy cho tôi biết sự cố bạn đang gặp phải, bằng cách chọn các đơn vị mà bạn muốn báo.";
+      const promptText = "Hệ thống khẩn cấp ét-ô-ét đã ghi nhận. Xin giữ bình tĩnh, chọn ngay loại sự cố trên màn hình. Tọa độ của bạn đang được chuyển trực tiếp tới trực ban và lực lượng cứu hộ gần nhất.";
       const utterance = new SpeechSynthesisUtterance(promptText);
       utterance.lang = 'vi-VN';
       utterance.rate = voiceConfig.rate || 0.88;

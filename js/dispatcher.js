@@ -11120,10 +11120,20 @@ class DispatcherApp {
     this.drawerStatusBadge.textContent = inc.status === 'pending' ? 'Chờ tiếp nhận' : (inc.status === 'escalated' ? 'Đã leo thang cấp Tỉnh/TP' : inc.status === 'dispatching' ? 'Đang điều phối' : inc.status === 'arrived' ? 'Đã tới nơi' : 'Hoàn tất');
 
     const phoneDisplay = inc.reporterPhone || 'Chưa rõ';
-    this.drawerReporter.innerHTML = `Người báo: <b>${inc.reporterName || 'Chưa rõ'}</b> · SĐT: <span style="color:#38bdf8; font-weight:700;">📞 ${phoneDisplay}</span> <button type="button" id="btnDrawerStartVoiceCall" style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-size: 10.5px; font-weight: 700; border-radius: 6px; padding: 2px 8px; margin-left: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span>📞</span> Gọi & Ghi âm 2 bên</button>`;
+    this.drawerReporter.innerHTML = `
+      <div style="margin-bottom: 4px;">Người báo: <b>${inc.reporterName || 'Chưa rõ'}</b> · SĐT: <span style="color:#38bdf8; font-weight:700;">📞 ${phoneDisplay}</span></div>
+      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+        <button type="button" id="btnDrawerStartVoiceCall" style="flex: 1; min-width: 130px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📞</span> Gọi & Ghi âm 2 bên</button>
+        <button type="button" id="btnDrawerStartVideoCall" style="flex: 1; min-width: 100px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📹</span> Gọi Video</button>
+      </div>
+    `;
     const btnDrawerCall = document.getElementById('btnDrawerStartVoiceCall');
     if (btnDrawerCall) {
       btnDrawerCall.onclick = () => this.openDispatcherVoiceCall(inc.id);
+    }
+    const btnDrawerVideo = document.getElementById('btnDrawerStartVideoCall');
+    if (btnDrawerVideo) {
+      btnDrawerVideo.onclick = () => this.startDispatcherVideoCall(inc.id);
     }
 
     this.drawerAddress.textContent = `📍 ${inc.address || 'Không xác định'} (${inc.jurisdiction ? inc.jurisdiction.ward : 'Cơ sở'}, ${inc.jurisdiction ? inc.jurisdiction.province : ''})`;
