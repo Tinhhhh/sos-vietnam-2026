@@ -83,6 +83,16 @@ export class LocationService {
   }
 
   emitUpdate() {
+    if (this.currentCoords && Number.isFinite(Number(this.currentCoords.lat)) && Number.isFinite(Number(this.currentCoords.lng))) {
+      try {
+        localStorage.setItem('sos_citizen_last_gps', JSON.stringify({
+          lat: Number(this.currentCoords.lat),
+          lng: Number(this.currentCoords.lng),
+          address: this.currentAddress || '',
+          updatedAt: Date.now()
+        }));
+      } catch (_) {}
+    }
     for (const cb of this.listeners) {
       cb({
         coords: this.currentCoords,

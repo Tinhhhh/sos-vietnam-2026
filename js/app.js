@@ -1,5 +1,5 @@
-import { LocationService } from './location.js';
-import { MapController } from './map-controller.js?v=20261011_multifacility_v4';
+import { LocationService } from './location.js?v=20261012_wardhud_single_v5';
+import { MapController } from './map-controller.js?v=20261012_wardhud_single_v5';
 
 // Incident Suggestion Dictionary (6 Official Services)
 const INCIDENT_SUGGESTIONS = {

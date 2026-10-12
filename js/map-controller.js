@@ -472,6 +472,10 @@ export class MapController {
       this.markers.get('citizen').remove();
     }
 
+    if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
+      this.citizenCoords = { lat: Number(lat), lng: Number(lng) };
+    }
+
     const el = document.createElement('div');
     el.className = 'custom-map-pin citizen-pin';
     el.innerHTML = `
@@ -489,6 +493,21 @@ export class MapController {
     this.markers.set('citizen', marker);
     if (shouldFly) {
       this.map.flyTo({ center: [lng, lat], zoom: 15.5, duration: 1200 });
+    }
+  }
+
+  clearCitizenMarker() {
+    if (this.markers && this.markers.has('citizen')) {
+      try { this.markers.get('citizen').remove(); } catch (e) {}
+      this.markers.delete('citizen');
+    }
+    this.citizenCoords = null;
+  }
+
+  clearVehicleMarker() {
+    if (this.markers && this.markers.has('vehicle')) {
+      try { this.markers.get('vehicle').remove(); } catch (e) {}
+      this.markers.delete('vehicle');
     }
   }
 
@@ -653,6 +672,7 @@ export class MapController {
       this.markers.forEach(m => { try { m.remove(); } catch(e) {} });
       this.markers.clear();
     }
+    this.citizenCoords = null;
     this.removeRoute();
   }
 
@@ -665,9 +685,90 @@ export class MapController {
       this.activeWardAuxiliaryMarkers.forEach(m => { try { m.remove(); } catch(e) {} });
       this.activeWardAuxiliaryMarkers = [];
     }
+    try {
+      document.querySelectorAll('.cantho-official-station-popup').forEach(el => el.remove());
+    } catch (_) {}
     this.activeWardStationId = null;
     this.activeWardCoords = null;
     this.activeWardAllStationIds = null;
+  }
+
+  resolveCitizenReferenceCoords(cleanWard = '', cleanProv = '') {
+    const isValidCoord = (lat, lng) => {
+      const nLat = Number(lat);
+      const nLng = Number(lng);
+      return Number.isFinite(nLat) && Number.isFinite(nLng) && Math.abs(nLat) > 0.1 && Math.abs(nLng) > 0.1;
+    };
+
+    const disp = window.dispatcher || window.dispatcherApp;
+    if (disp && typeof disp.resolveCitizenReferenceCoords === 'function') {
+      const resolved = disp.resolveCitizenReferenceCoords(cleanWard, cleanProv);
+      if (resolved && isValidCoord(resolved.lat, resolved.lng)) {
+        return { lat: Number(resolved.lat), lng: Number(resolved.lng) };
+      }
+    }
+
+    // 1. Selected incident in dispatcher (supports Map or Array)
+    if (disp && disp.selectedIncidentId && disp.incidents) {
+      let activeInc = null;
+      if (typeof disp.incidents.get === 'function') {
+        activeInc = disp.incidents.get(disp.selectedIncidentId) ||
+                    disp.incidents.get(String(disp.selectedIncidentId)) ||
+                    disp.incidents.get(Number(disp.selectedIncidentId));
+      } else if (Array.isArray(disp.incidents)) {
+        activeInc = disp.incidents.find(i => String(i.id) === String(disp.selectedIncidentId));
+      }
+      if (activeInc && isValidCoord(activeInc.lat, activeInc.lng)) {
+        return { lat: Number(activeInc.lat), lng: Number(activeInc.lng) };
+      }
+    }
+
+    // 2. Citizen marker on map
+    if (this.citizenCoords && isValidCoord(this.citizenCoords.lat, this.citizenCoords.lng)) {
+      return { lat: Number(this.citizenCoords.lat), lng: Number(this.citizenCoords.lng) };
+    }
+    if (this.markers && this.markers.has('citizen')) {
+      try {
+        const ll = this.markers.get('citizen').getLngLat();
+        if (ll && isValidCoord(ll.lat, ll.lng)) {
+          return { lat: Number(ll.lat), lng: Number(ll.lng) };
+        }
+      } catch (_) {}
+    }
+
+    // 3. Citizen app LocationService or saved citizen GPS
+    const appCoords = window.app?.locationService?.currentCoords || window.app?.currentLocation || window.app?.citizenCoords;
+    if (appCoords && isValidCoord(appCoords.lat, appCoords.lng)) {
+      return { lat: Number(appCoords.lat), lng: Number(appCoords.lng) };
+    }
+    try {
+      const savedCitizenGps = localStorage.getItem('sos_citizen_last_gps');
+      if (savedCitizenGps) {
+        const parsed = JSON.parse(savedCitizenGps);
+        if (parsed && isValidCoord(parsed.lat, parsed.lng)) {
+          return { lat: Number(parsed.lat), lng: Number(parsed.lng) };
+        }
+      }
+    } catch (_) {}
+
+    // 4. Current live GPS in dispatcher
+    if (disp?.currentGps && isValidCoord(disp.currentGps.lat, disp.currentGps.lng)) {
+      return { lat: Number(disp.currentGps.lat), lng: Number(disp.currentGps.lng) };
+    }
+    if (disp?.currentLocation && isValidCoord(disp.currentLocation.lat, disp.currentLocation.lng)) {
+      return { lat: Number(disp.currentLocation.lat), lng: Number(disp.currentLocation.lng) };
+    }
+    try {
+      const savedDispGps = localStorage.getItem('sos_dispatcher_current_gps');
+      if (savedDispGps) {
+        const parsed = JSON.parse(savedDispGps);
+        if (parsed && isValidCoord(parsed.lat, parsed.lng)) {
+          return { lat: Number(parsed.lat), lng: Number(parsed.lng) };
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   showWardStationPin(wardFeature, overrideStation = null) {
@@ -732,23 +833,24 @@ export class MapController {
       });
     }
 
+    const cleanW = wardName.toLowerCase().replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
+    const cleanP = provName.toLowerCase().replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
+    const citizenRef = this.resolveCitizenReferenceCoords(cleanW, cleanP);
+
+    const calcHaversineKm = (lat1, lng1, lat2, lng2) => {
+      if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) return null;
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      return Number((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2));
+    };
+
     let matchingWardStations = [];
     if (stationsPool.length > 0) {
-      const cleanW = wardName.toLowerCase().replace(/^(phường|xã|thị trấn|p\.|x\.|tt\.)\s*/i, '').trim();
-      const cleanP = provName.toLowerCase().replace(/^(tỉnh|thành phố|tp\.)\s*/i, '').trim();
-
       const isWardPolice = s => s && !this.isNonOperationalStation(s) && (s.level === 'ward' || !s.level) && (s.agency === 'police' || !s.agency) && (!s.unitCategory || s.unitCategory === 'ward_police') && !s.isRegionalSquad && !s.isCityHq;
-
-      const calcHaversineKm = (lat1, lng1, lat2, lng2) => {
-        if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) return null;
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLng = (lng2 - lng1) * Math.PI / 180;
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        return Number((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2));
-      };
 
       // Find all facilities belonging to this ward
       if (cleanW) {
@@ -774,15 +876,8 @@ export class MapController {
       }
 
       if (matchingWardStations.length > 0) {
-        const disp = window.dispatcher || window.dispatcherApp;
-        const activeInc = (disp && Array.isArray(disp.incidents) && disp.selectedIncidentId)
-          ? disp.incidents.find(i => String(i.id) === String(disp.selectedIncidentId))
-          : (disp?.activeIncident || null);
-        const refLat = Number(activeInc?.lat || window.app?.currentLocation?.lat || disp?.currentLocation?.lat || window.app?.citizenCoords?.lat || centerLat);
-        const refLng = Number(activeInc?.lng || window.app?.currentLocation?.lng || disp?.currentLocation?.lng || window.app?.citizenCoords?.lng || centerLng);
-
         matchingWardStations = matchingWardStations.map(s => {
-          const dist = calcHaversineKm(refLat, refLng, Number(s.lat), Number(s.lng));
+          const dist = citizenRef ? calcHaversineKm(citizenRef.lat, citizenRef.lng, Number(s.lat), Number(s.lng)) : null;
           return { ...s, distanceKm: dist, isNearest: false };
         }).sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999));
 
@@ -829,7 +924,7 @@ export class MapController {
         services: p.services || 'Đăng ký cư trú, đăng ký phương tiện giao thông, phản ánh về ANTT',
         lat: centerLat,
         lng: centerLng,
-        distanceKm: 0,
+        distanceKm: citizenRef ? calcHaversineKm(citizenRef.lat, citizenRef.lng, centerLat, centerLng) : null,
         isNearest: true
       };
     }
@@ -854,24 +949,8 @@ export class MapController {
       </div>
     `;
 
-    const popupHtml = this.createPoliceStationPopupHtml(station, wardFeature, matchingWardStations);
-
-    const popup = new window.maplibregl.Popup({
-      offset: [0, -20],
-      closeButton: true,
-      closeOnClick: false,
-      className: 'cantho-official-station-popup'
-    })
-      .setLngLat([pinLng, pinLat])
-      .setHTML(popupHtml);
-
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (popup.isOpen()) {
-        popup.remove();
-      } else {
-        popup.addTo(this.map);
-      }
       const disp = window.dispatcher || window.dispatcherApp;
       if (disp && typeof disp.showWardHud === 'function') {
         disp.showWardHud(wardFeature, station, matchingWardStations);
@@ -883,14 +962,10 @@ export class MapController {
     this.activeWardAllStationIds = new Set(matchingWardStations.map(s => s.id));
     if (this.activeWardStationId) this.activeWardAllStationIds.add(this.activeWardStationId);
 
+    // Do NOT attach or open a redundant right-side MapLibre popup; only display the left HUD (#tacticalWardGeofenceHud)
     this.activeWardStationMarker = new window.maplibregl.Marker({ element: el, anchor: 'center' })
       .setLngLat([pinLng, pinLat])
-      .setPopup(popup)
       .addTo(this.map);
-
-    try {
-      this.activeWardStationMarker.togglePopup();
-    } catch (e) {}
 
     // Mount auxiliary pins for any other facilities in this ward so all facilities are visible simultaneously
     this.activeWardAuxiliaryMarkers = [];
@@ -910,22 +985,8 @@ export class MapController {
         </div>
       `;
 
-      const auxPopup = new window.maplibregl.Popup({
-        offset: [0, -20],
-        closeButton: true,
-        closeOnClick: false,
-        className: 'cantho-official-station-popup'
-      })
-        .setLngLat([Number(auxStation.lng), Number(auxStation.lat)])
-        .setHTML(this.createPoliceStationPopupHtml(auxStation, wardFeature, matchingWardStations));
-
       auxEl.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (auxPopup.isOpen()) {
-          auxPopup.remove();
-        } else {
-          auxPopup.addTo(this.map);
-        }
         const disp = window.dispatcher || window.dispatcherApp;
         if (disp && typeof disp.showWardHud === 'function') {
           disp.showWardHud(wardFeature, auxStation, matchingWardStations);
@@ -934,7 +995,6 @@ export class MapController {
 
       const auxMarker = new window.maplibregl.Marker({ element: auxEl, anchor: 'center' })
         .setLngLat([Number(auxStation.lng), Number(auxStation.lat)])
-        .setPopup(auxPopup)
         .addTo(this.map);
 
       this.activeWardAuxiliaryMarkers.push(auxMarker);
