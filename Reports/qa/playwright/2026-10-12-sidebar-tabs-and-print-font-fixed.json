@@ -1,0 +1,131 @@
+{
+  "testName": "Sidebar-Tabs-Expansion-And-Print-Font-Fixed",
+  "timestamp": "2026-10-12T15:01:11.913Z",
+  "assertions": [
+    {
+      "id": "SIDEBAR_WIDTH_EXPANDED",
+      "description": "Sidebar độ rộng hàng đợi mở rộng đạt chuẩn >= 410px (để chứa đủ 5 tabs không bị chèn ép)",
+      "passed": true,
+      "details": {
+        "sidebarWidth": 420,
+        "expectedMin": 410
+      }
+    },
+    {
+      "id": "SIDEBAR_TABS_COUNT_AND_VISIBILITY",
+      "description": "Toàn bộ 5 tab buttons ([Sự Cố], [Lịch Sử], [Công An], [Cứu Hộ], [Bệnh Viện]) hiển thị đầy đủ 100%, không bị che khuất",
+      "passed": true,
+      "details": {
+        "isOverflowing": false,
+        "tabs": [
+          {
+            "id": "tabBtnIncidents",
+            "text": "Sự Cố ( 0 )",
+            "display": "flex",
+            "width": 77.2,
+            "left": 19,
+            "right": 96.2,
+            "isFullyVisible": true
+          },
+          {
+            "id": "tabBtnHistory",
+            "text": "Lịch Sử ( 0 )",
+            "display": "flex",
+            "width": 77.2,
+            "left": 100.2,
+            "right": 177.4,
+            "isFullyVisible": true
+          },
+          {
+            "id": "tabBtnStations",
+            "text": "Công An",
+            "display": "flex",
+            "width": 77.2,
+            "left": 181.4,
+            "right": 258.6,
+            "isFullyVisible": true
+          },
+          {
+            "id": "tabBtnEnterprises",
+            "text": "Cứu Hộ",
+            "display": "flex",
+            "width": 77.2,
+            "left": 262.6,
+            "right": 339.8,
+            "isFullyVisible": true
+          },
+          {
+            "id": "tabBtnHospitals",
+            "text": "Bệnh Viện",
+            "display": "flex",
+            "width": 77.2,
+            "left": 343.8,
+            "right": 421,
+            "isFullyVisible": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "REDUNDANT_PDF_BUTTON_REMOVED",
+      "description": "Nút 'Tải File PDF' thừa (#btnDownloadTerritoryPdf) đã được xóa bỏ hoàn toàn khỏi DOM",
+      "passed": true,
+      "details": {
+        "pdfBtnExists": false
+      }
+    },
+    {
+      "id": "PRINT_AND_OTHER_BUTTONS_RETAINED",
+      "description": "Nút 'In Máy / In PDF', 'Tải Word' và 'Tải Excel' vẫn tồn tại và hoạt động ổn định",
+      "passed": true,
+      "details": {
+        "pdfBtnExists": false,
+        "printBtnExists": true,
+        "wordBtnExists": true,
+        "csvBtnExists": true
+      }
+    },
+    {
+      "id": "UPPER_AGENCY_TITLE_STANDARDIZED",
+      "description": "Cơ quan chủ quản cấp trên hiển thị chuẩn xác là 'BỘ CÔNG AN' (không bị dư thừa '/ TTCH QUỐC GIA')",
+      "passed": true,
+      "details": {
+        "upperAgencyText": "BỘ CÔNG AN",
+        "lowerAgencyText": "TRUNG TÂM CHỈ HUY TÁC CHIẾN QUỐC GIA"
+      }
+    },
+    {
+      "id": "PRINT_HEADER_TIMES_NEW_ROMAN",
+      "description": "Tiêu đề, Quốc hiệu, Tiêu ngữ, Cơ quan ban hành dùng 100% phông chữ Times New Roman",
+      "passed": true,
+      "details": {
+        "upperAgency": "\"Times New Roman\", Times, serif",
+        "nationalTitle": "\"Times New Roman\", Times, serif",
+        "docTitle": "\"Times New Roman\", Times, serif"
+      }
+    },
+    {
+      "id": "PRINT_TABLE_TIMES_NEW_ROMAN",
+      "description": "Toàn bộ các ô bảng biểu thống kê dùng 100% phông chữ Times New Roman",
+      "passed": true,
+      "details": {
+        "sampleCells": [
+          {
+            "fontFamily": "\"Times New Roman\", Times, serif",
+            "isTimes": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "PRINT_FOOTER_SIGN_TIMES_NEW_ROMAN",
+      "description": "Khối chữ ký cán bộ lập biểu dùng 100% phông chữ Times New Roman",
+      "passed": true,
+      "details": {
+        "signTitle": "\"Times New Roman\", Times, serif",
+        "signNote": "\"Times New Roman\", Times, serif"
+      }
+    }
+  ],
+  "passed": true
+}

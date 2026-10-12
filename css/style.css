@@ -8419,6 +8419,8 @@ textarea:focus {
 }
 
 /* --- CHUẨN HÓA THỂ THỨC HÀNH CHÍNH & PHÔNG CHỮ TIMES NEW ROMAN (NGHỊ ĐỊNH 30/2020/NĐ-CP) --- */
+#territoryStatsModal,
+#territoryStatsModal *,
 #territoryStatsPrintArea,
 #territoryStatsPrintArea *,
 .print-official-header,

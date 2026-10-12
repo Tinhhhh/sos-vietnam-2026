@@ -692,18 +692,18 @@ body.officer-authenticated .ios26-ambient-bubbles-backdrop {
 
 /* Desktop chỉ huy ≥1280px: lưới tối ưu bản đồ */
 @media (min-width: 1280px) {
-  /* Khi CHƯA chọn sự cố: Hàng đợi gọn gàng bên trái (280px), bản đồ chiếm trọn không gian (1fr = ~980px - 1600px+), ẩn panel trống */
+  /* Khi CHƯA chọn sự cố: Hàng đợi rộng rãi (420px) hiển thị đủ 5 nút tabs theo Hình 3, bản đồ trung tâm rộng (1fr), ẩn panel trống */
   body.tac-three-zone:not(.tac-incident-selected) .dispatcher-layout {
-    grid-template-columns: 280px minmax(0, 1fr) !important;
+    grid-template-columns: 420px minmax(0, 1fr) !important;
     grid-template-areas: "queue map" !important;
   }
   body.tac-three-zone:not(.tac-incident-selected) .tactical-detail-panel {
     display: none !important;
   }
 
-  /* Khi ĐÃ chọn sự cố: Mở 3 phân vùng: Hàng đợi (270px) | Bản đồ trung tâm rộng (1fr = 640px - 1300px+) | Chi tiết sự cố (340px) */
+  /* Khi ĐÃ chọn sự cố: Mở 3 phân vùng: Hàng đợi đủ 5 tabs (410px) | Bản đồ trung tâm rộng (1fr) | Chi tiết sự cố (340px) */
   body.tac-three-zone.tac-incident-selected .dispatcher-layout {
-    grid-template-columns: 270px minmax(0, 1fr) 340px !important;
+    grid-template-columns: 410px minmax(0, 1fr) 340px !important;
     grid-template-areas: "queue map detail" !important;
   }
   body.tac-three-zone.tac-incident-selected .tactical-detail-panel {
@@ -723,29 +723,43 @@ body.officer-authenticated .ios26-ambient-bubbles-backdrop {
     order: 2 !important;
   }
 
-  /* Sidebar hẹp hơn → tab dạng icon+label co giãn, header gọn */
+  /* Sidebar mở rộng → 5 tab dạng glass pills dàn đều vừa vặn trên 1 hàng chuẩn Hình 3 */
   body.tac-three-zone .sidebar-header-new { padding: 12px 14px 8px !important; }
-  body.tac-three-zone .sidebar-main-title { font-size: 14.5px !important; }
-  body.tac-three-zone .sidebar-tab-btn { padding: 6px 5px !important; font-size: 10.5px !important; }
+  body.tac-three-zone .sidebar-main-title { font-size: 15px !important; }
+  body.tac-three-zone .sidebar-tabs-nav {
+    display: flex !important;
+    gap: 4px !important;
+    padding: 6px 8px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+  body.tac-three-zone .sidebar-tab-btn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
 }
 @media (min-width: 1600px) {
   body.tac-three-zone:not(.tac-incident-selected) .dispatcher-layout {
-    grid-template-columns: 320px minmax(0, 1fr) !important;
+    grid-template-columns: 440px minmax(0, 1fr) !important;
     grid-template-areas: "queue map" !important;
   }
   body.tac-three-zone.tac-incident-selected .dispatcher-layout {
-    grid-template-columns: 320px minmax(0, 1fr) 380px !important;
+    grid-template-columns: 440px minmax(0, 1fr) 380px !important;
     grid-template-areas: "queue map detail" !important;
   }
 }
 @media (min-width: 2200px) {
   :root { --tac-gutter: 22px; --tac-header-h: 76px; }
   body.tac-three-zone:not(.tac-incident-selected) .dispatcher-layout {
-    grid-template-columns: 380px minmax(0, 1fr) !important;
+    grid-template-columns: 480px minmax(0, 1fr) !important;
     grid-template-areas: "queue map" !important;
   }
   body.tac-three-zone.tac-incident-selected .dispatcher-layout {
-    grid-template-columns: 380px minmax(0, 1fr) 460px !important;
+    grid-template-columns: 480px minmax(0, 1fr) 460px !important;
     grid-template-areas: "queue map detail" !important;
   }
   .header-nav { height: calc(var(--tac-header-h) + var(--sa-top)) !important; }
@@ -755,18 +769,18 @@ body.officer-authenticated .ios26-ambient-bubbles-backdrop {
 /* Ultrawide: giới hạn chiều rộng khung để không quá dàn trải */
 @media (min-aspect-ratio: 21/9) and (min-width: 2500px) {
   body.tac-three-zone:not(.tac-incident-selected) .dispatcher-layout {
-    grid-template-columns: 420px minmax(0, 1fr) !important;
+    grid-template-columns: 480px minmax(0, 1fr) !important;
     grid-template-areas: "queue map" !important;
   }
   body.tac-three-zone.tac-incident-selected .dispatcher-layout {
-    grid-template-columns: 420px minmax(0, 1fr) 500px !important;
+    grid-template-columns: 480px minmax(0, 1fr) 500px !important;
     grid-template-areas: "queue map detail" !important;
   }
 }
 
-/* Laptop 1024–1279px: 2 cột, sidebar 400px, drawer ở sidebar */
+/* Laptop 1024–1279px: 2 cột, sidebar 420px, drawer ở sidebar */
 @media (min-width: 993px) and (max-width: 1279px) {
-  .dispatcher-layout { grid-template-columns: minmax(0, 1fr) minmax(360px, 400px) !important; gap: 12px !important; }
+  .dispatcher-layout { grid-template-columns: minmax(0, 1fr) minmax(400px, 430px) !important; gap: 12px !important; }
 }
 
 /* ---------------------------------------------------------------------

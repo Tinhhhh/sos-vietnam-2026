@@ -14507,9 +14507,6 @@ class DispatcherApp {
     const btnPrint = document.getElementById('btnPrintTerritoryStats');
     if (btnPrint) btnPrint.addEventListener('click', () => this.printTerritoryStats());
 
-    const btnDownloadPdf = document.getElementById('btnDownloadTerritoryPdf');
-    if (btnDownloadPdf) btnDownloadPdf.addEventListener('click', () => this.printTerritoryStats());
-
     const btnExportCsv = document.getElementById('btnExportTerritoryStatsCsv');
     if (btnExportCsv) btnExportCsv.addEventListener('click', () => this.exportTerritoryStatsCsv());
 
@@ -14534,7 +14531,7 @@ class DispatcherApp {
     const officerName = officer?.name || officer?.fullTitle || officer?.officerName || 'Cán bộ trực ban';
     const agencyName = officer?.agencyName || 'CÔNG AN NHÂN DÂN';
 
-    if (upperTitle) upperTitle.textContent = officer?.level === 'ward' ? `CÔNG AN TP. ${prov.toUpperCase()}` : 'BỘ CÔNG AN / TTCH QUỐC GIA';
+    if (upperTitle) upperTitle.textContent = officer?.level === 'ward' ? `CÔNG AN TP. ${prov.toUpperCase()}` : 'BỘ CÔNG AN';
     if (lowerTitle) lowerTitle.textContent = officer?.level === 'ward' ? `CÔNG AN ${ward.toUpperCase()}` : (officer?.level === 'province' ? `CÔNG AN TP. ${prov.toUpperCase()}` : agencyName.toUpperCase());
     if (modalSubtitle) modalSubtitle.textContent = `${officer?.level === 'ward' ? 'CÔNG AN ' + ward.toUpperCase() + ' - ' : ''}${prov.toUpperCase()}`;
     
@@ -14670,16 +14667,16 @@ class DispatcherApp {
       }
 
       return `
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-          <td style="padding: 8px 6px; text-align: center; font-weight: 700;">${index + 1}</td>
-          <td style="padding: 8px 6px; font-weight: 800; color: #38bdf8;">#${inc.id}</td>
-          <td style="padding: 8px 6px; font-size: 11px;">${timeStr}</td>
-          <td style="padding: 8px 6px; font-weight: 700;">${agencyBadge}</td>
-          <td style="padding: 8px 6px;">${tags}</td>
-          <td style="padding: 8px 6px;">${reporter}</td>
-          <td style="padding: 8px 6px; font-size: 11.5px;">${location}</td>
-          <td style="padding: 8px 6px; text-align: center;">
-            <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 700; color: ${statusColor}; background: rgba(255,255,255,0.05); border: 1px solid ${statusColor};">
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); font-family: 'Times New Roman', Times, serif;">
+          <td style="padding: 8px 6px; text-align: center; font-weight: 700; font-family: 'Times New Roman', Times, serif;">${index + 1}</td>
+          <td style="padding: 8px 6px; font-weight: 800; color: #38bdf8; font-family: 'Times New Roman', Times, serif;">#${inc.id}</td>
+          <td style="padding: 8px 6px; font-size: 11px; font-family: 'Times New Roman', Times, serif;">${timeStr}</td>
+          <td style="padding: 8px 6px; font-weight: 700; font-family: 'Times New Roman', Times, serif;">${agencyBadge}</td>
+          <td style="padding: 8px 6px; font-family: 'Times New Roman', Times, serif;">${tags}</td>
+          <td style="padding: 8px 6px; font-family: 'Times New Roman', Times, serif;">${reporter}</td>
+          <td style="padding: 8px 6px; font-size: 11.5px; font-family: 'Times New Roman', Times, serif;">${location}</td>
+          <td style="padding: 8px 6px; text-align: center; font-family: 'Times New Roman', Times, serif;">
+            <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 700; color: ${statusColor}; background: rgba(255,255,255,0.05); border: 1px solid ${statusColor}; font-family: 'Times New Roman', Times, serif;">
               ${statusLabel}
             </span>
           </td>
@@ -14693,7 +14690,7 @@ class DispatcherApp {
     if (!modal) return;
     document.body.classList.add('printing-territory-stats');
 
-    // Dynamic @page rule for landscape printing to ensure Chrome/Edge print dialog defaults to Landscape and zero blank pages
+    // Dynamic @page rule for landscape printing & strictly enforce Times New Roman font across all elements
     let printStyle = document.getElementById('territoryStatsPrintPageStyle');
     if (!printStyle) {
       printStyle = document.createElement('style');
@@ -14703,6 +14700,25 @@ class DispatcherApp {
     printStyle.textContent = `
       @media print {
         @page { size: A4 landscape !important; margin: 6mm 10mm 6mm 10mm !important; }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        html, body,
+        body.printing-territory-stats,
+        body.printing-territory-stats *,
+        #territoryStatsModal,
+        #territoryStatsModal *,
+        #territoryStatsPrintArea,
+        #territoryStatsPrintArea *,
+        .print-official-header,
+        .print-official-header *,
+        .print-official-footer,
+        .print-official-footer *,
+        .territory-stats-table,
+        .territory-stats-table * {
+          font-family: 'Times New Roman', Times, serif !important;
+        }
         html, body {
           background: #ffffff !important;
           color: #000000 !important;
@@ -14732,8 +14748,93 @@ class DispatcherApp {
           max-height: none !important;
           margin: 0 !important;
           padding: 0 !important;
+          background: #ffffff !important;
+          color: #000000 !important;
           inset: auto !important;
           transform: none !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+        .report-docx-modal-dialog {
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          background: #ffffff !important;
+          color: #000000 !important;
+          box-shadow: none !important;
+          border: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .report-docx-modal-header,
+        .territory-download-toolbar,
+        #territoryStatsFilterTabs,
+        #btnCloseTerritoryStatsModal,
+        #btnPrintTerritoryStats,
+        #btnDownloadTerritoryPdf,
+        #btnDownloadTerritoryWord,
+        #btnExportTerritoryStatsCsv,
+        #inputSearchTerritoryStats,
+        #btnBottomCloseStatsModal,
+        .report-docx-modal-backdrop::before,
+        #territoryStatsModal .report-docx-modal-dialog > div:last-child {
+          display: none !important;
+        }
+        #territoryStatsPrintArea {
+          background: #ffffff !important;
+          color: #000000 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
+          display: block !important;
+          position: static !important;
+        }
+        .print-official-header {
+          display: block !important;
+          page-break-inside: avoid !important;
+          margin-bottom: 16px !important;
+          color: #000000 !important;
+        }
+        .print-official-header #printUpperAgency { font-size: 12pt !important; font-weight: 700 !important; }
+        .print-official-header #printLowerAgency { font-size: 12.5pt !important; font-weight: 700 !important; }
+        .print-official-header #printDatePlace { font-size: 13pt !important; font-style: italic !important; }
+        .print-official-header .print-title-doc { font-size: 14.5pt !important; font-weight: 800 !important; }
+        .print-official-header #printFilterCategoryTitle { font-size: 13pt !important; font-style: italic !important; }
+        .print-official-footer {
+          display: block !important;
+          width: 100% !important;
+          page-break-inside: avoid !important;
+          margin-top: 24px !important;
+          color: #000000 !important;
+        }
+        .print-official-footer-row { display: flex !important; justify-content: space-between !important; }
+        .print-official-footer-recipient { width: 38% !important; text-align: left !important; font-size: 10.5pt !important; }
+        .print-official-footer-recipient div:first-child { font-size: 12pt !important; font-style: italic !important; font-weight: 700 !important; }
+        .print-official-footer-sign { width: 48% !important; text-align: center !important; font-size: 13pt !important; margin-left: auto !important; }
+        .print-official-footer-sign-title { font-size: 13pt !important; font-weight: 700 !important; text-transform: uppercase !important; white-space: nowrap !important; }
+        #printDatePlaceFooter { font-size: 13pt !important; font-style: italic !important; }
+        #printOfficerNameFooter { font-size: 13pt !important; font-weight: 700 !important; }
+        .territory-stats-table {
+          width: 100% !important;
+          color: #000000 !important;
+          border: 1.5px solid #000000 !important;
+          border-collapse: collapse !important;
+          table-layout: fixed !important;
+        }
+        .territory-stats-table th, .territory-stats-table td {
+          border: 1px solid #333333 !important;
+          color: #000000 !important;
+          padding: 4px 6px !important;
+          font-size: 8.5pt !important;
+          page-break-inside: avoid !important;
+        }
+        .territory-stats-table th {
+          background: #e2e8f0 !important;
+          font-size: 9.5pt !important;
+          font-weight: 700 !important;
+          text-align: center !important;
         }
       }
     `;
