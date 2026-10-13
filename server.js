@@ -3072,41 +3072,6 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   // API: Delete Local Dispatcher Account (Admin)
   // -------------------------------------------------------------
-  if (urlPath === '/api/admin/accounts/delete' && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        const { username } = JSON.parse(body || '{}');
-        const u = (username || '').toLowerCase().trim();
-        const coreAccounts = ['admin', 'congan'];
-        if (coreAccounts.includes(u)) {
-          res.writeHead(403, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: false, error: 'Không thể xóa tài khoản quản trị hệ thống mặc định!' }));
-        }
-        let foundKey = Object.keys(AGENCY_ACCOUNTS).find(k => k.toLowerCase() === u);
-        if (foundKey) {
-          delete AGENCY_ACCOUNTS[foundKey];
-          saveAgencyAccounts();
-          if (stationsDirectory && Array.isArray(stationsDirectory.stations)) {
-            stationsDirectory.stations = stationsDirectory.stations.filter(s => s.id !== `st-${foundKey}` && s.id !== `st-${u}`);
-            try {
-              fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
-            } catch (e) {}
-          }
-          console.log(`🗑️ [ADMIN ACCOUNT] Deleted account: ${foundKey}`);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: true, message: `Đã xóa tài khoản [${foundKey.toUpperCase()}] thành công!` }));
-        }
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy tài khoản trong hệ thống' }));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: publicRequestError(e) }));
-      }
-    });
-    return;
-  }
 
   // -------------------------------------------------------------
   // API: Get Duty Officers Directory
@@ -3155,111 +3120,35 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   if (urlPath === '/api/stations/all' && req.method === 'GET') {
     const list = stationsDirectory.stations || [];
+    const payload = JSON.stringify({ ok: true, stations: list });
+    // PATCH 2026-10-13: gzip large station payload (2.9MB -> ~300KB)
+    const acceptEnc = req.headers['accept-encoding'] || '';
+    if (/\bgzip\b/.test(acceptEnc)) {
+      try {
+        const gz = zlib.gzipSync(payload, { level: 6 });
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Content-Encoding': 'gzip',
+          'Content-Length': gz.length
+        });
+        return res.end(gz);
+      } catch (e) {}
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, stations: list }));
+    return res.end(payload);
   }
 
   // -------------------------------------------------------------
   // API: Update Station (Name, Address, Phone, SMS, Officer, Lat, Lng)
   // -------------------------------------------------------------
-  if (urlPath === '/api/stations/update' && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        const updateData = JSON.parse(body || '{}');
-        const list = stationsDirectory.stations || [];
-        const index = list.findIndex(s => s.id === updateData.id);
-
-        if (index !== -1) {
-          list[index] = { ...list[index], ...updateData };
-          stationsDirectory.stations = list;
-
-          // Save to file
-          try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
-          } catch (e) {
-            console.warn('Could not write stations file:', e.message);
-          }
-
-          console.log(`✅ [STATION UPDATE] Updated station #${updateData.id}: ${list[index].name} (${list[index].phone})`);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: true, station: list[index] }));
-        }
-
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy trụ sở' }));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: publicRequestError(e) }));
-      }
-    });
-    return;
-  }
 
   // -------------------------------------------------------------
   // API: Create New Station
   // -------------------------------------------------------------
-  if (urlPath === '/api/stations/create' && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        const newStation = JSON.parse(body || '{}');
-        newStation.id = 'st-' + Date.now().toString(36);
-        const list = stationsDirectory.stations || [];
-        list.push(newStation);
-        stationsDirectory.stations = list;
-
-        try {
-          fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
-        } catch (e) {}
-
-        console.log(`✅ [STATION CREATE] Created station: ${newStation.name}`);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: true, station: newStation }));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: publicRequestError(e) }));
-      }
-    });
-    return;
-  }
 
   // -------------------------------------------------------------
   // API: Delete Station (Admin only)
   // -------------------------------------------------------------
-  if (urlPath === '/api/stations/delete' && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        const { id } = JSON.parse(body || '{}');
-        const list = stationsDirectory.stations || [];
-        const index = list.findIndex(s => s.id === id);
-
-        if (index !== -1) {
-          const removed = list.splice(index, 1)[0];
-          stationsDirectory.stations = list;
-
-          try {
-            fs.writeFileSync(path.join(__dirname, 'assets', 'vn-stations-directory.json'), JSON.stringify(stationsDirectory, null, 2), 'utf-8');
-          } catch (e) {}
-
-          console.log(`🗑️ [STATION DELETE] Deleted station #${id}: ${removed.name}`);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: true, message: 'Đã xóa trụ sở' }));
-        }
-
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy trụ sở' }));
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ ok: false, error: publicRequestError(e) }));
-      }
-    });
-    return;
-  }
 
   // -------------------------------------------------------------
   // API: Get Rescue Enterprises (Sorted by Top Rating + Distance)
@@ -3991,52 +3880,10 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   // API: Get Ward List (lightweight - no geometry, for dropdowns)
   // -------------------------------------------------------------
-  if (urlPath === '/api/geo/ward-list' && req.method === 'GET') {
-    const list = (vnWardBoundaries.features || []).map(f => ({
-      id: f.properties?.id || `${f.properties?.province}_${f.properties?.ward}`,
-      ward: f.properties?.ward || 'Xã',
-      province: f.properties?.province || '',
-      unitType: f.properties?.unitType || 'Xã/Phường',
-      center: computeFeatureCenter(f),
-      sapNhapTu: f.properties?.sapNhapTu || '',
-      maDVHC: f.properties?.maDVHC || '',
-      dienTich: f.properties?.dienTich || '',
-      danSo: f.properties?.danSo || '',
-      canCu: f.properties?.canCu || ''
-    }));
-    const payload = JSON.stringify({ ok: true, count: list.length, list });
-    const acceptEncoding = req.headers['accept-encoding'] || '';
-    if (acceptEncoding.includes('gzip')) {
-      zlib.gzip(payload, (err, buf) => {
-        if (err) { res.writeHead(500); return res.end(); }
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'Cache-Control': 'public, max-age=300' });
-        return res.end(buf);
-      });
-    } else {
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
-      return res.end(payload);
-    }
-    return;
-  }
 
   // -------------------------------------------------------------
   // API: Get All Ward Geofences (full geometry for map layer)
   // -------------------------------------------------------------
-  if (urlPath === '/api/geo/all-wards' && req.method === 'GET') {
-    const payload = JSON.stringify({ ok: true, boundaries: vnWardBoundaries });
-    const acceptEncoding = req.headers['accept-encoding'] || '';
-    if (acceptEncoding.includes('gzip')) {
-      zlib.gzip(payload, (err, buf) => {
-        if (err) { res.writeHead(500); return res.end(); }
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'Cache-Control': 'public, max-age=300' });
-        return res.end(buf);
-      });
-    } else {
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
-      return res.end(payload);
-    }
-    return;
-  }
 
   // -------------------------------------------------------------
   // API: Get Live Bando.com.vn Sync Status
@@ -5676,11 +5523,23 @@ const server = http.createServer(async (req, res) => {
 
         incident.vehicleLocation = { lat: parseFloat(lat), lng: parseFloat(lng) };
         if (etaMinutes !== undefined) incident.etaMinutes = parseInt(etaMinutes);
+        // PATCH 2026-10-13: keep movement trail (capped) for reconnecting clients
+        if (!Array.isArray(incident.vehicleTrail)) incident.vehicleTrail = [];
+        const lastTrail = incident.vehicleTrail[incident.vehicleTrail.length - 1];
+        const moved = !lastTrail ||
+          Math.hypot((incident.vehicleLocation.lat - lastTrail.lat) * 111320,
+                     (incident.vehicleLocation.lng - lastTrail.lng) * 111320 *
+                       Math.cos(lastTrail.lat * Math.PI / 180)) > 5;
+        if (moved) {
+          incident.vehicleTrail.push({ ...incident.vehicleLocation, t: Date.now() });
+          if (incident.vehicleTrail.length > 200) incident.vehicleTrail.shift();
+        }
         incident.updatedAt = new Date().toISOString();
 
         notifyCitizen(id, 'vehicle_pos', {
           incidentId: id,
           vehicleLocation: incident.vehicleLocation,
+          vehicleTrail: incident.vehicleTrail,
           etaMinutes: incident.etaMinutes
         });
 
@@ -6577,7 +6436,7 @@ const server = http.createServer(async (req, res) => {
         const tempDocxPath = path.join(tmpDir, `temp_verification_${tempId}.docx`);
         fs.writeFileSync(tempJsonPath, JSON.stringify(recordData), { encoding: 'utf8', mode: 0o600 });
         const scriptPath = path.join(__dirname, 'scripts', 'generate_verification_record_docx.py');
-        exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempDocxPath}"`, (error, stdout, stderr) => {
+        exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempDocxPath}"`, { timeout: 30000 }, (error, stdout, stderr) => {
           if (error || !fs.existsSync(tempDocxPath)) {
             console.error('Verification DOCX generation error:', error, stderr);
             try { fs.unlinkSync(tempJsonPath); } catch (_) {}
@@ -6618,7 +6477,7 @@ const server = http.createServer(async (req, res) => {
 
         // Execute Python script to build official Word document
         const scriptPath = path.join(__dirname, 'scripts', 'generate_report_docx.py');
-        exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempDocxPath}"`, (error, stdout, stderr) => {
+        exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempDocxPath}"`, { timeout: 30000 }, (error, stdout, stderr) => {
           if (error || !fs.existsSync(tempDocxPath)) {
             console.error('DOCX generation error:', error, stderr);
             try { fs.unlinkSync(tempJsonPath); } catch(e) {}

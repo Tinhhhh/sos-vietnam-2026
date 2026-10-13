@@ -1,0 +1,88 @@
+{
+  "timestamp": "2026-10-13T16:12:31.396Z",
+  "tests": [
+    {
+      "name": "MapController exposes vehicle trail methods",
+      "passed": true,
+      "details": {
+        "hasModule": true,
+        "hasAddTrail": true,
+        "hasClearTrail": true
+      }
+    },
+    {
+      "name": "Dispatcher authentication successful",
+      "passed": true,
+      "details": {
+        "username": "admin",
+        "hasToken": true
+      }
+    },
+    {
+      "name": "Incident created successfully",
+      "passed": true,
+      "details": {
+        "incidentId": "SOS-MV6VQ8ZU-230"
+      }
+    },
+    {
+      "name": "Update vehicle pos (21.028, 105.854)",
+      "passed": true,
+      "details": {
+        "ok": true
+      }
+    },
+    {
+      "name": "Update vehicle pos (21.0285, 105.8545)",
+      "passed": true,
+      "details": {
+        "ok": true
+      }
+    },
+    {
+      "name": "Update vehicle pos (21.029, 105.855)",
+      "passed": true,
+      "details": {
+        "ok": true
+      }
+    },
+    {
+      "name": "Vehicle trail recorded on server incident object",
+      "passed": true,
+      "details": {
+        "trailLength": 3,
+        "trail": [
+          {
+            "lat": 21.028,
+            "lng": 105.854,
+            "t": 1791907952451
+          },
+          {
+            "lat": 21.0285,
+            "lng": 105.8545,
+            "t": 1791907952466
+          },
+          {
+            "lat": 21.029,
+            "lng": 105.855,
+            "t": 1791907952474
+          }
+        ]
+      }
+    },
+    {
+      "name": "DispatcherApp exposes startRealVehicleTracking",
+      "passed": true,
+      "details": {
+        "hasApp": true,
+        "hasStartRealTracking": true,
+        "hasStopVehicleTracking": true
+      }
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-10-13T15:59:30.181Z",
+  "tests": [
+    {
+      "name": "Stations API returns exactly 3,717 stations",
+      "passed": true,
+      "details": {
+        "status": 200,
+        "stationsCount": 3717
+      }
+    },
+    {
+      "name": "Nav pill item tap target >= 36px on 375px screens",
+      "passed": true,
+      "details": {
+        "navPillHeight": 36
+      }
+    },
+    {
+      "name": "Legal toggle tap target >= 32px on 375px screens",
+      "passed": true,
+      "details": {
+        "legalToggleHeight": 32
+      }
+    },
+    {
+      "name": "Agency cards grid has 2 columns on small screens",
+      "passed": true,
+      "details": {
+        "agencyGridCols": "repeat(2, 1fr)",
+        "colCount": 2
+      }
+    },
+    {
+      "name": "React FE loads cleanly at 375px mobile viewport",
+      "passed": true,
+      "details": {
+        "hasFeRoot": 1
+      }
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  }
+}

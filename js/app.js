@@ -1857,6 +1857,14 @@ class SOSApp {
           this.activeIncident.agency,
           this.activeIncident.dispatchUnit?.unitName
         );
+        // PATCH 2026-10-13: draw movement trail from live positions
+        if (Array.isArray(data.vehicleTrail)) {
+          // Full trail sent by server (e.g. on reconnect) — redraw
+          this.mapController.clearVehicleTrail?.();
+          data.vehicleTrail.forEach(p => this.mapController.addVehicleTrailPoint?.(p.lat, p.lng));
+        } else {
+          this.mapController.addVehicleTrailPoint?.(data.vehicleLocation.lat, data.vehicleLocation.lng);
+        }
       }
     });
 

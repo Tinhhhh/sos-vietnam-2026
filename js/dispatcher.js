@@ -12368,7 +12368,8 @@ class DispatcherApp {
         const updatedInc = data.incident || inc;
         this.incidents.set(updatedInc.id, updatedInc);
         this.selectedIncidentId = updatedInc.id;
-        this.startVehicleSimulation(updatedInc);
+        // PATCH 2026-10-13: real GPS tracking (falls back to simulation if no GPS)
+        this.startRealVehicleTracking(updatedInc);
         this.updateDrawer(updatedInc);
         this.showIncidentDrawer(updatedInc);
         this.renderQueue();
@@ -12425,6 +12426,10 @@ class DispatcherApp {
     }
     if (!this.selectedIncidentId) return;
     const resolvedIncId = this.selectedIncidentId;
+    // PATCH 2026-10-13: stop GPS vehicle tracking when arrived/resolved
+    if (status === 'arrived' || status === 'resolved') {
+      this.stopVehicleTracking(resolvedIncId);
+    }
     try {
       const res = await fetch('/api/dispatcher/update-status', {
         method: 'POST',
@@ -14062,6 +14067,128 @@ class DispatcherApp {
     }, 3000);
 
     this.simulationTimers.set(incident.id, timer);
+  }
+
+  // =========================================================================
+  // PATCH 2026-10-13: REAL GPS vehicle tracking.
+  // When the officer accepts an incident and moves (phone in the vehicle),
+  // watch the device's REAL GPS and stream positions to the server, which
+  // broadcasts them to the citizen via SSE 'vehicle_pos'.
+  // Falls back to the fake simulation if GPS is unavailable/denied.
+  // =========================================================================
+  startRealVehicleTracking(incident) {
+    if (!incident || !incident.id) return;
+    // Stop any previous tracking/simulation for this incident
+    this.stopVehicleTracking(incident.id);
+
+    if (!('geolocation' in navigator)) {
+      console.warn('[VehicleTrack] geolocation unavailable, using simulation fallback');
+      this.startVehicleSimulation(incident);
+      return;
+    }
+
+    const incidentId = incident.id;
+    const agency = incident.agency;
+    const unitName = incident.dispatchUnit?.unitName || incident.assignedUnit?.unitName;
+
+    // Clear old trail, start fresh for this run
+    if (this.mapController) this.mapController.clearVehicleTrail?.();
+
+    let lastSentAt = 0;
+    let lastSent = null;
+    let watchId = null;
+    let gotFirstFix = false;
+
+    const sendPosition = async (lat, lng, accuracy) => {
+      const now = Date.now();
+      // Throttle: at most 1 update per 5s, and only if moved >10m
+      if (now - lastSentAt < 5000) return;
+      if (lastSent) {
+        const dLat = (lat - lastSent.lat) * 111320;
+        const dLng = (lng - lastSent.lng) * 111320 * Math.cos(lastSent.lat * Math.PI / 180);
+        if (Math.hypot(dLat, dLng) < 10 && now - lastSentAt < 30000) return;
+      }
+      lastSentAt = now;
+      lastSent = { lat, lng };
+
+      // ETA from real remaining distance (assume 30 km/h urban average)
+      let etaMinutes = null;
+      const inc = this.incidents.get(incidentId);
+      if (inc && Number.isFinite(inc.lat) && Number.isFinite(inc.lng)) {
+        const R = 6371;
+        const dLat = (inc.lat - lat) * Math.PI / 180;
+        const dLng = (inc.lng - lng) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(lat * Math.PI / 180) * Math.cos(inc.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+        const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        etaMinutes = Math.max(1, Math.round(distKm / 30 * 60));
+      }
+
+      try {
+        await fetch('/api/dispatcher/update-vehicle', {
+          method: 'POST',
+          headers: typeof this.getAuthHeaders === 'function'
+            ? { ...this.getAuthHeaders(), 'Content-Type': 'application/json' }
+            : { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: incidentId, lat, lng, etaMinutes, accuracy })
+        });
+      } catch (e) { /* offline: keep tracking locally */ }
+    };
+
+    const onPosition = (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      gotFirstFix = true;
+      if (this.mapController) {
+        this.mapController.setVehicleMarker(lat, lng, agency, unitName);
+        this.mapController.addVehicleTrailPoint?.(lat, lng);
+      }
+      sendPosition(lat, lng, pos.coords.accuracy);
+    };
+
+    const onError = (err) => {
+      console.warn('[VehicleTrack] GPS error, fallback to simulation:', err?.message);
+      this.stopVehicleTracking(incidentId, true);
+      if (!gotFirstFix) this.startVehicleSimulation(incident);
+    };
+
+    try {
+      watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 3000
+      });
+      if (!this.vehicleWatchers) this.vehicleWatchers = new Map();
+      this.vehicleWatchers.set(incidentId, watchId);
+      console.log('[VehicleTrack] real GPS tracking started for', incidentId);
+
+      // Safety: if no GPS fix within 20s, fall back to simulation so demo still works
+      setTimeout(() => {
+        if (!gotFirstFix && this.vehicleWatchers?.has(incidentId)) {
+          console.warn('[VehicleTrack] no GPS fix in 20s, using simulation fallback');
+          this.stopVehicleTracking(incidentId, true);
+          this.startVehicleSimulation(incident);
+        }
+      }, 20000);
+    } catch (e) {
+      console.warn('[VehicleTrack] watchPosition failed, simulation fallback:', e);
+      this.startVehicleSimulation(incident);
+    }
+  }
+
+  stopVehicleTracking(incidentId, keepMarker) {
+    if (this.vehicleWatchers?.has(incidentId)) {
+      try { navigator.geolocation.clearWatch(this.vehicleWatchers.get(incidentId)); } catch (e) {}
+      this.vehicleWatchers.delete(incidentId);
+    }
+    if (this.simulationTimers?.has(incidentId)) {
+      clearInterval(this.simulationTimers.get(incidentId));
+      this.simulationTimers.delete(incidentId);
+    }
+    if (!keepMarker && this.mapController && this.selectedIncidentId !== incidentId) {
+      this.mapController.clearVehicleMarker?.();
+    }
   }
 
   // =========================================================================
