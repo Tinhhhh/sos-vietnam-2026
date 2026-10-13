@@ -1,0 +1,59 @@
+{
+  "timestamp": "2026-10-13T15:14:59.845Z",
+  "tests": [
+    {
+      "name": "TURN Endpoint Responds with STUN Fallback Status",
+      "passed": true,
+      "details": {
+        "status": 200,
+        "body": {
+          "ok": false,
+          "reason": "TURN not configured"
+        }
+      }
+    },
+    {
+      "name": "Citizen PiP Remote Video Element Exists",
+      "passed": true,
+      "details": {
+        "remoteVideoCount": 1
+      }
+    },
+    {
+      "name": "Citizen PiP Label is \"TRỰC BAN\"",
+      "passed": true,
+      "details": {
+        "labelText": "TRỰC BAN"
+      }
+    },
+    {
+      "name": "Typo \"đàm thoại thoại\" is fixed",
+      "passed": true,
+      "details": {
+        "voiceStatusText": "Đang đàm thoại 2 bên & truyền âm thanh chất lượng cao"
+      }
+    },
+    {
+      "name": "Dispatcher Gatekeeper Label Hides Passcode",
+      "passed": true,
+      "details": {
+        "toggleLabel": "Lớp Bảo Vệ Web Nội Bộ"
+      }
+    },
+    {
+      "name": "Vite React Frontend Loads on Port 5173",
+      "passed": true,
+      "details": {
+        "title": "SOS Khẩn Cấp Việt Nam — Báo Cáo & Cứu Hộ Tức Thời",
+        "consoleErrors": [
+          "Failed to load resource: the server responded with a status of 404 (Not Found)"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0
+  }
+}

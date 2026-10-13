@@ -4335,6 +4335,12 @@ const server = http.createServer(async (req, res) => {
     });
     res.write(`event: connected\ndata: ${JSON.stringify({ ok: true, id })}\n\n`);
 
+    // PATCH 2026-10-13: SSE heartbeat every 25s so reverse proxies
+    // (Cloudflare ~100s idle timeout) do not silently kill the stream.
+    const _hb = setInterval(() => {
+      try { res.write(': ping\n\n'); } catch (e) { clearInterval(_hb); }
+    }, 25000);
+
     if (!citizenSubscribers.has(id)) {
       citizenSubscribers.set(id, new Set());
     }
@@ -4345,6 +4351,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     req.on('close', () => {
+      clearInterval(_hb);
       const set = citizenSubscribers.get(id);
       if (set) {
         set.delete(res);
@@ -4761,9 +4768,15 @@ const server = http.createServer(async (req, res) => {
     res.officerWard = user?.ward || urlObj.searchParams.get('ward') || '';
     res.officerUnitName = user?.unitName || user?.agencyName || urlObj.searchParams.get('unitName') || '';
     res.write(`event: connected\ndata: ${JSON.stringify({ ok: true, count: incidents.size, agency: streamAgency, auth: Boolean(user) })}\n\n`);
+    // PATCH 2026-10-13: SSE heartbeat every 25s so reverse proxies
+    // (Cloudflare ~100s idle timeout) do not silently kill the stream.
+    const _dhb = setInterval(() => {
+      try { res.write(': ping\n\n'); } catch (e) { clearInterval(_dhb); }
+    }, 25000);
     dispatcherSubscribers.add(res);
 
     req.on('close', () => {
+      clearInterval(_dhb);
       dispatcherSubscribers.delete(res);
     });
     return;
@@ -5806,6 +5819,38 @@ const server = http.createServer(async (req, res) => {
     notifyCitizen(incidentId, 'messages_cleared', { incidentId });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true }));
+  }
+
+  // -------------------------------------------------------------
+  // PATCH 2026-10-13: TURN credentials endpoint (coturn REST API style).
+  // Issues short-lived TURN username/password so browsers can relay media
+  // through symmetric NAT / CGNAT. Configure via env:
+  //   TURN_URIS="turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp"
+  //   TURN_SECRET="<shared secret matching coturn static-auth-secret>"
+  //   TURN_TTL_SECONDS="3600" (optional)
+  // When not configured, returns { ok:false } and clients use STUN-only.
+  // -------------------------------------------------------------
+  if (urlPath === '/api/turn/credentials' && req.method === 'GET') {
+    try {
+      const uris = String(process.env.TURN_URIS || '').split(',').map(s => s.trim()).filter(Boolean);
+      const secret = process.env.TURN_SECRET || '';
+      if (!uris.length || !secret) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, reason: 'TURN not configured' }));
+      }
+      const ttl = Math.max(300, parseInt(process.env.TURN_TTL_SECONDS || '3600', 10) || 3600);
+      const expiry = Math.floor(Date.now() / 1000) + ttl;
+      const username = `${expiry}:sos`;
+      const password = crypto.createHmac('sha1', secret).update(username).digest('base64');
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store'
+      });
+      return res.end(JSON.stringify({ ok: true, uris, username, password, ttl }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
   }
 
   // -------------------------------------------------------------

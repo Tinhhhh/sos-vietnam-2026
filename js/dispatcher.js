@@ -1,5 +1,39 @@
 import { MapController } from './map-controller.js?v=20261012_wardhud_single_v5';
 
+// ---------------------------------------------------------------------------
+// PATCH 2026-10-13: Dynamic ICE servers with TURN relay support.
+// Fetches short-lived TURN credentials from /api/turn/credentials so WebRTC
+// media can traverse symmetric NAT / CGNAT (mobile 4G/5G). Falls back to
+// STUN-only when the TURN service is not configured.
+// ---------------------------------------------------------------------------
+let _cachedIceServers = null;
+let _iceServersFetchedAt = 0;
+async function buildIceServers() {
+  const now = Date.now();
+  if (_cachedIceServers && (now - _iceServersFetchedAt) < 10 * 60 * 1000) {
+    return _cachedIceServers;
+  }
+  const servers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ];
+  try {
+    const r = await fetch('/api/turn/credentials', { credentials: 'same-origin' });
+    const t = await r.json();
+    if (t && t.ok && t.username && t.password && Array.isArray(t.uris) && t.uris.length) {
+      servers.push({ urls: t.uris, username: t.username, credential: t.password });
+      console.log('🧊 [ICE] TURN relay enabled via', t.uris[0]);
+    } else {
+      console.log('🧊 [ICE] TURN not configured — STUN-only mode');
+    }
+  } catch (e) {
+    console.warn('🧊 [ICE] Could not fetch TURN credentials, STUN-only mode:', e);
+  }
+  _cachedIceServers = servers;
+  _iceServersFetchedAt = now;
+  return servers;
+}
+
 const AGENCY_PREVIEWS = {
   congan: {
     title: 'CỔNG TRỰC BAN CÔNG AN NHÂN DÂN',
@@ -7900,12 +7934,7 @@ class DispatcherApp {
       try { this.dispatcherVideoPeerConnection.close(); } catch (e) {}
     }
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun.cloudflare.com:3478' }
-      ]
+      iceServers: await buildIceServers()
     });
     this.dispatcherVideoPeerConnection = pc;
     this._dispatcherHandlingVideoOffer = false;
@@ -8402,12 +8431,7 @@ class DispatcherApp {
       try { this.dispatcherVoicePeerConnection.close(); } catch (e) {}
     }
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun.cloudflare.com:3478' }
-      ]
+      iceServers: await buildIceServers()
     });
     this.dispatcherVoicePeerConnection = pc;
     this._dispatcherHandlingVoiceOffer = false;
@@ -10275,33 +10299,10 @@ class DispatcherApp {
             }
             this.showToast?.('🟢 Đầu bên kia đã nhấc máy đàm thoại!', 'success');
 
-            // Re-send WebRTC offer now that the recipient has accepted and opened their peer connection
-            const pc = this.dispatcherVoicePeerConnection;
-            if (pc) {
-              try {
-                this._dispatcherHandlingVoiceAnswer = false;
-                const offer = pc.localDescription || await pc.createOffer();
-                if (!pc.localDescription) await pc.setLocalDescription(offer);
-                fetch('/api/sos/videocall/signal', {
-                  method: 'POST',
-                  credentials: 'same-origin',
-                  headers: this.getAuthHeaders(),
-                  body: JSON.stringify({
-                    id: signal.incidentId,
-                    action: 'webrtc-offer',
-                    sender: 'dispatcher',
-                    senderUsername: this.currentOfficer?.username,
-                    callType: 'voice',
-                    callScope: signal.callScope || 'citizen_dispatcher',
-                    targetUnit: signal.targetUnit || null,
-                    token: this.currentOfficer?.token,
-                    sdp: offer
-                  })
-                }).catch(() => {});
-              } catch (e) {
-                console.warn('Re-send voice offer on accept error:', e);
-              }
-            }
+            // PATCH 2026-10-13: removed duplicate webrtc-offer re-send on accept.
+            // The offer was already sent when the call started; re-sending causes
+            // needless re-negotiation (and glare risk). Delivery reliability is
+            // now handled by SSE heartbeat + client ack/retry.
           } else if (signal.action === 'reject') {
             const hint = document.getElementById('voiceCallVisualizerHint');
             if (hint) {
@@ -10376,33 +10377,10 @@ class DispatcherApp {
           }
           if (waitingOverlay) waitingOverlay.style.display = 'none';
 
-          // Re-send WebRTC video offer now that Citizen accepted and opened peer connection
-          const pc = this.dispatcherVideoPeerConnection;
-          if (pc) {
-            try {
-              this._dispatcherHandlingVideoAnswer = false;
-              const offer = pc.localDescription || await pc.createOffer();
-              if (!pc.localDescription) await pc.setLocalDescription(offer);
-              fetch('/api/sos/videocall/signal', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: this.getAuthHeaders(),
-                body: JSON.stringify({
-                  id: signal.incidentId,
-                  action: 'webrtc-offer',
-                  sender: 'dispatcher',
-                  senderUsername: this.currentOfficer?.username,
-                  callType: 'video',
-                  callScope: signal.callScope || 'citizen_dispatcher',
-                  targetUnit: signal.targetUnit || null,
-                  token: this.currentOfficer?.token,
-                  sdp: offer
-                })
-              }).catch(() => {});
-            } catch (e) {
-              console.warn('Re-send video offer on accept error:', e);
-            }
-          }
+          // PATCH 2026-10-13: removed duplicate webrtc-offer re-send on accept.
+          // The offer was already sent when the call started; re-sending causes
+          // needless re-negotiation (and glare risk). Delivery reliability is
+          // now handled by SSE heartbeat + client ack/retry.
         } else if (signal.action === 'reject') {
           if (statusBadge) {
             statusBadge.textContent = '🔴 Người dân từ chối mở Camera';
