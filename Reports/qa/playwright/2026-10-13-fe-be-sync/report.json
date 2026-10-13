@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-10-13T10:35:14.634Z",
+  "tests": [
+    {
+      "name": "No Location Banner pushing down hero",
+      "status": "PASS",
+      "detail": "Found 0 location banners"
+    },
+    {
+      "name": "Citizen background video is realistic hands cupping sphere (sos-citizen-bg.mp4)",
+      "status": "PASS",
+      "detail": "video src: /assets/videos/sos-citizen-bg.mp4"
+    },
+    {
+      "name": "Clicking \"Cài Lối Tắt\" opens Install Shortcut Modal",
+      "status": "PASS",
+      "detail": "modal title: TẠO LỐI TẮT RA MÀN HÌNH CHÍNH"
+    },
+    {
+      "name": "Hosting localhost:3000 online and active",
+      "status": "PASS",
+      "detail": "HTTP 200 loaded successfully"
+    }
+  ]
+}
