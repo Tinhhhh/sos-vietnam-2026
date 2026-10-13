@@ -1,6 +1,6 @@
 {
   "testName": "Mobile UI Layout Optimization & iOS Safari Shortcut Verification Suite",
-  "timestamp": "2026-10-12T17:13:50.155Z",
+  "timestamp": "2026-10-13T01:34:46.678Z",
   "baseUrl": "http://localhost:3000",
   "assertions": [
     {
@@ -9,7 +9,7 @@
       "details": {
         "titleText": "Trung Tâm Chỉ Huy Tác Chiến",
         "titleWidth": 140,
-        "clockText": "00:13:53 (VN)",
+        "clockText": "08:34:50 (VN)",
         "dutyPillDisplay": "none"
       }
     },
@@ -19,7 +19,7 @@
       "details": {
         "titleText": "Trung Tâm Chỉ Huy Tác Chiến",
         "titleWidth": 140,
-        "clockText": "00:13:53 (VN)",
+        "clockText": "08:34:50 (VN)",
         "dutyPillDisplay": "none"
       }
     },
@@ -157,6 +157,42 @@
       }
     },
     {
+      "name": "Citizen bottom dock 4 buttons are well-spaced (gap >= 5px), sleek height (30-36px), and text fits inside button frame without clipping",
+      "pass": true,
+      "details": {
+        "gap": "5px",
+        "itemCount": 4,
+        "allSleekHeight": true,
+        "noTextOverflow": true,
+        "itemMetrics": [
+          {
+            "text": "Cài Lối Tắt",
+            "height": 32,
+            "width": 74,
+            "overflows": false
+          },
+          {
+            "text": "SOS Người Thân",
+            "height": 32,
+            "width": 99,
+            "overflows": false
+          },
+          {
+            "text": "Cẩm Nang",
+            "height": 32,
+            "width": 76,
+            "overflows": false
+          },
+          {
+            "text": "Cổng Trực Ban",
+            "height": 32,
+            "width": 92,
+            "overflows": false
+          }
+        ]
+      }
+    },
+    {
       "name": "iOS shortcut button has clear Safari guidance label",
       "pass": true,
       "details": {
@@ -204,6 +240,10 @@
       "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\05-dispatcher-admin-security-audit-mobile.png"
     },
     {
+      "name": "08-citizen-mobile-bottom-dock",
+      "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\08-citizen-mobile-bottom-dock.png"
+    },
+    {
       "name": "06-citizen-ios-install-modal",
       "path": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-13-mobile-ui-and-ios-shortcuts\\screenshots\\06-citizen-ios-install-modal.png"
     },
@@ -213,8 +253,8 @@
     }
   ],
   "summary": {
-    "total": 13,
-    "passed": 13,
+    "total": 14,
+    "passed": 14,
     "failed": 0,
     "status": "PASSED"
   }

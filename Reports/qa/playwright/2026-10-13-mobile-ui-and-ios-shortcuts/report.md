@@ -1,6 +1,6 @@
 # Báo Cáo Kiểm Thử Tối Ưu Giao Diện Điện Thoại & Lối Tắt iOS PWA
-**Thời gian:** 00:14:11 13/10/2026
-**Kết quả:** PASSED (13/13 kiểm thử đạt)
+**Thời gian:** 08:35:09 13/10/2026
+**Kết quả:** PASSED (14/14 kiểm thử đạt)
 
 ## 1. Mục Tiêu Kiểm Thử
 - Khắc phục sự cố nút tạo lối tắt trên iOS: Hướng dẫn người dùng theo đúng cơ chế bảo mật sandbox của Apple Safari (biểu tượng Chia sẻ `[↑]` -> "Thêm vào MH chính").
@@ -20,6 +20,7 @@
 - **[PASS]** adminHospitalModal exists separately with hospital fields and green submit button 
 - **[PASS]** Admin Officer Modal tabs use admin-tab-nav-btn with full readable text 
 - **[PASS]** Audit table is wrapped in overflow-x: auto with min-width >= 600px 
+- **[PASS]** Citizen bottom dock 4 buttons are well-spaced (gap >= 5px), sleek height (30-36px), and text fits inside button frame without clipping 
 - **[PASS]** iOS shortcut button has clear Safari guidance label 
 - **[PASS]** iOS shortcut guidance explains Apple security requirement 
 - **[PASS]** Clicking iOS trigger closes modal and displays 3-step bottom beacon pointing to Safari toolbar 
@@ -30,5 +31,6 @@
 - **03-dispatcher-admin-hospital-modal-mobile**: `Reports\qa\playwright\2026-10-13-mobile-ui-and-ios-shortcuts\screenshots\03-dispatcher-admin-hospital-modal-mobile.png`
 - **04-dispatcher-admin-officer-accounts-mobile**: `Reports\qa\playwright\2026-10-13-mobile-ui-and-ios-shortcuts\screenshots\04-dispatcher-admin-officer-accounts-mobile.png`
 - **05-dispatcher-admin-security-audit-mobile**: `Reports\qa\playwright\2026-10-13-mobile-ui-and-ios-shortcuts\screenshots\05-dispatcher-admin-security-audit-mobile.png`
+- **08-citizen-mobile-bottom-dock**: `Reports\qa\playwright\2026-10-13-mobile-ui-and-ios-shortcuts\screenshots\08-citizen-mobile-bottom-dock.png`
 - **06-citizen-ios-install-modal**: `Reports\qa\playwright\2026-10-13-mobile-ui-and-ios-shortcuts\screenshots\06-citizen-ios-install-modal.png`
 - **07-citizen-ios-beacon-active**: `Reports\qa\playwright\2026-10-13-mobile-ui-and-ios-shortcuts\screenshots\07-citizen-ios-beacon-active.png`

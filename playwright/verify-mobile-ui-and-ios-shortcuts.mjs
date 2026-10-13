@@ -238,6 +238,32 @@ async function verifyMobileUiAndIosShortcuts() {
     await page.goto(`${BASE_URL}/index.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(2000);
 
+    // Verify Citizen Bottom Dock buttons (4 buttons spaced cleanly, sleek 34px height, no text clipping)
+    const bottomDockCheck = await page.evaluate(() => {
+      const pill = document.querySelector('.nav-center-pill');
+      const items = Array.from(document.querySelectorAll('.nav-pill-item'));
+      const pillStyle = pill ? window.getComputedStyle(pill) : null;
+      const itemMetrics = items.map(el => ({
+        text: el.textContent.trim(),
+        height: Math.round(el.getBoundingClientRect().height),
+        width: Math.round(el.getBoundingClientRect().width),
+        overflows: el.scrollWidth > el.clientWidth + 2
+      }));
+      return {
+        gap: pillStyle ? pillStyle.gap || pillStyle.columnGap : '',
+        itemCount: items.length,
+        allSleekHeight: itemMetrics.every(m => m.height >= 28 && m.height <= 38),
+        noTextOverflow: itemMetrics.every(m => !m.overflows),
+        itemMetrics
+      };
+    });
+
+    addAssertion('Citizen bottom dock 4 buttons are well-spaced (gap >= 5px), sleek height (30-36px), and text fits inside button frame without clipping', bottomDockCheck.itemCount === 4 && bottomDockCheck.allSleekHeight && bottomDockCheck.noTextOverflow, bottomDockCheck);
+
+    const shot8Path = path.join(SCREENSHOT_DIR, '08-citizen-mobile-bottom-dock.png');
+    await page.screenshot({ path: shot8Path, fullPage: false });
+    report.screenshots.push({ name: '08-citizen-mobile-bottom-dock', path: shot8Path });
+
     // Open Install Shortcut modal and inspect iOS tab
     await page.evaluate(() => {
       const modal = document.getElementById('installShortcutModal');

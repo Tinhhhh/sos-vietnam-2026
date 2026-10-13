@@ -1426,47 +1426,67 @@ body.tac-keyboard-open .legal-warning-card {
 }
 
 
-/* Điện thoại: dock 4 nút chia đều, không tràn; banner GPS gọn 2 tầng */
+/* Điện thoại: dock 4 nút cân đối theo độ dài chữ, khoảng cách thoáng, chữ vừa khít khung */
 @media (max-width: 600px) {
   .main-wrapper {
     padding-top: max(16px, var(--sa-top)) !important;
-    padding-bottom: calc(120px + var(--sa-bottom)) !important;
+    padding-bottom: calc(124px + var(--sa-bottom)) !important;
   }
   .legal-warning-card {
-    bottom: calc(72px + var(--sa-bottom)) !important;
+    bottom: calc(74px + var(--sa-bottom)) !important;
     width: calc(100% - 20px) !important;
-    max-width: 480px !important;
-    padding: 5px 12px !important;
+    max-width: 440px !important;
+    padding: 6px 12px !important;
   }
-  .header-nav-center { width: calc(100% - 16px) !important; max-width: none !important; left: 50% !important; }
+  .legal-warning-card .legal-title {
+    font-size: clamp(9.5px, 2.65vw, 10.8px) !important;
+    letter-spacing: 0.15px !important;
+  }
+  .legal-toggle-btn {
+    min-height: 26px !important;
+    min-block-size: 26px !important;
+    height: 26px !important;
+    padding: 2px 9px !important;
+    font-size: 10px !important;
+  }
+  .header-nav-center {
+    bottom: calc(14px + var(--sa-bottom)) !important;
+    width: calc(100% - 20px) !important;
+    max-width: 440px !important;
+    left: 50% !important;
+  }
   .nav-center-pill {
     display: flex !important;
     width: 100% !important;
     max-width: none !important;
-    gap: 4px !important;
-    padding: 5px 6px !important;
+    gap: 6px !important;
+    padding: 6px 7px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
   }
-  .nav-pill-item {
-    flex: 1 1 0 !important;
+  .nav-pill-item,
+  .nav-pill-item.btn-pill-dispatcher-link {
+    flex: 1 1 auto !important;
     min-width: 0 !important;
+    min-height: 34px !important;
+    min-block-size: 34px !important;
+    height: 34px !important;
     justify-content: center !important;
-    padding: 8px 4px !important;
-    font-size: 10.5px !important;
+    align-items: center !important;
+    padding: 4px 7px !important;
+    font-size: clamp(8.2px, 2.2vw, 9.6px) !important;
     font-weight: 700 !important;
     letter-spacing: -0.2px !important;
     white-space: nowrap !important;
     overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    text-overflow: clip !important;
     gap: 3px !important;
-  }
-  .nav-pill-item.btn-pill-dispatcher-link {
-    font-size: 10.5px !important;
-    letter-spacing: -0.2px !important;
-    padding: 8px 4px !important;
+    border-radius: 9999px !important;
+    box-sizing: border-box !important;
   }
   .nav-pill-item .svg-ico {
-    width: 14px !important;
-    height: 14px !important;
+    width: 11.5px !important;
+    height: 11.5px !important;
     flex-shrink: 0 !important;
   }
   .location-banner { flex-wrap: wrap; padding: 10px 12px !important; gap: 8px !important; }
@@ -1477,47 +1497,45 @@ body.tac-keyboard-open .legal-warning-card {
   .location-banner .btn-refresh-loc { flex: 1 1 100%; justify-content: center; min-height: 44px; }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 440px) {
   .legal-summary-inline {
     display: none !important;
   }
 }
 
 @media (max-width: 400px) {
-  .nav-center-pill { padding: 4px 4px !important; gap: 2px !important; }
-  .nav-pill-item {
-    font-size: 9.5px !important;
-    padding: 7px 2px !important;
-    gap: 2px !important;
-    letter-spacing: -0.3px !important;
-  }
+  .nav-center-pill { padding: 5px 6px !important; gap: 5px !important; }
+  .nav-pill-item,
   .nav-pill-item.btn-pill-dispatcher-link {
-    font-size: 9.5px !important;
-    letter-spacing: -0.3px !important;
-    padding: 7px 2px !important;
+    font-size: clamp(8.2px, 2.25vw, 9.2px) !important;
+    min-height: 32px !important;
+    min-block-size: 32px !important;
+    height: 32px !important;
+    padding: 4px 6px !important;
+    gap: 3px !important;
+    letter-spacing: -0.25px !important;
   }
-  .nav-pill-item .svg-ico { width: 12px !important; height: 12px !important; }
+  .nav-pill-item .svg-ico { width: 11px !important; height: 11px !important; }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 375px) {
   .nav-center-pill {
-    padding: 4px 3px !important;
-    gap: 1px !important;
+    padding: 5px 5px !important;
+    gap: 4px !important;
   }
-  .nav-pill-item {
-    font-size: 8.8px !important;
-    padding: 6px 1px !important;
-    gap: 2px !important;
-    letter-spacing: -0.4px !important;
-  }
+  .nav-pill-item,
   .nav-pill-item.btn-pill-dispatcher-link {
-    font-size: 8.8px !important;
-    letter-spacing: -0.4px !important;
-    padding: 6px 1px !important;
+    font-size: 8px !important;
+    min-height: 30px !important;
+    min-block-size: 30px !important;
+    height: 30px !important;
+    padding: 3px 5px !important;
+    gap: 2.5px !important;
+    letter-spacing: -0.3px !important;
   }
   .nav-pill-item .svg-ico {
-    width: 11px !important;
-    height: 11px !important;
+    width: 10px !important;
+    height: 10px !important;
   }
   .legal-warning-card .legal-title {
     font-size: 10px !important;
@@ -2383,11 +2401,7 @@ body.map-fullscreen-active .dispatcher-map-area {
     max-inline-size: 100%;
   }
 
-  .btn-refresh-loc {
-    min-block-size: 44px !important;
-  }
-
-  .nav-pill-item {
+  .location-banner .btn-refresh-loc {
     min-block-size: 44px !important;
   }
 }
