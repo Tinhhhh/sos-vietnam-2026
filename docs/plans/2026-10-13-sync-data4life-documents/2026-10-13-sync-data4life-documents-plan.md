@@ -78,5 +78,5 @@ Update and synchronize all documents (Word `.docx`, PDF `.pdf`, PowerPoint `.ppt
 ### P3: Verification, Ledgers Update, & Git Commit
 - [x] **P3-A**: Verify all files in `C:\Users\dienv\Desktop\Data4Life` have been updated and synchronized.
 - [x] **P3-B**: Update plan ledgers (`actual-status.md`, `evidence.md`, `benchmark.md`, `plan.md`).
-- [ ] **P3-C**: Commit updated scripts in `sos_vietnam_2026_web_hosting` and push to remote.
+- [x] **P3-C**: Commit updated scripts in `sos_vietnam_2026_web_hosting` and push to remote.
   - *Goal*: Ensure clean repo and completed task delivery.
