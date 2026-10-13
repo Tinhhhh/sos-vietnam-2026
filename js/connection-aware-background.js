@@ -55,6 +55,14 @@
   };
 
   applyNetworkState();
+  if (video) {
+    video.addEventListener('timeupdate', () => {
+      // Loop exclusively within warm cupped-hands phase (1.2s - 2.75s)
+      if (video.currentTime >= 2.75) {
+        video.currentTime = 1.2;
+      }
+    });
+  }
   connection?.addEventListener?.('change', applyNetworkState);
   window.addEventListener('online', applyNetworkState);
   window.addEventListener('offline', applyNetworkState);

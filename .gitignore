@@ -117,6 +117,7 @@ CLAUDE.md
 .tmp/
 undefined/
 local_docs/
+.ua/
 
 # Local Anvien launcher/runtime generated artifacts
 anvien-launcher/web-dist/
