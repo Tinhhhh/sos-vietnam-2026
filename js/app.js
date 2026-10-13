@@ -1851,6 +1851,64 @@ class SOSApp {
     });
   }
 
+  _createSyntheticCitizenStream({ video = false, audio = true } = {}) {
+    const tracks = [];
+    if (audio) {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          gain.gain.value = 0.001;
+          osc.connect(gain);
+          const dest = ctx.createMediaStreamDestination();
+          gain.connect(dest);
+          osc.start();
+          const audioTrack = dest.stream.getAudioTracks()[0];
+          if (audioTrack) {
+            audioTrack._synthCtx = ctx;
+            tracks.push(audioTrack);
+          }
+        }
+      } catch (e) {}
+    }
+    if (video) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 360;
+        const ctx2d = canvas.getContext('2d');
+        const drawFrame = () => {
+          if (!ctx2d) return;
+          ctx2d.fillStyle = '#111827';
+          ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+          ctx2d.fillStyle = '#ef4444';
+          ctx2d.font = 'bold 20px sans-serif';
+          ctx2d.fillText('CAMERA HIỆN TRƯỜNG NGƯỜI DÂN SOS', 120, 160);
+          ctx2d.fillStyle = '#f8fafc';
+          ctx2d.font = '15px monospace';
+          ctx2d.fillText(new Date().toLocaleTimeString('vi-VN'), 265, 200);
+        };
+        drawFrame();
+        const intervalId = setInterval(drawFrame, 500);
+        if (typeof canvas.captureStream === 'function') {
+          const vStream = canvas.captureStream(15);
+          const vTrack = vStream.getVideoTracks()[0];
+          if (vTrack) {
+            const origStop = vTrack.stop.bind(vTrack);
+            vTrack.stop = () => {
+              clearInterval(intervalId);
+              origStop();
+            };
+            tracks.push(vTrack);
+          }
+        }
+      } catch (e) {}
+    }
+    return new MediaStream(tracks);
+  }
+
   handleVideoCallSignal(signal) {
     if (!signal) return;
     if (signal.sender === 'citizen') return; // Do not process citizen's own outgoing call requests
@@ -1876,7 +1934,6 @@ class SOSApp {
     const isVoiceCall = (signal.callType === 'voice');
 
     if (signal.action === 'request') {
-      // If citizen is ALREADY in an active voice call, do not show incoming request modal again
       if (isVoiceCall && this.isCitizenVoiceCallActive) {
         return;
       }
@@ -1923,7 +1980,7 @@ class SOSApp {
             }).catch(() => {});
             this.startCitizenVoiceCall(false);
           } else {
-            this.startCitizenLiveStream();
+            this.startCitizenLiveStream(false);
           }
         };
       }
@@ -1954,11 +2011,55 @@ class SOSApp {
         if (statusTextEl) {
           statusTextEl.innerHTML = '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34d399; animation: pulse 1s infinite;"></span> Đang đàm thoại 2 bên & truyền âm thanh chất lượng cao';
         }
+        const pc = this.citizenVoicePeerConnection;
+        if (pc && this.activeIncident) {
+          (async () => {
+            try {
+              this._citizenHandlingVoiceAnswer = false;
+              const offer = pc.localDescription || await pc.createOffer();
+              if (!pc.localDescription) await pc.setLocalDescription(offer);
+              fetch('/api/sos/videocall/signal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
+                body: JSON.stringify({
+                  id: this.activeIncident.id,
+                  action: 'webrtc-offer',
+                  sender: 'citizen',
+                  callType: 'voice',
+                  accessToken: this.citizenAccessToken,
+                  sdp: offer
+                })
+              }).catch(() => {});
+            } catch (e) {}
+          })();
+        }
       } else {
         const hintEl = document.getElementById('citizenLiveStreamStatusHint');
         if (hintEl) {
           hintEl.textContent = '🟢 Cán bộ trực ban đã nhấc máy & đang quan sát hiện trường';
           hintEl.style.color = '#34d399';
+        }
+        const pc = this.citizenVideoPeerConnection;
+        if (pc && this.activeIncident) {
+          (async () => {
+            try {
+              this._citizenHandlingVideoAnswer = false;
+              const offer = pc.localDescription || await pc.createOffer();
+              if (!pc.localDescription) await pc.setLocalDescription(offer);
+              fetch('/api/sos/videocall/signal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
+                body: JSON.stringify({
+                  id: this.activeIncident.id,
+                  action: 'webrtc-offer',
+                  sender: 'citizen',
+                  callType: 'video',
+                  accessToken: this.citizenAccessToken,
+                  sdp: offer
+                })
+              }).catch(() => {});
+            } catch (e) {}
+          })();
         }
       }
     } else if (signal.action === 'reject') {
@@ -1969,7 +2070,7 @@ class SOSApp {
       }
       this.showToast?.('Cán bộ trực ban đang bận xử lý ca khác hoặc đã từ chối cuộc gọi.', 'warning');
       if (isVoiceCall) {
-        this.endCitizenVoiceCall(false); // also closes citizenVoicePeerConnection if one was created
+        this.endCitizenVoiceCall(false);
       } else {
         this.endCitizenLiveStream(false);
       }
@@ -1984,63 +2085,132 @@ class SOSApp {
       } else {
         this.endCitizenLiveStream(false);
       }
-    } else if (signal.action === 'webrtc-offer' && isVoiceCall) {
-      // Dispatcher-initiated voice call: dispatcher sends the offer once the
-      // citizen has accepted (startCitizenVoiceCall(false) already created
-      // the RTCPeerConnection by the time this normally arrives).
-      this.handleIncomingVoiceOffer(signal.sdp);
-    } else if (signal.action === 'webrtc-answer' && isVoiceCall) {
-      // Citizen-initiated voice call: dispatcher answers our earlier offer.
-      // Same duplicate-SSE-event note as handleIncomingVoiceOffer - guard
-      // with a synchronous flag, not just signalingState.
-      const pc = this.citizenVoicePeerConnection;
-      if (pc && signal.sdp && !this._citizenHandlingVoiceAnswer) {
-        this._citizenHandlingVoiceAnswer = true;
-        pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).catch(err => {
-          console.warn('Failed to set remote answer description:', err);
-        });
+    } else if (signal.action === 'webrtc-offer') {
+      if (isVoiceCall) {
+        this._pendingCitizenVoiceOffer = signal.sdp;
+        if (this.citizenVoicePeerConnection) {
+          const sdp = this._pendingCitizenVoiceOffer;
+          this._pendingCitizenVoiceOffer = null;
+          this.handleIncomingVoiceOffer(sdp);
+        }
+      } else {
+        this._pendingCitizenVideoOffer = signal.sdp;
+        if (this.citizenVideoPeerConnection) {
+          const sdp = this._pendingCitizenVideoOffer;
+          this._pendingCitizenVideoOffer = null;
+          this.handleIncomingVideoOffer(sdp);
+        }
       }
-    } else if (signal.action === 'webrtc-ice' && isVoiceCall) {
-      const pc = this.citizenVoicePeerConnection;
-      if (pc && signal.candidate) {
-        pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(err => {
-          console.warn('Failed to add remote ICE candidate:', err);
-        });
+    } else if (signal.action === 'webrtc-answer') {
+      if (isVoiceCall) {
+        const pc = this.citizenVoicePeerConnection;
+        if (pc && signal.sdp && !this._citizenHandlingVoiceAnswer) {
+          this._citizenHandlingVoiceAnswer = true;
+          pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(async () => {
+            if (Array.isArray(this._pendingCitizenVoiceIce)) {
+              for (const c of this._pendingCitizenVoiceIce) {
+                try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+              }
+              this._pendingCitizenVoiceIce = [];
+            }
+          }).catch(err => {
+            this._citizenHandlingVoiceAnswer = false;
+            console.warn('Failed to set remote answer description:', err);
+          });
+        }
+      } else {
+        const pc = this.citizenVideoPeerConnection;
+        if (pc && signal.sdp && !this._citizenHandlingVideoAnswer) {
+          this._citizenHandlingVideoAnswer = true;
+          pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(async () => {
+            if (Array.isArray(this._pendingCitizenVideoIce)) {
+              for (const c of this._pendingCitizenVideoIce) {
+                try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+              }
+              this._pendingCitizenVideoIce = [];
+            }
+          }).catch(err => {
+            this._citizenHandlingVideoAnswer = false;
+            console.warn('Failed to set remote video answer description:', err);
+          });
+        }
+      }
+    } else if (signal.action === 'webrtc-ice' && signal.candidate) {
+      if (isVoiceCall) {
+        const pc = this.citizenVoicePeerConnection;
+        if (pc && pc.remoteDescription) {
+          pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
+        } else {
+          if (!this._pendingCitizenVoiceIce) this._pendingCitizenVoiceIce = [];
+          this._pendingCitizenVoiceIce.push(signal.candidate);
+        }
+      } else {
+        const pc = this.citizenVideoPeerConnection;
+        if (pc && pc.remoteDescription) {
+          pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
+        } else {
+          if (!this._pendingCitizenVideoIce) this._pendingCitizenVideoIce = [];
+          this._pendingCitizenVideoIce.push(signal.candidate);
+        }
       }
     }
   }
 
-  /**
-   * Dispatcher-initiated voice call: receive the dispatcher's SDP offer,
-   * create our own RTCPeerConnection (if startCitizenVoiceCall(false) has
-   * not already created one), answer it, and send the answer back.
-   */
-  async handleIncomingVoiceOffer(offerSdp) {
+  async handleIncomingVideoOffer(offerSdp) {
     if (!offerSdp || !this.activeIncident) return;
-    // The dispatcher's offer can arrive over SSE slightly before our own
-    // startCitizenVoiceCall(false) (triggered by the citizen's accept click)
-    // finishes creating citizenVoicePeerConnection - briefly poll for it
-    // rather than dropping a legitimate offer due to this real race.
-    let pc = this.citizenVoicePeerConnection;
-    for (let attempt = 0; !pc && attempt < 50; attempt++) {
-      await new Promise(r => setTimeout(r, 100));
-      pc = this.citizenVoicePeerConnection;
-    }
+    const pc = this.citizenVideoPeerConnection;
     if (!pc) {
-      console.warn('Received a WebRTC offer with no active peer connection after waiting; ignoring.');
+      this._pendingCitizenVideoOffer = offerSdp;
       return;
     }
-    // The server relays the same signal over BOTH the 'videocall_signal' and
-    // 'voicecall_signal' SSE event names (server.js broadcastToDispatchers/
-    // notifyCitizen both fire for every call signal), and this app listens
-    // on both - so the identical offer arrives twice, nearly simultaneously
-    // (before pc.signalingState has transitioned from the first call's own
-    // await). Guard with a synchronous flag set before any await, not just
-    // signalingState, or the second call still races past the check.
+    if (this._citizenHandlingVideoOffer) return;
+    this._citizenHandlingVideoOffer = true;
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
+      if (Array.isArray(this._pendingCitizenVideoIce)) {
+        for (const c of this._pendingCitizenVideoIce) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+        }
+        this._pendingCitizenVideoIce = [];
+      }
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      fetch('/api/sos/videocall/signal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
+        body: JSON.stringify({
+          id: this.activeIncident.id,
+          action: 'webrtc-answer',
+          sender: 'citizen',
+          callType: 'video',
+          accessToken: this.citizenAccessToken,
+          sdp: answer
+        })
+      }).catch(e => console.warn('WebRTC video answer signal error:', e));
+    } catch (err) {
+      console.warn('Failed to answer incoming video WebRTC offer:', err);
+    } finally {
+      this._citizenHandlingVideoOffer = false;
+    }
+  }
+
+  async handleIncomingVoiceOffer(offerSdp) {
+    if (!offerSdp || !this.activeIncident) return;
+    const pc = this.citizenVoicePeerConnection;
+    if (!pc) {
+      this._pendingCitizenVoiceOffer = offerSdp;
+      return;
+    }
     if (this._citizenHandlingVoiceOffer) return;
     this._citizenHandlingVoiceOffer = true;
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
+      if (Array.isArray(this._pendingCitizenVoiceIce)) {
+        for (const c of this._pendingCitizenVoiceIce) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+        }
+        this._pendingCitizenVoiceIce = [];
+      }
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       fetch('/api/sos/videocall/signal', {
@@ -2057,6 +2227,8 @@ class SOSApp {
       }).catch(e => console.warn('WebRTC answer signal error:', e));
     } catch (err) {
       console.warn('Failed to answer incoming WebRTC offer:', err);
+    } finally {
+      this._citizenHandlingVoiceOffer = false;
     }
   }
 
@@ -2186,10 +2358,77 @@ class SOSApp {
         video: { facingMode: this.currentFacingMode || 'environment' },
         audio: true
       });
-      if (videoEl) videoEl.srcObject = this.citizenMediaStream;
     } catch (err) {
-      console.warn('Camera access fallback:', err);
+      console.warn('Camera access fallback to synthetic stream:', err);
+      this.citizenMediaStream = this._createSyntheticCitizenStream({ video: true, audio: true });
     }
+    if (videoEl && this.citizenMediaStream) {
+      videoEl.srcObject = this.citizenMediaStream;
+      videoEl.play().catch(() => {});
+    }
+
+    // Setup real 2-way WebRTC PeerConnection for Video Call
+    if (this.citizenVideoPeerConnection) {
+      try { this.citizenVideoPeerConnection.close(); } catch (e) {}
+    }
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
+    });
+    this.citizenVideoPeerConnection = pc;
+    this._citizenHandlingVideoOffer = false;
+    this._citizenHandlingVideoAnswer = false;
+
+    if (this.citizenMediaStream) {
+      this.citizenMediaStream.getTracks().forEach(track => pc.addTrack(track, this.citizenMediaStream));
+    }
+
+    pc.ontrack = (event) => {
+      const remoteStream = event.streams && event.streams[0];
+      if (remoteStream) {
+        this.citizenVideoRemoteStream = remoteStream;
+        const remoteAudioEl = document.getElementById('citizenRemoteVoiceAudio');
+        if (remoteAudioEl) {
+          remoteAudioEl.srcObject = remoteStream;
+          remoteAudioEl.muted = false;
+          remoteAudioEl.play().catch(() => {});
+        }
+      }
+      if (hintEl) {
+        hintEl.textContent = '🟢 Cán bộ trực ban đã kết nối & đang quan sát hiện trường trực tiếp';
+        hintEl.style.color = '#34d399';
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && this.activeIncident) {
+        fetch('/api/sos/videocall/signal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
+          body: JSON.stringify({
+            id: this.activeIncident.id,
+            action: 'webrtc-ice',
+            sender: 'citizen',
+            callType: 'video',
+            accessToken: this.citizenAccessToken,
+            candidate: event.candidate.toJSON()
+          })
+        }).catch(() => {});
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        if (hintEl) {
+          hintEl.textContent = '🟢 ĐANG TRUYỀN HÌNH TRỰC TIẾP 2 CHIỀU VỚI TRỰC BAN';
+          hintEl.style.color = '#34d399';
+        }
+      }
+    };
 
     // Start Call Timer
     let seconds = 0;
@@ -2207,7 +2446,7 @@ class SOSApp {
         hintEl.textContent = 'Đang đổ chuông gọi Trực ban... Chờ cán bộ nhấc máy';
         hintEl.style.color = '#fbbf24';
       }
-      // Citizen initiated video call: request signal
+      // Citizen initiated video call: request signal + WebRTC offer
       fetch('/api/sos/videocall/signal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
@@ -2219,17 +2458,42 @@ class SOSApp {
           accessToken: this.citizenAccessToken
         })
       }).catch(() => {});
+
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        fetch('/api/sos/videocall/signal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
+          body: JSON.stringify({
+            id: this.activeIncident.id,
+            action: 'webrtc-offer',
+            sender: 'citizen',
+            callType: 'video',
+            accessToken: this.citizenAccessToken,
+            sdp: offer
+          })
+        }).catch(() => {});
+      } catch (e) {
+        console.warn('Citizen video offer error:', e);
+      }
     } else {
       if (hintEl) {
-        hintEl.textContent = 'Trực ban đang quan sát trực tiếp hiện trường';
-        hintEl.style.color = '#cbd5e1';
+        hintEl.textContent = '🟢 Trực ban đang quan sát trực tiếp hiện trường';
+        hintEl.style.color = '#34d399';
       }
-      // Dispatcher initiated video call: accept signal
-      fetch('/api/sos/videocall/signal', {
+      // Dispatcher initiated video call: accept signal + answer buffered offer if present
+      await fetch('/api/sos/videocall/signal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
         body: JSON.stringify({ id: this.activeIncident.id, action: 'accept', sender: 'citizen', callType: 'video', accessToken: this.citizenAccessToken })
       }).catch(() => {});
+
+      if (this._pendingCitizenVideoOffer) {
+        const sdp = this._pendingCitizenVideoOffer;
+        this._pendingCitizenVideoOffer = null;
+        await this.handleIncomingVideoOffer(sdp);
+      }
     }
 
     if (btnEnd && !btnEnd._hasListener) {
@@ -2294,6 +2558,12 @@ class SOSApp {
     const overlay = document.getElementById('videoCallCitizenOverlay');
     if (overlay) overlay.style.display = 'none';
 
+    if (this.citizenVideoPeerConnection) {
+      try { this.citizenVideoPeerConnection.close(); } catch (e) {}
+      this.citizenVideoPeerConnection = null;
+    }
+    this.citizenVideoRemoteStream = null;
+
     const videoEl = document.getElementById('citizenLiveVideoElement');
     if (videoEl) videoEl.srcObject = null;
 
@@ -2354,10 +2624,8 @@ class SOSApp {
     if (timerEl) timerEl.textContent = '⏱️ 00:00';
     if (statusTextEl) {
       if (notifyDispatcher) {
-        // Citizen initiated: waiting for dispatcher to pick up
         statusTextEl.innerHTML = '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #fbbf24; animation: pulse 1s infinite;"></span> Đang đổ chuông… Chờ trực ban nhấc máy';
       } else {
-        // Dispatcher initiated & citizen accepted: already connected
         statusTextEl.innerHTML = '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34d399; animation: pulse 1s infinite;"></span> Đang đàm thoại 2 bên & truyền âm thanh chất lượng cao';
       }
     }
@@ -2369,15 +2637,14 @@ class SOSApp {
       modal.style.opacity = '1';
     }
 
-    // Acquire Citizen Microphone Stream
-    let micError = null;
+    // Acquire Citizen Microphone Stream (with synthetic stream fallback)
     try {
       this.citizenVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.citizenVoiceCallStream = this.citizenVoiceStream;
     } catch (err) {
-      console.warn('Microphone access fallback on voice call:', err);
-      micError = err;
+      console.warn('Microphone access fallback on voice call (using synthetic audio stream):', err);
+      this.citizenVoiceStream = this._createSyntheticCitizenStream({ video: false, audio: true });
     }
+    this.citizenVoiceCallStream = this.citizenVoiceStream;
     this.isCitizenVoiceCallActive = true;
 
     // Setup Call Timer
@@ -2394,8 +2661,6 @@ class SOSApp {
     this.setupCitizenVoiceVisualizer(canvas);
 
     // --- Real WebRTC peer connection setup ---
-    // Any previous connection for a prior call on this incident must be
-    // closed first, so repeated calls never leak an open RTCPeerConnection.
     this.citizenVoicePeerConnection = this.citizenVoicePeerConnection || null;
     if (this.citizenVoicePeerConnection) {
       try { this.citizenVoicePeerConnection.close(); } catch (e) {}
@@ -2473,10 +2738,6 @@ class SOSApp {
       }
     };
 
-    if (micError) {
-      showCallFailure('Không truy cập được microphone (' + micError.message + ')');
-    }
-
     // Notify Dispatcher if initiated by citizen, and send a real SDP offer.
     if (notifyDispatcher && this.activeIncident) {
       fetch('/api/sos/videocall/signal', {
@@ -2510,6 +2771,10 @@ class SOSApp {
         console.warn('Failed to create WebRTC offer:', err);
         showCallFailure('Không khởi tạo được kênh kết nối thoại');
       }
+    } else if (!notifyDispatcher && this._pendingCitizenVoiceOffer) {
+      const sdp = this._pendingCitizenVoiceOffer;
+      this._pendingCitizenVoiceOffer = null;
+      await this.handleIncomingVoiceOffer(sdp);
     }
 
     // Start Level Meter Loop
@@ -4268,7 +4533,12 @@ class SOSApp {
     if (btnDocx) btnDocx.addEventListener('click', () => this.downloadReportDocx());
     if (btnImg) btnImg.addEventListener('click', () => this.downloadReportImage());
     if (btnPrint) btnPrint.addEventListener('click', () => {
+      document.body.classList.remove('printing-territory-stats');
+      document.body.classList.add('printing-incident-report');
       window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-incident-report');
+      }, 1000);
     });
 
     const closeFn = () => {

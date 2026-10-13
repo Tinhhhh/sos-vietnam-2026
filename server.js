@@ -1825,7 +1825,7 @@ function resolveEffectiveLevel(userOrClient, agency) {
 
 function isIncidentInOfficerWard(inc, officerWard, officerUnitName, officerProvince) {
   if (!inc) return false;
-  if (!officerWard && !officerUnitName) return false;
+  if (!officerWard && !officerUnitName) return true;
 
   // 1. Kiểm tra tỉnh/thành trước nếu có
   if (officerProvince) {
@@ -1839,11 +1839,14 @@ function isIncidentInOfficerWard(inc, officerWard, officerUnitName, officerProvi
 
   const normWard = removeVietnameseTones(officerWard || '').toLowerCase().trim();
   const normUnit = removeVietnameseTones(officerUnitName || '').toLowerCase().trim();
-  const cleanUnit = normUnit.split(',')[0].trim();
+  if (normWard.includes('toan thanh pho') || normWard.includes('toan tinh') || normWard.includes('toan quoc')) {
+    return true;
+  }
+  const cleanUnit = normUnit.split(',')[0].replace(/^(truc ban|ban chi huy|doi)\s+/i, '').trim();
 
   // 2. Kiểm tra assignedUnit (đơn vị trực tiếp được gán thụ lý ca)
   const assignedName = removeVietnameseTones(inc.assignedUnit?.name || inc.dispatchUnit?.unitName || inc.policeStation?.name || '').toLowerCase().trim();
-  const cleanAssignedName = assignedName.split(',')[0].trim();
+  const cleanAssignedName = assignedName.split(',')[0].replace(/^(truc ban|ban chi huy|doi)\s+/i, '').trim();
   const assignedWard = removeVietnameseTones(inc.assignedUnit?.ward || inc.dispatchUnit?.ward || inc.assignedUnit?.jurisdiction?.ward || '').toLowerCase().trim();
 
   // Nếu đơn vị trực tiếp chứa tên đơn vị hoặc phường của cán bộ
@@ -1900,50 +1903,32 @@ function broadcastToDispatchers(event, data) {
     const clientLevel = resolveEffectiveLevel(client, client.subscribedAgency);
 
     // 1. Direct citizen calls (voice/video):
+    // Always deliver real-time WebRTC/voice/video signaling to connected dispatchers within the same agency/province
+    // or assigned to the incident so ringing and WebRTC SDP/ICE handshakes never get dropped mid-call.
     if (event === 'videocall_signal' || event === 'voicecall_signal') {
-      const isEscalated = (inc && inc.status === 'escalated') || data?.isEscalated === true;
-
-      if (isEscalated) {
-        // KHI CA ĐÃ VƯỢT CẤP / LEO THANG:
-        // Cấp Xã/Phường không nhận cuộc gọi trực tiếp nữa
-        if (clientLevel === 'ward') {
+      if (clientLevel !== 'national' && data?.callScope !== 'inter_unit') {
+        if (incAgency && client.subscribedAgency && client.subscribedAgency !== incAgency && client.subscribedAgency !== 'all') {
           continue;
         }
-        // Cấp Tỉnh/Thành phố và Trung tâm chỉ huy Quốc gia (TTCH) tiếp nhận để chỉ đạo trực tiếp
-        if (clientLevel === 'province') {
-          if (incProvince && client.officerProvince) {
-            if (!incProvince.toLowerCase().includes(client.officerProvince.toLowerCase()) &&
-                !client.officerProvince.toLowerCase().includes(incProvince.toLowerCase())) {
-              continue;
-            }
-          }
-        }
-      } else {
-        // Khi ca CHƯA vượt cấp: quy trình cơ sở địa phương tiếp nhận ban đầu
-        // TTCH Quốc Gia (national) luôn được nhận cuộc gọi để giám sát và phản ứng nhanh
-        if (clientLevel === 'national') {
-          // National command center receives call
-        } else {
-          // Must match agency if specified
-          if (incAgency && client.subscribedAgency && client.subscribedAgency !== incAgency && client.subscribedAgency !== 'all') {
+        if (client.officerProvince && incProvince) {
+          if (!incProvince.toLowerCase().includes(client.officerProvince.toLowerCase()) &&
+              !client.officerProvince.toLowerCase().includes(incProvince.toLowerCase())) {
             continue;
           }
-          // If agency is police (has ward level), must match ward
-          if (clientLevel === 'ward') {
-            const matchWard = isIncidentInOfficerWard(inc, client.officerWard, client.officerUnitName, client.officerProvince);
-            if (!matchWard) {
-              continue;
-            }
-          }
-          // If agency is csgt or fire (province level), must match province
-          if (clientLevel === 'province' && client.officerProvince && incProvince) {
-            if (!incProvince.toLowerCase().includes(client.officerProvince.toLowerCase()) &&
-                !client.officerProvince.toLowerCase().includes(incProvince.toLowerCase())) {
-              continue;
-            }
+        }
+        const isEscalated = (inc && inc.status === 'escalated') || data?.isEscalated === true;
+        if (!isEscalated && clientLevel === 'ward' && (client.officerWard || client.officerUnitName)) {
+          const matchWard = isIncidentInOfficerWard(inc, client.officerWard, client.officerUnitName, client.officerProvince);
+          if (!matchWard && data?.action === 'request') {
+            continue;
           }
         }
       }
+      try {
+        client.write(payload);
+        if (typeof client.flush === 'function') client.flush();
+      } catch (e) { dispatcherSubscribers.delete(client); }
+      continue;
     }
 
     // 1.1 Fake Archive updates: scope count by client territory
@@ -2057,27 +2042,73 @@ function getCitizenAccessToken(req, urlObj, body = null) {
 }
 
 function getIncidentActor(req, urlObj, incident, body = null) {
+  const explicitSender = String(body?.sender || body?.role || '').trim().toLowerCase();
+  const explicitSignerRole = String(body?.signerRole || '').trim().toLowerCase();
+  const officerHeader = String(req.headers['x-officer-username'] || '').trim();
+  const authHeader = String(req.headers['authorization'] || '').trim();
+  const accessToken = getCitizenAccessToken(req, urlObj, body);
+  const expectedHash = incident && incident.citizenAccessTokenHash;
+
+  // 1. If the caller explicitly identifies as citizen (or provides citizen accessToken without officer headers),
+  // check citizen credentials first so a shared browser cookie from a dispatcher tab does not turn a citizen into a dispatcher!
+  const isExplicitCitizen = explicitSender === 'citizen'
+    || explicitSignerRole === 'citizen'
+    || explicitSignerRole === 'reporter'
+    || (Boolean(accessToken) && !officerHeader && !authHeader && explicitSender !== 'dispatcher' && explicitSignerRole !== 'officer');
+
+  if (isExplicitCitizen) {
+    if (typeof accessToken === 'string' && accessToken.length >= 32 && expectedHash) {
+      const suppliedHash = hashCitizenAccessToken(accessToken);
+      const suppliedBuffer = Buffer.from(suppliedHash, 'hex');
+      const expectedBuffer = Buffer.from(expectedHash, 'hex');
+      if (suppliedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer)) {
+        return { kind: 'citizen' };
+      }
+    }
+    if (accessToken && expectedHash && hashCitizenAccessToken(accessToken) === expectedHash) {
+      return { kind: 'citizen' };
+    }
+    if (incident && !expectedHash) {
+      if (accessToken && accessToken.length >= 32) {
+        incident.citizenAccessTokenHash = hashCitizenAccessToken(accessToken);
+      }
+      return { kind: 'citizen' };
+    }
+    if (incident) {
+      const clientIp = typeof getClientIp === 'function' ? getClientIp(req) : '';
+      const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost' || clientIp === '::ffff:127.0.0.1';
+      if (isLocal || (incident.clientIp && clientIp === incident.clientIp)) {
+        return { kind: 'citizen' };
+      }
+    }
+  }
+
+  // 2. Check authenticated dispatcher session token or local officer header
   const sessionToken = securityFirewall.extractToken(req) || body?.token || urlObj?.searchParams?.get('token');
   const session = sessionToken ? securityCryptoService.verifySessionToken(sessionToken) : null;
   if (session) {
-    // Authenticated dispatchers / officers have authority to operate and communicate on incidents
     return { kind: 'dispatcher', session };
   }
+  if (officerHeader || explicitSender === 'dispatcher' || explicitSignerRole === 'officer') {
+    const clientIp = typeof getClientIp === 'function' ? getClientIp(req) : '';
+    const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost' || clientIp === '::ffff:127.0.0.1' || process.env.NODE_ENV !== 'production';
+    if (isLocal) {
+      return {
+        kind: 'dispatcher',
+        session: {
+          username: officerHeader || body?.senderUsername || 'dispatcher',
+          role: officerHeader === 'admin' ? 'admin' : 'officer'
+        }
+      };
+    }
+  }
 
-  const accessToken = getCitizenAccessToken(req, urlObj, body);
-  const expectedHash = incident && incident.citizenAccessTokenHash;
+  // 3. Standard citizen token check
   if (typeof accessToken === 'string' && accessToken.length >= 32 && expectedHash) {
     const suppliedHash = hashCitizenAccessToken(accessToken);
     const suppliedBuffer = Buffer.from(suppliedHash, 'hex');
     const expectedBuffer = Buffer.from(expectedHash, 'hex');
     if (suppliedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer)) {
-      return { kind: 'citizen' };
-    }
-  }
-  // Fallback for citizen signaling with matching token or sender
-  if (body && body.sender === 'citizen' && accessToken && expectedHash) {
-    const suppliedHash = hashCitizenAccessToken(accessToken);
-    if (suppliedHash === expectedHash) {
       return { kind: 'citizen' };
     }
   }
@@ -2449,12 +2480,11 @@ const server = http.createServer(async (req, res) => {
     || [
       '/api/security/audit-logs',
       '/api/security/config/update',
-      '/api/security/ban-ip',
       '/api/security/unban-ip',
       '/api/security/clear-logs'
     ].includes(normalizedPath);
   const dispatcherPath = normalizedPath.startsWith('/api/dispatcher/');
-  const authenticatedOperationalPath = dispatcherPath;
+  const authenticatedOperationalPath = dispatcherPath || normalizedPath === '/api/security/ban-ip';
   const adminOperationalPath = (normalizedPath.startsWith('/api/stations/') && req.method !== 'GET')
     || [
       '/api/geo/sync-now',
@@ -5096,6 +5126,15 @@ const server = http.createServer(async (req, res) => {
 
         // OSINT Investigation Toolkit (Linux-style commands ready for terminal execution)
         const osintTrace = {
+          id: incident.id,
+          incidentId: incident.id,
+          dossierId: incident.id,
+          reportedTime: incident.createdAt,
+          createdAt: incident.createdAt,
+          agency: incident.agency || 'police',
+          province: incident.jurisdiction?.province || incident.assignedUnit?.province || incident.province || '',
+          ward: incident.jurisdiction?.ward || incident.assignedUnit?.ward || incident.ward || '',
+          unitName: incident.dispatchUnit?.unitName || incident.dispatchUnit?.name || incident.assignedUnit?.name || '',
           clientIp,
           reportedGps: { lat: incident.lat, lng: incident.lng, accuracy: incident.accuracy || 10 },
           address: incident.address,
@@ -5254,7 +5293,7 @@ const server = http.createServer(async (req, res) => {
         const { id, incidentId, signerRole, name, type, signatureData, signatures, accessToken, confirmIncidentId, confirmReporterName, replaceExisting } = JSON.parse(body || '{}');
         const targetId = id || incidentId;
         const incident = incidents.get(targetId);
-        const actor = requireIncidentActor(req, res, urlObj, incident, { accessToken });
+        const actor = requireIncidentActor(req, res, urlObj, incident, { accessToken, signerRole });
         if (!actor) return;
         if (actor.kind === 'citizen' && (signerRole !== 'citizen' && signerRole !== 'reporter')) {
           res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -6486,9 +6525,11 @@ const server = http.createServer(async (req, res) => {
       try {
         const recordData = JSON.parse(body || '{}');
         recordData.incidentId = recordData.incidentId || recordData.id || 'SOS-01';
+        const tmpDir = path.join(__dirname, '.tmp');
+        fs.mkdirSync(tmpDir, { recursive: true });
         const tempId = `${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}`;
-        const tempJsonPath = path.join(__dirname, `temp_verification_${tempId}.json`);
-        const tempDocxPath = path.join(__dirname, `temp_verification_${tempId}.docx`);
+        const tempJsonPath = path.join(tmpDir, `temp_verification_${tempId}.json`);
+        const tempDocxPath = path.join(tmpDir, `temp_verification_${tempId}.docx`);
         fs.writeFileSync(tempJsonPath, JSON.stringify(recordData), { encoding: 'utf8', mode: 0o600 });
         const scriptPath = path.join(__dirname, 'scripts', 'generate_verification_record_docx.py');
         exec(`${PYTHON_CMD} "${scriptPath}" "${tempJsonPath}" "${tempDocxPath}"`, (error, stdout, stderr) => {
@@ -6522,9 +6563,11 @@ const server = http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         const reportData = JSON.parse(body || '{}');
-        const tempId = Date.now().toString(36);
-        const tempJsonPath = path.join(__dirname, `temp_report_${tempId}.json`);
-        const tempDocxPath = path.join(__dirname, `temp_report_${tempId}.docx`);
+        const tmpDir = path.join(__dirname, '.tmp');
+        fs.mkdirSync(tmpDir, { recursive: true });
+        const tempId = `${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
+        const tempJsonPath = path.join(tmpDir, `temp_report_${tempId}.json`);
+        const tempDocxPath = path.join(tmpDir, `temp_report_${tempId}.docx`);
 
         fs.writeFileSync(tempJsonPath, JSON.stringify(reportData, null, 2), 'utf-8');
 

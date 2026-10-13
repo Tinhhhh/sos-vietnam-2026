@@ -105,7 +105,6 @@ AGENTS.md
 CLAUDE.md
 
 # Agent/editor local state used by Anvien integrations
-.ua/
 .claude/
 .codex/
 .agents/

@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-10-13T04:12:43.355Z",
+  "suite": "verify-osint-print-and-webrtc-calls",
+  "baseUrl": "http://localhost:3000",
+  "tests": [
+    {
+      "name": "[Gọi Thường: Trực ban -> Công dân] Kết nối WebRTC 2 chiều thành công và gắn luồng âm thanh hai bên",
+      "status": "PASS",
+      "details": {
+        "citizen": {
+          "iceState": "connected",
+          "hasRemoteStream": true,
+          "statusText": ""
+        },
+        "dispatcher": {
+          "iceState": "connected",
+          "hasRemoteStream": true,
+          "statusText": ""
+        },
+        "setupMs": 576
+      }
+    },
+    {
+      "name": "[Gọi Thường: Công dân -> Trực ban] Công dân gọi đến Trực ban đổ chuông, bắt máy và kết nối WebRTC 2 chiều thành công",
+      "status": "PASS",
+      "details": {
+        "citizen": {
+          "iceState": "connected",
+          "hasRemoteStream": true
+        },
+        "dispatcher": {
+          "iceState": "connected",
+          "hasRemoteStream": true
+        },
+        "setupMs": 341
+      }
+    },
+    {
+      "name": "[Gọi Video: Trực ban -> Công dân] Kết nối WebRTC Video 2 chiều thành công, truyền hình ảnh camera hai bên",
+      "status": "PASS",
+      "details": {
+        "citizen": {
+          "iceState": "connected",
+          "remoteTracks": 2,
+          "localVideoTracks": 1
+        },
+        "dispatcher": {
+          "iceState": "connected",
+          "remoteVideoTracks": 1
+        },
+        "setupMs": 191
+      }
+    },
+    {
+      "name": "[Gọi Video: Công dân -> Trực ban] Công dân gọi Video đến Trực ban, bắt máy và truyền luồng hình ảnh 2 chiều thành công",
+      "status": "PASS",
+      "details": {
+        "citizen": {
+          "iceState": "connected",
+          "remoteTracks": 2
+        },
+        "dispatcher": {
+          "iceState": "connected",
+          "remoteVideoTracks": 1
+        },
+        "setupMs": 445
+      }
+    },
+    {
+      "name": "[Phiếu Tiếp Nhận Tin: In / Xuất PDF] Chế độ @media print hiển thị đầy đủ #reportSheetContainer trên khổ A4 và ẩn hoàn toàn #territoryStatsModal (không bị 3 trang trắng)",
+      "status": "PASS",
+      "details": {
+        "modalDisplay": "block",
+        "modalVisibility": "visible",
+        "sheetVisibility": "visible",
+        "sheetWidth": 820,
+        "sheetHeight": 1098,
+        "territoryStatsDisplay": "none"
+      }
+    },
+    {
+      "name": "[Phiếu Tiếp Nhận Tin: Xuất Word (.docx)] Tải xuống thành công file Word NĐ30/2020/NĐ-CP từ /api/export/docx",
+      "status": "PASS",
+      "details": {
+        "filename": "Phieu_TiepNhan_UPSC_SOS-MV660M35-947.docx",
+        "sizeBytes": 38861,
+        "exportMs": 530
+      }
+    },
+    {
+      "name": "[Báo khống & OSINT Forensic Modal] Hộp thoại #osintForensicModal không bị cắt tiêu đề trên đỉnh và hiển thị đúng mã hồ sơ thực",
+      "status": "PASS",
+      "details": {
+        "dossierIdText": "SOS-MV660M35-947",
+        "boxTop": 20,
+        "boxBottom": 888,
+        "boxHeight": 868,
+        "viewportHeight": 900
+      }
+    },
+    {
+      "name": "[Lập biên bản vi phạm hành chính (Word)] Nút #btnDraftAdministrativeRecord xuất thành công file .docx chuẩn Mẫu 08/BB-XM (NĐ30/2020/NĐ-CP)",
+      "status": "PASS",
+      "details": {
+        "filename": "DuThao_BienBan_XacMinh_SOS-MV660M35-947.docx",
+        "sizeBytes": 38620,
+        "exportMs": 381
+      }
+    }
+  ],
+  "metrics": {
+    "voiceDispatcherToCitizenMs": 576,
+    "voiceCitizenToDispatcherMs": 341,
+    "videoDispatcherToCitizenMs": 191,
+    "videoCitizenToDispatcherMs": 445,
+    "intakeDocxExportMs": 530,
+    "intakeDocxSizeBytes": 38861,
+    "flagFakeMs": 167,
+    "adminRecordDocxExportMs": 381,
+    "adminRecordDocxSizeBytes": 38620,
+    "totalDurationMs": 10449
+  },
+  "passed": 8,
+  "failed": 0
+}

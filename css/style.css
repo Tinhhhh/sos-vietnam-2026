@@ -3768,12 +3768,21 @@ body.theme-admin .sidebar-tab-btn.is-active {
     min-height: 48px !important;
   }
 
-  /* Keep signature images high resolution and crisp */
-  #citizenSigImg, #officerSigImg {
+  /* Keep signature images high resolution and crisp only when signed */
+  #citizenSigImg[src]:not([src=""]),
+  #officerSigImg[src]:not([src=""]) {
     display: block !important;
     max-height: 45px !important;
     max-width: 140px !important;
     object-fit: contain !important;
+  }
+
+  #citizenSigImg:not([src]),
+  #citizenSigImg[src=""],
+  #officerSigImg:not([src]),
+  #officerSigImg[src=""] {
+    display: none !important;
+    visibility: hidden !important;
   }
 
   #citizenSigText, #officerSigText {
@@ -8506,16 +8515,58 @@ textarea:focus {
     transform: none !important;
   }
 
-  body:not(.printing-territory-stats) * {
-    visibility: hidden !important;
-  }
-
-  #territoryStatsModal,
-  #territoryStatsModal * {
+  body.printing-territory-stats #territoryStatsModal,
+  body.printing-territory-stats #territoryStatsModal * {
     visibility: visible !important;
   }
 
-  .report-docx-modal-dialog {
+  body:not(.printing-territory-stats) #territoryStatsModal {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body:not(.printing-territory-stats) > *:not(#incidentReportDocxModal) {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:not(.printing-territory-stats) #incidentReportDocxModal,
+  body:not(.printing-territory-stats) #incidentReportDocxModal * {
+    visibility: visible !important;
+  }
+
+  body:not(.printing-territory-stats) #incidentReportDocxModal,
+  body:not(.printing-territory-stats) #incidentReportDocxModal.report-docx-modal-backdrop {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    inset: auto !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .report-docx-modal-dialog,
+  #incidentReportDocxModal .modal-container {
     max-width: 100% !important;
     width: 100% !important;
     box-shadow: none !important;
@@ -8530,6 +8581,7 @@ textarea:focus {
     position: static !important;
     padding: 0 !important;
     margin: 0 !important;
+    transform: none !important;
   }
 
   /* Ẩn các nút điều khiển, header màn hình, tabs lọc khi in */
@@ -8544,11 +8596,34 @@ textarea:focus {
   #inputSearchTerritoryStats,
   #btnBottomCloseStatsModal,
   .report-docx-modal-backdrop::before,
-  #territoryStatsModal .report-docx-modal-dialog > div:last-child {
+  #territoryStatsModal .report-docx-modal-dialog > div:last-child,
+  #incidentReportDocxModal .report-docx-modal-header,
+  #incidentReportDocxModal .modal-container > div:first-child,
+  #incidentReportDocxModal .modal-container > div:last-child,
+  #incidentReportDocxModal .btn-refresh-loc,
+  #incidentReportDocxModal button,
+  body:not(.printing-territory-stats) #incidentReportDocxModal button,
+  body:not(.printing-territory-stats) #incidentReportDocxModal #docLegalNoticeBanner,
+  body:not(.printing-territory-stats) #incidentReportDocxModal #docLockHint,
+  #docLegalNoticeBanner,
+  #docLockHint,
+  #btnSaveOfficialReport,
+  #btnBottomCloseReportDocx,
+  #btnBottomConfirmResolvedGoHome,
+  #btnOpenCitizenSignPad,
+  #btnOpenOfficerSignPad,
+  #btnReportModalGoHome,
+  #btnDownloadReportDocx,
+  #btnDownloadReportImage,
+  #btnPrintReportPdf,
+  #btnCloseReportDocxModal,
+  #signaturePadModal {
     display: none !important;
+    visibility: hidden !important;
   }
 
-  #territoryStatsPrintArea {
+  #territoryStatsPrintArea,
+  #reportSheetContainer {
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;

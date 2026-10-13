@@ -3134,13 +3134,14 @@
 
   <!-- MODAL 2: HỒ SƠ ĐIỀU TRA DẤU VẾT MẠNG OSINT (CYBER FORENSIC DOSSIER) -->
   <style>
-    #osintForensicModal .osint-forensic-box { width: min(780px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-sizing: border-box; }
+    #osintForensicModal { padding: 20px 12px !important; align-items: center !important; justify-content: center !important; overflow-y: auto !important; box-sizing: border-box !important; }
+    #osintForensicModal .osint-forensic-box { width: min(780px, calc(100vw - 24px)); max-height: calc(100dvh - 48px); margin: auto; padding: 20px 24px; box-sizing: border-box; }
     #osintForensicModal .osint-header, #osintForensicModal .osint-toolbar, #osintForensicModal .osint-actions { flex-wrap: wrap; gap: 10px; }
     #osintForensicModal .osint-summary-grid, #osintForensicModal .osint-fingerprint-grid { min-width: 0; }
     #osintForensicModal .osint-command { gap: 8px; }
     #osintForensicModal .osint-command span { min-width: 0; overflow-wrap: anywhere; }
     @media (max-width: 640px) {
-      #osintForensicModal .osint-forensic-box { padding: 16px; }
+      #osintForensicModal .osint-forensic-box { padding: 16px; max-height: calc(100dvh - 32px); }
       #osintForensicModal .osint-summary-grid, #osintForensicModal .osint-fingerprint-grid { grid-template-columns: 1fr !important; }
       #osintForensicModal .osint-header { align-items: flex-start !important; }
       #osintForensicModal .osint-toolbar, #osintForensicModal .osint-actions { width: 100%; }

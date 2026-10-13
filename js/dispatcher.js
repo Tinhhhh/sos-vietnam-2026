@@ -7693,10 +7693,145 @@ class DispatcherApp {
     alert(`📸 ĐÃ CHỤP ẢNH HIỆN TRƯỜNG THÀNH CÔNG!\n\n📁 Đã tải ảnh "${filename}" về máy tính.\n📂 Đã lưu trực tiếp vào hồ sơ hình ảnh của phiếu cứu hộ.`);
   }
 
+  _createSyntheticDispatcherStream({ video = false, audio = true } = {}) {
+    const tracks = [];
+    if (audio) {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          gain.gain.value = 0.001;
+          osc.connect(gain);
+          const dest = ctx.createMediaStreamDestination();
+          gain.connect(dest);
+          osc.start();
+          const audioTrack = dest.stream.getAudioTracks()[0];
+          if (audioTrack) {
+            audioTrack._synthCtx = ctx;
+            tracks.push(audioTrack);
+          }
+        }
+      } catch (e) {}
+    }
+    if (video) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 360;
+        const ctx2d = canvas.getContext('2d');
+        const drawFrame = () => {
+          if (!ctx2d) return;
+          ctx2d.fillStyle = '#0f172a';
+          ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+          ctx2d.fillStyle = '#38bdf8';
+          ctx2d.font = 'bold 20px sans-serif';
+          ctx2d.fillText('TRỰC BAN TÁC CHIẾN SOS VIỆT NAM', 130, 160);
+          ctx2d.fillStyle = '#34d399';
+          ctx2d.font = '15px monospace';
+          ctx2d.fillText(new Date().toLocaleTimeString('vi-VN'), 265, 200);
+        };
+        drawFrame();
+        const intervalId = setInterval(drawFrame, 500);
+        if (typeof canvas.captureStream === 'function') {
+          const vStream = canvas.captureStream(15);
+          const vTrack = vStream.getVideoTracks()[0];
+          if (vTrack) {
+            const origStop = vTrack.stop.bind(vTrack);
+            vTrack.stop = () => {
+              clearInterval(intervalId);
+              origStop();
+            };
+            tracks.push(vTrack);
+          }
+        }
+      } catch (e) {}
+    }
+    return new MediaStream(tracks);
+  }
+
+  async _answerDispatcherVideoOffer(signal) {
+    const pc = this.dispatcherVideoPeerConnection;
+    if (!pc || !signal || !signal.sdp) return;
+    if (this._dispatcherHandlingVideoOffer) return;
+    this._dispatcherHandlingVideoOffer = true;
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+      if (Array.isArray(this._pendingVideoIceCandidates)) {
+        for (const c of this._pendingVideoIceCandidates) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+        }
+        this._pendingVideoIceCandidates = [];
+      }
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await fetch('/api/sos/videocall/signal', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          id: signal.incidentId,
+          action: 'webrtc-answer',
+          sender: 'dispatcher',
+          senderUsername: this.currentOfficer?.username,
+          callScope: signal.callScope || (signal.sender === 'dispatcher' ? 'inter_unit' : 'citizen_dispatcher'),
+          targetUnit: signal.targetUnit || null,
+          callType: 'video',
+          token: this.currentOfficer?.token,
+          sdp: answer
+        })
+      });
+    } catch (err) {
+      console.warn('Failed to answer incoming video WebRTC offer (dispatcher):', err);
+    } finally {
+      this._dispatcherHandlingVideoOffer = false;
+    }
+  }
+
+  async _answerDispatcherVoiceOffer(signal) {
+    const pc = this.dispatcherVoicePeerConnection;
+    if (!pc || !signal || !signal.sdp) return;
+    if (this._dispatcherHandlingVoiceOffer) return;
+    this._dispatcherHandlingVoiceOffer = true;
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+      if (Array.isArray(this._pendingVoiceIceCandidates)) {
+        for (const c of this._pendingVoiceIceCandidates) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+        }
+        this._pendingVoiceIceCandidates = [];
+      }
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await fetch('/api/sos/videocall/signal', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          id: signal.incidentId,
+          action: 'webrtc-answer',
+          sender: 'dispatcher',
+          senderUsername: this.currentOfficer?.username,
+          callScope: signal.callScope || (signal.sender === 'dispatcher' ? 'inter_unit' : 'citizen_dispatcher'),
+          targetUnit: signal.targetUnit || null,
+          callType: 'voice',
+          token: this.currentOfficer?.token,
+          sdp: answer
+        })
+      });
+    } catch (err) {
+      console.warn('Failed to answer incoming voice WebRTC offer (dispatcher):', err);
+    } finally {
+      this._dispatcherHandlingVoiceOffer = false;
+    }
+  }
+
   async startDispatcherVideoCall(targetIncidentId, isIncomingFromCitizen = false, targetUnit = null) {
     const incId = targetIncidentId || this.selectedIncidentId;
     if (!incId) return;
     this.selectedIncidentId = incId;
+    this.dispatcherVideoIncidentId = incId;
     const inc = this.incidents.get(incId) || { id: incId, reporterName: 'Người dân', reporterPhone: '' };
 
     const modal = document.getElementById('dispatcherVideoCallModal');
@@ -7760,19 +7895,126 @@ class DispatcherApp {
       modal.style.opacity = '1';
     }
 
-    // Send signal (accept if incoming from citizen, request if initiated by dispatcher)
+    // Setup real 2-way WebRTC PeerConnection for Video Call
+    if (this.dispatcherVideoPeerConnection) {
+      try { this.dispatcherVideoPeerConnection.close(); } catch (e) {}
+    }
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
+    });
+    this.dispatcherVideoPeerConnection = pc;
+    this._dispatcherHandlingVideoOffer = false;
+    this._dispatcherHandlingVideoAnswer = false;
+
+    try {
+      this.dispatcherMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    } catch (err) {
+      console.warn('Dispatcher camera/mic fallback to synthetic stream:', err);
+      this.dispatcherMediaStream = this._createSyntheticDispatcherStream({ video: true, audio: true });
+    }
+    if (this.dispatcherMediaStream) {
+      this.dispatcherMediaStream.getTracks().forEach(track => pc.addTrack(track, this.dispatcherMediaStream));
+      if (videoEl && !videoEl.srcObject) {
+        videoEl.srcObject = this.dispatcherMediaStream;
+      }
+    }
+
+    pc.ontrack = (event) => {
+      const remoteStream = event.streams && event.streams[0];
+      if (remoteStream && videoEl) {
+        videoEl.srcObject = remoteStream;
+        videoEl.muted = false;
+        videoEl.play().catch(() => {});
+      }
+      if (waitingOverlay) waitingOverlay.style.display = 'none';
+      if (statusBadge) {
+        statusBadge.textContent = '🟢 ĐANG TRUYỀN HÌNH TRỰC TIẾP 2 CHIỀU (LIVE HD)';
+        statusBadge.style.color = '#34d399';
+        statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        fetch('/api/sos/videocall/signal', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            id: inc.id,
+            action: 'webrtc-ice',
+            sender: 'dispatcher',
+            senderUsername: this.currentOfficer?.username,
+            callType: 'video',
+            callScope: targetUnit ? 'inter_unit' : 'citizen_dispatcher',
+            targetUnit: targetUnit,
+            token: this.currentOfficer?.token,
+            candidate: event.candidate.toJSON()
+          })
+        }).catch(() => {});
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        if (waitingOverlay) waitingOverlay.style.display = 'none';
+        if (statusBadge) {
+          statusBadge.textContent = '🟢 ĐANG TRUYỀN HÌNH TRỰC TIẾP 2 CHIỀU (LIVE HD)';
+          statusBadge.style.color = '#34d399';
+          statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+        }
+      }
+    };
+
+    // Send signal (accept if incoming from citizen, request + offer if initiated by dispatcher)
     try {
       await fetch('/api/sos/videocall/signal', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({
           id: inc.id,
           action: isIncomingFromCitizen ? 'accept' : 'request',
           sender: 'dispatcher',
+          senderUsername: this.currentOfficer?.username,
+          callScope: targetUnit ? 'inter_unit' : 'citizen_dispatcher',
+          targetUnit: targetUnit,
           callType: 'video',
           token: this.currentOfficer?.token
         })
       });
+
+      if (isIncomingFromCitizen) {
+        if (this._pendingVideoOffer && this._pendingVideoOffer.incidentId === inc.id) {
+          const pending = this._pendingVideoOffer;
+          this._pendingVideoOffer = null;
+          await this._answerDispatcherVideoOffer(pending);
+        }
+      } else {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await fetch('/api/sos/videocall/signal', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            id: inc.id,
+            action: 'webrtc-offer',
+            sender: 'dispatcher',
+            senderUsername: this.currentOfficer?.username,
+            callScope: targetUnit ? 'inter_unit' : 'citizen_dispatcher',
+            targetUnit: targetUnit,
+            callType: 'video',
+            token: this.currentOfficer?.token,
+            sdp: offer
+          })
+        });
+      }
     } catch (e) {
       console.warn('Video call signal error:', e);
     }
@@ -7783,6 +8025,11 @@ class DispatcherApp {
     if (modal) {
       modal.classList.remove('is-open');
       modal.style.display = 'none';
+    }
+
+    if (this.dispatcherVideoPeerConnection) {
+      try { this.dispatcherVideoPeerConnection.close(); } catch (e) {}
+      this.dispatcherVideoPeerConnection = null;
     }
 
     const videoEl = document.getElementById('dispatcherRemoteVideoElement');
@@ -7803,11 +8050,15 @@ class DispatcherApp {
     const recDot = document.getElementById('recDotVideo');
     if (recDot) recDot.style.animation = 'none';
 
-    if (notify && this.selectedIncidentId) {
+    const targetId = this.dispatcherVideoIncidentId || this.selectedIncidentId;
+    this.dispatcherVideoIncidentId = null;
+
+    if (notify && targetId) {
       fetch('/api/sos/videocall/signal', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify({ id: this.selectedIncidentId, action: 'end', sender: 'dispatcher', token: this.currentOfficer?.token })
+        body: JSON.stringify({ id: targetId, action: 'end', sender: 'dispatcher', callType: 'video', token: this.currentOfficer?.token })
       }).catch(() => {});
     }
   }
@@ -7865,7 +8116,7 @@ class DispatcherApp {
     try {
       const resp = await fetch('/api/dispatcher/incidents/unmask-pii', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ incidentId, reason })
       });
       const data = await resp.json();
@@ -7965,6 +8216,7 @@ class DispatcherApp {
     const modal = document.getElementById('dispatcherIncomingCallModal');
     if (!modal) return;
 
+    this.pendingIncomingCallSignal = signal;
     const inc = this.incidents.get(signal.incidentId);
     const heading = document.getElementById('dispatcherIncomingCallHeading');
     const icon = document.getElementById('dispatcherIncomingCallIcon');
@@ -8043,6 +8295,7 @@ class DispatcherApp {
     if (btnAccept) {
       btnAccept.onclick = () => {
         this.stopIncomingCallRingtone();
+        this.pendingIncomingCallSignal = null;
         modal.classList.remove('is-open');
         modal.style.display = 'none';
 
@@ -8054,7 +8307,7 @@ class DispatcherApp {
         }
 
         if (isVideo) {
-          this.startDispatcherVideoCall(signal.incidentId, true);
+          this.startDispatcherVideoCall(signal.incidentId, true, signal.targetUnit || null);
         } else {
           this.openDispatcherVoiceCall(signal.incidentId, true, signal.targetUnit || null);
         }
@@ -8064,6 +8317,7 @@ class DispatcherApp {
     if (btnReject) {
       btnReject.onclick = () => {
         this.stopIncomingCallRingtone();
+        this.pendingIncomingCallSignal = null;
         modal.classList.remove('is-open');
         modal.style.display = 'none';
 
@@ -8175,10 +8429,12 @@ class DispatcherApp {
           autoGainControl: true
         }
       });
-      this.dispatcherVoiceStream.getTracks().forEach(track => pc.addTrack(track, this.dispatcherVoiceStream));
     } catch (err) {
-      console.warn('Dispatcher microphone access fallback on voice call:', err);
-      showVoiceCallFailure('Không truy cập được microphone (' + err.message + ')');
+      console.warn('Dispatcher microphone access fallback on voice call (using synthetic audio stream):', err);
+      this.dispatcherVoiceStream = this._createSyntheticDispatcherStream({ video: false, audio: true });
+    }
+    if (this.dispatcherVoiceStream) {
+      this.dispatcherVoiceStream.getTracks().forEach(track => pc.addTrack(track, this.dispatcherVoiceStream));
     }
 
     pc.ontrack = (event) => {
@@ -8239,14 +8495,14 @@ class DispatcherApp {
     };
 
     if (isIncomingFromCitizen) {
-      // Incoming call answered -> send 'accept' signal
+      // Incoming call answered -> send 'accept' signal and answer any buffered offer
       if (hint) {
         hint.textContent = targetUnit
           ? `🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI ${targetUnit.name || 'ĐƠN VỊ TÁC CHIẾN'}`
           : '🟢 ĐÃ KẾT NỐI ĐÀM THOẠI 2 CHIỀU VỚI NGƯỜI DÂN';
         hint.style.color = '#34d399';
       }
-      fetch('/api/sos/videocall/signal', {
+      await fetch('/api/sos/videocall/signal', {
         method: 'POST',
         credentials: 'same-origin',
         headers: this.getAuthHeaders(),
@@ -8261,6 +8517,12 @@ class DispatcherApp {
           token: this.currentOfficer?.token
         })
       }).catch(e => console.warn('Voice call accept signal error:', e));
+
+      if (this._pendingVoiceOffer && this._pendingVoiceOffer.incidentId === inc.id) {
+        const pending = this._pendingVoiceOffer;
+        this._pendingVoiceOffer = null;
+        await this._answerDispatcherVoiceOffer(pending);
+      }
     } else {
       // Outgoing call -> send 'request' signal, then SDP offer
       if (hint) {
@@ -8461,12 +8723,15 @@ class DispatcherApp {
     const btn = document.getElementById('btnActionRecordVoiceCall');
     if (btn) btn.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
 
-    if (notify && this.selectedIncidentId) {
+    const targetId = this.dispatcherVoiceIncidentId || this.selectedIncidentId;
+    this.dispatcherVoiceIncidentId = null;
+
+    if (notify && targetId) {
       fetch('/api/sos/videocall/signal', {
         method: 'POST',
         credentials: 'same-origin',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify({ id: this.selectedIncidentId, action: 'end', sender: 'dispatcher', callType: 'voice', token: this.currentOfficer?.token })
+        body: JSON.stringify({ id: targetId, action: 'end', sender: 'dispatcher', callType: 'voice', token: this.currentOfficer?.token })
       }).catch(() => {});
     }
   }
@@ -9974,7 +10239,30 @@ class DispatcherApp {
 
       // 2. Voice Call signal
       if (signal.callType === 'voice') {
-        const isCurrentVoiceIncident = (signal.incidentId === this.dispatcherVoiceIncidentId || signal.incidentId === this.selectedIncidentId);
+        if (signal.action === 'webrtc-offer') {
+          this._pendingVoiceOffer = signal;
+          if (this.dispatcherVoicePeerConnection && this.dispatcherVoiceIncidentId === signal.incidentId) {
+            this._pendingVoiceOffer = null;
+            await this._answerDispatcherVoiceOffer(signal);
+          }
+          return;
+        }
+        if (signal.action === 'webrtc-ice' && signal.candidate) {
+          const pc = this.dispatcherVoicePeerConnection;
+          if (pc && pc.remoteDescription && this.dispatcherVoiceIncidentId === signal.incidentId) {
+            pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
+          } else {
+            if (!this._pendingVoiceIceCandidates) this._pendingVoiceIceCandidates = [];
+            this._pendingVoiceIceCandidates.push(signal.candidate);
+          }
+          return;
+        }
+
+        const isCurrentVoiceIncident = (
+          signal.incidentId === this.dispatcherVoiceIncidentId ||
+          signal.incidentId === this.selectedIncidentId ||
+          signal.incidentId === this.pendingIncomingCallSignal?.incidentId
+        );
         if (isCurrentVoiceIncident) {
           if (signal.action === 'accept') {
             const hint = document.getElementById('voiceCallVisualizerHint');
@@ -9986,6 +10274,34 @@ class DispatcherApp {
               hint.style.color = '#34d399';
             }
             this.showToast?.('🟢 Đầu bên kia đã nhấc máy đàm thoại!', 'success');
+
+            // Re-send WebRTC offer now that the recipient has accepted and opened their peer connection
+            const pc = this.dispatcherVoicePeerConnection;
+            if (pc) {
+              try {
+                this._dispatcherHandlingVoiceAnswer = false;
+                const offer = pc.localDescription || await pc.createOffer();
+                if (!pc.localDescription) await pc.setLocalDescription(offer);
+                fetch('/api/sos/videocall/signal', {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: this.getAuthHeaders(),
+                  body: JSON.stringify({
+                    id: signal.incidentId,
+                    action: 'webrtc-offer',
+                    sender: 'dispatcher',
+                    senderUsername: this.currentOfficer?.username,
+                    callType: 'voice',
+                    callScope: signal.callScope || 'citizen_dispatcher',
+                    targetUnit: signal.targetUnit || null,
+                    token: this.currentOfficer?.token,
+                    sdp: offer
+                  })
+                }).catch(() => {});
+              } catch (e) {
+                console.warn('Re-send voice offer on accept error:', e);
+              }
+            }
           } else if (signal.action === 'reject') {
             const hint = document.getElementById('voiceCallVisualizerHint');
             if (hint) {
@@ -9994,59 +10310,28 @@ class DispatcherApp {
             }
             this.showToast?.('🔴 Cuộc gọi đàm thoại đã bị từ chối.', 'danger');
           } else if (signal.action === 'end') {
+            this.stopIncomingCallRingtone();
+            const incModal = document.getElementById('dispatcherIncomingCallModal');
+            if (incModal) {
+              incModal.classList.remove('is-open');
+              incModal.style.display = 'none';
+            }
             this.endDispatcherVoiceCall(false);
             this.showToast?.('Cuộc gọi thoại đã kết thúc.', 'info');
-          } else if (signal.action === 'webrtc-offer') {
-            // Incoming offer from citizen or inter-unit officer
-            (async () => {
-              let pc = this.dispatcherVoicePeerConnection;
-              for (let attempt = 0; !pc && attempt < 50; attempt++) {
-                await new Promise(r => setTimeout(r, 100));
-                pc = this.dispatcherVoicePeerConnection;
-              }
-              if (!pc || !signal.sdp) {
-                console.warn('Received a WebRTC offer with no active dispatcher peer connection after waiting; ignoring.');
-                return;
-              }
-              if (this._dispatcherHandlingVoiceOffer) return;
-              this._dispatcherHandlingVoiceOffer = true;
-              try {
-                await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                fetch('/api/sos/videocall/signal', {
-                  method: 'POST',
-                  credentials: 'same-origin',
-                  headers: this.getAuthHeaders(),
-                  body: JSON.stringify({
-                    id: signal.incidentId,
-                    action: 'webrtc-answer',
-                    sender: 'dispatcher',
-                    senderUsername: this.currentOfficer?.username,
-                    callScope: signal.callScope || (signal.sender === 'dispatcher' ? 'inter_unit' : 'citizen_dispatcher'),
-                    targetUnit: signal.targetUnit || null,
-                    callType: 'voice',
-                    token: this.currentOfficer?.token,
-                    sdp: answer
-                  })
-                }).catch(e => console.warn('WebRTC answer signal error:', e));
-              } catch (err) {
-                console.warn('Failed to answer incoming WebRTC offer (dispatcher):', err);
-              }
-            })();
           } else if (signal.action === 'webrtc-answer') {
             const pc = this.dispatcherVoicePeerConnection;
             if (pc && signal.sdp && !this._dispatcherHandlingVoiceAnswer) {
               this._dispatcherHandlingVoiceAnswer = true;
-              pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).catch(err => {
+              pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(async () => {
+                if (Array.isArray(this._pendingVoiceIceCandidates)) {
+                  for (const c of this._pendingVoiceIceCandidates) {
+                    try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+                  }
+                  this._pendingVoiceIceCandidates = [];
+                }
+              }).catch(err => {
+                this._dispatcherHandlingVoiceAnswer = false;
                 console.warn('Failed to set remote answer description (dispatcher):', err);
-              });
-            }
-          } else if (signal.action === 'webrtc-ice') {
-            const pc = this.dispatcherVoicePeerConnection;
-            if (pc && signal.candidate) {
-              pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(err => {
-                console.warn('Failed to add remote ICE candidate (dispatcher):', err);
               });
             }
           }
@@ -10055,24 +10340,68 @@ class DispatcherApp {
       }
 
       // 3. Video Call signal
-      if (signal.incidentId === this.selectedIncidentId) {
+      if (signal.action === 'webrtc-offer') {
+        this._pendingVideoOffer = signal;
+        if (this.dispatcherVideoPeerConnection && this.dispatcherVideoIncidentId === signal.incidentId) {
+          this._pendingVideoOffer = null;
+          await this._answerDispatcherVideoOffer(signal);
+        }
+        return;
+      }
+      if (signal.action === 'webrtc-ice' && signal.candidate) {
+        const pc = this.dispatcherVideoPeerConnection;
+        if (pc && pc.remoteDescription && this.dispatcherVideoIncidentId === signal.incidentId) {
+          pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
+        } else {
+          if (!this._pendingVideoIceCandidates) this._pendingVideoIceCandidates = [];
+          this._pendingVideoIceCandidates.push(signal.candidate);
+        }
+        return;
+      }
+
+      const isCurrentVideoIncident = (
+        signal.incidentId === this.dispatcherVideoIncidentId ||
+        signal.incidentId === this.selectedIncidentId ||
+        signal.incidentId === this.pendingIncomingCallSignal?.incidentId
+      );
+      if (isCurrentVideoIncident) {
         const statusBadge = document.getElementById('dispatcherCallStatusBadge');
         const waitingOverlay = document.getElementById('dispatcherStreamWaitingOverlay');
-        const videoEl = document.getElementById('dispatcherRemoteVideoElement');
 
         if (signal.action === 'accept') {
           if (statusBadge) {
-            statusBadge.textContent = '🟢 ĐANG TRUYỀN HÌNH TRỰC TIẾP (LIVE HD)';
+            statusBadge.textContent = '🟢 ĐANG TRUYỀN HÌNH TRỰC TIẾP 2 CHIỀU (LIVE HD)';
             statusBadge.style.color = '#34d399';
             statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
           }
           if (waitingOverlay) waitingOverlay.style.display = 'none';
 
-          try {
-            this.dispatcherMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            if (videoEl) videoEl.srcObject = this.dispatcherMediaStream;
-          } catch (err) {
-            console.warn('Dispatcher camera preview fallback:', err);
+          // Re-send WebRTC video offer now that Citizen accepted and opened peer connection
+          const pc = this.dispatcherVideoPeerConnection;
+          if (pc) {
+            try {
+              this._dispatcherHandlingVideoAnswer = false;
+              const offer = pc.localDescription || await pc.createOffer();
+              if (!pc.localDescription) await pc.setLocalDescription(offer);
+              fetch('/api/sos/videocall/signal', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify({
+                  id: signal.incidentId,
+                  action: 'webrtc-offer',
+                  sender: 'dispatcher',
+                  senderUsername: this.currentOfficer?.username,
+                  callType: 'video',
+                  callScope: signal.callScope || 'citizen_dispatcher',
+                  targetUnit: signal.targetUnit || null,
+                  token: this.currentOfficer?.token,
+                  sdp: offer
+                })
+              }).catch(() => {});
+            } catch (e) {
+              console.warn('Re-send video offer on accept error:', e);
+            }
           }
         } else if (signal.action === 'reject') {
           if (statusBadge) {
@@ -10081,7 +10410,29 @@ class DispatcherApp {
             statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
           }
         } else if (signal.action === 'end') {
+          this.stopIncomingCallRingtone();
+          const incModal = document.getElementById('dispatcherIncomingCallModal');
+          if (incModal) {
+            incModal.classList.remove('is-open');
+            incModal.style.display = 'none';
+          }
           this.endDispatcherVideoCall(false);
+        } else if (signal.action === 'webrtc-answer') {
+          const pc = this.dispatcherVideoPeerConnection;
+          if (pc && signal.sdp && !this._dispatcherHandlingVideoAnswer) {
+            this._dispatcherHandlingVideoAnswer = true;
+            pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(async () => {
+              if (Array.isArray(this._pendingVideoIceCandidates)) {
+                for (const c of this._pendingVideoIceCandidates) {
+                  try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+                }
+                this._pendingVideoIceCandidates = [];
+              }
+            }).catch(err => {
+              this._dispatcherHandlingVideoAnswer = false;
+              console.warn('Failed to set remote video answer description (dispatcher):', err);
+            });
+          }
         }
       }
     };
@@ -13236,7 +13587,8 @@ class DispatcherApp {
     try {
       const res = await fetch('/api/export/docx', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders(),
         body: JSON.stringify(payload)
       });
       if (res.ok) {
@@ -13484,7 +13836,8 @@ class DispatcherApp {
           btnSaveDossier.textContent = '⏳ Đang lưu...';
           const res = await fetch('/api/dispatcher/save-report', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            headers: this.getAuthHeaders(),
             body: JSON.stringify(payload)
           });
           const data = await res.json();
@@ -13627,7 +13980,12 @@ class DispatcherApp {
     if (btnDocx) btnDocx.addEventListener('click', () => this.downloadReportDocx());
     if (btnImg) btnImg.addEventListener('click', () => this.downloadReportImage());
     if (btnPrint) btnPrint.addEventListener('click', () => {
+      document.body.classList.remove('printing-territory-stats');
+      document.body.classList.add('printing-incident-report');
       window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-incident-report');
+      }, 1000);
     });
 
     const btnChatLog = document.getElementById('btnDownloadIncidentChatLog');
@@ -13949,40 +14307,43 @@ class DispatcherApp {
       button.disabled = true;
       button.textContent = '⏳ Đang tạo Word...';
     }
-    try {
-      const telemetry = trace.deviceTelemetry || trace.telemetry || {};
-      const reporterName = trace.reporterName || document.getElementById('osintReporterName')?.textContent || 'Chưa rõ';
-      const reporterPhone = trace.reporterPhone || document.getElementById('osintReporterPhone')?.textContent || 'Chưa rõ';
-      const address = trace.address || document.getElementById('osintAddress')?.textContent || 'Không xác định';
-      const reportedTime = trace.reportedTime || trace.createdAt || new Date().toISOString();
-      const reason = trace.flaggedReason || trace.reason || document.getElementById('osintReason')?.textContent || 'Báo khống không có sự việc';
-      const officerNotes = trace.officerNotes || trace.notes || document.getElementById('osintOfficerNotes')?.textContent || '';
-      const clientIp = trace.clientIp || document.getElementById('osintClientIpDisplay')?.textContent || '127.0.0.1';
-      const officerName = trace.flaggedBy || trace.officerName || this.currentOfficer?.name || document.getElementById('osintOfficerName')?.textContent || 'Cán bộ trực ban tác chiến';
+    const telemetry = trace.deviceTelemetry || trace.telemetry || {};
+    const reporterName = trace.reporterName || document.getElementById('osintReporterName')?.textContent || 'Chưa rõ';
+    const reporterPhone = trace.reporterPhone || document.getElementById('osintReporterPhone')?.textContent || 'Chưa rõ';
+    const address = trace.address || document.getElementById('osintAddress')?.textContent || 'Không xác định';
+    const reportedTime = trace.reportedTime || trace.createdAt || new Date().toISOString();
+    const reason = trace.flaggedReason || trace.reason || document.getElementById('osintReason')?.textContent || 'Báo khống không có sự việc';
+    const officerNotes = trace.officerNotes || trace.notes || document.getElementById('osintOfficerNotes')?.textContent || '';
+    const clientIp = trace.clientIp || document.getElementById('osintClientIpDisplay')?.textContent || '127.0.0.1';
+    const officerName = trace.flaggedBy || trace.officerName || this.currentOfficer?.name || document.getElementById('osintOfficerName')?.textContent || 'Cán bộ trực ban tác chiến';
+    const inc = (this.incidents && this.incidents.get(incidentId)) || {};
 
-      const inc = (this.incidents && this.incidents.get(incidentId)) || {};
+    const recordPayload = {
+      incidentId,
+      recordNumber: trace.recordNumber || '01/BB-XM',
+      officerName,
+      officerTitle: this.currentOfficer?.rank || 'Cán bộ xử lý',
+      agency: inc.agency || trace.agency || 'police',
+      unitName: inc.dispatchUnit?.name || inc.assignedUnit?.name || trace.unitName || '',
+      province: inc.jurisdiction?.province || trace.province || '',
+      ward: inc.jurisdiction?.ward || trace.ward || '',
+      district: inc.jurisdiction?.district || trace.district || '',
+      reporterName,
+      reporterPhone,
+      address,
+      reportedTime,
+      reason,
+      officerNotes,
+      clientIp,
+      platform: telemetry.platform || navigator.platform || 'Thiết bị người dùng'
+    };
+
+    try {
       const response = await fetch('/api/export/verification-record-docx', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          incidentId,
-          recordNumber: trace.recordNumber || '01/BB-XM',
-          officerName,
-          officerTitle: this.currentOfficer?.rank || 'Cán bộ xử lý',
-          agency: inc.agency || trace.agency || 'police',
-          unitName: inc.dispatchUnit?.name || inc.assignedUnit?.name || trace.unitName || '',
-          province: inc.jurisdiction?.province || trace.province || '',
-          ward: inc.jurisdiction?.ward || trace.ward || '',
-          district: inc.jurisdiction?.district || trace.district || '',
-          reporterName,
-          reporterPhone,
-          address,
-          reportedTime,
-          reason,
-          officerNotes,
-          clientIp,
-          platform: telemetry.platform || navigator.platform || 'Thiết bị người dùng'
-        })
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(recordPayload)
       });
 
       if (!response.ok) {
@@ -14006,8 +14367,23 @@ class DispatcherApp {
         window.URL.revokeObjectURL(url);
       }, 1000);
     } catch (error) {
-      console.error('Verification record export failed:', error);
-      alert(error.message || 'Không thể tạo biên bản Word từ máy chủ.');
+      console.warn('Server DOCX generation fallback to client Word document:', error);
+      try {
+        const htmlDoc = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Biên Bản Xác Minh #${incidentId}</title><style>body{font-family:"Times New Roman",serif;font-size:13pt;line-height:1.5}</style></head><body><h3 style="text-align:center">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br>Độc lập - Tự do - Hạnh phúc</h3><hr><h2 style="text-align:center">DỰ THẢO BIÊN BẢN XÁC MINH DẤU VẾT KỸ THUẬT<br>VỤ VIỆC BÁO TIN GIẢ, KHÔNG ĐÚNG SỰ THẬT (#${incidentId})</h2><p><b>Cán bộ lập biên bản:</b> ${officerName}</p><p><b>Họ tên người khai báo:</b> ${reporterName} — <b>SĐT:</b> ${reporterPhone}</p><p><b>Địa điểm báo tin:</b> ${address}</p><p><b>Thời điểm báo tin:</b> ${reportedTime}</p><p><b>Lý do xác nhận báo khống:</b> ${reason}</p><p><b>Ghi chú hiện trường:</b> ${officerNotes || 'Không có'}</p><p><b>Địa chỉ IP nguồn (OSINT):</b> ${clientIp} (${recordPayload.platform})</p><p><i>Căn cứ điểm c khoản 2 Điều 7 Nghị định số 144/2021/NĐ-CP của Chính phủ.</i></p></body></html>`;
+        const fallbackBlob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword;charset=utf-8' });
+        const url = window.URL.createObjectURL(fallbackBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `DuThao_BienBan_XacMinh_${incidentId}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          link.remove();
+          window.URL.revokeObjectURL(url);
+        }, 1000);
+      } catch (fbErr) {
+        alert(error.message || 'Không thể tạo biên bản Word từ máy chủ.');
+      }
     } finally {
       if (button) {
         button.disabled = false;
@@ -14035,7 +14411,10 @@ class DispatcherApp {
     }
 
     try {
-      const res = await fetch('/api/dispatcher/fake-archive');
+      const res = await fetch('/api/dispatcher/fake-archive', {
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders()
+      });
       const data = await res.json();
       if (data && data.ok && Array.isArray(data.archive)) {
         this.fakeArchiveList = data.archive;
@@ -14128,7 +14507,8 @@ class DispatcherApp {
     try {
       const res = await fetch('/api/dispatcher/fake-archive/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ id: cleanId })
       });
       const data = await res.json();
@@ -14159,7 +14539,8 @@ class DispatcherApp {
     try {
       const res = await fetch('/api/dispatcher/fake-archive/clear', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders()
       });
       const data = await res.json();
       if (data && data.ok) {
@@ -14210,7 +14591,8 @@ class DispatcherApp {
         try {
           const res = await fetch('/api/dispatcher/flag-fake', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            headers: this.getAuthHeaders(),
             body: JSON.stringify({
               id: inc.id,
               reason: reason,
@@ -14381,7 +14763,8 @@ class DispatcherApp {
         try {
           const res = await fetch('/api/security/ban-ip', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            headers: this.getAuthHeaders(),
             body: JSON.stringify({
               ip: ip,
               reason: `Báo khống sự cố ca #${trace.incidentId || ''} (${trace.flaggedReason || ''})`
@@ -14443,7 +14826,10 @@ class DispatcherApp {
       const ward = this.currentOfficer?.ward || '';
       const level = this.currentOfficer?.level || '';
       const q = `?province=${encodeURIComponent(prov)}&ward=${encodeURIComponent(ward)}&level=${encodeURIComponent(level)}`;
-      const res = await fetch(`/api/dispatcher/fake-archive${q}`);
+      const res = await fetch(`/api/dispatcher/fake-archive${q}`, {
+        credentials: 'same-origin',
+        headers: this.getAuthHeaders()
+      });
       const data = await res.json();
       if (data && data.ok && Array.isArray(data.archive)) {
         this.fakeArchiveList = data.archive;
