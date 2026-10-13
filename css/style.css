@@ -3608,32 +3608,27 @@ body.theme-admin .sidebar-tab-btn.is-active {
     print-color-adjust: exact !important;
   }
 
-  /* Hide all top-level DOM siblings to remove their physical layout height */
-  body > * {
+  /* Print Mode Discrimination: If printing territory stats, hide incident report */
+  body.printing-territory-stats #incidentReportDocxModal {
+    display: none !important;
+    height: 0 !important;
+    visibility: hidden !important;
+  }
+
+  /* When NOT printing territory stats (i.e. printing incident report or default) */
+  body:not(.printing-territory-stats) #territoryStatsModal {
+    display: none !important;
+    height: 0 !important;
+    visibility: hidden !important;
+  }
+
+  /* Hide all top-level DOM siblings except the active printable modals and React root */
+  body:not(.printing-territory-stats) > *:not(#incidentReportDocxModal):not(#root) {
     display: none !important;
   }
 
-  /* Only display the active report modal container during print */
-  body > #incidentReportDocxModal,
-  #incidentReportDocxModal {
-    display: block !important;
-    position: static !important;
-    top: auto !important;
-    left: auto !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: auto !important;
-    background: #ffffff !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    overflow: visible !important;
-    z-index: 999999 !important;
-  }
-
-  body > #territoryStatsModal,
-  #territoryStatsModal {
+  /* Display the incident report modal cleanly during print */
+  body:not(.printing-territory-stats) #incidentReportDocxModal {
     display: block !important;
     position: static !important;
     top: auto !important;

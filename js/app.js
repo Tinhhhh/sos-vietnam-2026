@@ -1980,6 +1980,11 @@ class SOSApp {
             }).catch(() => {});
             this.startCitizenVoiceCall(false);
           } else {
+            fetch('/api/sos/videocall/signal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
+              body: JSON.stringify({ id: this.activeIncident.id, action: 'accept', sender: 'citizen', callType: 'video', accessToken: this.citizenAccessToken })
+            }).catch(() => {});
             this.startCitizenLiveStream(false);
           }
         };
@@ -4097,8 +4102,8 @@ class SOSApp {
   async downloadReportDocx() {
     if (!this.activeIncident) return;
     if (!this.activeIncident.signatures?.isFullySigned) {
-      alert('⚠️ Văn bản chưa đủ chữ ký 2 bên (Người dân & Cán bộ). Vui lòng hoàn tất ký tên để văn bản có hiệu lực trước khi tải!');
-      return;
+      const proceed = confirm('⚠️ Phiếu tiếp nhận chưa đủ 2 chữ ký xác thực. Bạn có muốn tiếp tục tải bản dự thảo tiếp nhận (.docx) không?');
+      if (!proceed) return;
     }
 
     const btn = document.getElementById('btnDownloadReportDocx');
@@ -4382,8 +4387,8 @@ class SOSApp {
 
     const handleReturnHome = () => {
       if (!this.activeIncident?.signatures?.isFullySigned) {
-        alert('⚠️ Quý dân vui lòng hoàn tất ký tên vào biên bản để xác nhận ca sự cố đã được xử lý xong trước khi về trang chủ!');
-        return;
+        const proceed = confirm('⚠️ Biên bản tiếp nhận chưa có đủ chữ ký của cả 2 bên. Bạn có chắc chắn muốn quay về trang chủ không?\n(Bạn có thể xem lại hoặc tiếp tục ký sau).');
+        if (!proceed) return;
       }
       sessionStorage.removeItem('active_sos_incident');
       this.clearCitizenAccessToken();
@@ -4396,14 +4401,16 @@ class SOSApp {
     if (btnConfirmGoHome) {
       btnConfirmGoHome.addEventListener('click', () => {
         if (!this.activeIncident?.signatures?.isFullySigned) {
-          alert('⚠️ Quý dân vui lòng ký xác nhận phiếu tiếp nhận trước khi quay về trang chủ!');
-          const promptModal = document.getElementById('incidentResolvedPromptModal');
-          if (promptModal) {
-            promptModal.classList.remove('is-open');
-            promptModal.style.display = 'none';
+          const proceed = confirm('⚠️ Biên bản tiếp nhận chưa có đủ 2 chữ ký. Bạn có muốn quay về trang chủ không?');
+          if (!proceed) {
+            const promptModal = document.getElementById('incidentResolvedPromptModal');
+            if (promptModal) {
+              promptModal.classList.remove('is-open');
+              promptModal.style.display = 'none';
+            }
+            if (this.activeIncident) this.openReportModal(this.activeIncident);
+            return;
           }
-          if (this.activeIncident) this.openReportModal(this.activeIncident);
-          return;
         }
         sessionStorage.removeItem('active_sos_incident');
         this.clearCitizenAccessToken();
@@ -4552,8 +4559,8 @@ class SOSApp {
         const isFullySigned = citizenSigned && officerSigned;
 
         if (!isFullySigned) {
-          alert(`⚠️ CHƯA ĐỦ CHỮ KÝ 2 BÊN THEO QUY ĐỊNH!\n\nCa sự cố #${inc.id} đã được xử lý xong. Theo quy định pháp lý, biên bản tiếp nhận phải có đầy đủ chữ ký của cả Quý dân và Cán bộ trực ban trước khi đóng hồ sơ:\n\n- Chữ ký Quý dân: ${citizenSigned ? '✅ ĐÃ KÝ' : '❌ CHƯA KÝ'}\n- Chữ ký Cán bộ: ${officerSigned ? '✅ ĐÃ KÝ' : '❌ CHƯA KÝ'}\n\nQuý dân vui lòng bấm '✍️ Người Dân Ký Tên' và đợi Cán bộ trực ban ký xác nhận để hoàn tất hồ sơ!`);
-          return;
+          const proceed = confirm(`⚠️ Ca sự cố #${inc.id} đã hoàn tất nhưng biên bản chưa có đủ 2 chữ ký:\n- Quý dân: ${citizenSigned ? '✅ ĐÃ KÝ' : '❌ CHƯA KÝ'}\n- Cán bộ: ${officerSigned ? '✅ ĐÃ KÝ' : '❌ CHƯA KÝ'}\n\nBạn có muốn đóng cửa sổ biên bản không?`);
+          if (!proceed) return;
         }
       }
 

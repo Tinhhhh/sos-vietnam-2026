@@ -4107,7 +4107,7 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   // API: Create SOS Incident with Real Station Database
   // -------------------------------------------------------------
-  if (urlPath === '/api/sos/create' && req.method === 'POST') {
+  if ((urlPath === '/api/sos/create' || urlPath === '/api/incidents') && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
@@ -4357,7 +4357,7 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   // API: List Incidents for Dispatcher (Server-Side Access Control & PII Masking)
   // -------------------------------------------------------------
-  if (urlPath === '/api/dispatcher/incidents' && req.method === 'GET') {
+  if ((urlPath === '/api/dispatcher/incidents' || urlPath === '/api/incidents' || urlPath === '/api/incidents/recent') && req.method === 'GET') {
     const sessionUser = req.user;
     let list = Array.from(incidents.values()).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -4420,7 +4420,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, incidents: list }));
+    return res.end(JSON.stringify({ ok: true, total: list.length, incidents: list }));
   }
 
   // -------------------------------------------------------------
