@@ -428,7 +428,7 @@ def build_pptx_deck():
         s4, 8.85, 1.70, 3.80, 5.30,
         "3. Không Gian & An Ninh Mạng",
         [
-            ("• Haversine Spatial Engine: ", "Tính khoảng cách cầu chính xác từ thiết bị người dân tới 874 trạm tác chiến trên 34 tỉnh/thành (gồm 417 điểm Công an Hà Nội, 105 trạm Cần Thơ...)."),
+            ("• Haversine Spatial Engine: ", "Tính khoảng cách cầu chính xác từ thiết bị người dân tới 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập, nén Gzip 166KB)."),
             ("• Tường lửa WAF L7 & RBAC: ", "Chặn 27 chữ ký AI Bot/Scraper, bẫy Honeypot, giới hạn tốc độ Token Bucket."),
             ("• Mật mã PBKDF2-SHA512: ", "100.000 vòng lặp băm mật khẩu + lưu trữ nguyên tử (.tmp -> rename) & Zero-Retention theo NĐ 13/2023/NĐ-CP."),
         ],
@@ -613,8 +613,8 @@ def build_pptx_deck():
     # 4 Top Metric Boxes
     add_metric_box(s7, 0.65, 1.70, 2.80, 1.55, "34 Tỉnh/TP", "Địa Giới Hành Chính Mới", "Đồng bộ từ bando.com.vn", CYAN_ACCENT)
     add_metric_box(s7, 3.70, 1.70, 2.80, 1.55, "3.321 Xã", "Xã/Phường Sau Sáp Nhập", "Cập nhật chuẩn T10/2026", GREEN_ACCENT)
-    add_metric_box(s7, 6.75, 1.70, 2.80, 1.55, "874 Trạm", "Cơ Sở Toàn Quốc", "846 tài khoản phân quyền", GOLD_ACCENT)
-    add_metric_box(s7, 9.80, 1.70, 2.85, 1.55, "417 HN • 105 CT", "Trụ Sở Đã Xác Minh", "Đủ tọa độ, SĐT & geofence", RED_ACCENT)
+    add_metric_box(s7, 6.75, 1.70, 2.80, 1.55, "3.717 Đồn/Trạm", "Mạng Lưới Toàn Quốc", "Phủ kín 100% xã/phường", GOLD_ACCENT)
+    add_metric_box(s7, 9.80, 1.70, 2.85, 1.55, "100% Xã/Phường", "Bao Phủ Toàn Diện", "Nén Gzip 166KB / <50ms", RED_ACCENT)
 
     add_card(
         s7, 0.65, 3.45, 5.85, 3.55,
@@ -786,7 +786,7 @@ def build_pptx_deck():
             ("3. Công nghệ: ", "PWA, SSE 45ms, WebRTC chống hú, Haversine GIS, WAF L7."),
             ("4. Sáng tạo: ", "Kalman <5m, OSRM 2 làn, đa cơ sở 1-to-N, leo thang 15p."),
             ("5. Hoàn thiện: ", "Đạt 80% (TRL 7 — Live Prototype chạy thực tế)."),
-            ("6–8. Vận hành, Kiểm chứng & Mở rộng: ", "34 tỉnh, 3.321 xã, 417 trạm HN, 100% PASS E2E, sẵn sàng tích hợp VNeID."),
+            ("6–8. Vận hành, Kiểm chứng & Mở rộng: ", "34 tỉnh, 3.321 xã (100%), 3.717 đồn CA cơ sở toàn quốc (Gzip 166KB, xe GPS thực tế), 100% PASS E2E, sẵn sàng tích hợp VNeID."),
         ],
         accent_color=GREEN_ACCENT,
         body_size=11.5,
@@ -825,17 +825,36 @@ def build_pptx_deck():
     add_speaker_notes(
         s10,
         "Kính thưa Hội đồng Giám khảo, với mức độ hoàn thiện hiện tại đạt 80% và vận hành thực tế ổn định trên dữ liệu 34 tỉnh thành, "
-        "3.321 xã phường cùng 417 trụ sở Công an Hà Nội, đội thi sẵn sàng trình diễn Live Demo ngay bây giờ. Xin trân trọng cảm ơn!"
+        "3.321 xã phường (100%), 3.717 đồn công an cơ sở toàn quốc, tối ưu Gzip 166KB, giám sát xe GPS thực tế, đội thi sẵn sàng trình diễn Live Demo ngay bây giờ. Xin trân trọng cảm ơn!"
     )
 
     prs.save(PPTX_OUT)
     print(f"[OK] Generated 8-Criteria PPTX Presentation: {PPTX_OUT}")
+
+    # Export to PDF via PowerPoint COM
+    PDF_OUT = PPTX_OUT.replace(".pptx", ".pdf")
+    try:
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        powerpoint = win32com.client.DispatchEx("PowerPoint.Application")
+        pres = powerpoint.Presentations.Open(os.path.abspath(PPTX_OUT), WithWindow=False)
+        pres.SaveAs(os.path.abspath(PDF_OUT), 32)
+        pres.Close()
+        powerpoint.Quit()
+        print(f"[OK] Exported PPTX to PDF: {PDF_OUT}")
+    except Exception as e:
+        print(f"[WARN] Failed to export PPTX to PDF: {e}")
 
     for d in SYNC_DIRS:
         if os.path.isdir(d):
             target = os.path.join(d, os.path.basename(PPTX_OUT))
             shutil.copy2(PPTX_OUT, target)
             print(f"[OK] Synced PPTX to: {target}")
+            if os.path.exists(PDF_OUT):
+                target_pdf = os.path.join(d, os.path.basename(PDF_OUT))
+                shutil.copy2(PDF_OUT, target_pdf)
+                print(f"[OK] Synced PPTX PDF to: {target_pdf}")
 
 
 def update_existing_10min_pptx_to_80_percent():
@@ -958,7 +977,7 @@ def build_docx_presentation_script():
     # 5. MỨC ĐỘ HOÀN THIỆN HIỆN TẠI (80%)
     add_section_h1("5. MỨC ĐỘ HOÀN THIỆN HIỆN TẠI CỦA SẢN PHẨM (ĐẠT 80% — TRL 7)")
     add_bullet("• Đánh giá tổng thể — Hoàn thiện 80% (Cấp độ TRL 7 - Hệ thống nguyên mẫu vận hành thực tế): ", "Sản phẩm không dừng ở mức ý tưởng hay thiết kế giao diện mà đã hoàn thiện 80% toàn bộ khối lượng mục tiêu, đang vận hành trực tuyến ổn định và sẵn sàng Live Demo 100% luồng nghiệp vụ cốt lõi:")
-    add_bullet("  + Phần 80% ĐÃ HOÀN THIỆN & CHẠY THỰC TẾ: ", "(1) Cổng PWA Người dân 1-chạm (SOS Orb tâm sóng video & giọng nói AI 4 miền 1.2x); (2) Bàn chỉ huy C4ISR hợp nhất 5 lực lượng; (3) Cơ sở dữ liệu 34 tỉnh/thành, 3.321 xã/phường sau sáp nhập, 874 trạm tác chiến trên toàn quốc (gồm 417 điểm Công an TP Hà Nội, 105 điểm Cần Thơ); (4) Định vị Kalman & tính khoảng cách trực tiếp từ thiết bị đến cơ sở gần nhất; (5) Đàm thoại WebRTC 2 chiều video/voice chống hú & ghi âm MP3; (6) Quản lý ca trực độc lập theo đơn vị & chuyển cấp 15 phút; (7) Ký số Canvas xuất biên bản Word Nghị định 30 (ký hiệu chuẩn động, loại bỏ CATT), kho báo khống Nghị định 144 & đồng bộ Excel 4 sheet.")
+    add_bullet("  + Phần 80% ĐÃ HOÀN THIỆN & CHẠY THỰC TẾ: ", "(1) Cổng PWA Người dân 1-chạm (SOS Orb tâm sóng video & giọng nói AI 4 miền 1.2x); (2) Bàn chỉ huy C4ISR hợp nhất 5 lực lượng; (3) Cơ sở dữ liệu 34 tỉnh/thành, 3.321 xã/phường sau sáp nhập, 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% xã/phường, nén Gzip 166 KB vs 2.95 MB); (4) Định vị Kalman kết hợp theo dõi xe cứu hộ GPS thực tế (watchPosition, throttle 5s / >10m) & vệt di chuyển bánh xe (breadcrumb trail) cyan chiến thuật; (5) Đàm thoại WebRTC 2 chiều video/voice chống hú qua TURN relay & ghi âm MP3; (6) Quản lý ca trực độc lập theo đơn vị & chuyển cấp 15 phút; (7) Ký số Canvas xuất biên bản Word Nghị định 30 (ký hiệu chuẩn động, loại bỏ CATT), kho báo khống Nghị định 144 & đồng bộ Excel 4 sheet.")
     add_bullet("  + Phần 20% ĐANG TIẾP TỤC PHÁT TRIỂN HOÀN THIỆN: ", "(1) Đấu nối API định danh điện tử VNeID mức 2 chính thức từ Cục C06 (5%); (2) Huấn luyện sâu mô hình AI Thị giác máy tính & Nhận diện giọng nói tiếng Việt đa phương ngữ (5%); (3) Mở rộng dữ liệu chi tiết từ 34 tỉnh/thành lên trọn vẹn 63/63 tỉnh/thành (5%); (4) Đóng gói ứng dụng Mobile Native độc lập và cổng tích hợp cảm biến IoT/Drone (5%).")
 
     # 6. KHẢ NĂNG VẬN HÀNH VÀ ỨNG DỤNG THỰC TẾ
@@ -982,11 +1001,31 @@ def build_docx_presentation_script():
     doc.save(DOCX_OUT)
     print(f"[OK] Generated 8-Criteria DOCX Script: {DOCX_OUT}")
 
+    DOCX_PDF_OUT = DOCX_OUT.replace(".docx", ".pdf")
+    try:
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        word = win32com.client.DispatchEx("Word.Application")
+        word.Visible = False
+        word.DisplayAlerts = 0
+        wdoc = word.Documents.Open(os.path.abspath(DOCX_OUT))
+        wdoc.SaveAs(os.path.abspath(DOCX_PDF_OUT), FileFormat=17)
+        wdoc.Close(False)
+        word.Quit()
+        print(f"[OK] Exported DOCX to PDF: {DOCX_PDF_OUT}")
+    except Exception as e:
+        print(f"[WARN] Failed to export DOCX to PDF: {e}")
+
     for d in SYNC_DIRS:
         if os.path.isdir(d):
             target = os.path.join(d, os.path.basename(DOCX_OUT))
             shutil.copy2(DOCX_OUT, target)
             print(f"[OK] Synced DOCX to: {target}")
+            if os.path.exists(DOCX_PDF_OUT):
+                target_pdf = os.path.join(d, os.path.basename(DOCX_PDF_OUT))
+                shutil.copy2(DOCX_PDF_OUT, target_pdf)
+                print(f"[OK] Synced DOCX PDF to: {target_pdf}")
 
 
 if __name__ == "__main__":

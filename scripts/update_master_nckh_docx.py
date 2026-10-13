@@ -80,10 +80,15 @@ def update_master_document():
     # STEP 1: Text-level replacements for outdated stations & obsolete terms
     # -------------------------------------------------------------------------
     rep_map = {
-        "453 trạm": "874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập",
-        "453 đơn vị": "874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập",
-        "toàn mạng lưới 453 trạm quốc gia": "toàn mạng lưới 874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập",
-        "Mạng Lưới 453 Trạm Tác Chiến Toàn Quốc": "Mạng Lưới 874 Trạm Tác Chiến Toàn Quốc (34 Tỉnh Thành & 3.321 Xã Phường)",
+        "874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập": "3.717 đồn công an và trạm tác chiến trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "874 trạm tác chiến (846 tài khoản)": "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)",
+        "874 trạm tác chiến": "3.717 đồn công an cơ sở toàn quốc",
+        "874 trạm": "3.717 đồn công an cơ sở",
+        "453 trạm": "3.717 đồn công an và trạm tác chiến trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "453 đơn vị": "3.717 đồn công an và trạm tác chiến trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "toàn mạng lưới 453 trạm quốc gia": "toàn mạng lưới 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "Mạng Lưới 453 Trạm Tác Chiến Toàn Quốc": "Mạng Lưới 3.717 Đồn Công An Cơ Sở Toàn Quốc (Phủ Kín 100% Xã/Phường)",
+        "Mạng Lưới 874 Trạm Tác Chiến Toàn Quốc": "Mạng Lưới 3.717 Đồn Công An Cơ Sở Toàn Quốc (Phủ Kín 100% Xã/Phường)",
         "Công An Khu Vực (Công An Xã, Phường, Thị Trấn)": "Công An Cơ Sở (Công An Xã, Phường)",
         "Công An Xã, Phường, Thị Trấn": "Công An Xã, Phường",
         "Công An Xã/Thị trấn": "Công An Xã/Phường",
@@ -118,8 +123,8 @@ def update_master_document():
                 for k, v in rep_map.items():
                     if k in updated:
                         updated = updated.replace(k, v)
-                if "453 trạm toàn quốc" in updated:
-                    updated = updated.replace("453 trạm toàn quốc", "874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường")
+                if "453 trạm toàn quốc" in updated or "874 trạm" in updated:
+                    updated = updated.replace("453 trạm toàn quốc", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)").replace("874 trạm", "3.717 đồn công an cơ sở")
                 if "85 đơn vị Cần Thơ" in updated:
                     updated = updated.replace("85 đơn vị Cần Thơ", "105 trạm Cần Thơ")
                 if updated != orig:
@@ -291,6 +296,25 @@ def update_master_document():
     if os.path.exists(os.path.dirname(sync_path)):
         shutil.copy2(DOCX_PATH, sync_path)
         print(f"[SYNC] Copied updated master docx to: {sync_path}")
+
+    # Export to PDF via Word COM
+    pdf_path = DOCX_PATH.replace(".docx", ".pdf")
+    try:
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        word = win32com.client.DispatchEx("Word.Application")
+        word.Visible = False
+        word.DisplayAlerts = 0
+        wdoc = word.Documents.Open(os.path.abspath(DOCX_PATH))
+        wdoc.SaveAs(os.path.abspath(pdf_path), FileFormat=17)
+        wdoc.Close(False)
+        word.Quit()
+        print(f"[OK] Exported master PDF: {pdf_path}")
+        if os.path.exists(os.path.dirname(sync_path)):
+            shutil.copy2(pdf_path, sync_path.replace(".docx", ".pdf"))
+    except Exception as e:
+        print(f"[WARN] Word COM PDF export error: {e}")
 
 if __name__ == "__main__":
     update_master_document()

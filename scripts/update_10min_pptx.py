@@ -34,9 +34,13 @@ def update_pptx_deck(p):
                 for para in shape.text_frame.paragraphs:
                     txt = para.text
                     new_txt = txt
+                    if "874 trạm tác chiến" in new_txt or "874" in new_txt:
+                        new_txt = new_txt.replace("874 trạm tác chiến (846 tài khoản)", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)")
+                        new_txt = new_txt.replace("874 trạm tác chiến", "3.717 đồn công an cơ sở")
+                        new_txt = new_txt.replace("874", "3.717")
                     if "453" in new_txt:
-                        new_txt = new_txt.replace("453 đơn vị", "874 trạm tác chiến (846 tài khoản)")
-                        new_txt = new_txt.replace("453", "874")
+                        new_txt = new_txt.replace("453 đơn vị", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)")
+                        new_txt = new_txt.replace("453", "3.717")
                     if "Công an Xã/Thị trấn" in new_txt:
                         new_txt = new_txt.replace("Công an Xã/Thị trấn", "Công an Xã/Phường")
                     if "Thị trấn" in new_txt:
@@ -52,6 +56,21 @@ def update_pptx_deck(p):
 
     prs.save(p)
     print(f"[OK] Updated {modified} paragraphs in: {p}")
+
+    # Export to PDF via PowerPoint COM
+    pdf_p = p.replace(".pptx", ".pdf")
+    try:
+        import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
+        powerpoint = win32com.client.DispatchEx("PowerPoint.Application")
+        deck = powerpoint.Presentations.Open(os.path.abspath(p), WithWindow=False)
+        deck.SaveAs(os.path.abspath(pdf_p), 32)  # 32 = ppSaveAsPDF
+        deck.Close()
+        powerpoint.Quit()
+        print(f"[OK] Exported PPTX to PDF: {pdf_p}")
+    except Exception as e:
+        print(f"[WARN] PowerPoint COM export error: {e}")
 
 if __name__ == "__main__":
     for p in PATHS:

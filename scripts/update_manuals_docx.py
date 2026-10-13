@@ -34,7 +34,10 @@ def update_manuals():
                 )
                 for r in p.runs:
                     r.font.name = "Times New Roman"
-                break
+            if "Điều động phương tiện" in p.text or "Xuất xe cứu hộ" in p.text or "điều động xe" in p.text.lower():
+                p.text = p.text + " Hệ thống tích hợp định vị GPS phần cứng thực tế (watchPosition, throttle 5s / >10m), tự động vẽ vệt di chuyển bánh xe nét đứt cyan (#38bdf8) truyền trực tiếp cho công dân và bàn trực ban, với cơ chế tự động chuyển về mô phỏng sau 20s nếu mất vệ tinh."
+                for r in p.runs:
+                    r.font.name = "Times New Roman"
         doc.save(p_canbo)
         print(f"[OK] Updated officer manual: {p_canbo}")
 
@@ -49,7 +52,8 @@ def update_manuals():
                     "Tại màn hình chính, nhấp một chạm hoặc nhấn giữ vào phím Master SOS Orb hình cầu phát sáng căn ngay giữa tâm sóng video trực tiếp. "
                     "Hệ thống tự động kích hoạt Trợ lý giọng nói AI đa vùng miền (VieNeu-TTS) với 4 giọng nữ thân thuộc theo 4 miền "
                     "(Mỹ Duyên - Miền Tây, Thùy Dung - Miền Nam, Ngọc Trân - Miền Trung, Mai Anh - Miền Bắc) với tốc độ tăng tốc 1.2x "
-                    "để trấn an và hướng dẫn người dân thao tác nhanh chóng."
+                    "để trấn an và hướng dẫn người dân thao tác nhanh chóng. Khi lực lượng chức năng xuất xe, màn hình tự động hiển thị vị trí xe GPS thực tế "
+                    "kèm vệt di chuyển bánh xe nét đứt màu cyan (#38bdf8) và thời gian ước tính (ETA) để người dân hoàn toàn an tâm."
                 )
                 for r in p.runs:
                     r.font.name = "Times New Roman"
@@ -67,22 +71,33 @@ def update_manuals():
                     "phường, xã, thị trấn mới thành lập",
                     "phường, xã mới thành lập (đã xóa bỏ hoàn toàn cấp thị trấn để tinh gọn theo mô hình hành chính 2 cấp)"
                 )
-                for r in p.runs:
-                    r.font.name = "Times New Roman"
+            if "874 trạm" in p.text:
+                p.text = p.text.replace("874 trạm", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)")
+            for r in p.runs:
+                r.font.name = "Times New Roman"
         doc.save(p_tongquan)
         print(f"[OK] Updated overview manual: {p_tongquan}")
 
     # 4. Word COM PDF export
     try:
         import win32com.client
+        import pythoncom
+        pythoncom.CoInitialize()
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False
-        for f_name in ["HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_CAN_BO.docx", "HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_NGUOI_DAN.docx"]:
+        word.DisplayAlerts = 0
+        for f_name in [
+            "HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_CAN_BO.docx",
+            "HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_NGUOI_DAN.docx",
+            "Tai_Lieu_Tong_Quan_Va_Huong_Dan_Van_Hanh_SOS_Viet_Nam_2026.docx"
+        ]:
             docx_f = os.path.join(BASE_DIR, f_name)
+            if not os.path.exists(docx_f):
+                continue
             pdf_f = docx_f.replace(".docx", ".pdf")
             doc_w = word.Documents.Open(os.path.abspath(docx_f))
             doc_w.SaveAs(os.path.abspath(pdf_f), FileFormat=17)
-            doc_w.Close()
+            doc_w.Close(False)
             print(f"[OK] Exported PDF: {pdf_f}")
         word.Quit()
     except Exception as e:

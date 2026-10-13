@@ -28,37 +28,52 @@ def update_qa_document():
     doc = docx.Document(DOCX_PATH)
     print(f"Loaded QA docx: {len(doc.paragraphs)} paragraphs, {len(doc.tables)} tables.")
 
+    def process_text(txt):
+        new_txt = txt
+        if "874 trạm tác chiến" in new_txt or "874 trạm" in new_txt or "874" in new_txt:
+            new_txt = new_txt.replace("874 trạm tác chiến (846 tài khoản)", "3.717 đồn công an cơ sở toàn quốc (phủ kín 100% xã/phường)")
+            new_txt = new_txt.replace("874 trạm tác chiến", "3.717 đồn công an cơ sở")
+            new_txt = new_txt.replace("874", "3.717")
+        if "453 đơn vị" in new_txt:
+            new_txt = new_txt.replace("453 đơn vị", "3.717 đồn công an cơ sở toàn quốc (phủ kín 100% xã/phường)")
+        if "453 đồn trạm" in new_txt:
+            new_txt = new_txt.replace("453 đồn trạm", "3.717 đồn công an cơ sở")
+        if "453" in new_txt and "34 tỉnh" in new_txt:
+            new_txt = new_txt.replace("453", "3.717")
+        if "xã/phường/thị trấn" in new_txt:
+            new_txt = new_txt.replace("xã/phường/thị trấn", "xã/phường (xóa bỏ hoàn toàn cấp thị trấn)")
+        if "Thị trấn" in new_txt:
+            new_txt = new_txt.replace("Thị trấn", "Xã/Phường")
+        if "Phiếu tiếp nhận Word A4 Nghị định 30" in new_txt:
+            new_txt = new_txt.replace(
+                "Phiếu tiếp nhận Word A4 Nghị định 30",
+                "Phiếu tiếp nhận Word A4 chuẩn Nghị định 30 (100% Times New Roman, ký hiệu chuẩn động /BC-TTCH, /BC-CATP, /BC-CSGT... không dùng CATT)"
+            )
+        if "Bấm nút Master SOS 1-chạm" in new_txt:
+            new_txt = new_txt.replace(
+                "Bấm nút Master SOS 1-chạm",
+                "Bấm nút Master SOS Orb căn giữa tâm sóng video; Trợ lý giọng nói AI 4 vùng miền (VieNeu-TTS) với 4 giọng nữ 4 miền tốc độ 1.2x;"
+            )
+        if "Đàm thoại Video Call / Voice Call" in new_txt:
+            new_txt = new_txt.replace(
+                "Đàm thoại Video Call / Voice Call",
+                "Đàm thoại Video Call WebRTC 2 chiều qua TURN Relay dự phòng; theo dõi vị trí xe cứu hộ GPS thực tế kèm vệt bánh xe cyan nét đứt #38bdf8"
+            )
+        return new_txt
+
+    for p in doc.paragraphs:
+        txt = p.text
+        new_txt = process_text(txt)
+        if new_txt != txt:
+            p.text = new_txt
+            for r in p.runs:
+                r.font.name = "Times New Roman"
+
     for t in doc.tables:
         for row in t.rows:
             for cell in row.cells:
                 txt = cell.text
-                new_txt = txt
-                if "453 đơn vị" in new_txt:
-                    new_txt = new_txt.replace("453 đơn vị", "874 trạm tác chiến (846 tài khoản)")
-                if "453 đồn trạm" in new_txt:
-                    new_txt = new_txt.replace("453 đồn trạm", "874 trạm tác chiến")
-                if "453" in new_txt and "34 tỉnh" in new_txt:
-                    new_txt = new_txt.replace("453", "874")
-                if "xã/phường/thị trấn" in new_txt:
-                    new_txt = new_txt.replace("xã/phường/thị trấn", "xã/phường (xóa bỏ hoàn toàn cấp thị trấn)")
-                if "Thị trấn" in new_txt:
-                    new_txt = new_txt.replace("Thị trấn", "Xã/Phường")
-                if "Phiếu tiếp nhận Word A4 Nghị định 30" in new_txt:
-                    new_txt = new_txt.replace(
-                        "Phiếu tiếp nhận Word A4 Nghị định 30",
-                        "Phiếu tiếp nhận Word A4 chuẩn Nghị định 30 (100% Times New Roman, ký hiệu chuẩn động /BC-TTCH, /BC-CATP, /BC-CSGT... không dùng CATT)"
-                    )
-                if "Bấm nút Master SOS 1-chạm" in new_txt:
-                    new_txt = new_txt.replace(
-                        "Bấm nút Master SOS 1-chạm",
-                        "Bấm nút Master SOS Orb căn giữa tâm sóng video; Trợ lý giọng nói AI 4 vùng miền (VieNeu-TTS) với 4 giọng nữ 4 miền tốc độ 1.2x;"
-                    )
-                if "Đàm thoại Video Call / Voice Call" in new_txt:
-                    new_txt = new_txt.replace(
-                        "Đàm thoại Video Call / Voice Call",
-                        "Đàm thoại Video Call WebRTC 2 chiều trực tiếp giữa người dân và cán bộ trực ban"
-                    )
-
+                new_txt = process_text(txt)
                 if new_txt != txt:
                     cell.text = new_txt
                     for p in cell.paragraphs:

@@ -288,15 +288,15 @@ def generate_perfect_7page_proposal():
     ])
     add_p_runs(doc, [
         ("• Tầng 3 - Cổng An ninh & Truyền dẫn Thời gian thực: ", True, False, 12),
-        ("Máy chủ Node.js Native HTTP/ESM; kênh Server-Sent Events (SSE) độ trễ 45ms; Tường lửa WAF L7 ngăn chặn tấn công mạng.", False, False, 12)
+        ("Máy chủ Node.js Native HTTP/ESM; kênh Server-Sent Events (SSE) độ trễ 45ms kèm nhịp đập Keep-Alive 25s; cụm máy chủ TURN Relay dự phòng; Tường lửa WAF L7 ngăn chặn tấn công mạng.", False, False, 12)
     ])
     add_p_runs(doc, [
-        ("• Tầng 4 - Lưu trữ Bền vững Nguyên tử (Atomic Store): ", True, False, 12),
-        ("Cơ chế ghi tệp nguyên tử (.tmp -> rename) loại bỏ xung đột ghi đè; quản lý 874 trạm tác chiến trên 34 tỉnh/thành và 3.321 xã/phường.", False, False, 12)
+        ("• Tầng 4 - Lưu trữ Bền vững Nguyên tử & Danh bạ Tác chiến: ", True, False, 12),
+        ("Cơ chế ghi tệp nguyên tử (.tmp -> rename) loại bỏ xung đột ghi đè; quản lý 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập) với thuật toán nén HTTP Gzip giảm 94.4% băng thông mạng.", False, False, 12)
     ])
     add_p_runs(doc, [
-        ("• Tầng 5 - Lưới Không gian Địa lý (Spatial GIS Mesh): ", True, False, 12),
-        ("Dữ liệu ranh giới GeoJSON 34 tỉnh/thành và 3.321 xã/phường sáp nhập tháng 10/2026 từ bando.com.vn; định tuyến phân làn OSRM.", False, False, 12)
+        ("• Tầng 5 - Lưới Không gian Địa lý & Vết Di Chuyển Phương Tiện: ", True, False, 12),
+        ("Dữ liệu ranh giới GeoJSON 34 tỉnh/thành và 3.321 xã/phường sáp nhập tháng 10/2026 từ bando.com.vn; định vị xe cứu hộ GPS thực tế kết hợp vệt di chuyển bánh xe (breadcrumb trail) thời gian thực và phân làn OSRM.", False, False, 12)
     ])
     
     # Placeholder Hình 1
@@ -305,7 +305,7 @@ def generate_perfect_7page_proposal():
     add_h2(doc, "2. Phân tầng 6 vai trò tác chiến và ma trận phân quyền (RBAC)")
     add_p_runs(doc, [
         ("1. CITIZEN_PUBLIC (Công dân): ", True, False, 12),
-        ("Mở Cổng PWA ẩn danh, phát tín hiệu SOS, gọi video WebRTC hai chiều, ký số biên bản hiện trường.", False, False, 12)
+        ("Mở Cổng PWA ẩn danh, phát tín hiệu SOS, gọi video WebRTC hai chiều qua TURN relay, theo dõi xe cứu hộ GPS thực tế, ký số biên bản hiện trường.", False, False, 12)
     ])
     add_p_runs(doc, [
         ("2. SECURITY_RBAC_WAF (Tường lửa an ninh): ", True, False, 12),
@@ -313,7 +313,7 @@ def generate_perfect_7page_proposal():
     ])
     add_p_runs(doc, [
         ("3. WARD_DISPATCHER (Trực ban cấp Xã/Phường): ", True, False, 12),
-        ("273 tài khoản quản lý ranh giới địa bàn xã/phường; điều động công an xã và dân phòng cơ sở.", False, False, 12)
+        ("Quản lý 3.321 xã/phường và 3.717 đồn công an cơ sở toàn quốc; điều động công an xã và lực lượng tham gia bảo vệ ANTT ở cơ sở.", False, False, 12)
     ])
     add_p_runs(doc, [
         ("4. PROVINCE_DISPATCHER (Điều phối cấp Tỉnh/TP): ", True, False, 12),
@@ -396,15 +396,18 @@ def generate_perfect_7page_proposal():
         "• Ma trận 5 lực lượng (Công an, CSGT, PCCC & CNCH, 115, Cứu hộ) kèm chip sự vụ.\n"
         "• Lọc vị trí GPS Kalman Filter 1D/2 trục khử sai số vệ tinh dưới 5m.\n"
         "• Cảnh báo người thân (Family Alert) & Cẩm nang sinh tồn ngoại tuyến.\n"
-        "• Đàm thoại video/audio 2 chiều WebRTC & Ghi âm AudioContext giám định.\n"
+        "• Đàm thoại video/audio 2 chiều WebRTC qua máy chủ TURN Relay xuyên tường lửa NAT.\n"
+        "• Theo dõi vị trí xe cứu hộ GPS thực tế kèm vệt di chuyển bánh xe (breadcrumb trail) nét đứt cyan #38bdf8.\n"
         "• Bảng vẽ chữ ký số cảm ứng HTML5 Canvas cho công dân và cán bộ.\n\n"
         "2. Phía Bàn Trực ban Chỉ huy C4ISR (dispatcher.html):\n"
-        "• Màn hình tác chiến 3 phân khu, truyền phát dữ liệu SSE độ trễ 45ms.\n"
+        "• Màn hình tác chiến 3 phân khu, truyền phát dữ liệu SSE độ trễ 45ms kèm nhịp đập 25s.\n"
         "• Bản đồ GIS 3D tích hợp 34 tỉnh/thành và 3.321 xã/phường sáp nhập tháng 10/2026.\n"
+        "• Danh bạ 3.717 đồn công an cơ sở toàn quốc (100% xã/phường) nén Gzip 166KB.\n"
+        "• Giám sát xe cơ động bằng GPS phần cứng thực tế kết hợp tự động dự phòng mô phỏng.\n"
         "• Timeout Escalation 15 phút tự động chuyển cấp & Chuyển trả cơ sở.\n"
         "• Thuật toán Fallback Nearest Auto-Routing tự động chuyển đơn vị gần nhất.\n"
         "• Xuất phiếu tiếp nhận và biên bản xác minh Word (.docx) chuẩn Nghị định 30 (100% Times New Roman, ký hiệu /BC-TTCH, /BC-CATP, /BC-CSGT, /BC-PCCC, /BC-BYT, /BC-CAP, /BC-CAX).\n"
-        "• Đồng bộ danh bạ hai chiều Excel 4 Sheet cho 874 trạm tác chiến trên 34 tỉnh thành.\n"
+        "• Đồng bộ danh bạ hai chiều Excel 4 Sheet cho 3.717 đồn công an trên toàn quốc.\n"
         "• Tường lửa WAF L7 chặn 27 bot AI, trích xuất OSINT xử phạt Nghị định 144."
     )
     
@@ -461,7 +464,7 @@ def generate_perfect_7page_proposal():
         ("2", "Thời gian nạp Cổng Người dân PWA", "0.79s (Lần đầu) / 0.135s (Cache)", "Cung cấp trải nghiệm tức thì trong giây phút nguy kịch"),
         ("3", "Độ trễ truyền phát dữ liệu tác chiến SSE", "45 mili-giây", "Phản hồi gần như tức thời giữa dân và trực ban"),
         ("4", "Kiểm thử tải máy chủ lõi (Stress Test)", "10.000 requests/giây", "0.00% tỷ lệ lỗi trên nền tảng Native Node.js"),
-        ("5", "Đồng bộ danh bạ 874 đồn trạm Excel", "36.6 KB / 12 mili-giây", "Xuất nạp trơn tru 4 sheet danh bạ không nghẽn luồng"),
+        ("5", "Truyền tải danh bạ 3.717 đồn công an (HTTP Gzip)", "166 KB (gốc 2.95 MB, giảm 94.4%) / <50ms", "Nén Gzip tự động, truyền tải tức thì trên mạng 3G/4G"),
         ("6", "Độ trễ bảng vẽ chữ ký số cảm ứng Canvas", "< 15 mili-giây", "Mượt mà trên màn hình cảm ứng điện thoại thông minh")
     ]
     
@@ -495,7 +498,7 @@ def generate_perfect_7page_proposal():
     ])
     add_p_runs(doc, [
         ("• An toàn thông tin mạng & tính bền vững dữ liệu: ", True, False, 12),
-        ("874 tài khoản được băm mật khẩu PBKDF2-SHA512 với 100.000 vòng lặp; cơ chế ghi dữ liệu tệp nguyên tử (.tmp -> rename) bảo đảm không bao giờ hỏng dữ liệu khi mất điện đột ngột.", False, False, 12)
+        ("3.717 đồn trạm và tài khoản tác chiến được băm mật khẩu PBKDF2-SHA512 với 100.000 vòng lặp kèm chữ ký phiên HMAC-SHA256; cơ chế ghi dữ liệu tệp nguyên tử (.tmp -> rename) bảo đảm không bao giờ hỏng dữ liệu khi mất điện đột ngột.", False, False, 12)
     ])
     
     # PHẦN VII: TÁC ĐỘNG XÃ HỘI, ĐỘI NGŨ THỰC HIỆN VÀ CAM KẾT ĐỒNG HÀNH
