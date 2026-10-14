@@ -1,0 +1,66 @@
+{
+  "suite": "capture-citizen-tracking-desktop",
+  "timestamp": "2026-10-14T07:53:05.938Z",
+  "baseUrl": "http://localhost:3000",
+  "assertions": [
+    {
+      "name": "Tracking View (#sosTrackingView) is visible",
+      "status": "PASS",
+      "details": {
+        "isVisible": true,
+        "unitSub": "Chỉ huy: Trung tá Lê Hoàng Quân · SĐT: 0988 113 113 (5p)",
+        "unitStationAddress": "Số 02 Nguyễn Trãi, Phường Tân An, Q. Ninh Kiều, TP. Cần Thơ",
+        "unitStationPhone": "0292 382 2113",
+        "unitStationSms": "0988 113 113",
+        "unitStationEmail": "trucban@sos.gov.vn",
+        "btnVisible": true,
+        "hasUndefined": false
+      }
+    },
+    {
+      "name": "Zero \"undefined\" tokens in unit header, phone, or address",
+      "status": "PASS",
+      "details": {
+        "isVisible": true,
+        "unitSub": "Chỉ huy: Trung tá Lê Hoàng Quân · SĐT: 0988 113 113 (5p)",
+        "unitStationAddress": "Số 02 Nguyễn Trãi, Phường Tân An, Q. Ninh Kiều, TP. Cần Thơ",
+        "unitStationPhone": "0292 382 2113",
+        "unitStationSms": "0988 113 113",
+        "unitStationEmail": "trucban@sos.gov.vn",
+        "btnVisible": true,
+        "hasUndefined": false
+      }
+    },
+    {
+      "name": "Officer full title rendered correctly",
+      "status": "PASS",
+      "details": {
+        "unitSub": "Chỉ huy: Trung tá Lê Hoàng Quân · SĐT: 0988 113 113 (5p)"
+      }
+    },
+    {
+      "name": "Officer phone rendered with valid digits",
+      "status": "PASS",
+      "details": {
+        "unitSub": "Chỉ huy: Trung tá Lê Hoàng Quân · SĐT: 0988 113 113 (5p)"
+      }
+    },
+    {
+      "name": "Station real address rendered instead of generic placeholder",
+      "status": "PASS",
+      "details": {
+        "address": "Số 02 Nguyễn Trãi, Phường Tân An, Q. Ninh Kiều, TP. Cần Thơ"
+      }
+    },
+    {
+      "name": "Call button (#btnCallUnit) is fully visible and rendered",
+      "status": "PASS",
+      "details": {
+        "btnVisible": true
+      }
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "screenshotPath": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-14-citizen-tracking-desktop.png"
+}
