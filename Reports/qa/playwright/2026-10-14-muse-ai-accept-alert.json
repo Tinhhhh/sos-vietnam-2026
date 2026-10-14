@@ -1,0 +1,63 @@
+{
+  "timestamp": "2026-10-14T03:03:03.709Z",
+  "tests": [
+    {
+      "name": "handleAcceptSOS uses showToast instead of blocking alert() for national officer",
+      "passed": true,
+      "details": {
+        "acceptHasShowToast": true,
+        "acceptHasAlert": false,
+        "updateHasShowToast": true,
+        "updateHasAlert": false
+      }
+    },
+    {
+      "name": "handleUpdateStatus uses showToast instead of blocking alert() for national officer",
+      "passed": true,
+      "details": {
+        "acceptHasShowToast": true,
+        "acceptHasAlert": false,
+        "updateHasShowToast": true,
+        "updateHasAlert": false
+      }
+    },
+    {
+      "name": "No blocking browser alert dialog was triggered",
+      "passed": true,
+      "details": {
+        "dialogTriggered": false,
+        "dialogMessage": null
+      }
+    },
+    {
+      "name": "showToast captured 2 warnings for national account restrictions",
+      "passed": true,
+      "details": {
+        "ok": true,
+        "capturedCount": 2,
+        "toasts": [
+          {
+            "msg": "Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không tiếp nhận trực tiếp thay đơn vị tác chiến địa phương!",
+            "type": "warning"
+          },
+          {
+            "msg": "Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không cập nhật tiến độ thay đơn vị tác chiến địa phương!",
+            "type": "warning"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Visual screenshot captured successfully",
+      "passed": true,
+      "details": {
+        "screenshotPath": "C:\\Users\\dienv\\.gemini\\antigravity\\brain\\7d6fe8d7-76a3-4dd6-bcce-f3505c9e66f4\\verify_3000_accept_alert_toast.png"
+      }
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  }
+}

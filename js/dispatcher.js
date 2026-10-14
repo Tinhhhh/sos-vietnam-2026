@@ -12315,11 +12315,69 @@ class DispatcherApp {
     setTimeout(playNext, cfg.playChime ? 600 : 280);
   }
 
+  showToast(msg, type = 'info') {
+    if (!msg) return;
+    if (typeof window !== 'undefined' && !window.showToast) {
+      window.showToast = this.showToast.bind(this);
+    }
+    let container = document.getElementById('dispatcherToastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'dispatcherToastContainer';
+      container.style.cssText = 'position:fixed;top:24px;right:24px;z-index:9999999;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:440px;';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `dispatcher-toast toast-${type}`;
+    const bgMap = {
+      warning: 'rgba(245, 158, 11, 0.95)',
+      danger: 'rgba(239, 68, 68, 0.95)',
+      success: 'rgba(16, 185, 129, 0.95)',
+      info: 'rgba(14, 165, 233, 0.95)'
+    };
+    const iconMap = {
+      warning: '⚠️',
+      danger: '🚨',
+      success: '✅',
+      info: 'ℹ️'
+    };
+    const borderMap = {
+      warning: '#fbbf24',
+      danger: '#f87171',
+      success: '#34d399',
+      info: '#38bdf8'
+    };
+
+    const bg = bgMap[type] || bgMap.info;
+    const icon = iconMap[type] || iconMap.info;
+    const border = borderMap[type] || borderMap.info;
+
+    toast.style.cssText = `background:${bg};border:1.5px solid ${border};color:#ffffff;padding:12px 16px;border-radius:10px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13px;line-height:1.45;box-shadow:0 8px 30px rgba(0,0,0,0.6);display:flex;align-items:flex-start;gap:10px;pointer-events:auto;backdrop-filter:blur(10px);transition:all 0.3s ease;transform:translateY(-10px);opacity:0;`;
+
+    toast.innerHTML = `<span style="font-size:18px;line-height:1;flex-shrink:0;">${icon}</span><div style="flex:1;word-break:break-word;">${msg}</div>`;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.style.transform = 'translateY(0)';
+      toast.style.opacity = '1';
+    });
+
+    setTimeout(() => {
+      toast.style.transform = 'translateY(-10px)';
+      toast.style.opacity = '0';
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 300);
+    }, 4500);
+  }
+
   async handleAcceptSOS() {
     this.stopVoiceAlert(); // Immediately stop siren & speech voice AI!
 
     if (this.currentOfficer?.level === 'national' || this.currentOfficer?.username === 'admin' || this.currentOfficer?.agency === 'chihuy') {
-      alert('Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không tiếp nhận trực tiếp thay đơn vị tác chiến địa phương!');
+      // FIX 2026-10-14: replaced blocking alert() (freezes automated browsers) with non-blocking toast
+      this.showToast?.('Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không tiếp nhận trực tiếp thay đơn vị tác chiến địa phương!', 'warning');
       return;
     }
 
@@ -12421,7 +12479,8 @@ class DispatcherApp {
 
   async handleUpdateStatus(status, message) {
     if (this.currentOfficer?.level === 'national' || this.currentOfficer?.username === 'admin' || this.currentOfficer?.agency === 'chihuy') {
-      alert('Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không cập nhật tiến độ thay đơn vị tác chiến địa phương!');
+      // FIX 2026-10-14: replaced blocking alert() (freezes automated browsers) with non-blocking toast
+      this.showToast?.('Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không cập nhật tiến độ thay đơn vị tác chiến địa phương!', 'warning');
       return;
     }
     if (!this.selectedIncidentId) return;
