@@ -1,0 +1,61 @@
+{
+  "timestamp": "2026-10-14T01:38:00.083Z",
+  "tests": [
+    {
+      "name": "dispatcher.html DOM contains #osintGeoIpDisplay element",
+      "passed": true,
+      "details": {
+        "hasGeoIpEl": true,
+        "hasUserAgentEl": true,
+        "defaultText": "---"
+      }
+    },
+    {
+      "name": "Dispatcher officer authentication successful",
+      "passed": true,
+      "details": {
+        "username": "admin"
+      }
+    },
+    {
+      "name": "Incident created for OSINT test",
+      "passed": true,
+      "details": {
+        "incidentId": "SOS-MV7FXGA0-983"
+      }
+    },
+    {
+      "name": "flag-fake API executed successfully and generated osintTrace",
+      "passed": true,
+      "details": {
+        "status": "fake_alarm",
+        "hasTrace": true,
+        "clientIp": "::1",
+        "ipGeolocation": null
+      }
+    },
+    {
+      "name": "ip-api.com live GeoIP service endpoint is reachable or fails gracefully",
+      "passed": true,
+      "details": {
+        "country": "United States",
+        "isp": "Google LLC",
+        "status": "success"
+      }
+    },
+    {
+      "name": "OSINT modal renders formatted GeoIP string into #osintGeoIpDisplay",
+      "passed": true,
+      "details": {
+        "ok": true,
+        "geoText": "Hanoi, Hanoi, Vietnam — VNPT Corp (AS45899 VNPT) [21.0285, 105.8542]",
+        "modalVisible": true
+      }
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0
+  }
+}

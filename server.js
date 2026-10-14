@@ -4972,7 +4972,7 @@ const server = http.createServer(async (req, res) => {
   if (urlPath === '/api/dispatcher/flag-fake' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { id, reason, notes, officerName } = JSON.parse(body || '{}');
         const incident = incidents.get(id);
@@ -4983,6 +4983,24 @@ const server = http.createServer(async (req, res) => {
 
         const clientIp = incident.clientIp || '127.0.0.1';
         const flaggedAt = new Date().toISOString();
+
+        // REAL OSINT: live IP geolocation lookup via ip-api.com (free tier).
+        // Auto-fills country/region/city/ISP/ASN into the dossier instead of
+        // only suggesting manual terminal commands. Fails soft on timeout.
+        let ipGeo = null;
+        if (clientIp && clientIp !== '127.0.0.1' && !clientIp.startsWith('192.168.') && !clientIp.startsWith('10.')) {
+          try {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 4000);
+            const gres = await fetch(
+              `http://ip-api.com/json/${encodeURIComponent(clientIp)}?fields=status,message,country,countryCode,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query`,
+              { signal: ctrl.signal }
+            );
+            clearTimeout(t);
+            const gj = await gres.json();
+            if (gj && gj.status === 'success') ipGeo = gj;
+          } catch (e) { /* soft fail: dossier still created with manual commands */ }
+        }
 
         // OSINT Investigation Toolkit (Linux-style commands ready for terminal execution)
         const osintTrace = {
@@ -5007,6 +5025,14 @@ const server = http.createServer(async (req, res) => {
           flaggedAt,
           evidenceStatus: 'CẦN RÀ SOÁT: IP và telemetry chỉ là manh mối kỹ thuật, không xác định danh tính hoặc trách nhiệm pháp lý.',
           legalNotice: 'Căn cứ Khoản 3, Điều 7, Nghị định 144/2021/NĐ-CP (Phạt 4.000.000đ - 6.000.000đ) & Bộ luật Hình sự',
+          // Live GeoIP result (real lookup above; null when IP is private/unreachable)
+          ipGeolocation: ipGeo ? {
+            country: ipGeo.country, countryCode: ipGeo.countryCode,
+            region: ipGeo.regionName, city: ipGeo.city, district: ipGeo.district,
+            zip: ipGeo.zip, lat: ipGeo.lat, lon: ipGeo.lon,
+            timezone: ipGeo.timezone, isp: ipGeo.isp, org: ipGeo.org, asn: ipGeo.as,
+            queriedIp: ipGeo.query, lookedUpAt: flaggedAt
+          } : null,
           linuxOsintCommands: {
             whois: `whois ${clientIp}`,
             traceroute: `traceroute -m 20 ${clientIp}`,

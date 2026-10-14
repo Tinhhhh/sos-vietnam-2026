@@ -14372,6 +14372,12 @@ class DispatcherApp {
     setT('osintNetworkDisplay', telem.networkType || 'Không được cung cấp');
     setT('osintUserAgentDisplay', telem.userAgent || 'Không được cung cấp');
 
+    // Real-time GeoIP (auto-looked-up by backend via ip-api.com)
+    const geo = trace.ipGeolocation || null;
+    setT('osintGeoIpDisplay', geo
+      ? `${geo.city || ''}${geo.region ? ', ' + geo.region : ''}${geo.country ? ', ' + geo.country : ''} — ${geo.isp || geo.org || 'ISP không xác định'}${geo.asn ? ' (' + geo.asn + ')' : ''}${geo.lat ? ` [${geo.lat}, ${geo.lon}]` : ''}`
+      : 'Chưa tra cứu được (IP nội bộ hoặc mạng không cho phép)');
+
     // Whois Link
     const whoisLink = document.getElementById('btnLookupIpWhois');
     if (whoisLink) {
