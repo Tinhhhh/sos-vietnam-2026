@@ -35,16 +35,26 @@ def update_pptx_deck(p):
                     txt = para.text
                     new_txt = txt
                     if "874 trạm tác chiến" in new_txt or "874" in new_txt:
-                        new_txt = new_txt.replace("874 trạm tác chiến (846 tài khoản)", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)")
+                        new_txt = new_txt.replace("874 trạm tác chiến (846 tài khoản)", "3.717 đồn công an cơ sở trên 34 tỉnh/TP (100% xã/phường sáp nhập)")
                         new_txt = new_txt.replace("874 trạm tác chiến", "3.717 đồn công an cơ sở")
                         new_txt = new_txt.replace("874", "3.717")
                     if "453" in new_txt:
-                        new_txt = new_txt.replace("453 đơn vị", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)")
+                        new_txt = new_txt.replace("453 đơn vị", "3.717 đồn công an cơ sở trên 34 tỉnh/TP (100% xã/phường sáp nhập)")
                         new_txt = new_txt.replace("453", "3.717")
+                    if "toàn quốc" in new_txt and ("3.717" in new_txt or "đồn" in new_txt):
+                        new_txt = new_txt.replace("toàn quốc", "trên 34 tỉnh/thành phố")
+                    if "Sẵn sàng phủ sóng toàn quốc" in new_txt:
+                        new_txt = new_txt.replace("Sẵn sàng phủ sóng toàn quốc", "Phạm vi vận hành thực tế")
+                    if "Phân Quyền Vai Trò Đa Cấp (RBAC)" in new_txt:
+                        new_txt = "Phân Quyền 2 Cấp Địa Phương (Xã/Phường & Tỉnh/TP)"
                     if "Công an Xã/Thị trấn" in new_txt:
                         new_txt = new_txt.replace("Công an Xã/Thị trấn", "Công an Xã/Phường")
                     if "Thị trấn" in new_txt:
                         new_txt = new_txt.replace("Thị trấn", "Xã/Phường")
+                    if "80% (TRL 7 - LIVE PROTOTYPE) Times New Roman" in new_txt:
+                        new_txt = new_txt.replace("80% (TRL 7 - LIVE PROTOTYPE) Times New Roman", "100% Times New Roman")
+                    if "80% (TRL 7 - LIVE PROTOTYPE) xã/phường" in new_txt:
+                        new_txt = new_txt.replace("80% (TRL 7 - LIVE PROTOTYPE) xã/phường", "100% xã/phường")
                     if "Nút Master SOS 1-Chạm: Chống bấm nhầm" in new_txt:
                         new_txt = "✓ Nút Master SOS 1-Chạm: Quả cầu SOS Orb căn giữa tâm sóng video; Trợ lý AI giọng nói 4 vùng miền (VieNeu-TTS) tốc độ 1.2x."
                     if "Xuất phiếu Word & Ký số: Tự động sinh phiếu Word" in new_txt:

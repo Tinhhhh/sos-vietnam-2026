@@ -350,7 +350,7 @@ def build_pptx_deck():
         s3,
         "TIÊU CHÍ 02 // GIẢI PHÁP VÀ ĐIỂM KHÁC BIỆT CỦA SẢN PHẨM",
         "Hợp Nhất 5 Lực Lượng Trên 1 Bản Đồ Số — Báo Nạn 1-Chạm Từ Thiết Bị",
-        "Kết nối trực tiếp Cổng Người Dân PWA Siêu Nhẹ với Bàn Chỉ Huy Tác Chiến C4ISR Đa Cấp theo thời gian thực:",
+        "Kết nối trực tiếp Cổng Người Dân PWA Siêu Nhẹ với Bàn Chỉ Huy Tác Chiến C4ISR 2 Cấp Địa Phương (Xã/Phường & Tỉnh/TP) theo thời gian thực:",
         badge_color=CYAN_ACCENT,
     )
 
@@ -383,8 +383,8 @@ def build_pptx_deck():
     add_speaker_notes(
         s3,
         "Tiêu chí 2 - Giải pháp và điểm khác biệt: SOS Việt Nam 2026 gồm 2 phân hệ: Cổng PWA cho người dân mở dưới 1 giây không cần cài đặt, "
-        "và Bàn chỉ huy C4ISR hợp nhất 5 lực lượng. Điểm khác biệt cốt lõi là tính khoảng cách trực tiếp từ vị trí thiết bị người dùng đến các cơ sở xung quanh, "
-        "tự động chọn cơ sở gần nhất trong mô hình đa cơ sở sau sáp nhập, và cơ chế tự động chuyển cấp lên Thành phố sau 15 phút."
+        "và Bàn chỉ huy C4ISR hợp nhất 5 lực lượng theo mô hình điều phối tinh gọn 2 cấp địa phương (Cấp Xã/Phường và Cấp Tỉnh/TP). Điểm khác biệt cốt lõi là tính khoảng cách trực tiếp từ vị trí thiết bị người dùng đến các cơ sở xung quanh, "
+        "tự động chọn cơ sở gần nhất trong mô hình đa cơ sở sau sáp nhập, không qua trung gian quận/huyện, và cơ chế tự động chuyển cấp lên Tỉnh/Thành phố sau 15 phút."
     )
 
     # =========================================================================
@@ -428,7 +428,7 @@ def build_pptx_deck():
         s4, 8.85, 1.70, 3.80, 5.30,
         "3. Không Gian & An Ninh Mạng",
         [
-            ("• Haversine Spatial Engine: ", "Tính khoảng cách cầu chính xác từ thiết bị người dân tới 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập, nén Gzip 166KB)."),
+            ("• Haversine Spatial Engine: ", "Tính khoảng cách cầu chính xác từ thiết bị người dân tới 3.717 đồn công an cơ sở trên 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập, nén Gzip 166KB)."),
             ("• Tường lửa WAF L7 & RBAC: ", "Chặn 27 chữ ký AI Bot/Scraper, bẫy Honeypot, giới hạn tốc độ Token Bucket."),
             ("• Mật mã PBKDF2-SHA512: ", "100.000 vòng lặp băm mật khẩu + lưu trữ nguyên tử (.tmp -> rename) & Zero-Retention theo NĐ 13/2023/NĐ-CP."),
         ],
@@ -613,7 +613,7 @@ def build_pptx_deck():
     # 4 Top Metric Boxes
     add_metric_box(s7, 0.65, 1.70, 2.80, 1.55, "34 Tỉnh/TP", "Địa Giới Hành Chính Mới", "Đồng bộ từ bando.com.vn", CYAN_ACCENT)
     add_metric_box(s7, 3.70, 1.70, 2.80, 1.55, "3.321 Xã", "Xã/Phường Sau Sáp Nhập", "Cập nhật chuẩn T10/2026", GREEN_ACCENT)
-    add_metric_box(s7, 6.75, 1.70, 2.80, 1.55, "3.717 Đồn/Trạm", "Mạng Lưới Toàn Quốc", "Phủ kín 100% xã/phường", GOLD_ACCENT)
+    add_metric_box(s7, 6.75, 1.70, 2.80, 1.55, "3.717 Đồn/Trạm", "Mạng Lưới 34 Tỉnh/TP", "Phủ kín 100% xã/phường", GOLD_ACCENT)
     add_metric_box(s7, 9.80, 1.70, 2.85, 1.55, "100% Xã/Phường", "Bao Phủ Toàn Diện", "Nén Gzip 166KB / <50ms", RED_ACCENT)
 
     add_card(
@@ -723,9 +723,9 @@ def build_pptx_deck():
 
     add_card(
         s9, 0.65, 4.45, 5.85, 2.55,
-        "3. Mở Rộng Toàn Quốc 63/63 Tỉnh Thành & Liên Ngành",
+        "3. Mở Rộng Toàn Quốc 63/63 Tỉnh Thành & Liên Ngành (Lộ Trình Tương Lai)",
         [
-            ("• Từ 34 tỉnh/thành lên 63/63 tỉnh/thành: ", "Nhân rộng mô hình dữ liệu đa cơ sở 1-to-N của Hà Nội và Cần Thơ ra toàn bộ hơn 10.000 xã/phường toàn quốc."),
+            ("• Từ 34 tỉnh/thành lên 63/63 tỉnh/thành: ", "Nhân rộng mô hình dữ liệu đa cơ sở 1-to-N và phân cấp chỉ huy 2 cấp địa phương (Xã/Phường & Tỉnh/TP) ra toàn bộ 63 tỉnh/thành cả nước."),
             ("• Kiến trúc Cloud-Native / Kubernetes: ", "Dễ dàng nâng tải lên hàng trăm nghìn kết nối đồng thời trên hạ tầng Trung tâm Dữ liệu Quốc gia."),
         ],
         accent_color=GREEN_ACCENT,
@@ -786,7 +786,7 @@ def build_pptx_deck():
             ("3. Công nghệ: ", "PWA, SSE 45ms, WebRTC chống hú, Haversine GIS, WAF L7."),
             ("4. Sáng tạo: ", "Kalman <5m, OSRM 2 làn, đa cơ sở 1-to-N, leo thang 15p."),
             ("5. Hoàn thiện: ", "Đạt 80% (TRL 7 — Live Prototype chạy thực tế)."),
-            ("6–8. Vận hành, Kiểm chứng & Mở rộng: ", "34 tỉnh, 3.321 xã (100%), 3.717 đồn CA cơ sở toàn quốc (Gzip 166KB, xe GPS thực tế), 100% PASS E2E, sẵn sàng tích hợp VNeID."),
+            ("6–8. Vận hành, Kiểm chứng & Mở rộng: ", "34 tỉnh trọng điểm, 3.321 xã (100%), 3.717 đồn CA cơ sở, chỉ huy 2 cấp Xã/Phường & Tỉnh/TP (Gzip 166KB, xe GPS thực tế), 100% PASS E2E, sẵn sàng tích hợp VNeID."),
         ],
         accent_color=GREEN_ACCENT,
         body_size=11.5,
@@ -824,8 +824,8 @@ def build_pptx_deck():
 
     add_speaker_notes(
         s10,
-        "Kính thưa Hội đồng Giám khảo, với mức độ hoàn thiện hiện tại đạt 80% và vận hành thực tế ổn định trên dữ liệu 34 tỉnh thành, "
-        "3.321 xã phường (100%), 3.717 đồn công an cơ sở toàn quốc, tối ưu Gzip 166KB, giám sát xe GPS thực tế, đội thi sẵn sàng trình diễn Live Demo ngay bây giờ. Xin trân trọng cảm ơn!"
+        "Kính thưa Hội đồng Giám khảo, với mức độ hoàn thiện hiện tại đạt 80% và vận hành thực tế ổn định trên dữ liệu 34 tỉnh thành trọng điểm, "
+        "3.321 xã phường (100%), 3.717 đồn công an cơ sở, phân cấp chỉ huy tinh gọn 2 cấp Xã/Phường và Tỉnh/TP, tối ưu Gzip 166KB, giám sát xe GPS thực tế, đội thi sẵn sàng trình diễn Live Demo ngay bây giờ. Xin trân trọng cảm ơn!"
     )
 
     prs.save(PPTX_OUT)
@@ -952,11 +952,11 @@ def build_docx_presentation_script():
 
     # 2. GIẢI PHÁP VÀ ĐIỂM KHÁC BIỆT
     add_section_h1("2. GIẢI PHÁP VÀ ĐIỂM KHÁC BIỆT CỦA SẢN PHẨM")
-    add_bullet("• Kiến trúc 2 phân hệ hợp nhất: ", "SOS Việt Nam 2026 biến điện thoại người dân thành 'Phao cứu sinh 1-chạm' (Cổng Web PWA không cần cài App, không cần đăng ký tài khoản) và trang bị cho lực lượng chức năng 'Bàn chỉ huy tác chiến C4ISR 3D' hợp nhất cả 5 lực lượng: Cảnh sát (113), PCCC & CNCH (114), Y tế (115), CSGT và Cứu hộ dịch vụ.")
+    add_bullet("• Kiến trúc 2 phân hệ hợp nhất: ", "SOS Việt Nam 2026 biến điện thoại người dân thành 'Phao cứu sinh 1-chạm' (Cổng Web PWA không cần cài App, không cần đăng ký tài khoản) và trang bị cho lực lượng chức năng 'Bàn chỉ huy tác chiến C4ISR 3D' hợp nhất cả 5 lực lượng: Cảnh sát (113), PCCC & CNCH (114), Y tế (115), CSGT và Cứu hộ dịch vụ theo mô hình điều hành tinh gọn 2 cấp địa phương (Cấp Xã/Phường tiếp nhận cơ sở trong 5 phút vàng & Cấp Tỉnh/Thành phố điều phối chiến dịch và chi viện liên xã, không qua cấp trung gian quận/huyện).")
     add_bullet("• 5 Điểm khác biệt vượt trội: ", "")
     add_bullet("  + Tính khoảng cách thực tế từ thiết bị người dùng: ", "Hệ thống tự động đo khoảng cách Haversine trực tiếp từ vị trí thiết bị sử dụng App đến từng trụ sở cơ quan xung quanh và gắn nhãn [Cơ sở gần nhất].")
     add_bullet("  + Thích ứng mô hình Đa cơ sở (Multi-Facility 1-to-N) sau sáp nhập: ", "Hiển thị đầy đủ cả Trụ sở chính lẫn các Cơ sở 2, 3, 4 và Điểm tiếp dân trong cùng một phường trên bản đồ, tự động định tuyến SOS về cơ sở có khoảng cách gần nạn nhân nhất.")
-    add_bullet("  + Chuyển cấp leo thang tự động 15 phút (Timeout Escalation): ", "Mỗi sự cố có đồng hồ đếm ngược 15 phút; nếu cấp cơ sở quá tải chưa xử lý, hệ thống tự động cảnh báo đỏ và cho phép chuyển cấp lên Công an/PCCC/CSGT cấp Thành phố/Tỉnh.")
+    add_bullet("  + Chuyển cấp leo thang tự động 15 phút (Timeout Escalation): ", "Mỗi sự cố có đồng hồ đếm ngược 15 phút; nếu cấp cơ sở quá tải chưa xử lý, hệ thống tự động cảnh báo đỏ và cho phép chuyển cấp lên Công an/PCCC/CSGT cấp Thành phố/Tỉnh theo cơ chế chỉ huy 2 cấp địa phương.")
     add_bullet("  + Cô lập ca trực độc lập theo từng Đơn vị (Unit-Scoped Duty Shift): ", "Mỗi đơn vị trực ban có không gian quản lý kíp trực, bàn giao ca và nhận cảnh báo riêng biệt.")
     add_bullet("  + Hỗ trợ toàn diện người yếu thế: ", "Thao tác hoàn toàn bằng thẻ hình ảnh tình huống trực quan, gửi kèm ảnh chụp hiện trường và vị trí GPS cho cả trực ban lẫn người thân.")
 
@@ -977,7 +977,7 @@ def build_docx_presentation_script():
     # 5. MỨC ĐỘ HOÀN THIỆN HIỆN TẠI (80%)
     add_section_h1("5. MỨC ĐỘ HOÀN THIỆN HIỆN TẠI CỦA SẢN PHẨM (ĐẠT 80% — TRL 7)")
     add_bullet("• Đánh giá tổng thể — Hoàn thiện 80% (Cấp độ TRL 7 - Hệ thống nguyên mẫu vận hành thực tế): ", "Sản phẩm không dừng ở mức ý tưởng hay thiết kế giao diện mà đã hoàn thiện 80% toàn bộ khối lượng mục tiêu, đang vận hành trực tuyến ổn định và sẵn sàng Live Demo 100% luồng nghiệp vụ cốt lõi:")
-    add_bullet("  + Phần 80% ĐÃ HOÀN THIỆN & CHẠY THỰC TẾ: ", "(1) Cổng PWA Người dân 1-chạm (SOS Orb tâm sóng video & giọng nói AI 4 miền 1.2x); (2) Bàn chỉ huy C4ISR hợp nhất 5 lực lượng; (3) Cơ sở dữ liệu 34 tỉnh/thành, 3.321 xã/phường sau sáp nhập, 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% xã/phường, nén Gzip 166 KB vs 2.95 MB); (4) Định vị Kalman kết hợp theo dõi xe cứu hộ GPS thực tế (watchPosition, throttle 5s / >10m) & vệt di chuyển bánh xe (breadcrumb trail) cyan chiến thuật; (5) Đàm thoại WebRTC 2 chiều video/voice chống hú qua TURN relay & ghi âm MP3; (6) Quản lý ca trực độc lập theo đơn vị & chuyển cấp 15 phút; (7) Ký số Canvas xuất biên bản Word Nghị định 30 (ký hiệu chuẩn động, loại bỏ CATT), kho báo khống Nghị định 144 & đồng bộ Excel 4 sheet.")
+    add_bullet("  + Phần 80% ĐÃ HOÀN THIỆN & CHẠY THỰC TẾ: ", "(1) Cổng PWA Người dân 1-chạm (SOS Orb tâm sóng video & giọng nói AI 4 miền 1.2x); (2) Bàn chỉ huy C4ISR hợp nhất 5 lực lượng theo mô hình 2 cấp địa phương; (3) Cơ sở dữ liệu 34 tỉnh/thành phố trọng điểm, 3.321 xã/phường sau sáp nhập, 3.717 đồn công an cơ sở (phủ kín 100% xã/phường, nén Gzip 166 KB vs 2.95 MB); (4) Định vị Kalman kết hợp theo dõi xe cứu hộ GPS thực tế (watchPosition, throttle 5s / >10m) & vệt di chuyển bánh xe (breadcrumb trail) cyan chiến thuật; (5) Đàm thoại WebRTC 2 chiều video/voice chống hú qua TURN relay & ghi âm MP3; (6) Quản lý ca trực độc lập theo đơn vị & chuyển cấp 15 phút lên cấp Tỉnh/TP; (7) Ký số Canvas xuất biên bản Word Nghị định 30 (ký hiệu chuẩn động, loại bỏ CATT), kho báo khống Nghị định 144 & đồng bộ Excel 4 sheet.")
     add_bullet("  + Phần 20% ĐANG TIẾP TỤC PHÁT TRIỂN HOÀN THIỆN: ", "(1) Đấu nối API định danh điện tử VNeID mức 2 chính thức từ Cục C06 (5%); (2) Huấn luyện sâu mô hình AI Thị giác máy tính & Nhận diện giọng nói tiếng Việt đa phương ngữ (5%); (3) Mở rộng dữ liệu chi tiết từ 34 tỉnh/thành lên trọn vẹn 63/63 tỉnh/thành (5%); (4) Đóng gói ứng dụng Mobile Native độc lập và cổng tích hợp cảm biến IoT/Drone (5%).")
 
     # 6. KHẢ NĂNG VẬN HÀNH VÀ ỨNG DỤNG THỰC TẾ
@@ -995,7 +995,7 @@ def build_docx_presentation_script():
     # 8. TIỀM NĂNG PHÁT TRIỂN VÀ MỞ RỘNG
     add_section_h1("8. TIỀM NĂNG PHÁT TRIỂN VÀ KHẢ NĂNG MỞ RỘNG CỦA SẢN PHẨM")
     add_bullet("• Tích hợp vào ứng dụng VNeID Quốc gia (Đề án 06/CP): ", "Sẵn sàng đóng gói dưới dạng Mini-App tích hợp vào VNeID, giúp xác thực công dân mức 2 tức thì và loại bỏ triệt để tin báo giả.")
-    add_bullet("• Mở rộng quy mô 63/63 tỉnh/thành phố & Liên thông Quốc gia: ", "Cấu trúc dữ liệu phân cấp (Quốc gia -> Tỉnh/TP -> Xã/Phường -> Đa cơ sở trực thuộc) cho phép nhân rộng ra toàn quốc mà không phải thay đổi kiến trúc phần mềm.")
+    add_bullet("• Mở rộng quy mô 63/63 tỉnh/thành phố & Liên thông Quốc gia (Lộ trình tương lai): ", "Cấu trúc dữ liệu phân cấp tinh gọn 2 cấp địa phương (Cấp Xã/Phường -> Cấp Tỉnh/TP) và giám sát cấp Quốc gia cho phép nhân rộng từ 34 tỉnh hiện tại ra toàn bộ 63 tỉnh/thành cả nước mà không phải thay đổi kiến trúc phần mềm.")
     add_bullet("• Tích hợp AI, IoT Đô thị thông minh & Drone cứu nạn: ", "Mở rộng cổng API tiếp nhận cảnh báo tự động từ hệ thống cảm biến báo cháy chung cư, cảm biến mực nước lũ và điều phối thiết bị bay không người lái (UAV/Drone) trinh sát hiện trường vùng cô lập.")
 
     doc.save(DOCX_OUT)

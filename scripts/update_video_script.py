@@ -118,14 +118,14 @@ def create_video_script_doc():
          "Vào thẳng hiện trường nguy cấp: Tai nạn đêm khuya, hỏa hoạn, đột quỵ, thiên tai. Nỗi đau: Người dân hoảng loạn không biết gọi 113, 114 hay 115, không rõ vị trí sau sáp nhập xã phường. Tổng đài rời rạc, lãng phí thời gian vàng. Ra mắt giải pháp SOS Việt Nam 2026.",
          "Vào thẳng vấn đề • 5 phút vàng • Bối rối gọi ai • Đứt gãy thông tin • SOS 2026"),
         ("Phần 2: Giới thiệu hệ thống app\n(2.5 phút)",
-         "• Dân: Không tải app, không đăng ký, mở trong 0.79s, 1 chạm gửi GPS + quả cầu SOS Orb tâm sóng video + trợ lý giọng nói AI 4 vùng miền (1.2x) + tự báo người thân + theo dõi xe cứu hộ GPS thực tế vệt bánh xe cyan nét đứt.\n• Cán bộ: 1 bản đồ 3D cho 5 lực lượng (Cảnh sát, CSGT, PCCC, Y tế, Cứu hộ), 3.717 đồn công an cơ sở, 34 tỉnh, 3.321 xã sáp nhập (T10/2026), nén Gzip 166KB, 2 tuyến đường.",
-         "1 chạm 0.79s • 1 Bản đồ chung • 5 Lực lượng • 3.717 Đồn/Trạm cơ sở • 3.321 xã (100%) • Vệt xe GPS thực tế"),
+         "• Dân: Không tải app, không đăng ký, mở trong 0.79s, 1 chạm gửi GPS + quả cầu SOS Orb tâm sóng video + trợ lý giọng nói AI 4 vùng miền (1.2x) + tự báo người thân + theo dõi xe cứu hộ GPS thực tế vệt bánh xe cyan nét đứt.\n• Cán bộ: Mô hình chỉ huy 2 cấp (Xã/Phường & Tỉnh/TP), 1 bản đồ 3D cho 5 lực lượng (Cảnh sát, CSGT, PCCC, Y tế, Cứu hộ), 3.717 đồn công an cơ sở trên 34 tỉnh/thành, 3.321 xã sáp nhập (T10/2026), nén Gzip 166KB, 2 tuyến đường.",
+         "1 chạm 0.79s • 1 Bản đồ chung • 5 Lực lượng • 2 Cấp chỉ huy • 3.717 Đồn/Trạm cơ sở • 34 Tỉnh / 3.321 Xã (100%)"),
         ("Phần 3: 4 Tình huống thực tế\n(2.5 phút)",
-         "1. Yếu thế / không nói được (chạm nút gửi tọa độ bay về đơn vị gần nhất).\n2. Tai nạn liên hoàn / cháy lớn (Video Call WebRTC 2 chiều qua TURN Relay + theo dõi xe GPS thực tế + hiệp đồng 5 lực lượng).\n3. Thiên tai bão lũ (quá 15p tự leo thang cấp Tỉnh/TW).\n4. Chống báo giả (NĐ 144 phạt 4-6tr) & Ký số (NĐ 30 1 trang, số chuẩn /BC-TTCH, /BC-CATP, /BC-CSGT...).",
-         "1. Chạm không cần nói • 2. Video WebRTC + Xe GPS thực tế • 3. Lưới 15 phút không bỏ sót • 4. Phạt NĐ 144 & Ký số NĐ 30"),
+         "1. Yếu thế / không nói được (chạm nút gửi tọa độ bay về đơn vị gần nhất).\n2. Tai nạn liên hoàn / cháy lớn (Video Call WebRTC 2 chiều qua TURN Relay + theo dõi xe GPS thực tế + hiệp đồng 5 lực lượng).\n3. Thiên tai bão lũ (quá 15p tự chuyển cấp từ Xã/Phường lên Tỉnh/TP và Trung ương, không qua trung gian quận/huyện).\n4. Chống báo giả (NĐ 144 phạt 4-6tr) & Ký số (NĐ 30 1 trang, số chuẩn /BC-TTCH, /BC-CATP, /BC-CSGT...).",
+         "1. Chạm không cần nói • 2. Video WebRTC + Xe GPS thực tế • 3. Chuyển cấp 2 tầng 15 phút • 4. Phạt NĐ 144 & Ký số NĐ 30"),
         ("Phần 4: Tổng kết & Câu hỏi đọng lại\n(1 phút)",
-         "Đã giới thiệu trọn vẹn toàn bộ hệ sinh thái app & bàn chỉ huy 3.717 đồn trạm cơ sở phủ kín 100% xã/phường (T10/2026). Một chạm cho dân — Bàn chỉ huy cho chiến sĩ. Câu hỏi đắt giá: Liệu có thể để người dân đơn độc trong 5 phút sinh tử vì rào cản kết nối?",
-         "3.717 đồn cơ sở • 100% xã/phường • Dữ liệu cho cuộc sống • Câu hỏi đọng lại")
+         "Đã giới thiệu trọn vẹn toàn bộ hệ sinh thái app & bàn chỉ huy 2 cấp kết nối 3.717 đồn trạm cơ sở phủ kín 100% xã/phường trên 34 tỉnh thành (T10/2026). Một chạm cho dân — Bàn chỉ huy cho chiến sĩ. Câu hỏi đắt giá: Liệu có thể để người dân đơn độc trong 5 phút sinh tử vì rào cản kết nối?",
+         "3.717 đồn cơ sở • 34 tỉnh thành • 2 Cấp chỉ huy • Dữ liệu cho cuộc sống • Câu hỏi đọng lại")
     ]
 
     for r_idx, r_data in enumerate(table_data):
@@ -205,11 +205,11 @@ def create_video_script_doc():
     add_section_header("PHẦN 2: HỆ THỐNG LÀM ĐƯỢC GÌ? – TỐI GIẢN CHO DÂN, THÔNG MINH CHO CÁN BỘ (2.5 phút)")
     add_tip("👉 GỢI Ý VIDEO & GIỌNG ĐỌC: Màn hình chia đôi: Bên trái quay cận cảnh giao diện điện thoại người dân 1-chạm, bên phải hiển thị Bản đồ tác chiến 3D của cán bộ trực ban; giọng hào hứng, tự tin, nhấn mạnh số liệu cập nhật tháng 10/2026.")
 
-    add_speech("Để cả người dân lẫn cán bộ chiến sĩ đều sử dụng được ngay mà không cần qua đào tạo phức tạp, ", "SOS Việt Nam 2026 được thiết kế với hai phân hệ tác chiến rõ ràng:")
+    add_speech("Để cả người dân lẫn cán bộ chiến sĩ đều sử dụng được ngay mà không cần qua đào tạo phức tạp, ", "SOS Việt Nam 2026 được thiết kế với mô hình điều phối tinh gọn 2 cấp chính quyền địa phương: Cấp Xã/Phường phản ứng tại chỗ trong 5 phút vàng, và Cấp Tỉnh/Thành phố tiếp nhận chi viện chuyển cấp sau 15 phút, bao quát trọn vẹn 34 tỉnh thành và 3.321 xã phường sau sáp nhập:")
     add_speech("1. VỚI NGƯỜI DÂN — Mở chưa tới 1 giây, báo nạn trong 5 giây:\n", 
                "• KHÔNG CẦN TẢI APP, KHÔNG CẦN ĐĂNG KÝ:\n  Chỉ cần chạm biểu tượng SOS trên màn hình hoặc quét mã QR, ứng dụng mở ngay trong 0.79 GIÂY (kể cả mất sóng 4G vẫn mở được nhờ bộ nhớ ngoại tuyến kèm Cẩm nang sinh tồn).\n• QUẢ CẦU SOS ORB TÂM SÓNG & TRỢ LÝ GIỌNG NÓI AI 4 VÙNG MIỀN:\n  Nút báo động Master SOS Orb căn ngay giữa tâm sóng video; đồng thời AI VieNeu-TTS tự động phát giọng nữ thân quen theo 4 vùng miền (Mỹ Duyên - Miền Tây, Thùy Dung - Miền Nam, Ngọc Trân - Miền Trung, Mai Anh - Miền Bắc) với tốc độ tăng 1.2x để trấn an và hướng dẫn người dân trong tích tắc.\n• CHẠM NÚT LÀ GỬI VỊ TRÍ:\n  Hệ thống tự động gửi tọa độ GPS chính xác về Trung tâm gần nhất, đồng thời tự động nhắn tin vị trí cho người thân gia đình.")
-    add_speech("2. VỚI CÁN BỘ & LỰC LƯỢNG — 1 Bản đồ chung kết nối 5 Lực lượng:\n",
-               "• Lần đầu tiên, cả 5 LỰC LƯỢNG gồm: CẢNH SÁT, CSGT, PCCC & CNCH, CẤP CỨU Y TẾ VÀ CỨU HỘ DỊCH VỤ cùng hiệp đồng tác chiến trên một BẢN ĐỒ 3D DUY NHẤT.\n• ĐẶC BIỆT: Hệ thống đã đồng bộ trực tiếp với Cơ sở dữ liệu Quốc gia bando.com.vn, CẬP NHẬT MỚI NHẤT TÍNH ĐẾN THÁNG 10 NĂM 2026, bao phủ toàn bộ 34 TỈNH THÀNH và 3.321 XÃ PHƯỜNG sáp nhập, với 3.717 ĐỒN CÔNG AN CƠ SỞ ĐIỀU PHỐI THỰC TẾ (phủ kín 100% xã/phường trên toàn quốc), hỗ trợ nén HTTP Gzip 166KB truyền tải siêu tốc dưới 50ms.\n• TỰ ĐỘNG CHỈ ĐƯỜNG & VỆT XE GPS THỰC TẾ:\n  Hệ thống tự động theo dõi vị trí GPS phần cứng thực tế của xe cứu hộ, vẽ vệt bánh xe cyan nét đứt thời gian thực trên bản đồ của cả cán bộ và người dân, lọc nhiễu định vị trong ngõ hẹp và gợi ý 2 đường đi: đường cho xe 2 bánh luồn ngõ nhỏ và đường lớn cho ô tô cơ động.")
+    add_speech("2. VỚI CÁN BỘ & LỰC LƯỢNG — 1 Bản đồ chung kết nối 5 Lực lượng & Điều phối 2 cấp tinh gọn:\n",
+               "• Lần đầu tiên, cả 5 LỰC LƯỢNG gồm: CẢNH SÁT, CSGT, PCCC & CNCH, CẤP CỨU Y TẾ VÀ CỨU HỘ DỊCH VỤ cùng hiệp đồng tác chiến trên một BẢN ĐỒ 3D DUY NHẤT.\n• ĐẶC BIỆT: Hệ thống đã đồng bộ trực tiếp với Cơ sở dữ liệu Quốc gia bando.com.vn, CẬP NHẬT MỚI NHẤT TÍNH ĐẾN THÁNG 10 NĂM 2026, bao phủ toàn bộ 34 TỈNH THÀNH và 3.321 XÃ PHƯỜNG sáp nhập, với 3.717 ĐỒN CÔNG AN CƠ SỞ ĐIỀU PHỐI THỰC TẾ (phủ kín 100% xã/phường trong phạm vi 34 tỉnh thành), hỗ trợ nén HTTP Gzip 166KB truyền tải siêu tốc dưới 50ms.\n• TỰ ĐỘNG CHỈ ĐƯỜNG & VỆT XE GPS THỰC TẾ:\n  Hệ thống tự động theo dõi vị trí GPS phần cứng thực tế của xe cứu hộ, vẽ vệt bánh xe cyan nét đứt thời gian thực trên bản đồ của cả cán bộ và người dân, lọc nhiễu định vị trong ngõ hẹp và gợi ý 2 đường đi: đường cho xe 2 bánh luồn ngõ nhỏ và đường lớn cho ô tô cơ động.")
 
     # =========================================================================
     # PHẦN 3: 4 TÌNH HUỐNG ỨNG DỤNG THỰC TẾ TRONG ĐỜI SỐNG
@@ -223,7 +223,7 @@ def create_video_script_doc():
     add_speech("• TÌNH HUỐNG 2 — Sự cố nghiêm trọng cần nhiều lực lượng cùng lúc:\n",
                "Như tai nạn giao thông liên hoàn hay cháy lớn. Người dân có thể bật VIDEO CALL WEBRTC 2 CHIỀU trực tiếp ngay trên màn hình qua cụm TURN Relay xuyên tường lửa NAT. Chỉ với 1 cú nhấp chuột, Trung tâm điều động đồng thời cả CSGT phân luồng, PCCC dập lửa, Cấp cứu Y tế và Cứu hộ dịch vụ; người dân nhìn thấy xe cứu hộ đang di chuyển trên bản đồ theo vệt bánh xe GPS thực tế.")
     add_speech("• TÌNH HUỐNG 3 — Thiên tai bão lũ, khi cấp cơ sở bị quá tải (Không bỏ sót ca nào):\n",
-               "Nếu lực lượng xã/phường bận ứng cứu nơi khác, hệ thống tự chuyển ca sang đơn vị lân cận. Đặc biệt, QUÁ 15 PHÚT mà chưa có người nhận, hệ thống TỰ ĐỘNG BÁO ĐỘNG ĐỎ VÀ PHÁT LOA CẢNH BÁO LÊN CẤP TỈNH VÀ TRUNG ƯƠNG. Không một lời cầu cứu nào của nhân dân bị bỏ quên!")
+               "Nếu lực lượng xã/phường bận ứng cứu nơi khác, hệ thống tự chuyển ca sang đơn vị lân cận. Đặc biệt, QUÁ 15 PHÚT mà chưa có người nhận, hệ thống TỰ ĐỘNG BÁO ĐỘNG ĐỎ VÀ CHUYỂN CẤP THẲNG TỪ XÃ/PHƯỜNG LÊN CẤP TỈNH/THÀNH PHỐ VÀ TRUNG ƯƠNG. Cơ chế liên thông 2 cấp trực tiếp, xóa bỏ hoàn toàn khâu trung gian quận/huyện, bảo đảm không một lời cầu cứu nào của nhân dân bị bỏ quên!")
     add_speech("• TÌNH HUỐNG 4 — Ngăn chặn báo tin giả & Tự động hóa giấy tờ:\n",
                "Kẻ xấu bấm trêu đùa? Cán bộ chỉ cần bấm 'Báo khống NĐ 144' — máy tự ghi nhận thiết bị, khóa vĩnh viễn và xuất Biên bản xử phạt 4 đến 6 triệu đồng theo Nghị định 144. Còn ca thật xong việc, dân và chiến sĩ KÝ TÊN BẰNG NGÓN TAY TRÊN MÀN HÌNH để xuất biên bản chuẩn Nghị định 30 (100% Times New Roman, ký hiệu /BC-TTCH, /BC-CATP, /BC-CSGT...) trong 1 giây, kèm quản lý danh bạ bằng file Excel quen thuộc.")
 
@@ -234,7 +234,7 @@ def create_video_script_doc():
     add_tip("👉 GỢI Ý VIDEO & GIỌNG ĐỌC: Nhạc nền chuyển sang sâu lắng rồi cao trào; màn hình hiển thị toàn cảnh bản đồ số kết nối 34 tỉnh thành và logo SOS Việt Nam 2026; giọng đọc truyền cảm, sâu sắc, giàu nội lực.")
 
     add_speech("Như vậy, toàn bộ hệ sinh thái SOS Việt Nam 2026 — ", 
-               "từ ứng dụng báo nạn siêu nhẹ của người dân đến hệ thống điều phối tác chiến 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% xã/phường sau sáp nhập, cập nhật mới nhất tính đến tháng 10 năm 2026) — đã được xây dựng hoàn chỉnh, sẵn sàng bảo vệ an toàn cho nhân dân trong mọi tình huống khẩn cấp.")
+               "từ ứng dụng báo nạn siêu nhẹ của người dân đến hệ thống điều phối tác chiến 2 cấp kết nối 3.717 đồn công an cơ sở trên phạm vi 34 tỉnh thành (phủ kín 100% xã/phường sau sáp nhập, cập nhật mới nhất tính đến tháng 10 năm 2026) — đã được xây dựng hoàn chỉnh, sẵn sàng bảo vệ an toàn cho nhân dân trong mọi tình huống khẩn cấp.")
     add_speech("MỘT CHẠM GIẢN DỊ CHO DÂN LÚC NGUY NAN — ", "MỘT BÀN CHỈ HUY THÔNG MINH GIÚP CÁN BỘ CHIẾN SĨ TIẾP CẬN HIỆN TRƯỜNG NHANH HƠN VÀ BỚT VẤT VẢ HƠN.")
     add_speech("Bởi với chúng tôi, ", "mỗi giây dữ liệu được rút ngắn hôm nay chính là một sinh mạng con người được giữ lại ngày mai!")
     add_speech("Và câu hỏi lớn đặt ra cho tất cả chúng ta hôm nay là: \n", 

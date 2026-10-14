@@ -80,15 +80,19 @@ def update_master_document():
     # STEP 1: Text-level replacements for outdated stations & obsolete terms
     # -------------------------------------------------------------------------
     rep_map = {
-        "874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập": "3.717 đồn công an và trạm tác chiến trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
-        "874 trạm tác chiến (846 tài khoản)": "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)",
-        "874 trạm tác chiến": "3.717 đồn công an cơ sở toàn quốc",
-        "874 trạm": "3.717 đồn công an cơ sở",
-        "453 trạm": "3.717 đồn công an và trạm tác chiến trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
-        "453 đơn vị": "3.717 đồn công an và trạm tác chiến trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
-        "toàn mạng lưới 453 trạm quốc gia": "toàn mạng lưới 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
-        "Mạng Lưới 453 Trạm Tác Chiến Toàn Quốc": "Mạng Lưới 3.717 Đồn Công An Cơ Sở Toàn Quốc (Phủ Kín 100% Xã/Phường)",
-        "Mạng Lưới 874 Trạm Tác Chiến Toàn Quốc": "Mạng Lưới 3.717 Đồn Công An Cơ Sở Toàn Quốc (Phủ Kín 100% Xã/Phường)",
+        "874 trạm tác chiến trên 34 tỉnh thành và 3.321 xã phường sau sáp nhập": "3.717 đồn công an và trạm tác chiến trên phạm vi 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "874 trạm tác chiến (846 tài khoản)": "3.717 đồn công an cơ sở trên 34 tỉnh/thành (100% xã/phường sáp nhập)",
+        "874 trạm tác chiến": "3.717 đồn công an cơ sở trên 34 tỉnh/thành",
+        "874 trạm": "3.717 đồn công an cơ sở trên 34 tỉnh/thành",
+        "453 trạm": "3.717 đồn công an cơ sở trên phạm vi 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "453 đơn vị": "3.717 đồn công an cơ sở trên phạm vi 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "toàn mạng lưới 453 trạm quốc gia": "mạng lưới 3.717 đồn công an cơ sở trên 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "Mạng Lưới 453 Trạm Tác Chiến Toàn Quốc": "Mạng Lưới 3.717 Đồn Công An Cơ Sở Trên 34 Tỉnh Thành (Phủ Kín 100% Xã/Phường Sáp Nhập)",
+        "Mạng Lưới 874 Trạm Tác Chiến Toàn Quốc": "Mạng Lưới 3.717 Đồn Công An Cơ Sở Trên 34 Tỉnh Thành (Phủ Kín 100% Xã/Phường Sáp Nhập)",
+        "trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)": "trên phạm vi 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)",
+        "toàn quốc (100% xã/phường)": "trên 34 tỉnh/thành (100% xã/phường sáp nhập)",
+        "Toàn Quốc (Phủ Kín 100% Xã/Phường)": "Trên 34 Tỉnh Thành (Phủ Kín 100% Xã/Phường Sáp Nhập)",
+        "đồn công an cơ sở toàn quốc": "đồn công an cơ sở trên 34 tỉnh/thành",
         "Công An Khu Vực (Công An Xã, Phường, Thị Trấn)": "Công An Cơ Sở (Công An Xã, Phường)",
         "Công An Xã, Phường, Thị Trấn": "Công An Xã, Phường",
         "Công An Xã/Thị trấn": "Công An Xã/Phường",
@@ -124,7 +128,7 @@ def update_master_document():
                     if k in updated:
                         updated = updated.replace(k, v)
                 if "453 trạm toàn quốc" in updated or "874 trạm" in updated:
-                    updated = updated.replace("453 trạm toàn quốc", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)").replace("874 trạm", "3.717 đồn công an cơ sở")
+                    updated = updated.replace("453 trạm toàn quốc", "3.717 đồn công an cơ sở trên 34 tỉnh/thành (100% xã/phường sáp nhập)").replace("874 trạm", "3.717 đồn công an cơ sở trên 34 tỉnh/thành")
                 if "85 đơn vị Cần Thơ" in updated:
                     updated = updated.replace("85 đơn vị Cần Thơ", "105 trạm Cần Thơ")
                 if updated != orig:

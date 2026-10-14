@@ -10,6 +10,7 @@ Purpose: Updates user manuals in C:\\Users\\dienv\\Desktop\\Data4Life\\05_TAI_LI
 
 import os
 import sys
+import shutil
 import docx
 
 if hasattr(sys.stdout, 'reconfigure'):
@@ -34,8 +35,22 @@ def update_manuals():
                 )
                 for r in p.runs:
                     r.font.name = "Times New Roman"
-            if "Điều động phương tiện" in p.text or "Xuất xe cứu hộ" in p.text or "điều động xe" in p.text.lower():
-                p.text = p.text + " Hệ thống tích hợp định vị GPS phần cứng thực tế (watchPosition, throttle 5s / >10m), tự động vẽ vệt di chuyển bánh xe nét đứt cyan (#38bdf8) truyền trực tiếp cho công dân và bàn trực ban, với cơ chế tự động chuyển về mô phỏng sau 20s nếu mất vệ tinh."
+            if "192 trạm tác chiến trên toàn quốc" in p.text:
+                p.text = p.text.replace(
+                    "192 trạm tác chiến trên toàn quốc",
+                    "3.717 đồn công an cơ sở trên phạm vi 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)"
+                )
+                for r in p.runs:
+                    r.font.name = "Times New Roman"
+            if "Công an cấp Quận/Huyện hoặc Trung tâm Thông tin Chỉ huy cấp Tỉnh/Thành phố" in p.text:
+                p.text = p.text.replace(
+                    "Bàn chỉ huy Công an cấp Quận/Huyện hoặc Trung tâm Thông tin Chỉ huy cấp Tỉnh/Thành phố kèm theo cảnh báo màu đỏ chớp nháy (Timeout Escalated to Province/City).",
+                    "Trung tâm Thông tin Chỉ huy cấp Tỉnh/Thành phố (Công an Tỉnh/TP, PCCC, CSGT, 115) theo mô hình phân cấp tinh gọn 2 cấp địa phương: Cấp Xã/Phường và Cấp Tỉnh/TP, hoàn toàn không qua cấp trung gian quận/huyện, kèm theo cảnh báo màu đỏ chớp nháy (Timeout Escalated to Province/City)."
+                )
+                for r in p.runs:
+                    r.font.name = "Times New Roman"
+            if "liên quận/huyện" in p.text:
+                p.text = p.text.replace("liên quận/huyện", "liên xã/phường")
                 for r in p.runs:
                     r.font.name = "Times New Roman"
         doc.save(p_canbo)
@@ -69,10 +84,12 @@ def update_manuals():
             if "phường, xã, thị trấn mới thành lập" in p.text:
                 p.text = p.text.replace(
                     "phường, xã, thị trấn mới thành lập",
-                    "phường, xã mới thành lập (đã xóa bỏ hoàn toàn cấp thị trấn để tinh gọn theo mô hình hành chính 2 cấp)"
+                    "phường, xã mới thành lập (đã xóa bỏ hoàn toàn cấp thị trấn để tinh gọn theo mô hình hành chính 2 cấp: Cấp Xã/Phường và Cấp Tỉnh/TP)"
                 )
             if "874 trạm" in p.text:
-                p.text = p.text.replace("874 trạm", "3.717 đồn công an cơ sở toàn quốc (100% xã/phường)")
+                p.text = p.text.replace("874 trạm", "3.717 đồn công an cơ sở trên 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập)")
+            if "toàn quốc" in p.text and ("3.717" in p.text or "đồn" in p.text):
+                p.text = p.text.replace("toàn quốc", "trên 34 tỉnh/thành phố")
             for r in p.runs:
                 r.font.name = "Times New Roman"
         doc.save(p_tongquan)
@@ -102,6 +119,22 @@ def update_manuals():
         word.Quit()
     except Exception as e:
         print(f"[WARN] Could not export PDF via Word COM: {e}")
+
+    sync_dir = r"C:\Users\dienv\Desktop\docs\thuyết trình"
+    if os.path.isdir(sync_dir):
+        for f_name in [
+            "HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_CAN_BO.docx",
+            "HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_CAN_BO.pdf",
+            "HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_NGUOI_DAN.docx",
+            "HUONG_DAN_SU_DUNG_SOS_VIET_NAM_2026_NGUOI_DAN.pdf",
+            "Tai_Lieu_Tong_Quan_Va_Huong_Dan_Van_Hanh_SOS_Viet_Nam_2026.docx",
+            "Tai_Lieu_Tong_Quan_Va_Huong_Dan_Van_Hanh_SOS_Viet_Nam_2026.pdf"
+        ]:
+            src = os.path.join(BASE_DIR, f_name)
+            if os.path.exists(src):
+                dst = os.path.join(sync_dir, f_name)
+                shutil.copy2(src, dst)
+                print(f"[OK] Synced manual file to: {dst}")
 
 if __name__ == "__main__":
     update_manuals()

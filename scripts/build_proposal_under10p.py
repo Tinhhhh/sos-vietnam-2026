@@ -292,7 +292,7 @@ def generate_perfect_7page_proposal():
     ])
     add_p_runs(doc, [
         ("• Tầng 4 - Lưu trữ Bền vững Nguyên tử & Danh bạ Tác chiến: ", True, False, 12),
-        ("Cơ chế ghi tệp nguyên tử (.tmp -> rename) loại bỏ xung đột ghi đè; quản lý 3.717 đồn công an cơ sở trên toàn quốc (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập) với thuật toán nén HTTP Gzip giảm 94.4% băng thông mạng.", False, False, 12)
+        ("Cơ chế ghi tệp nguyên tử (.tmp -> rename) loại bỏ xung đột ghi đè; quản lý 3.717 đồn công an cơ sở trên phạm vi 34 tỉnh/thành phố (phủ kín 100% tất cả 3.321 xã/phường sau sáp nhập) với thuật toán nén HTTP Gzip giảm 94.4% băng thông mạng.", False, False, 12)
     ])
     add_p_runs(doc, [
         ("• Tầng 5 - Lưới Không gian Địa lý & Vết Di Chuyển Phương Tiện: ", True, False, 12),
@@ -302,7 +302,8 @@ def generate_perfect_7page_proposal():
     # Placeholder Hình 1
     add_image_placeholder(doc, "1", "Sơ đồ kiến trúc tổng thể và luồng dữ liệu tác chiến C4ISR thời gian thực", "Kiến trúc 5 tầng từ Cổng PWA Người dân, Tường lửa WAF, SSE Stream đến Bàn trực ban C4ISR")
     
-    add_h2(doc, "2. Phân tầng 6 vai trò tác chiến và ma trận phân quyền (RBAC)")
+    add_h2(doc, "2. Mô hình điều phối chỉ huy 2 cấp tinh gọn và ma trận vai trò tác chiến (RBAC)")
+    add_p(doc, "Hệ thống thiết kế mô hình chỉ huy khẩn cấp tinh gọn đúng 2 cấp chính quyền địa phương: Cấp Xã/Phường (Cấp cơ sở tiếp nhận tức thì trong 5 phút vàng) và Cấp Tỉnh/Thành phố (Cấp điều phối chiến dịch, chi viện đa lực lượng và tiếp nhận chuyển cấp sau 15 phút), xóa bỏ hoàn toàn cấp trung gian quận/huyện để tối ưu hóa thời gian cứu nạn:")
     add_p_runs(doc, [
         ("1. CITIZEN_PUBLIC (Công dân): ", True, False, 12),
         ("Mở Cổng PWA ẩn danh, phát tín hiệu SOS, gọi video WebRTC hai chiều qua TURN relay, theo dõi xe cứu hộ GPS thực tế, ký số biên bản hiện trường.", False, False, 12)
@@ -312,20 +313,20 @@ def generate_perfect_7page_proposal():
         ("Kiểm tra 27 chữ ký AI Bot, chặn scraper tự động, bẫy Honeypot khóa IP 24 giờ, điều tiết Token Bucket.", False, False, 12)
     ])
     add_p_runs(doc, [
-        ("3. WARD_DISPATCHER (Trực ban cấp Xã/Phường): ", True, False, 12),
-        ("Quản lý 3.321 xã/phường và 3.717 đồn công an cơ sở toàn quốc; điều động công an xã và lực lượng tham gia bảo vệ ANTT ở cơ sở.", False, False, 12)
+        ("3. WARD_DISPATCHER (Trực ban Cấp 1 - Cấp Xã/Phường): ", True, False, 12),
+        ("Quản lý trực tiếp tại 3.321 xã/phường và 3.717 đồn công an cơ sở trên phạm vi 34 tỉnh/thành; điều động công an xã/phường và lực lượng ANTT cơ sở tiếp cận hiện trường trong 5 phút vàng.", False, False, 12)
     ])
     add_p_runs(doc, [
-        ("4. PROVINCE_DISPATCHER (Điều phối cấp Tỉnh/TP): ", True, False, 12),
-        ("141 tài khoản đại diện Công an Tỉnh, Phòng CSGT, Phòng PCCC & CNCH, Trung tâm 115 tiếp nhận toàn tỉnh và sự vụ chuyển cấp.", False, False, 12)
+        ("4. PROVINCE_DISPATCHER (Chỉ huy Cấp 2 - Cấp Tỉnh/Thành phố): ", True, False, 12),
+        ("141 tài khoản đại diện Công an Tỉnh, Phòng CSGT, Phòng PCCC & CNCH, Trung tâm 115 chỉ huy liên lực lượng toàn tỉnh, tiếp nhận sự vụ chuyển cấp tự động sau 15 phút và điều phối chi viện phương tiện cơ giới lớn.", False, False, 12)
     ])
     add_p_runs(doc, [
         ("5. ENTERPRISE_PARTNER (Cứu hộ dịch vụ): ", True, False, 12),
         ("38 tài khoản gara và doanh nghiệp cứu hộ đường bộ tiếp nhận giải phóng ách tắc phương tiện cơ giới.", False, False, 12)
     ])
     add_p_runs(doc, [
-        ("6. NATIONAL_COMMAND (Chỉ huy Tác chiến Quốc gia): ", True, False, 12),
-        ("Trung tâm chỉ huy tối cao giám sát bản đồ 3D 34 tỉnh/thành và 3.321 xã/phường sáp nhập tháng 10/2026; điều động chi viện liên tỉnh.", False, False, 12)
+        ("6. NATIONAL_COMMAND (Giám sát Tổng thể 34 Tỉnh/Thành): ", True, False, 12),
+        ("Trung tâm chỉ huy tối cao giám sát bản đồ 3D toàn cảnh 34 tỉnh/thành và 3.321 xã/phường sáp nhập tháng 10/2026; theo dõi số liệu và chỉ đạo chi viện liên tỉnh khi có thiên tai thảm họa lớn.", False, False, 12)
     ])
     
     # ===========================================================================
@@ -402,12 +403,12 @@ def generate_perfect_7page_proposal():
         "2. Phía Bàn Trực ban Chỉ huy C4ISR (dispatcher.html):\n"
         "• Màn hình tác chiến 3 phân khu, truyền phát dữ liệu SSE độ trễ 45ms kèm nhịp đập 25s.\n"
         "• Bản đồ GIS 3D tích hợp 34 tỉnh/thành và 3.321 xã/phường sáp nhập tháng 10/2026.\n"
-        "• Danh bạ 3.717 đồn công an cơ sở toàn quốc (100% xã/phường) nén Gzip 166KB.\n"
+        "• Danh bạ 3.717 đồn công an cơ sở tại 34 tỉnh/thành (100% xã/phường sáp nhập) nén Gzip 166KB.\n"
         "• Giám sát xe cơ động bằng GPS phần cứng thực tế kết hợp tự động dự phòng mô phỏng.\n"
-        "• Timeout Escalation 15 phút tự động chuyển cấp & Chuyển trả cơ sở.\n"
+        "• Timeout Escalation 15 phút tự động chuyển cấp (Xã/Phường -> Tỉnh/TP) & Chuyển trả cơ sở.\n"
         "• Thuật toán Fallback Nearest Auto-Routing tự động chuyển đơn vị gần nhất.\n"
         "• Xuất phiếu tiếp nhận và biên bản xác minh Word (.docx) chuẩn Nghị định 30 (100% Times New Roman, ký hiệu /BC-TTCH, /BC-CATP, /BC-CSGT, /BC-PCCC, /BC-BYT, /BC-CAP, /BC-CAX).\n"
-        "• Đồng bộ danh bạ hai chiều Excel 4 Sheet cho 3.717 đồn công an trên toàn quốc.\n"
+        "• Đồng bộ danh bạ hai chiều Excel 4 Sheet cho 3.717 đồn công an trên 34 tỉnh/thành.\n"
         "• Tường lửa WAF L7 chặn 27 bot AI, trích xuất OSINT xử phạt Nghị định 144."
     )
     
@@ -680,6 +681,9 @@ def generate_perfect_7page_proposal():
         doc_w.Close()
         word.Quit()
         print(f"[OK] Generated proposal PDF: {pdf_out}")
+        sync_pdf = SYNC_DOCX.replace(".docx", ".pdf")
+        shutil.copy2(pdf_out, sync_pdf)
+        print(f"[OK] Synced proposal PDF to: {sync_pdf}")
     except Exception as e:
         print(f"[WARN] Could not export PDF via Word COM: {e}")
 
