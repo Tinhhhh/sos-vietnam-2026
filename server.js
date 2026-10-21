@@ -1824,6 +1824,7 @@ function resolveEffectiveLevel(userOrClient, agency) {
 }
 
 function isIncidentInOfficerWard(inc, officerWard, officerUnitName, officerProvince) {
+  if (inc && inc.isHardwareSos) return true;
   if (!inc) return false;
   if (!officerWard && !officerUnitName) return true;
 
@@ -1965,7 +1966,9 @@ function broadcastToDispatchers(event, data) {
 
     // 2. Incident updates (sos_new, sos_update, sos_escalate, new_message):
     if (event === 'sos_new' || event === 'sos_update' || event === 'sos_escalate' || event === 'new_message') {
-      if (clientLevel === 'ward') {
+      if (inc?.isHardwareSos) {
+        // IoT Hardware SOS (ESP32-C3 SuperMini wearable button): broadcast to all active dispatcher screens immediately
+      } else if (clientLevel === 'ward') {
         const matchWard = isIncidentInOfficerWard(inc, client.officerWard, client.officerUnitName, client.officerProvince);
         if (!matchWard) {
           continue;
@@ -3952,18 +3955,61 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
-  // API: Create SOS Incident with Real Station Database
+  // API: Hardware IoT SOS Connectivity Check (ESP32-C3 SuperMini)
   // -------------------------------------------------------------
-  if ((urlPath === '/api/sos/create' || urlPath === '/api/incidents') && req.method === 'POST') {
+  if ((urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'GET') {
+    const hwIncidents = Array.from(incidents.values())
+      .filter(inc => inc && inc.isHardwareSos)
+      .map(inc => ({
+        id: inc.id,
+        deviceId: inc.deviceId || 'WEARABLE-SOS-MINI-01',
+        reporterName: inc.reporterName,
+        reporterPhone: inc.reporterPhone,
+        lat: inc.lat,
+        lng: inc.lng,
+        address: inc.address,
+        status: inc.status,
+        createdAt: inc.createdAt
+      }));
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    return res.end(JSON.stringify({
+      ok: true,
+      service: 'SOS Vietnam 2026 - ESP32-C3 SuperMini IoT Hardware SOS Gateway',
+      status: 'ONLINE',
+      endpoint: '/api/hardware-sos',
+      supportedMethods: ['GET', 'POST'],
+      activeHardwareCount: hwIncidents.length,
+      hardwareIncidents: hwIncidents
+    }));
+  }
+
+  // -------------------------------------------------------------
+  // API: Create SOS Incident with Real Station Database (Web + IoT Hardware ESP32-C3)
+  // -------------------------------------------------------------
+  if ((urlPath === '/api/sos/create' || urlPath === '/api/incidents' || urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
         const data = JSON.parse(body || '{}');
-        const id = 'SOS-' + Date.now().toString(36).toUpperCase() + '-' + Math.floor(Math.random() * 900 + 100);
+        const isHardwareSos = Boolean(
+          urlPath === '/api/hardware-sos' ||
+          urlPath === '/api/sos/hardware' ||
+          data.device_id ||
+          data.deviceId ||
+          data.source === 'WEARABLE_IOT_BUTTON' ||
+          data.isHardwareSos
+        );
+        const deviceId = String(data.device_id || data.deviceId || (isHardwareSos ? 'WEARABLE-SOS-MINI-01' : '')).trim();
+        const iotSource = String(data.source || (isHardwareSos ? 'WEARABLE_IOT_BUTTON' : '')).trim();
+        const rawIncidentType = String(data.incident_type || data.incidentType || '').trim();
+
+        const id = (isHardwareSos ? 'IOT-' : 'SOS-') + Date.now().toString(36).toUpperCase() + '-' + Math.floor(Math.random() * 900 + 100);
         const citizenAccessToken = createCitizenAccessToken();
-        const lat = parseFloat(data.lat) || 21.0285;
-        const lng = parseFloat(data.lng) || 105.8542;
+        const parsedLat = parseFloat(data.latitude !== undefined ? data.latitude : data.lat);
+        const parsedLng = parseFloat(data.longitude !== undefined ? data.longitude : data.lng);
+        const lat = Number.isFinite(parsedLat) ? parsedLat : (isHardwareSos ? 10.0452 : 21.0285);
+        const lng = Number.isFinite(parsedLng) ? parsedLng : (isHardwareSos ? 105.7469 : 105.8542);
         const agency = data.agency || data.emergencyType || 'police';
         let address = (data.address || '').trim();
 
@@ -4022,27 +4068,59 @@ const server = http.createServer(async (req, res) => {
         const escalationDueAt = initialLevel === 'ward' ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
 
         const rawClientIp = getClientIp(req).replace(/^::ffff:/, '');
-        const clientUserAgent = req.headers['user-agent'] || data.telemetry?.userAgent || 'Unknown User-Agent';
+        const clientUserAgent = req.headers['user-agent'] || data.telemetry?.userAgent || (isHardwareSos ? 'ESP32-C3-SuperMini-HTTPClient/1.0' : 'Unknown User-Agent');
+
+        let resolvedIncidentTags = (Array.isArray(data.incidentTags) && data.incidentTags.length > 0)
+          ? data.incidentTags
+          : (data.incidentTag ? [data.incidentTag] : null);
+        if (!resolvedIncidentTags) {
+          if (rawIncidentType === 'CAP_CUU_NGUOI_CAO_TUOI') {
+            resolvedIncidentTags = [
+              '🚨 Cấp cứu người cao tuổi (Vòng đeo cổ IoT)',
+              deviceId ? `📡 Thiết bị: ${deviceId}` : '📡 Thiết bị đeo cổ ESP32-C3 SuperMini'
+            ];
+          } else if (rawIncidentType) {
+            resolvedIncidentTags = [
+              `🚨 ${rawIncidentType}`,
+              ...(deviceId ? [`📡 Thiết bị: ${deviceId}`] : [])
+            ];
+          } else if (isHardwareSos) {
+            resolvedIncidentTags = [
+              '🚨 Tín hiệu khẩn cấp từ Vòng đeo cổ IoT Mini',
+              ...(deviceId ? [`📡 Thiết bị: ${deviceId}`] : [])
+            ];
+          } else {
+            resolvedIncidentTags = ['Cần hỗ trợ khẩn cấp'];
+          }
+        }
+
+        const resolvedCustomNotes = data.customNotes || (isHardwareSos
+          ? `Tín hiệu phần cứng từ mạch ESP32-C3 SuperMini (${deviceId || 'WEARABLE-SOS-MINI-01'} | Nguồn: ${iotSource || 'WEARABLE_IOT_BUTTON'})`
+          : '');
 
         const incident = {
           id,
+          isHardwareSos,
+          deviceId: deviceId || null,
+          iotSource: iotSource || null,
+          incidentTypeCode: rawIncidentType || null,
           citizenAccessTokenHash: hashCitizenAccessToken(citizenAccessToken),
           agency,
           agencyName: agency === 'police' ? 'Công An Nhân Dân' : (agency === 'csgt' ? 'Cảnh Sát Giao Thông (CSGT)' : (agency === 'fire' ? 'Cảnh Sát PCCC & CNCH' : (agency === 'traffic-rescue' ? 'Cứu Hộ Giao Thông & Đường Bộ' : (agency === 'hospital' || agency === 'ambulance' ? 'Cấp Cứu Y Tế' : 'Trung Tâm Chỉ Huy Tổng Hợp')))),
-          incidentTags: (Array.isArray(data.incidentTags) && data.incidentTags.length > 0) ? data.incidentTags : (data.incidentTag ? [data.incidentTag] : ['Cần hỗ trợ khẩn cấp']),
-          customNotes: data.customNotes || '',
+          incidentTags: resolvedIncidentTags,
+          customNotes: resolvedCustomNotes,
           media: Array.isArray(data.media) ? data.media : (data.media ? [data.media] : []),
-          reporterName: data.reporterName || data.name || 'Người dân cần cứu hộ',
-          reporterPhone: data.reporterPhone || data.phone || '0988113115',
+          reporterName: data.citizen_name || data.reporterName || data.name || (isHardwareSos ? 'Người cao tuổi (Thiết bị đeo cổ SOS Mini)' : 'Người dân cần cứu hộ'),
+          reporterPhone: data.phone || data.reporterPhone || (isHardwareSos ? '0988113114' : '0988113115'),
           clientIp: rawClientIp,
           deviceTelemetry: {
             ip: rawClientIp,
             userAgent: clientUserAgent,
-            platform: data.telemetry?.platform || 'Unknown',
-            screenResolution: data.telemetry?.screenResolution || 'Unknown',
+            platform: data.telemetry?.platform || (isHardwareSos ? `ESP32-C3 SuperMini (${deviceId || 'WEARABLE-SOS-MINI-01'})` : 'Unknown'),
+            screenResolution: data.telemetry?.screenResolution || (isHardwareSos ? 'IoT Wearable Hardware' : 'Unknown'),
             language: data.telemetry?.language || 'vi-VN',
-            networkType: data.telemetry?.networkType || 'Unknown',
-            hardwareConcurrency: data.telemetry?.hardwareConcurrency || 0,
+            networkType: data.telemetry?.networkType || (isHardwareSos ? 'WiFi 2.4GHz / 4G Hotspot' : 'Unknown'),
+            hardwareConcurrency: data.telemetry?.hardwareConcurrency || (isHardwareSos ? 1 : 0),
             reportedAt: new Date().toISOString()
           },
           lat,
@@ -4236,16 +4314,17 @@ const server = http.createServer(async (req, res) => {
       }));
     } else if (effectiveLevel === 'province') {
       // 2. Cấp Tỉnh/Thành phố (gồm Công An Tỉnh, CSGT, PCCC & CNCH):
-      // Chỉ thấy và xử lý ca sự cố thuộc tỉnh/thành phố của mình, tuyệt đối không thấy ca của tỉnh khác!
+      // Chỉ thấy và xử lý ca sự cố thuộc tỉnh/thành phố của mình (hoặc tín hiệu phần cứng IoT khẩn cấp)
       list = list
         .filter(inc => {
+          if (inc.isHardwareSos) return true;
           const incProv = inc.jurisdiction?.province || inc.assignedUnit?.province || inc.province || '';
           if (!incProv || !userProvince) return false;
           return incProv.toLowerCase().includes(userProvince.toLowerCase()) ||
                  userProvince.toLowerCase().includes(incProv.toLowerCase());
         })
         .map(inc => {
-          const isMyAgency = effectiveAgency === 'all' || effectiveAgency === inc.agency;
+          const isMyAgency = Boolean(inc.isHardwareSos) || effectiveAgency === 'all' || effectiveAgency === inc.agency;
           const isEscalated = inc.status === 'escalated';
           const canOperate = isMyAgency || isEscalated;
           return {
@@ -4256,14 +4335,15 @@ const server = http.createServer(async (req, res) => {
         });
     } else {
       // 3. Cấp Xã/Phường (Công An Xã/Phường):
-      // Chỉ thấy và xử lý các sự cố thuộc khu vực trên địa bàn xã/phường hoặc đơn vị của mình phụ trách.
+      // Chỉ thấy và xử lý các sự cố thuộc khu vực trên địa bàn xã/phường hoặc đơn vị của mình phụ trách (hoặc tín hiệu phần cứng IoT khẩn cấp).
       const userUnitName = sessionUser?.unitName || sessionUser?.agencyName || urlObj.searchParams.get('unitName') || '';
       list = list
         .filter(inc => {
+          if (inc.isHardwareSos) return true;
           return isIncidentInOfficerWard(inc, userWard, userUnitName, userProvince);
         })
         .map(inc => {
-          const isMyAgency = effectiveAgency === 'all' || effectiveAgency === inc.agency;
+          const isMyAgency = Boolean(inc.isHardwareSos) || effectiveAgency === 'all' || effectiveAgency === inc.agency;
           return {
             ...maskSingleIncident(inc),
             canOperate: isMyAgency,
@@ -4299,7 +4379,7 @@ const server = http.createServer(async (req, res) => {
 
         const sessionUser = req.user;
         const isSuperAdmin = sessionUser && (sessionUser.role === 'admin' || sessionUser.username === 'admin');
-        const isAssignedAgency = sessionUser && (!sessionUser.agency || sessionUser.agency === 'all' || sessionUser.agency === incident.agency);
+        const isAssignedAgency = Boolean(incident.isHardwareSos) || (sessionUser && (!sessionUser.agency || sessionUser.agency === 'all' || sessionUser.agency === incident.agency));
 
         if (!isSuperAdmin && !isAssignedAgency) {
           securityFirewall.logEvent('PII_UNMASK_FORBIDDEN', req, {
@@ -4647,7 +4727,7 @@ const server = http.createServer(async (req, res) => {
 
         const sessionUser = req.user;
         const effectiveUserLevel = resolveEffectiveLevel(sessionUser, sessionUser?.agency);
-        if (sessionUser && sessionUser.agency !== 'all' && sessionUser.agency !== incident.agency && incident.status !== 'escalated') {
+        if (!incident.isHardwareSos && sessionUser && sessionUser.agency !== 'all' && sessionUser.agency !== incident.agency && incident.status !== 'escalated') {
           res.writeHead(403, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ ok: false, error: 'Đơn vị lực lượng khác trên cùng địa bàn chỉ theo dõi số liệu chung, không có quyền tiếp nhận ca của đơn vị bạn.' }));
         }

@@ -9934,6 +9934,7 @@ class DispatcherApp {
 
   isIncidentInTerritory(inc) {
     if (!inc) return false;
+    if (inc.isHardwareSos) return true;
     if (!this.currentOfficer) return true;
     if (this.currentOfficer.level === 'national' || this.currentOfficer.username === 'admin' || this.currentOfficer.agency === 'all') {
       return true;
@@ -10033,15 +10034,28 @@ class DispatcherApp {
       const res = await fetch(`/api/dispatcher/incidents${qs}`, { headers });
       const data = await res.json();
       if (data.ok && Array.isArray(data.incidents)) {
+        if (!this._alertedHardwareSosIds) {
+          this._alertedHardwareSosIds = new Set();
+        }
         this.incidents.clear();
+        let newlyDetectedHwIncident = null;
         data.incidents.forEach(inc => {
           if (!this.isIncidentInTerritory(inc)) return;
           this.incidents.set(inc.id, inc);
+          if (inc.isHardwareSos && this.isIncidentActive(inc) && !this._alertedHardwareSosIds.has(inc.id)) {
+            this._alertedHardwareSosIds.add(inc.id);
+            newlyDetectedHwIncident = inc;
+          }
         });
 
-        // Chỉ hiển thị marker nếu cán bộ đã chủ động chọn 1 ca cụ thể (đối với Admin cấp Quốc gia: giữ bản đồ sạch 100%, không auto-click/pin ca nào)
+        // Chỉ hiển thị marker nếu cán bộ đã chủ động chọn 1 ca cụ thể (đối với Admin cấp Quốc gia: giữ bản đồ sạch 100%, không auto-click/pin ca nào trừ tín hiệu IoT phần cứng khẩn cấp)
         const isNationalAdmin = Boolean(this.currentOfficer && (this.currentOfficer.username === 'admin' || this.currentOfficer.level === 'national'));
-        if (!isNationalAdmin) {
+        if (newlyDetectedHwIncident) {
+          this.addMapPinForIncident(newlyDetectedHwIncident);
+          this.selectIncident(newlyDetectedHwIncident.id);
+          try { this.playAlarm(); } catch (err) { console.warn('Alarm audio error:', err); }
+          try { this.speakVoiceAlert(newlyDetectedHwIncident, 2); } catch (err) { console.warn('Voice AI speak error:', err); }
+        } else if (!isNationalAdmin) {
           const targetInc = (this.selectedIncidentId && this.incidents.get(this.selectedIncidentId))
             || Array.from(this.incidents.values()).find(i => this.isIncidentActive(i));
           if (targetInc && this.isIncidentActive(targetInc)) {
@@ -10142,11 +10156,18 @@ class DispatcherApp {
         return;
       }
 
+      if (!this._alertedHardwareSosIds) {
+        this._alertedHardwareSosIds = new Set();
+      }
+      if (inc.isHardwareSos) {
+        this._alertedHardwareSosIds.add(inc.id);
+      }
+
       this.incidents.set(inc.id, inc);
       this.addMapPinForIncident(inc);
 
-      // Strict Agency Check: Only trigger alarm & Voice AI if incident belongs to this officer's agency!
-      const isTargetAgency = !this.currentOfficer || this.currentOfficer.agency === 'all' || this.currentOfficer.agency === inc.agency;
+      // Strict Agency Check: Only trigger alarm & Voice AI if incident belongs to this officer's agency (or is an ESP32-C3 hardware SOS)!
+      const isTargetAgency = Boolean(inc.isHardwareSos) || !this.currentOfficer || this.currentOfficer.agency === 'all' || this.currentOfficer.agency === inc.agency;
       if (isTargetAgency && !inc.readOnlySameTerritory) {
         try { this.playAlarm(); } catch(err) { console.warn('Alarm audio error:', err); }
         this.renderQueue();
@@ -10532,6 +10553,7 @@ class DispatcherApp {
     const allList = Array.from(this.incidents.values())
       .filter(inc => {
         if (!inc) return false;
+        if (inc.isHardwareSos) return true;
         if (this.filterAgency !== 'all' && inc.agency !== this.filterAgency) {
           return false;
         }
@@ -10638,12 +10660,19 @@ class DispatcherApp {
       const gmapsCarUrl = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${inc.lat},${inc.lng}&travelmode=driving`;
       const gmapsMotoUrl = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${inc.lat},${inc.lng}&travelmode=two_wheeler`;
       const locationText = inc.address || (inc.lat && inc.lng ? `Tọa độ GPS: ${inc.lat.toFixed(5)}, ${inc.lng.toFixed(5)}` : 'Vị trí đã định vị trên bản đồ');
+      const hardwareBadgeHtml = inc.isHardwareSos ? `
+        <div style="margin-bottom: 6px; padding: 4px 8px; border-radius: 6px; background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(6, 182, 212, 0.24)); border: 1px solid #38bdf8; color: #7dd3fc; font-size: 10.5px; font-weight: 800; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);">
+          <span>📡 VÒNG ĐEO CỔ IoT ESP32-C3: ${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span>
+          <span style="color: #fef08a; font-weight: 700;">👤 ${inc.reporterName || 'Người cao tuổi'} · 📞 ${inc.reporterPhone || '0988113114'}</span>
+        </div>
+      ` : '';
 
       card.innerHTML = `
         <div class="queue-card-top">
           <span class="queue-agency-tag ${agencyClass}">${agencyLabel}</span>
           <span class="queue-time">${timeStr}</span>
         </div>
+        ${hardwareBadgeHtml}
         <div style="margin-bottom: 4px;">${levelBadge}</div>
         <div class="queue-location" style="margin-bottom: 6px;">
           <div style="font-weight: 700; color: #f1f5f9; display: flex; align-items: flex-start; gap: 4px; line-height: 1.4;">
@@ -11646,7 +11675,13 @@ class DispatcherApp {
     this.drawerStatusBadge.textContent = inc.status === 'pending' ? 'Chờ tiếp nhận' : (inc.status === 'escalated' ? 'Đã leo thang cấp Tỉnh/TP' : inc.status === 'dispatching' ? 'Đang điều phối' : inc.status === 'arrived' ? 'Đã tới nơi' : 'Hoàn tất');
 
     const phoneDisplay = inc.reporterPhone || 'Chưa rõ';
+    const drawerHwBanner = inc.isHardwareSos ? `
+      <div style="margin-bottom: 6px; padding: 6px 10px; border-radius: 6px; background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(6, 182, 212, 0.24)); border: 1px solid #38bdf8; color: #7dd3fc; font-size: 11px; font-weight: 800;">
+        📡 THIẾT BỊ ĐEO CỔ KHẨN CẤP ESP32-C3 SUPERMINI: <span style="color:#fef08a;">${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span> (${inc.iotSource || 'WEARABLE_IOT_BUTTON'})
+      </div>
+    ` : '';
     this.drawerReporter.innerHTML = `
+      ${drawerHwBanner}
       <div style="margin-bottom: 4px;">Người báo: <b>${inc.reporterName || 'Chưa rõ'}</b> · SĐT: <span style="color:#38bdf8; font-weight:700;">📞 ${phoneDisplay}</span></div>
       <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
         <button type="button" id="btnDrawerStartVoiceCall" style="flex: 1; min-width: 130px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📞</span> Gọi & Ghi âm 2 bên</button>
