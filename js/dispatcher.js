@@ -10661,14 +10661,54 @@ class DispatcherApp {
       const originParam = (unit && unit.lat && unit.lng) ? `&origin=${unit.lat},${unit.lng}` : '';
       const gmapsCarUrl = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${inc.lat},${inc.lng}&travelmode=driving`;
       const gmapsMotoUrl = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${inc.lat},${inc.lng}&travelmode=two_wheeler`;
-      const locationText = inc.address || (inc.lat && inc.lng ? `Tọa độ GPS: ${inc.lat.toFixed(5)}, ${inc.lng.toFixed(5)}` : 'Vị trí đã định vị trên bản đồ');
-      const hwStepText = inc.hardwareTargetLabel || (inc.agency === 'csgt' ? 'NHẤN 2 LẦN - BÁO CẢNH SÁT GIAO THÔNG (CSGT)' : (inc.agency === 'fire' ? 'NHẤN 3 LẦN - BÁO PCCC VÀ CNCH' : 'NHẤN 1 LẦN - BÁO CÔNG AN ĐỊA PHƯƠNG'));
+      const wardName = inc.jurisdiction?.ward || inc.assignedUnit?.ward || 'Phường Long Tuyền';
+      const provName = inc.jurisdiction?.province || inc.assignedUnit?.province || 'Cần Thơ';
+      const cleanCitizenName = (!inc.reporterName || /Cu\s*Nguyen\s*Van\s*A/i.test(inc.reporterName))
+        ? 'Cụ Nguyễn Văn A (78 tuổi)'
+        : inc.reporterName;
+      const cleanAddress = (!inc.address || /Tin\s*hieu\s*tu\s*Vong\s*deo\s*co|Vòng đeo cổ khẩn cấp IoT/i.test(inc.address))
+        ? `Định vị GPS Vòng đeo cổ thông minh (${wardName}, TP. ${provName})`
+        : inc.address;
+      const hwStep = inc.hardwarePressStep || (inc.agency === 'csgt' ? 2 : (inc.agency === 'fire' ? 3 : 1));
+      const hwLevelBadgeText = hwStep === 2
+        ? 'MỨC 2 (NHẤN 2 LẦN) · ĐIỀU ĐỘNG CSGT'
+        : (hwStep === 3
+          ? 'MỨC 3 (NHẤN 3 LẦN) · ĐIỀU ĐỘNG PCCC & CNCH'
+          : 'MỨC 1 (NHẤN 1 LẦN) · ĐIỀU ĐỘNG CÔNG AN ĐỊA PHƯƠNG');
+      const hwCleanSummary = hwStep === 2
+        ? 'Sự cố giao thông & Cần Cảnh sát giao thông hỗ trợ khẩn cấp'
+        : (hwStep === 3
+          ? 'Báo cháy nổ & Cứu nạn cứu hộ khẩn cấp (PCCC & CNCH)'
+          : 'Cần hỗ trợ An ninh trật tự & Cấp cứu người cao tuổi tại chỗ');
+      const assignedUnitDisplay = unit?.name || unit?.unitName || 'Đơn vị trực ban sở tại';
+
+      const locationText = inc.isHardwareSos
+        ? `${cleanAddress} · Tọa độ: ${Number(inc.lat || 10.0452).toFixed(4)}, ${Number(inc.lng || 105.7469).toFixed(4)}`
+        : (inc.address || (inc.lat && inc.lng ? `Tọa độ GPS: ${inc.lat.toFixed(5)}, ${inc.lng.toFixed(5)}` : 'Vị trí đã định vị trên bản đồ'));
+
       const hardwareBadgeHtml = inc.isHardwareSos ? `
-        <div style="margin-bottom: 6px; padding: 4px 8px; border-radius: 6px; background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(6, 182, 212, 0.24)); border: 1px solid #38bdf8; color: #7dd3fc; font-size: 10.5px; font-weight: 800; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);">
-          <span>VÒNG ĐEO CỔ IoT ESP32-C3 (${inc.deviceId || 'WEARABLE-SOS-MINI-01'}): <span style="color:#ffffff;">${hwStepText}</span></span>
-          <span style="color: #fef08a; font-weight: 700;">${inc.reporterName || 'Người cao tuổi'} - SĐT: ${inc.reporterPhone || '0988113114'}</span>
+        <div style="margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 58, 138, 0.45)); border: 1px solid rgba(56, 189, 248, 0.55); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; gap: 5px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; border-bottom: 1px solid rgba(148, 163, 184, 0.2); padding-bottom: 4px;">
+            <span style="color: #38bdf8; font-size: 10px; font-weight: 800; letter-spacing: 0.4px;">THIẾT BỊ ĐEO CỔ SOS MINI</span>
+            <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid rgba(248, 113, 113, 0.6); color: #fecaca; font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px;">${hwLevelBadgeText}</span>
+          </div>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; font-size: 11px; line-height: 1.4;">
+            <span style="color: #94a3b8;">Người báo:</span>
+            <span style="color: #fef08a; font-weight: 700;">${cleanCitizenName}</span>
+            <span style="color: #94a3b8;">Điện thoại:</span>
+            <span style="color: #38bdf8; font-weight: 700;">${inc.reporterPhone || '0988113114'}</span>
+            <span style="color: #94a3b8;">Đơn vị nhận:</span>
+            <span style="color: #e2e8f0; font-weight: 600;">${assignedUnitDisplay}</span>
+          </div>
         </div>
       ` : '';
+
+      const incidentSummaryHtml = inc.isHardwareSos
+        ? `<div class="queue-incident-text" style="margin-bottom: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,0.04); border-left: 3px solid #eab308; font-size: 11.5px; line-height: 1.45;">
+             <div style="color: #94a3b8; font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Nội dung báo cáo khẩn cấp</div>
+             <div style="color: #f8fafc; font-weight: 700;">${hwCleanSummary}</div>
+           </div>`
+        : `<div class="queue-incident-text" style="margin-bottom: 8px;">Sự cố: <b>${(inc.incidentTags || []).join(', ')}</b> ${inc.customNotes ? '— ' + inc.customNotes : ''}</div>`;
 
       card.innerHTML = `
         <div class="queue-card-top">
@@ -10683,7 +10723,7 @@ class DispatcherApp {
             <span>${locationText}</span>
           </div>
         </div>
-        <div class="queue-incident-text" style="margin-bottom: 8px;">Sự cố: <b>${(inc.incidentTags || []).join(', ')}</b> ${inc.customNotes ? '— ' + inc.customNotes : ''}</div>
+        ${incidentSummaryHtml}
         <div class="queue-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
           ${isReadOnlySameTerritory ? `
             <span style="display: inline-flex; align-items: center; gap: 4px; background: rgba(100, 116, 139, 0.2); border: 1px dashed #94a3b8; color: #cbd5e1; padding: 4px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700;">
@@ -11674,24 +11714,63 @@ class DispatcherApp {
     }
 
     this.drawerSosId.textContent = `#${inc.id}`;
+    this.drawerSosId.style.whiteSpace = 'nowrap';
+    this.drawerSosId.style.fontSize = inc.isHardwareSos ? '14px' : '';
     this.drawerStatusBadge.className = `tracking-badge-status ${inc.status}`;
     this.drawerStatusBadge.textContent = inc.status === 'pending' ? 'Chờ tiếp nhận' : (inc.status === 'escalated' ? 'Đã leo thang cấp Tỉnh/TP' : inc.status === 'dispatching' ? 'Đang điều phối' : inc.status === 'arrived' ? 'Đã tới nơi' : 'Hoàn tất');
 
     const phoneDisplay = inc.reporterPhone || 'Chưa rõ';
-    const drawerHwStepText = inc.hardwareTargetLabel || (inc.agency === 'csgt' ? 'NHẤN 2 LẦN - BÁO CẢNH SÁT GIAO THÔNG (CSGT)' : (inc.agency === 'fire' ? 'NHẤN 3 LẦN - BÁO PCCC VÀ CNCH' : 'NHẤN 1 LẦN - BÁO CÔNG AN ĐỊA PHƯƠNG'));
-    const drawerHwBanner = inc.isHardwareSos ? `
-      <div style="margin-bottom: 6px; padding: 6px 10px; border-radius: 6px; background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(6, 182, 212, 0.24)); border: 1px solid #38bdf8; color: #7dd3fc; font-size: 11px; font-weight: 800;">
-        THIẾT BỊ ĐEO CỔ ESP32-C3 (${inc.deviceId || 'WEARABLE-SOS-MINI-01'}): <span style="color:#fef08a;">${drawerHwStepText}</span>
-      </div>
-    ` : '';
-    this.drawerReporter.innerHTML = `
-      ${drawerHwBanner}
-      <div style="margin-bottom: 4px;">Người báo: <b>${inc.reporterName || 'Chưa rõ'}</b> · SĐT: <span style="color:#38bdf8; font-weight:700;">📞 ${phoneDisplay}</span></div>
-      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-        <button type="button" id="btnDrawerStartVoiceCall" style="flex: 1; min-width: 130px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📞</span> Gọi & Ghi âm 2 bên</button>
-        <button type="button" id="btnDrawerStartVideoCall" style="flex: 1; min-width: 100px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📹</span> Gọi Video</button>
-      </div>
-    `;
+    const cleanReporterName = (inc.reporterName || 'Chưa rõ')
+      .replace(/Cu Nguyen Van A/gi, 'Cụ Nguyễn Văn A')
+      .replace(/\(78 tuoi\s*-\s*Thiet bi deo co SOS Mini\)/gi, '(78 tuổi)')
+      .replace(/Thiet bi deo co SOS Mini/gi, 'Thiết bị đeo cổ SOS Mini');
+    const cleanAddress = (inc.address || 'Không xác định')
+      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini\s*\([^)]*\)/gi, 'Khu vực định vị GPS Vòng đeo cổ thông minh')
+      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini/gi, 'Khu vực định vị GPS Vòng đeo cổ thông minh');
+    const drawerHwStep = inc.hardwarePressStep || (inc.agency === 'csgt' ? 2 : (inc.agency === 'fire' ? 3 : 1));
+    const drawerHwColor = drawerHwStep === 2 ? '#eab308' : (drawerHwStep === 3 ? '#f97316' : '#38bdf8');
+    const drawerHwStepTitle = drawerHwStep === 2
+      ? 'MỨC 2 (NHẤN 2 LẦN) · BÁO CẢNH SÁT GIAO THÔNG (CSGT)'
+      : (drawerHwStep === 3
+        ? 'MỨC 3 (NHẤN 3 LẦN) · BÁO CẢNH SÁT PCCC & CNCH'
+        : 'MỨC 1 (NHẤN 1 LẦN) · BÁO CÔNG AN ĐỊA PHƯƠNG');
+    const drawerHwActionDesc = drawerHwStep === 2
+      ? 'Yêu cầu tuần tra kiểm soát, phân luồng & hỗ trợ giao thông khẩn cấp'
+      : (drawerHwStep === 3
+        ? 'Yêu cầu lực lượng Cảnh sát Phòng cháy chữa cháy & Cứu nạn cứu hộ'
+        : 'Yêu cầu Công an Phường/Xã sở tại hỗ trợ an ninh trật tự & cấp cứu người cao tuổi');
+
+    if (inc.isHardwareSos) {
+      this.drawerReporter.innerHTML = `
+        <div style="margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)); border: 1px solid ${drawerHwColor}; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed rgba(148, 163, 184, 0.25);">
+            <span style="font-size: 10.5px; font-weight: 800; color: #f8fafc; background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(248, 113, 113, 0.5); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.3px;">VÒNG ĐEO CỔ THÔNG MINH IoT</span>
+            <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">ID: ${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span>
+          </div>
+          <div style="font-size: 11.5px; font-weight: 800; color: ${drawerHwColor}; margin-bottom: 6px; line-height: 1.35;">
+            ${drawerHwStepTitle}
+          </div>
+          <div style="display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 11.5px; color: #e2e8f0; line-height: 1.4;">
+            <span style="color: #94a3b8; font-weight: 600;">Công dân:</span>
+            <span style="font-weight: 700; color: #ffffff;">${cleanReporterName}</span>
+            <span style="color: #94a3b8; font-weight: 600;">Điện thoại:</span>
+            <span style="font-weight: 700; color: #38bdf8;">${phoneDisplay}</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="btnDrawerStartVoiceCall" style="flex: 1; min-width: 130px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 5px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📞</span> Gọi & Ghi âm 2 bên</button>
+          <button type="button" id="btnDrawerStartVideoCall" style="flex: 1; min-width: 100px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 5px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📹</span> Gọi Video</button>
+        </div>
+      `;
+    } else {
+      this.drawerReporter.innerHTML = `
+        <div style="margin-bottom: 4px;">Người báo: <b>${cleanReporterName}</b> · SĐT: <span style="color:#38bdf8; font-weight:700;">📞 ${phoneDisplay}</span></div>
+        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+          <button type="button" id="btnDrawerStartVoiceCall" style="flex: 1; min-width: 130px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📞</span> Gọi & Ghi âm 2 bên</button>
+          <button type="button" id="btnDrawerStartVideoCall" style="flex: 1; min-width: 100px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;"><span>📹</span> Gọi Video</button>
+        </div>
+      `;
+    }
     const btnDrawerCall = document.getElementById('btnDrawerStartVoiceCall');
     if (btnDrawerCall) {
       btnDrawerCall.onclick = () => this.openDispatcherVoiceCall(inc.id);
@@ -11701,8 +11780,14 @@ class DispatcherApp {
       btnDrawerVideo.onclick = () => this.startDispatcherVideoCall(inc.id);
     }
 
-    this.drawerAddress.textContent = `📍 ${inc.address || 'Không xác định'} (${inc.jurisdiction ? inc.jurisdiction.ward : 'Cơ sở'}, ${inc.jurisdiction ? inc.jurisdiction.province : ''})`;
-    this.drawerTags.textContent = `Sự cố: ${(inc.incidentTags || []).join(', ')} ${inc.customNotes ? '(' + inc.customNotes + ')' : ''}`;
+    const wardProvLabel = `${inc.jurisdiction ? inc.jurisdiction.ward : 'Cơ sở'}${inc.jurisdiction && inc.jurisdiction.province ? ', ' + inc.jurisdiction.province : ''}`;
+    if (inc.isHardwareSos) {
+      this.drawerAddress.innerHTML = `<div style="padding: 6px 9px; border-radius: 6px; background: rgba(15, 23, 42, 0.65); border-left: 3px solid #38bdf8; font-size: 11.5px; color: #e2e8f0; line-height: 1.4;">📍 <b>Vị trí định vị:</b> ${cleanAddress} <span style="color:#94a3b8;">(${wardProvLabel})</span></div>`;
+      this.drawerTags.innerHTML = `<div style="padding: 6px 9px; border-radius: 6px; background: rgba(239, 68, 68, 0.12); border-left: 3px solid #ef4444; font-size: 11.5px; color: #fecaca; line-height: 1.4;">🚨 <b>Nội dung báo cáo:</b> ${drawerHwActionDesc}</div>`;
+    } else {
+      this.drawerAddress.textContent = `📍 ${cleanAddress} (${wardProvLabel})`;
+      this.drawerTags.textContent = `Sự cố: ${(inc.incidentTags || []).join(', ')} ${inc.customNotes ? '(' + inc.customNotes + ')' : ''}`;
+    }
 
     const unit = inc.dispatchUnit || inc.assignedUnit;
     const originParam = (unit && unit.lat && unit.lng) ? `&origin=${unit.lat},${unit.lng}` : '';
@@ -11864,7 +11949,7 @@ class DispatcherApp {
         }
       }
 
-      const isNationalCommand = Boolean(this.currentOfficer && (this.currentOfficer.level === 'national' || this.currentOfficer.username === 'admin' || this.currentOfficer.agency === 'chihuy'));
+      const isNationalCommand = Boolean(!inc.isHardwareSos && this.currentOfficer && (this.currentOfficer.level === 'national' || this.currentOfficer.username === 'admin' || this.currentOfficer.agency === 'chihuy'));
       const natCard = document.getElementById('drawerNationalOversightCard');
 
       if (isNationalCommand) {
@@ -12203,7 +12288,120 @@ class DispatcherApp {
       (v.name && (v.name.toLowerCase().includes('vietnam') || v.name.toLowerCase().includes('tiếng việt') || v.name.toLowerCase().includes('hoaimy') || v.name.toLowerCase().includes('namminh')))
     );
 
-    return viVoices[0] || voices[0] || null;
+    return viVoices[0] || null;
+  }
+
+  sanitizeVietnameseSpeechText(rawText = '') {
+    return String(rawText || '')
+      .replace(/Cu Nguyen Van A/gi, 'Cụ Nguyễn Văn A')
+      .replace(/\(78 tuoi\s*-\s*Thiet bi deo co SOS Mini\)/gi, '78 tuổi')
+      .replace(/78 tuoi/gi, '78 tuổi')
+      .replace(/Thiet bi deo co SOS Mini/gi, 'Thiết bị đeo cổ thông minh')
+      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini\s*\([^)]*\)/gi, 'vị trí định vị vòng đeo cổ thông minh')
+      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini/gi, 'vị trí định vị vòng đeo cổ thông minh')
+      .replace(/WEARABLE-SOS-MINI-\d+/gi, '')
+      .replace(/ESP32-C3\s*SuperMini/gi, 'vòng đeo cổ thông minh')
+      .replace(/ESP32-C3/gi, '')
+      .replace(/IoT\s*Mini/gi, 'thông minh')
+      .replace(/IoT/gi, '')
+      .replace(/SOS/g, 'ét ô ét')
+      .replace(/CSGT/g, 'Cảnh sát giao thông')
+      .replace(/PCCC\s*(&|và)\s*CNCH/gi, 'Phòng cháy chữa cháy và cứu nạn cứu hộ')
+      .replace(/PCCC/g, 'Phòng cháy chữa cháy')
+      .replace(/CNCH/g, 'Cứu nạn cứu hộ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  playVietnameseServerTts(rawText, onEnd = null) {
+    const cleanText = this.sanitizeVietnameseSpeechText(rawText);
+    if (!cleanText) {
+      if (typeof onEnd === 'function') onEnd();
+      return;
+    }
+
+    if (this.activeTtsAudio) {
+      try {
+        this.activeTtsAudio.pause();
+        this.activeTtsAudio.src = '';
+      } catch (e) {}
+      this.activeTtsAudio = null;
+    }
+
+    const fallbackBrowserSpeech = () => {
+      if (!('speechSynthesis' in window)) {
+        if (typeof onEnd === 'function') onEnd();
+        return;
+      }
+      try {
+        const cfg = this.voiceConfig || { rate: 1.0, pitch: 1.0 };
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'vi-VN';
+        utterance.rate = cfg.rate !== undefined ? cfg.rate : 0.92;
+        utterance.pitch = cfg.pitch !== undefined ? cfg.pitch : 1.0;
+        utterance.volume = 1.0;
+        const matchedVoice = this.getMatchedVoice();
+        if (matchedVoice) utterance.voice = matchedVoice;
+        utterance.onend = () => {
+          this.activeVoiceUtterance = null;
+          if (typeof onEnd === 'function') onEnd();
+        };
+        utterance.onerror = () => {
+          this.activeVoiceUtterance = null;
+          if (typeof onEnd === 'function') onEnd();
+        };
+        this.activeVoiceUtterance = utterance;
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+          try { window.speechSynthesis.resume(); } catch (e) {}
+          window.speechSynthesis.speak(utterance);
+        }, 120);
+      } catch (e) {
+        if (typeof onEnd === 'function') onEnd();
+      }
+    };
+
+    try {
+      const audio = new Audio(`/api/tts/vi?text=${encodeURIComponent(cleanText)}`);
+      audio.preload = 'auto';
+      const cfgRate = this.voiceConfig?.rate || 1.0;
+      audio.playbackRate = Math.min(1.25, Math.max(0.85, cfgRate));
+      this.activeTtsAudio = audio;
+
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (this.activeTtsAudio === audio) {
+          this.activeTtsAudio = null;
+        }
+        if (typeof onEnd === 'function') onEnd();
+      };
+
+      audio.onended = finish;
+      audio.onerror = () => {
+        if (settled) return;
+        settled = true;
+        if (this.activeTtsAudio === audio) {
+          this.activeTtsAudio = null;
+        }
+        fallbackBrowserSpeech();
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          if (settled) return;
+          settled = true;
+          if (this.activeTtsAudio === audio) {
+            this.activeTtsAudio = null;
+          }
+          fallbackBrowserSpeech();
+        });
+      }
+    } catch (e) {
+      fallbackBrowserSpeech();
+    }
   }
 
   testVoicePrompt(cfg = {}) {
@@ -12229,26 +12427,10 @@ class DispatcherApp {
   }
 
   fallbackTestVoiceUtterance(cfg = {}) {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-
-    const sampleText = "Trung tâm chỉ huy Quốc gia ét ô ét Việt Nam thông báo: Đây là giọng đọc thử nghiệm cảnh báo khẩn cấp hệ thống. Tín hiệu âm thanh và giọng đọc hoạt động hoàn hảo!";
-    const defaultPitch = 1.0;
-    const defaultRate = 0.88;
-
-    const utterance = new SpeechSynthesisUtterance(sampleText);
-    utterance.lang = 'vi-VN';
-    utterance.rate = cfg.rate !== undefined ? cfg.rate : defaultRate;
-    utterance.pitch = cfg.pitch !== undefined ? cfg.pitch : defaultPitch;
-    utterance.volume = 1.0;
-
-    const matchedVoice = this.getMatchedVoice();
-    if (matchedVoice) utterance.voice = matchedVoice;
-
+    const sampleText = "Trung tâm chỉ huy Quốc gia ét ô ét Việt Nam thông báo: Đây là giọng đọc thử nghiệm cảnh báo khẩn cấp hệ thống. Tín hiệu âm thanh và giọng đọc tiếng Việt hoạt động hoàn hảo!";
     const testDelay = cfg.playChime ? 600 : 280;
     setTimeout(() => {
-      try { window.speechSynthesis.resume(); } catch(e) {}
-      window.speechSynthesis.speak(utterance);
+      this.playVietnameseServerTts(sampleText);
     }, testDelay);
   }
 
@@ -12257,6 +12439,13 @@ class DispatcherApp {
     if (this.voiceAiTimeout) {
       clearTimeout(this.voiceAiTimeout);
       this.voiceAiTimeout = null;
+    }
+    if (this.activeTtsAudio) {
+      try {
+        this.activeTtsAudio.pause();
+        this.activeTtsAudio.src = '';
+      } catch (e) {}
+      this.activeTtsAudio = null;
     }
     if ('speechSynthesis' in window) {
       try {
@@ -12274,16 +12463,8 @@ class DispatcherApp {
   }
 
   speakVoiceAlert(incident, repeatCount = null, prefix = '') {
-    if (!('speechSynthesis' in window)) return;
     this.stopVoiceAlert();
     this.isSpeakingVoiceAi = true;
-
-    // Fix Chromium/Cốc Cốc speech synthesis paused state
-    try {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-    } catch(e) {}
 
     const cfg = this.voiceConfig || { rate: 1.0, pitch: 1.0, repeats: 3, playChime: true };
     const maxRepeats = repeatCount !== null ? repeatCount : (cfg.repeats || 3);
@@ -12292,13 +12473,25 @@ class DispatcherApp {
       this.playVoiceChime();
     }
 
-    const tagStr = (incident.incidentTags && incident.incidentTags.length > 0) ? incident.incidentTags.join(', ') : 'Khẩn cấp';
     const ward = incident.jurisdiction ? (incident.jurisdiction.ward || incident.ward || 'địa bàn') : 'địa bàn cơ sở';
     const province = incident.jurisdiction ? (incident.jurisdiction.province || incident.province || '') : '';
-    
-    const message = `${prefix} Khẩn cấp! Khẩn cấp! Hệ thống et o et Quốc gia thông báo có sự cố ${tagStr} tại địa chỉ: ${incident.address || 'Vị trí bản đồ'}, thuộc ${ward}, ${province}. Người báo là ${incident.reporterName || 'Người dân'}, số điện thoại: ${incident.reporterPhone || 'Không rõ'}. Kính đề nghị cán bộ trực ban tiếp nhận và điều động lực lượng xử lý ngay lập tức!`;
-    const defaultPitch = 1.0;
-    const defaultRate = 0.88;
+    const cleanReporter = this.sanitizeVietnameseSpeechText(incident.reporterName || 'Người dân');
+    const spokenPhone = String(incident.reporterPhone || 'Không rõ').replace(/\s+/g, '').split('').join(' ');
+
+    let message = '';
+    if (incident.isHardwareSos) {
+      const stepNum = incident.hardwarePressStep || (incident.agency === 'csgt' ? 2 : (incident.agency === 'fire' ? 3 : 1));
+      const targetAgencyVi = stepNum === 2
+        ? 'Cảnh sát giao thông'
+        : (stepNum === 3
+          ? 'Cảnh sát Phòng cháy chữa cháy và Cứu nạn cứu hộ'
+          : 'Công an địa phương');
+      message = `${prefix} Khẩn cấp! Hệ thống ét ô ét Quốc gia tiếp nhận tín hiệu nhấn ${stepNum} lần từ vòng đeo cổ thông minh của ${cleanReporter}, báo về ${targetAgencyVi}, tại khu vực ${ward}, ${province}. Số điện thoại liên hệ: ${spokenPhone}. Đề nghị cán bộ trực ban tiếp nhận và điều động lực lượng xử lý ngay!`;
+    } else {
+      const tagStr = this.sanitizeVietnameseSpeechText((incident.incidentTags && incident.incidentTags.length > 0) ? incident.incidentTags.join(', ') : 'Khẩn cấp');
+      const cleanAddr = this.sanitizeVietnameseSpeechText(incident.address || 'Vị trí bản đồ');
+      message = `${prefix} Khẩn cấp! Hệ thống ét ô ét Quốc gia thông báo có sự cố ${tagStr} tại ${cleanAddr}, thuộc ${ward}, ${province}. Người báo là ${cleanReporter}, số điện thoại: ${spokenPhone}. Đề nghị cán bộ trực ban tiếp nhận và điều động lực lượng xử lý ngay!`;
+    }
 
     let currentRepeat = 0;
 
@@ -12313,42 +12506,12 @@ class DispatcherApp {
         this.btnPlayVoiceAi.textContent = `🔊 Đang phát Voice AI (Lần ${currentRepeat}/${maxRepeats})... (Bấm để dừng)`;
       }
 
-      const utterText = currentRepeat === 1 ? message : `Thông báo lặp lại lần thứ ${currentRepeat}: ${message}`;
-      const utterance = new SpeechSynthesisUtterance(utterText);
-      utterance.lang = 'vi-VN';
-      utterance.rate = cfg.rate !== undefined ? cfg.rate : defaultRate;
-      utterance.pitch = cfg.pitch !== undefined ? cfg.pitch : defaultPitch;
-      utterance.volume = 1.0;
-
-      const matchedVoice = this.getMatchedVoice();
-      if (matchedVoice) utterance.voice = matchedVoice;
-
-      utterance.onend = () => {
-        this.activeVoiceUtterance = null;
+      const utterText = currentRepeat === 1 ? message : `Thông báo lặp lại lần thứ ${currentRepeat}. ${message}`;
+      this.playVietnameseServerTts(utterText, () => {
         if (this.isSpeakingVoiceAi) {
-          this.voiceAiTimeout = setTimeout(playNext, 1000);
+          this.voiceAiTimeout = setTimeout(playNext, 900);
         }
-      };
-      utterance.onerror = (err) => {
-        this.activeVoiceUtterance = null;
-        if (!this.isSpeakingVoiceAi || err.error === 'canceled' || err.error === 'interrupted') {
-          return;
-        }
-        this.voiceAiTimeout = setTimeout(playNext, 1000);
-      };
-
-      // Retain reference on instance to prevent Garbage Collection cancellation on Chromium
-      this.activeVoiceUtterance = utterance;
-
-      try {
-        window.speechSynthesis.cancel();
-        setTimeout(() => {
-          try { window.speechSynthesis.resume(); } catch(e) {}
-          window.speechSynthesis.speak(utterance);
-        }, 220);
-      } catch (err) {
-        console.warn('Voice AI speak error:', err);
-      }
+      });
     };
 
     setTimeout(playNext, cfg.playChime ? 600 : 280);
@@ -12414,15 +12577,15 @@ class DispatcherApp {
   async handleAcceptSOS() {
     this.stopVoiceAlert(); // Immediately stop siren & speech voice AI!
 
-    if (this.currentOfficer?.level === 'national' || this.currentOfficer?.username === 'admin' || this.currentOfficer?.agency === 'chihuy') {
+    if (!this.selectedIncidentId) return;
+    const inc = this.incidents.get(this.selectedIncidentId);
+    if (!inc) return;
+
+    if (!inc.isHardwareSos && (this.currentOfficer?.level === 'national' || this.currentOfficer?.username === 'admin' || this.currentOfficer?.agency === 'chihuy')) {
       // FIX 2026-10-14: replaced blocking alert() (freezes automated browsers) with non-blocking toast
       this.showToast?.('Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không tiếp nhận trực tiếp thay đơn vị tác chiến địa phương!', 'warning');
       return;
     }
-
-    if (!this.selectedIncidentId) return;
-    const inc = this.incidents.get(this.selectedIncidentId);
-    if (!inc) return;
 
     this.btnAcceptSOS.disabled = true;
     this.btnAcceptSOS.textContent = 'ĐANG ĐIỀU ĐỘNG...';
@@ -12445,7 +12608,7 @@ class DispatcherApp {
 
     const payload = {
       id: inc.id,
-      unitName: officer.unitName || assigned.name || (inc.agency === 'police' ? 'Đội Tuần Tra Kiểm Soát Công An' : (inc.agency === 'csgt' ? 'Đội Tuần Tra CSGT' : (inc.agency === 'fire' ? 'Đội Cảnh Sát PCCC & CNCH' : 'Đội Cấp Cứu Y Tế'))),
+      unitName: assigned.name || officer.unitName || (inc.agency === 'police' ? 'Đội Tuần Tra Kiểm Soát Công An' : (inc.agency === 'csgt' ? 'Đội Tuần Tra CSGT' : (inc.agency === 'fire' ? 'Đội Cảnh Sát PCCC & CNCH' : 'Đội Cấp Cứu Y Tế'))),
       officerRank: effectiveRank,
       officerName: effectiveName,
       officerPhone: effectivePhone,
@@ -12470,6 +12633,10 @@ class DispatcherApp {
         this.updateDrawer(updatedInc);
         this.showIncidentDrawer(updatedInc);
         this.renderQueue();
+
+        const cleanReporter = this.sanitizeVietnameseSpeechText(updatedInc.reporterName || 'Người dân');
+        const unitSpoken = this.sanitizeVietnameseSpeechText(updatedInc.dispatchUnit?.unitName || payload.unitName || 'lực lượng tác chiến');
+        this.playVietnameseServerTts(`Đã tiếp nhận tín hiệu khẩn cấp của ${cleanReporter} và điều động ${unitSpoken} xuất phát tới hiện trường!`);
       } else {
         alert(data.error || 'Không thể tiếp nhận ca cứu hộ');
       }
@@ -12517,12 +12684,13 @@ class DispatcherApp {
   }
 
   async handleUpdateStatus(status, message) {
-    if (this.currentOfficer?.level === 'national' || this.currentOfficer?.username === 'admin' || this.currentOfficer?.agency === 'chihuy') {
+    if (!this.selectedIncidentId) return;
+    const currentInc = this.incidents.get(this.selectedIncidentId);
+    if (!currentInc?.isHardwareSos && (this.currentOfficer?.level === 'national' || this.currentOfficer?.username === 'admin' || this.currentOfficer?.agency === 'chihuy')) {
       // FIX 2026-10-14: replaced blocking alert() (freezes automated browsers) with non-blocking toast
       this.showToast?.('Đặc quyền Giám Sát Quốc Gia: Tài khoản Trung Tâm Chỉ Huy Quốc Gia chỉ có thẩm quyền giám sát và điều phối vĩ mô, không cập nhật tiến độ thay đơn vị tác chiến địa phương!', 'warning');
       return;
     }
-    if (!this.selectedIncidentId) return;
     const resolvedIncId = this.selectedIncidentId;
     // PATCH 2026-10-13: stop GPS vehicle tracking when arrived/resolved
     if (status === 'arrived' || status === 'resolved') {

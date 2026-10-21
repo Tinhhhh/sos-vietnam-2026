@@ -1774,9 +1774,39 @@ function maskPhoneNumber(phone) {
   return phone.trim();
 }
 
+function normalizeHardwareIncidentForDisplay(copy) {
+  if (!copy || !copy.isHardwareSos) return copy;
+  const ward = copy.jurisdiction?.ward || copy.assignedUnit?.ward || 'Phường Long Tuyền';
+  const province = copy.jurisdiction?.province || copy.assignedUnit?.province || 'Cần Thơ';
+  const step = copy.hardwarePressStep || (copy.agency === 'csgt' ? 2 : (copy.agency === 'fire' ? 3 : 1));
+  copy.hardwarePressStep = step;
+  copy.hardwareTargetLabel = step === 2
+    ? 'NHẤN 2 LẦN · ĐIỀU ĐỘNG CẢNH SÁT GIAO THÔNG (CSGT)'
+    : (step === 3
+      ? 'NHẤN 3 LẦN · ĐIỀU ĐỘNG CẢNH SÁT PCCC & CNCH'
+      : 'NHẤN 1 LẦN · ĐIỀU ĐỘNG CÔNG AN ĐỊA PHƯƠNG');
+
+  if (!copy.reporterName || /Cu\s*Nguyen\s*Van\s*A/i.test(copy.reporterName)) {
+    copy.reporterName = 'Cụ Nguyễn Văn A (78 tuổi)';
+  }
+  if (!copy.address || /Tin\s*hieu\s*tu\s*Vong\s*deo\s*co|Vòng đeo cổ khẩn cấp IoT/i.test(copy.address)) {
+    copy.address = `Khu vực định vị GPS Vòng đeo cổ thông minh (${ward}, TP. ${province})`;
+  }
+  if (step === 1) {
+    copy.incidentTags = ['Cần hỗ trợ An ninh trật tự & Cấp cứu người cao tuổi tại chỗ'];
+  } else if (step === 2) {
+    copy.incidentTags = ['Sự cố giao thông & Cần Cảnh sát giao thông hỗ trợ khẩn cấp'];
+  } else {
+    copy.incidentTags = ['Báo cháy nổ & Cứu nạn cứu hộ khẩn cấp (PCCC & CNCH)'];
+  }
+  const unitName = copy.dispatchUnit?.unitName || copy.assignedUnit?.name || 'Đơn vị trực ban sở tại';
+  copy.customNotes = `Đơn vị tiếp nhận: ${unitName}`;
+  return copy;
+}
+
 function maskSingleIncident(inc) {
   if (!inc || typeof inc !== 'object') return inc;
-  const copy = { ...inc };
+  const copy = normalizeHardwareIncidentForDisplay({ ...inc });
   if (copy.reporterPhone) {
     copy.reporterPhone = copy.reporterPhone.trim();
     copy.isPiiMasked = false;
@@ -3955,6 +3985,84 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
+  // API: Native Vietnamese TTS Audio Stream (/api/tts/vi)
+  // Ensures 100% natural Vietnamese voice on all OS/Browsers even when Windows lacks local vi-VN SAPI voices
+  // -------------------------------------------------------------
+  if (urlPath === '/api/tts/vi' && req.method === 'GET') {
+    const rawText = String(urlObj.searchParams.get('text') || '').trim();
+    if (!rawText) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, error: 'Missing text' }));
+    }
+    if (!global.__viTtsCache) {
+      global.__viTtsCache = new Map();
+    }
+    const cacheKey = rawText.slice(0, 600);
+    if (global.__viTtsCache.has(cacheKey)) {
+      const buf = global.__viTtsCache.get(cacheKey);
+      res.writeHead(200, {
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': buf.length,
+        'Cache-Control': 'public, max-age=86400'
+      });
+      return res.end(buf);
+    }
+
+    // Split text into natural Vietnamese clauses <= 170 chars for Google Translate TTS
+    const words = cacheKey.split(/\s+/);
+    const chunks = [];
+    let current = '';
+    for (const w of words) {
+      if ((current + ' ' + w).trim().length > 165) {
+        if (current.trim()) chunks.push(current.trim());
+        current = w;
+      } else {
+        current = (current + ' ' + w).trim();
+      }
+    }
+    if (current.trim()) chunks.push(current.trim());
+
+    const fetchTtsChunk = (chunkText) => new Promise((resolve, reject) => {
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunkText)}`;
+      https.get(ttsUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://translate.google.com/'
+        }
+      }, (ttsRes) => {
+        if (ttsRes.statusCode !== 200) {
+          ttsRes.resume();
+          return reject(new Error('TTS upstream status ' + ttsRes.statusCode));
+        }
+        const parts = [];
+        ttsRes.on('data', d => parts.push(d));
+        ttsRes.on('end', () => resolve(Buffer.concat(parts)));
+      }).on('error', reject);
+    });
+
+    Promise.all(chunks.map(c => fetchTtsChunk(c)))
+      .then((buffers) => {
+        const merged = Buffer.concat(buffers);
+        if (global.__viTtsCache.size > 80) {
+          const firstKey = global.__viTtsCache.keys().next().value;
+          global.__viTtsCache.delete(firstKey);
+        }
+        global.__viTtsCache.set(cacheKey, merged);
+        res.writeHead(200, {
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': merged.length,
+          'Cache-Control': 'public, max-age=86400'
+        });
+        res.end(merged);
+      })
+      .catch((err) => {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      });
+    return;
+  }
+
+  // -------------------------------------------------------------
   // API: Hardware IoT SOS Connectivity Check (ESP32-C3 SuperMini)
   // -------------------------------------------------------------
   if (!global.__hardwarePressStepByDevice) {
@@ -4215,6 +4323,8 @@ const server = http.createServer(async (req, res) => {
             { step: 1, title: 'Tín hiệu SOS đã phát', desc: `Gửi trực tiếp đến: ${localUnit.name} (${localUnit.address})`, time: new Date().toISOString(), done: true }
           ]
         };
+
+        normalizeHardwareIncidentForDisplay(incident);
 
         // 2. Multi-Channel Alerts
         const dispatchChannels = generateMultiChannelDispatch(incident);
