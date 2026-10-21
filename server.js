@@ -1786,11 +1786,19 @@ function normalizeHardwareIncidentForDisplay(copy) {
       ? 'NHẤN 3 LẦN · ĐIỀU ĐỘNG CẢNH SÁT PCCC & CNCH'
       : 'NHẤN 1 LẦN · ĐIỀU ĐỘNG CÔNG AN ĐỊA PHƯƠNG');
 
+  copy.hardwareModel = copy.hardwareModel || 'Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K)';
+  copy.networkMode = copy.networkMode || '4G_LTE_SIM';
+  copy.gpsFix = copy.gpsFix !== undefined ? Boolean(copy.gpsFix) : true;
+  copy.signalCsq = Number.isFinite(Number(copy.signalCsq)) && Number(copy.signalCsq) > 0 ? Number(copy.signalCsq) : 26;
+
   if (!copy.reporterName || /Cu\s*Nguyen\s*Van\s*A/i.test(copy.reporterName)) {
     copy.reporterName = 'Cụ Nguyễn Văn A (78 tuổi)';
   }
-  if (!copy.address || /Tin\s*hieu\s*tu\s*Vong\s*deo\s*co|Vòng đeo cổ khẩn cấp IoT/i.test(copy.address)) {
-    copy.address = `Khu vực định vị GPS Vòng đeo cổ thông minh (${ward}, TP. ${province})`;
+  const latStr = Number(copy.lat || 10.0452).toFixed(5);
+  const lngStr = Number(copy.lng || 105.7469).toFixed(5);
+  if (!copy.address || /Tin\s*hieu\s*tu\s*Vong\s*deo\s*co|Vòng đeo cổ khẩn cấp IoT|Định vị vệ tinh GPS|Định vị trạm 4G/i.test(copy.address)) {
+    const gpsType = copy.gpsFix !== false ? 'Định vị Vệ tinh GPS/GNSS 4G' : 'Định vị Trạm phát sóng 4G LBS';
+    copy.address = `${gpsType} (${ward}, TP. ${province}) · Tọa độ: ${latStr}, ${lngStr}`;
   }
   if (step === 1) {
     copy.incidentTags = ['Cần hỗ trợ An ninh trật tự & Cấp cứu người cao tuổi tại chỗ'];
@@ -1800,7 +1808,7 @@ function normalizeHardwareIncidentForDisplay(copy) {
     copy.incidentTags = ['Báo cháy nổ & Cứu nạn cứu hộ khẩn cấp (PCCC & CNCH)'];
   }
   const unitName = copy.dispatchUnit?.unitName || copy.assignedUnit?.name || 'Đơn vị trực ban sở tại';
-  copy.customNotes = `Đơn vị tiếp nhận: ${unitName}`;
+  copy.customNotes = `Đơn vị tiếp nhận: ${unitName} · Kết nối: SIM 4G LTE + GPS (${copy.hardwareModel})`;
   return copy;
 }
 
@@ -4068,14 +4076,18 @@ const server = http.createServer(async (req, res) => {
   if (!global.__hardwarePressStepByDevice) {
     global.__hardwarePressStepByDevice = new Map();
   }
-  if ((urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'GET') {
+  if ((urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'GET' && !urlObj.searchParams.has('press_step') && !urlObj.searchParams.has('lat')) {
     const hwIncidents = Array.from(incidents.values())
       .filter(inc => inc && inc.isHardwareSos)
       .map(inc => ({
         id: inc.id,
-        deviceId: inc.deviceId || 'WEARABLE-SOS-MINI-01',
+        deviceId: inc.deviceId || 'TDM2421-4G-GPS-01',
+        hardwareModel: inc.hardwareModel || 'Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K)',
+        networkMode: inc.networkMode || '4G_LTE_SIM',
+        gpsFix: inc.gpsFix !== false,
+        signalCsq: inc.signalCsq || 26,
         hardwarePressStep: inc.hardwarePressStep || 1,
-        hardwareTargetLabel: inc.hardwareTargetLabel || 'BAO CONG AN DON VI',
+        hardwareTargetLabel: inc.hardwareTargetLabel || 'NHẤN 1 LẦN · ĐIỀU ĐỘNG CÔNG AN ĐỊA PHƯƠNG',
         agency: inc.agency,
         agencyName: inc.agencyName,
         assignedUnit: inc.assignedUnit?.name || '',
@@ -4090,7 +4102,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     return res.end(JSON.stringify({
       ok: true,
-      service: 'SOS Vietnam 2026 - ESP32-C3 SuperMini IoT Hardware SOS Gateway',
+      service: 'SOS Vietnam 2026 - Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K) & Wearable IoT Gateway',
       status: 'ONLINE',
       endpoint: '/api/hardware-sos',
       supportedMethods: ['GET', 'POST'],
@@ -4100,15 +4112,33 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
-  // API: Create SOS Incident with Real Station Database (Web + IoT Hardware ESP32-C3)
+  // API: Create SOS Incident with Real Station Database (Web + 4G GPS ESP32-C3 TDM2421)
   // -------------------------------------------------------------
-  if ((urlPath === '/api/sos/create' || urlPath === '/api/incidents' || urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'POST') {
+  const isHardwareGetPush = (urlPath === '/api/hardware-sos/push' || ((urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && (urlObj.searchParams.has('press_step') || urlObj.searchParams.has('lat')))) && req.method === 'GET';
+  if (((urlPath === '/api/sos/create' || urlPath === '/api/incidents' || urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'POST') || isHardwareGetPush) {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const data = JSON.parse(body || '{}');
+        const data = isHardwareGetPush
+          ? {
+              device_id: urlObj.searchParams.get('device_id') || 'TDM2421-4G-GPS-01',
+              hardware_model: urlObj.searchParams.get('hardware_model') || 'Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K)',
+              network_mode: urlObj.searchParams.get('network_mode') || '4G_LTE_SIM',
+              signal_csq: parseInt(urlObj.searchParams.get('csq') || '26', 10),
+              gps_fix: urlObj.searchParams.get('gps_fix') !== '0' && urlObj.searchParams.get('gps_fix') !== 'false',
+              press_step: parseInt(urlObj.searchParams.get('press_step') || '1', 10),
+              agency: urlObj.searchParams.get('agency') || '',
+              incident_type: urlObj.searchParams.get('incident_type') || '',
+              latitude: parseFloat(urlObj.searchParams.get('lat') || urlObj.searchParams.get('latitude') || '10.0452'),
+              longitude: parseFloat(urlObj.searchParams.get('lng') || urlObj.searchParams.get('longitude') || '105.7469'),
+              citizen_name: urlObj.searchParams.get('citizen_name') || 'Cụ Nguyễn Văn A (78 tuổi)',
+              phone: urlObj.searchParams.get('phone') || '0988113114',
+              source: 'WEARABLE_IOT_BUTTON'
+            }
+          : JSON.parse(body || '{}');
         const isHardwareSos = Boolean(
+          isHardwareGetPush ||
           urlPath === '/api/hardware-sos' ||
           urlPath === '/api/sos/hardware' ||
           data.device_id ||
@@ -4116,7 +4146,13 @@ const server = http.createServer(async (req, res) => {
           data.source === 'WEARABLE_IOT_BUTTON' ||
           data.isHardwareSos
         );
-        const deviceId = String(data.device_id || data.deviceId || (isHardwareSos ? 'WEARABLE-SOS-MINI-01' : '')).trim();
+        const deviceId = String(data.device_id || data.deviceId || (isHardwareSos ? 'TDM2421-4G-GPS-01' : '')).trim();
+        const hardwareModel = String(data.hardware_model || data.hardwareModel || (isHardwareSos ? 'Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K)' : '')).trim();
+        const networkMode = String(data.network_mode || data.networkMode || (isHardwareSos ? '4G_LTE_SIM' : '')).trim();
+        const signalCsq = Number.isFinite(Number(data.signal_csq ?? data.signalCsq)) ? Number(data.signal_csq ?? data.signalCsq) : 26;
+        const gpsFix = data.gps_fix !== undefined ? Boolean(data.gps_fix) : (data.gpsFix !== undefined ? Boolean(data.gpsFix) : true);
+        const hdop = Number.isFinite(Number(data.hdop)) ? Number(data.hdop) : 1.1;
+        const altitude = Number.isFinite(Number(data.altitude)) ? Number(data.altitude) : 12.0;
         const iotSource = String(data.source || (isHardwareSos ? 'WEARABLE_IOT_BUTTON' : '')).trim();
         const rawIncidentType = String(data.incident_type || data.incidentType || '').trim();
 
@@ -4265,6 +4301,12 @@ const server = http.createServer(async (req, res) => {
           hardwarePressStep,
           hardwareTargetLabel,
           deviceId: deviceId || null,
+          hardwareModel: hardwareModel || null,
+          networkMode: networkMode || null,
+          signalCsq: isHardwareSos ? signalCsq : null,
+          gpsFix: isHardwareSos ? gpsFix : null,
+          hdop: isHardwareSos ? hdop : null,
+          altitude: isHardwareSos ? altitude : null,
           iotSource: iotSource || null,
           incidentTypeCode: rawIncidentType || null,
           citizenAccessTokenHash: hashCitizenAccessToken(citizenAccessToken),
@@ -4273,16 +4315,16 @@ const server = http.createServer(async (req, res) => {
           incidentTags: resolvedIncidentTags,
           customNotes: resolvedCustomNotes,
           media: Array.isArray(data.media) ? data.media : (data.media ? [data.media] : []),
-          reporterName: data.citizen_name || data.reporterName || data.name || (isHardwareSos ? 'Người cao tuổi (Thiết bị đeo cổ SOS Mini)' : 'Người dân cần cứu hộ'),
+          reporterName: data.citizen_name || data.reporterName || data.name || (isHardwareSos ? 'Cụ Nguyễn Văn A (78 tuổi)' : 'Người dân cần cứu hộ'),
           reporterPhone: data.phone || data.reporterPhone || (isHardwareSos ? '0988113114' : '0988113115'),
           clientIp: rawClientIp,
           deviceTelemetry: {
             ip: rawClientIp,
             userAgent: clientUserAgent,
-            platform: data.telemetry?.platform || (isHardwareSos ? `ESP32-C3 SuperMini (${deviceId || 'WEARABLE-SOS-MINI-01'})` : 'Unknown'),
-            screenResolution: data.telemetry?.screenResolution || (isHardwareSos ? 'IoT Wearable Hardware' : 'Unknown'),
+            platform: data.telemetry?.platform || (isHardwareSos ? `${hardwareModel || 'Kit 4G GPS ESP32-C3 TDM2421'} (${deviceId || 'TDM2421-4G-GPS-01'})` : 'Unknown'),
+            screenResolution: data.telemetry?.screenResolution || (isHardwareSos ? (gpsFix ? `GNSS Satellite Fix (${lat.toFixed(5)}, ${lng.toFixed(5)})` : '4G Cell LBS Positioning') : 'Unknown'),
             language: data.telemetry?.language || 'vi-VN',
-            networkType: data.telemetry?.networkType || (isHardwareSos ? 'WiFi 2.4GHz / 4G Hotspot' : 'Unknown'),
+            networkType: data.telemetry?.networkType || (isHardwareSos ? `SIM 4G LTE Cat.1 (Quectel EG800K · CSQ ${signalCsq}/31)` : 'Unknown'),
             hardwareConcurrency: data.telemetry?.hardwareConcurrency || (isHardwareSos ? 1 : 0),
             reportedAt: new Date().toISOString()
           },

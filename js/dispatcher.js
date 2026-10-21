@@ -10687,10 +10687,14 @@ class DispatcherApp {
         : (inc.address || (inc.lat && inc.lng ? `Tọa độ GPS: ${inc.lat.toFixed(5)}, ${inc.lng.toFixed(5)}` : 'Vị trí đã định vị trên bản đồ'));
 
       const hardwareBadgeHtml = inc.isHardwareSos ? `
-        <div style="margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 58, 138, 0.45)); border: 1px solid rgba(56, 189, 248, 0.55); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; gap: 5px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; border-bottom: 1px solid rgba(148, 163, 184, 0.2); padding-bottom: 4px;">
-            <span style="color: #38bdf8; font-size: 10px; font-weight: 800; letter-spacing: 0.4px;">THIẾT BỊ ĐEO CỔ SOS MINI</span>
+        <div style="margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 58, 138, 0.45)); border: 1px solid rgba(56, 189, 248, 0.55); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; gap: 5px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; border-bottom: 1px solid rgba(148, 163, 184, 0.2); padding-bottom: 4px; flex-wrap: wrap;">
+            <span style="color: #38bdf8; font-size: 10px; font-weight: 800; letter-spacing: 0.3px;">KIT 4G GPS ESP32-C3 TDM2421</span>
             <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid rgba(248, 113, 113, 0.6); color: #fecaca; font-size: 9.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px;">${hwLevelBadgeText}</span>
+          </div>
+          <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 1px;">
+            <span style="font-size: 9.5px; font-weight: 700; color: #34d399; background: rgba(16, 185, 129, 0.16); border: 1px solid rgba(16, 185, 129, 0.4); padding: 1px 6px; border-radius: 4px;">SIM 4G LTE ĐỘC LẬP (CSQ ${inc.signalCsq || 26}/31)</span>
+            <span style="font-size: 9.5px; font-weight: 700; color: #7dd3fc; background: rgba(14, 165, 233, 0.16); border: 1px solid rgba(56, 189, 248, 0.4); padding: 1px 6px; border-radius: 4px;">${inc.gpsFix !== false ? 'GPS VỆ TINH GNSS (EG800K)' : 'ĐỊNH VỊ TRẠM 4G LBS'}</span>
           </div>
           <div style="display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; font-size: 11px; line-height: 1.4;">
             <span style="color: #94a3b8;">Người báo:</span>
@@ -11743,9 +11747,13 @@ class DispatcherApp {
     if (inc.isHardwareSos) {
       this.drawerReporter.innerHTML = `
         <div style="margin-bottom: 8px; padding: 10px 12px; border-radius: 8px; background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)); border: 1px solid ${drawerHwColor}; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed rgba(148, 163, 184, 0.25);">
-            <span style="font-size: 10.5px; font-weight: 800; color: #f8fafc; background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(248, 113, 113, 0.5); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.3px;">VÒNG ĐEO CỔ THÔNG MINH IoT</span>
-            <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">ID: ${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed rgba(148, 163, 184, 0.25); flex-wrap: wrap;">
+            <span style="font-size: 10.5px; font-weight: 800; color: #f8fafc; background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(248, 113, 113, 0.5); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.3px;">KIT 4G GPS ESP32-C3 TDM2421 (EG800K)</span>
+            <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">ID: ${inc.deviceId || 'TDM2421-4G-GPS-01'}</span>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px;">
+            <span style="font-size: 10px; font-weight: 700; color: #34d399; background: rgba(16, 185, 129, 0.16); border: 1px solid rgba(16, 185, 129, 0.45); padding: 2px 7px; border-radius: 4px;">SIM 4G LTE ĐỘC LẬP · CSQ ${inc.signalCsq || 26}/31</span>
+            <span style="font-size: 10px; font-weight: 700; color: #7dd3fc; background: rgba(14, 165, 233, 0.16); border: 1px solid rgba(56, 189, 248, 0.45); padding: 2px 7px; border-radius: 4px;">${inc.gpsFix !== false ? 'VỆ TINH GPS/GNSS TRỰC TIẾP' : 'ĐỊNH VỊ TRẠM 4G LBS'} · ${Number(inc.lat || 10.0452).toFixed(5)}, ${Number(inc.lng || 105.7469).toFixed(5)}</span>
           </div>
           <div style="font-size: 11.5px; font-weight: 800; color: ${drawerHwColor}; margin-bottom: 6px; line-height: 1.35;">
             ${drawerHwStepTitle}
@@ -12297,11 +12305,18 @@ class DispatcherApp {
       .replace(/\(78 tuoi\s*-\s*Thiet bi deo co SOS Mini\)/gi, '78 tuổi')
       .replace(/78 tuoi/gi, '78 tuổi')
       .replace(/Thiet bi deo co SOS Mini/gi, 'Thiết bị đeo cổ thông minh')
-      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini\s*\([^)]*\)/gi, 'vị trí định vị vòng đeo cổ thông minh')
-      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini/gi, 'vị trí định vị vòng đeo cổ thông minh')
+      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini\s*\([^)]*\)/gi, 'vị trí định vị vệ tinh bốn gờ')
+      .replace(/Tin hieu tu Vong deo co khan cap IoT Mini/gi, 'vị trí định vị vệ tinh bốn gờ')
       .replace(/WEARABLE-SOS-MINI-\d+/gi, '')
+      .replace(/TDM2421-4G-GPS-\d+/gi, '')
+      .replace(/TDM2421/gi, 'bốn gờ định vị vệ tinh')
+      .replace(/EG800K/gi, '')
       .replace(/ESP32-C3\s*SuperMini/gi, 'vòng đeo cổ thông minh')
       .replace(/ESP32-C3/gi, '')
+      .replace(/4G\s*LTE/gi, 'bốn gờ')
+      .replace(/4G/gi, 'bốn gờ')
+      .replace(/GNSS/gi, 'vệ tinh')
+      .replace(/GPS/gi, 'định vị vệ tinh')
       .replace(/IoT\s*Mini/gi, 'thông minh')
       .replace(/IoT/gi, '')
       .replace(/SOS/g, 'ét ô ét')
