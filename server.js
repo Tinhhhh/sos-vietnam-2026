@@ -4020,31 +4020,25 @@ const server = http.createServer(async (req, res) => {
           const explicitStep = parseInt(data.press_step || data.pressStep || data.press_count || data.pressCount, 10);
           if (explicitStep >= 1 && explicitStep <= 3) {
             hardwarePressStep = explicitStep;
-            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', hardwarePressStep);
-          } else if (rawIncidentType === 'BAO_CONG_AN_DON_VI' || data.agency === 'police') {
+          } else if (rawIncidentType === 'BAO_CONG_AN_DIA_PHUONG' || rawIncidentType === 'BAO_CONG_AN_DON_VI' || data.agency === 'police') {
             hardwarePressStep = 1;
-            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', 1);
           } else if (rawIncidentType === 'BAO_CANH_SAT_GIAO_THONG' || data.agency === 'csgt') {
             hardwarePressStep = 2;
-            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', 2);
           } else if (rawIncidentType === 'BAO_PCCC_VA_CNCH' || data.agency === 'fire') {
             hardwarePressStep = 3;
-            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', 3);
           } else {
-            const prevStep = global.__hardwarePressStepByDevice.get(deviceId || 'DEFAULT') || 0;
-            hardwarePressStep = (prevStep % 3) + 1;
-            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', hardwarePressStep);
+            hardwarePressStep = 1;
           }
 
           if (hardwarePressStep === 1) {
             resolvedHwAgency = 'police';
-            hardwareTargetLabel = 'NHẤN LẦN 1 - BÁO CÔNG AN ĐƠN VỊ';
+            hardwareTargetLabel = 'NHẤN 1 LẦN - BÁO CÔNG AN ĐỊA PHƯƠNG';
           } else if (hardwarePressStep === 2) {
             resolvedHwAgency = 'csgt';
-            hardwareTargetLabel = 'NHẤN LẦN 2 - BÁO CẢNH SÁT GIAO THÔNG (CSGT)';
+            hardwareTargetLabel = 'NHẤN 2 LẦN - BÁO CẢNH SÁT GIAO THÔNG (CSGT)';
           } else {
             resolvedHwAgency = 'fire';
-            hardwareTargetLabel = 'NHẤN LẦN 3 - BÁO PCCC VÀ CNCH';
+            hardwareTargetLabel = 'NHẤN 3 LẦN - BÁO PCCC VÀ CNCH';
           }
         }
 
@@ -4120,17 +4114,17 @@ const server = http.createServer(async (req, res) => {
         if (!resolvedIncidentTags) {
           if (isHardwareSos && hardwarePressStep === 1) {
             resolvedIncidentTags = [
-              'Báo động khẩn cấp về Công An Đơn Vị (Nhấn lần 1 - Vòng đeo cổ IoT)',
+              'Báo động khẩn cấp về Công An Địa Phương (Nhấn 1 lần - Vòng đeo cổ IoT)',
               deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
             ];
           } else if (isHardwareSos && hardwarePressStep === 2) {
             resolvedIncidentTags = [
-              'Báo động khẩn cấp về Cảnh Sát Giao Thông - CSGT (Nhấn lần 2 - Vòng đeo cổ IoT)',
+              'Báo động khẩn cấp về Cảnh Sát Giao Thông - CSGT (Nhấn 2 lần - Vòng đeo cổ IoT)',
               deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
             ];
           } else if (isHardwareSos && hardwarePressStep === 3) {
             resolvedIncidentTags = [
-              'Báo động khẩn cấp về Cảnh Sát PCCC và CNCH (Nhấn lần 3 - Vòng đeo cổ IoT)',
+              'Báo động khẩn cấp về Cảnh Sát PCCC và CNCH (Nhấn 3 lần - Vòng đeo cổ IoT)',
               deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
             ];
           } else if (rawIncidentType === 'CAP_CUU_NGUOI_CAO_TUOI') {
