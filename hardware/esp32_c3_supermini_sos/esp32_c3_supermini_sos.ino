@@ -16,8 +16,9 @@ const int BUZZER_PIN = 4;      // Chan GPIO 4 noi coi bao
 const int LED_PIN = 8;         // Den LED xanh co san tren mach ESP32-C3 SuperMini
 
 bool isAlertSent = false;
+int pressStep = 0; // Dem lan nhan: 1 = Cong an don vi, 2 = Canh sat giao thong, 3 = PCCC va CNCH
 unsigned long lastSendMillis = 0;
-const unsigned long COOLDOWN_MS = 5000; // Chong gui trung tin hieu trong 5 giay
+const unsigned long COOLDOWN_MS = 1200; // Chong doi nut giua cac lan nhan
 
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
@@ -28,7 +29,7 @@ void connectWiFi() {
   WiFi.setAutoReconnect(true);
   WiFi.begin(ssid, password);
 
-  // Giam cong suat phat WiFi xuong 8.5dBm: khac phuc triet de loi nhiễu anten va tut ap tren ESP32-C3 SuperMini
+  // Giam cong suat phat WiFi xuong 8.5dBm giup ESP32-C3 SuperMini bat WiFi nhanh va mat mach
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
   Serial.print("Dang ket noi Wi-Fi");
@@ -44,6 +45,20 @@ void connectWiFi() {
     Serial.println(WiFi.localIP());
   } else {
     Serial.println("\n[WARN] Chua ket noi duoc Wi-Fi, mach se tu dong thu lai khi bam nut.");
+  }
+}
+
+// Phat coi bip & nhay LED theo so lan nhan (1 bip = Cong an, 2 bip = CSGT, 3 bip = PCCC & CNCH)
+void beepAndBlinkByStep(int stepCount) {
+  for (int i = 0; i < stepCount; i++) {
+    digitalWrite(LED_PIN, LOW);     // Bat LED
+    digitalWrite(BUZZER_PIN, HIGH); // Bat coi
+    delay(180);
+    digitalWrite(BUZZER_PIN, LOW);  // Tat coi
+    digitalWrite(LED_PIN, HIGH);    // Tat LED
+    if (i < stepCount - 1) {
+      delay(140);
+    }
   }
 }
 
@@ -69,19 +84,26 @@ void loop() {
   if (pressed && !isAlertSent && (millis() - lastSendMillis >= COOLDOWN_MS)) {
     delay(50); // Chong nhieu nut nhan
     if ((digitalRead(RF_BUTTON_PIN) == LOW) || (digitalRead(ONBOARD_BTN_PIN) == LOW)) {
-      Serial.println("[SOS] PHAT HIEN NGUOI GIA BAM NUT DEO CO KHAN CAP!");
-
-      // 1. Sang den LED & keu coi bip bao hieu thiet bi da nhan lenh
-      digitalWrite(LED_PIN, LOW);
-      digitalWrite(BUZZER_PIN, HIGH);
-
-      // 2. Gui tin hieu SOS len Web sos-vietnam-2026.onrender.com
-      sendMiniSOSToWeb();
-
       isAlertSent = true;
       lastSendMillis = millis();
-      delay(2000);
-      digitalWrite(BUZZER_PIN, LOW);
+
+      // Tang thu tu lan nhan: 1 -> 2 -> 3 -> quay vong ve 1
+      pressStep = (pressStep % 3) + 1;
+
+      if (pressStep == 1) {
+        Serial.println("[SOS - LAN 1] BAO VE CONG AN DON VI!");
+      } else if (pressStep == 2) {
+        Serial.println("[SOS - LAN 2] BAO VE CANH SAT GIAO THONG (CSGT)!");
+      } else {
+        Serial.println("[SOS - LAN 3] BAO VE PCCC VA CNCH!");
+      }
+
+      // 1. Bao hieu bang coi va den LED theo dung so lan nhan (1, 2 hoac 3 tieng bip)
+      beepAndBlinkByStep(pressStep);
+
+      // 2. Gui tin hieu SOS tuong ung len Web sos-vietnam-2026.onrender.com
+      digitalWrite(LED_PIN, LOW); // Giu sang den trong luc dang gui HTTP
+      sendMiniSOSToWeb(pressStep);
       digitalWrite(LED_PIN, HIGH);
     }
   }
@@ -93,14 +115,14 @@ void loop() {
   delay(10); // Nhuong CPU cho stack Wi-Fi cua ESP32-C3 hoat dong muot ma
 }
 
-void sendMiniSOSToWeb() {
+void sendMiniSOSToWeb(int step) {
   if (WiFi.status() != WL_CONNECTED) {
     connectWiFi();
   }
 
   if (WiFi.status() == WL_CONNECTED) {
     WiFiClientSecure client;
-    client.setInsecure(); // Bo qua kiem tra chung chi SSL goc de ket noi HTTPS onrender.com muot ma
+    client.setInsecure(); // Cho phep ket noi HTTPS onrender.com muot ma
 
     HTTPClient http;
     http.setConnectTimeout(10000);
@@ -113,20 +135,36 @@ void sendMiniSOSToWeb() {
 
     http.addHeader("Content-Type", "application/json");
 
+    String agency = "police";
+    String incidentType = "BAO_CONG_AN_DON_VI";
+    String addressNote = "Tin hieu tu Vong deo co khan cap IoT Mini (Nhan lan 1: Bao Cong An Don Vi)";
+
+    if (step == 2) {
+      agency = "csgt";
+      incidentType = "BAO_CANH_SAT_GIAO_THONG";
+      addressNote = "Tin hieu tu Vong deo co khan cap IoT Mini (Nhan lan 2: Bao Canh Sat Giao Thong)";
+    } else if (step == 3) {
+      agency = "fire";
+      incidentType = "BAO_PCCC_VA_CNCH";
+      addressNote = "Tin hieu tu Vong deo co khan cap IoT Mini (Nhan lan 3: Bao PCCC va CNCH)";
+    }
+
     String jsonPayload = "{"
       "\"device_id\": \"WEARABLE-SOS-MINI-01\","
+      "\"press_step\": " + String(step) + ","
+      "\"agency\": \"" + agency + "\","
       "\"citizen_name\": \"Cu Nguyen Van A (78 tuoi - Thiet bi deo co SOS Mini)\","
       "\"phone\": \"0988113114\","
-      "\"incident_type\": \"CAP_CUU_NGUOI_CAO_TUOI\","
+      "\"incident_type\": \"" + incidentType + "\","
       "\"latitude\": 10.0452,"
       "\"longitude\": 105.7469,"
-      "\"address\": \"Tin hieu tu Vong deo co khan cap IoT Mini\","
+      "\"address\": \"" + addressNote + "\","
       "\"source\": \"WEARABLE_IOT_BUTTON\""
     "}";
 
     int httpCode = http.POST(jsonPayload);
     if (httpCode > 0) {
-      Serial.println("[OK] Da bao ve Cong Truc Ban thanh cong! Ma HTTP: " + String(httpCode));
+      Serial.println("[OK] Da bao ve Cong Truc Ban thanh cong (Lan " + String(step) + " - " + agency + ")! Ma HTTP: " + String(httpCode));
     } else {
       Serial.println("[ERROR] Loi gui tin hieu: " + String(httpCode) + " (" + http.errorToString(httpCode) + ")");
     }

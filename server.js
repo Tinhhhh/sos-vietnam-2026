@@ -3957,12 +3957,20 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   // API: Hardware IoT SOS Connectivity Check (ESP32-C3 SuperMini)
   // -------------------------------------------------------------
+  if (!global.__hardwarePressStepByDevice) {
+    global.__hardwarePressStepByDevice = new Map();
+  }
   if ((urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'GET') {
     const hwIncidents = Array.from(incidents.values())
       .filter(inc => inc && inc.isHardwareSos)
       .map(inc => ({
         id: inc.id,
         deviceId: inc.deviceId || 'WEARABLE-SOS-MINI-01',
+        hardwarePressStep: inc.hardwarePressStep || 1,
+        hardwareTargetLabel: inc.hardwareTargetLabel || 'BAO CONG AN DON VI',
+        agency: inc.agency,
+        agencyName: inc.agencyName,
+        assignedUnit: inc.assignedUnit?.name || '',
         reporterName: inc.reporterName,
         reporterPhone: inc.reporterPhone,
         lat: inc.lat,
@@ -4004,13 +4012,49 @@ const server = http.createServer(async (req, res) => {
         const iotSource = String(data.source || (isHardwareSos ? 'WEARABLE_IOT_BUTTON' : '')).trim();
         const rawIncidentType = String(data.incident_type || data.incidentType || '').trim();
 
+        let hardwarePressStep = null;
+        let hardwareTargetLabel = null;
+        let resolvedHwAgency = null;
+
+        if (isHardwareSos) {
+          const explicitStep = parseInt(data.press_step || data.pressStep || data.press_count || data.pressCount, 10);
+          if (explicitStep >= 1 && explicitStep <= 3) {
+            hardwarePressStep = explicitStep;
+            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', hardwarePressStep);
+          } else if (rawIncidentType === 'BAO_CONG_AN_DON_VI' || data.agency === 'police') {
+            hardwarePressStep = 1;
+            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', 1);
+          } else if (rawIncidentType === 'BAO_CANH_SAT_GIAO_THONG' || data.agency === 'csgt') {
+            hardwarePressStep = 2;
+            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', 2);
+          } else if (rawIncidentType === 'BAO_PCCC_VA_CNCH' || data.agency === 'fire') {
+            hardwarePressStep = 3;
+            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', 3);
+          } else {
+            const prevStep = global.__hardwarePressStepByDevice.get(deviceId || 'DEFAULT') || 0;
+            hardwarePressStep = (prevStep % 3) + 1;
+            global.__hardwarePressStepByDevice.set(deviceId || 'DEFAULT', hardwarePressStep);
+          }
+
+          if (hardwarePressStep === 1) {
+            resolvedHwAgency = 'police';
+            hardwareTargetLabel = 'NHẤN LẦN 1 - BÁO CÔNG AN ĐƠN VỊ';
+          } else if (hardwarePressStep === 2) {
+            resolvedHwAgency = 'csgt';
+            hardwareTargetLabel = 'NHẤN LẦN 2 - BÁO CẢNH SÁT GIAO THÔNG (CSGT)';
+          } else {
+            resolvedHwAgency = 'fire';
+            hardwareTargetLabel = 'NHẤN LẦN 3 - BÁO PCCC VÀ CNCH';
+          }
+        }
+
         const id = (isHardwareSos ? 'IOT-' : 'SOS-') + Date.now().toString(36).toUpperCase() + '-' + Math.floor(Math.random() * 900 + 100);
         const citizenAccessToken = createCitizenAccessToken();
         const parsedLat = parseFloat(data.latitude !== undefined ? data.latitude : data.lat);
         const parsedLng = parseFloat(data.longitude !== undefined ? data.longitude : data.lng);
         const lat = Number.isFinite(parsedLat) ? parsedLat : (isHardwareSos ? 10.0452 : 21.0285);
         const lng = Number.isFinite(parsedLng) ? parsedLng : (isHardwareSos ? 105.7469 : 105.8542);
-        const agency = data.agency || data.emergencyType || 'police';
+        const agency = resolvedHwAgency || data.agency || data.emergencyType || 'police';
         let address = (data.address || '').trim();
 
         // 1. Resolve Jurisdiction & Real Station
@@ -4074,7 +4118,22 @@ const server = http.createServer(async (req, res) => {
           ? data.incidentTags
           : (data.incidentTag ? [data.incidentTag] : null);
         if (!resolvedIncidentTags) {
-          if (rawIncidentType === 'CAP_CUU_NGUOI_CAO_TUOI') {
+          if (isHardwareSos && hardwarePressStep === 1) {
+            resolvedIncidentTags = [
+              'Báo động khẩn cấp về Công An Đơn Vị (Nhấn lần 1 - Vòng đeo cổ IoT)',
+              deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
+            ];
+          } else if (isHardwareSos && hardwarePressStep === 2) {
+            resolvedIncidentTags = [
+              'Báo động khẩn cấp về Cảnh Sát Giao Thông - CSGT (Nhấn lần 2 - Vòng đeo cổ IoT)',
+              deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
+            ];
+          } else if (isHardwareSos && hardwarePressStep === 3) {
+            resolvedIncidentTags = [
+              'Báo động khẩn cấp về Cảnh Sát PCCC và CNCH (Nhấn lần 3 - Vòng đeo cổ IoT)',
+              deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
+            ];
+          } else if (rawIncidentType === 'CAP_CUU_NGUOI_CAO_TUOI') {
             resolvedIncidentTags = [
               'Cấp cứu người cao tuổi (Vòng đeo cổ IoT)',
               deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
@@ -4095,12 +4154,14 @@ const server = http.createServer(async (req, res) => {
         }
 
         const resolvedCustomNotes = data.customNotes || (isHardwareSos
-          ? `Tín hiệu phần cứng từ mạch ESP32-C3 SuperMini (${deviceId || 'WEARABLE-SOS-MINI-01'} | Nguồn: ${iotSource || 'WEARABLE_IOT_BUTTON'})`
+          ? `${hardwareTargetLabel || 'Tín hiệu phần cứng IoT'} - Đơn vị nhận: ${localUnit.name} (Mạch ESP32-C3 SuperMini: ${deviceId || 'WEARABLE-SOS-MINI-01'})`
           : '');
 
         const incident = {
           id,
           isHardwareSos,
+          hardwarePressStep,
+          hardwareTargetLabel,
           deviceId: deviceId || null,
           iotSource: iotSource || null,
           incidentTypeCode: rawIncidentType || null,
