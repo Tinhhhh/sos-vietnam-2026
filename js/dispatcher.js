@@ -10662,8 +10662,8 @@ class DispatcherApp {
       const locationText = inc.address || (inc.lat && inc.lng ? `Tọa độ GPS: ${inc.lat.toFixed(5)}, ${inc.lng.toFixed(5)}` : 'Vị trí đã định vị trên bản đồ');
       const hardwareBadgeHtml = inc.isHardwareSos ? `
         <div style="margin-bottom: 6px; padding: 4px 8px; border-radius: 6px; background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(6, 182, 212, 0.24)); border: 1px solid #38bdf8; color: #7dd3fc; font-size: 10.5px; font-weight: 800; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);">
-          <span>📡 VÒNG ĐEO CỔ IoT ESP32-C3: ${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span>
-          <span style="color: #fef08a; font-weight: 700;">👤 ${inc.reporterName || 'Người cao tuổi'} · 📞 ${inc.reporterPhone || '0988113114'}</span>
+          <span>VÒNG ĐEO CỔ IoT ESP32-C3: ${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span>
+          <span style="color: #fef08a; font-weight: 700;">${inc.reporterName || 'Người cao tuổi'} - SĐT: ${inc.reporterPhone || '0988113114'}</span>
         </div>
       ` : '';
 
@@ -11677,7 +11677,7 @@ class DispatcherApp {
     const phoneDisplay = inc.reporterPhone || 'Chưa rõ';
     const drawerHwBanner = inc.isHardwareSos ? `
       <div style="margin-bottom: 6px; padding: 6px 10px; border-radius: 6px; background: linear-gradient(90deg, rgba(239, 68, 68, 0.28), rgba(6, 182, 212, 0.24)); border: 1px solid #38bdf8; color: #7dd3fc; font-size: 11px; font-weight: 800;">
-        📡 THIẾT BỊ ĐEO CỔ KHẨN CẤP ESP32-C3 SUPERMINI: <span style="color:#fef08a;">${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span> (${inc.iotSource || 'WEARABLE_IOT_BUTTON'})
+        THIẾT BỊ ĐEO CỔ KHẨN CẤP ESP32-C3 SUPERMINI: <span style="color:#fef08a;">${inc.deviceId || 'WEARABLE-SOS-MINI-01'}</span> (${inc.iotSource || 'WEARABLE_IOT_BUTTON'})
       </div>
     ` : '';
     this.drawerReporter.innerHTML = `

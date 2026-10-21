@@ -4076,18 +4076,18 @@ const server = http.createServer(async (req, res) => {
         if (!resolvedIncidentTags) {
           if (rawIncidentType === 'CAP_CUU_NGUOI_CAO_TUOI') {
             resolvedIncidentTags = [
-              '🚨 Cấp cứu người cao tuổi (Vòng đeo cổ IoT)',
-              deviceId ? `📡 Thiết bị: ${deviceId}` : '📡 Thiết bị đeo cổ ESP32-C3 SuperMini'
+              'Cấp cứu người cao tuổi (Vòng đeo cổ IoT)',
+              deviceId ? `Thiết bị: ${deviceId}` : 'Thiết bị đeo cổ ESP32-C3 SuperMini'
             ];
           } else if (rawIncidentType) {
             resolvedIncidentTags = [
-              `🚨 ${rawIncidentType}`,
-              ...(deviceId ? [`📡 Thiết bị: ${deviceId}`] : [])
+              `${rawIncidentType}`,
+              ...(deviceId ? [`Thiết bị: ${deviceId}`] : [])
             ];
           } else if (isHardwareSos) {
             resolvedIncidentTags = [
-              '🚨 Tín hiệu khẩn cấp từ Vòng đeo cổ IoT Mini',
-              ...(deviceId ? [`📡 Thiết bị: ${deviceId}`] : [])
+              'Tín hiệu khẩn cấp từ Vòng đeo cổ IoT Mini',
+              ...(deviceId ? [`Thiết bị: ${deviceId}`] : [])
             ];
           } else {
             resolvedIncidentTags = ['Cần hỗ trợ khẩn cấp'];
