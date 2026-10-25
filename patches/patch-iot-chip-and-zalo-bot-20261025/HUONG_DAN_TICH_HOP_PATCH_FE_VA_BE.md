@@ -1,7 +1,7 @@
 # 📦 GÓI PATCH CẬP NHẬT ĐỘC LẬP (FE + BE + FIRMWARE)
 ## Tích Hợp Mạch Phát Tín Hiệu 4G GPS (`ESP32-C3 TDM2421`) + Giọng Đọc Tiếng Việt + Hệ Thống Bot Zalo Trực Ban Phân Tầng 2 Chiều
 
-- **Phiên bản Patch:** `2026.10.25-iot-zalo-v3`
+- **Phiên bản Patch:** `2026.10.25-iot-zalo-v4`
 - **Tương thích với cả 2 kiến trúc:**
   1. **Web Chính tách rời FE & BE:**
      - **Frontend (`sos-vietnam-2026-FE`)**: React 19 + Vite + `public/dispatcher.html` & `public/js/dispatcher.js`
@@ -95,8 +95,8 @@ patch-iot-chip-and-zalo-bot-20261025/
 2. **Giọng đọc Tiếng Việt chuẩn & Báo cáo hiện trường chuyên nghiệp:**
    - Sửa triệt để lỗi trình duyệt đọc giọng Tiếng Anh sau khi bấm *Tiếp nhận*; tự động ưu tiên `/api/tts` giọng Tiếng Việt rõ ràng.
    - Định dạng lại Biên bản Báo cáo Sự cố hiện trường sắc nét, có đầy đủ huy hiệu thiết bị 4G GPS / cường độ sóng CSQ / tọa độ vệ tinh.
-3. **1 Bot Zalo Tổng định tuyến thông minh & Tiếp nhận 2 chiều:**
-   - **Không cần thu thập SĐT cá nhân từng cán bộ:** tạo Nhóm Zalo đơn vị (VD: *Trực Ban CA Phường Tân An*), thêm Bot và gõ `@TênBot /ketnoi cap_tanan`.
+3. **1 Bot Zalo Tổng định tuyến thông minh, Khóa Mật Khẩu Trực Ban & Tiếp nhận 2 chiều:**
+   - **Không cần thu thập SĐT cá nhân từng cán bộ & Chống kết nối trái phép:** tạo Nhóm Zalo đơn vị (VD: *Trực Ban CA Phường Tân An*), thêm Bot và gõ `@TênBot /ketnoi cap_tanan Congan@113` (Mật khẩu mặc định theo đúng lực lượng trực ban: Công an `Congan@113`, CSGT `Csgt@113`, PCCC `Pccc@114`, Y tế 115 `Capcuu@115`, Cứu hộ xe `Cuuhoxe@113`, Tổng Trực Ban Quốc Gia `Admin` — kèm khóa chống dò mật khẩu 5 lần/10 phút).
    - **Cách ly địa bàn tuyệt đối:** Sự cố tại *Phường Tân An* chỉ đổ chuông Zalo của *CA Phường Tân An*, không làm phiền *Phường Long Tuyền* hay đơn vị khác.
    - **Tiếp nhận ngay khi đi ăn cơm / tuần tra:** bấm **Link Tiếp Nhận 1 Chạm** (ký số HMAC-SHA256 chống giả mạo) để mở ngay nút **Dẫn đường Google Maps + Gọi nạn nhân**, hoặc trả lời chữ **`TN`** ngay trên Zalo.
    - **Nhắc khẩn 3 phút & Leo thang Tỉnh 15 phút** (kèm công tắc **Demo Nhanh 20 giây / 45 giây** ngay trên giao diện Web để trình diễn hội đồng).

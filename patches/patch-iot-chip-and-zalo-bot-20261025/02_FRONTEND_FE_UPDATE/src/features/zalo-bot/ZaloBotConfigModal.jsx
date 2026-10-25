@@ -44,10 +44,11 @@ export function ZaloBotConfigModal({ open, onClose }) {
   const [status, setStatus] = useState(null);
   const [botToken, setBotToken] = useState('');
   const [demoFastMode, setDemoFastMode] = useState(false);
+  const [requirePairingPassword, setRequirePairingPassword] = useState(true);
   const [province, setProvince] = useState('Cần Thơ');
   const [ward, setWard] = useState('Phường Tân An');
   const [agency, setAgency] = useState('police');
-  const [generatedCmd, setGeneratedCmd] = useState('/ketnoi cap_tanan');
+  const [generatedCmd, setGeneratedCmd] = useState('/ketnoi cap_tanan Congan@113');
   const [feedback, setFeedback] = useState('');
 
   // Broadcast state
@@ -63,6 +64,10 @@ export function ZaloBotConfigModal({ open, onClose }) {
       const data = await fetchZaloBotStatus();
       setStatus(data);
       setDemoFastMode(Boolean(data?.demoFastMode));
+      setRequirePairingPassword(data?.requirePairingPassword !== false);
+      if (data?.viewerPairingCommand) {
+        setGeneratedCmd(data.viewerPairingCommand);
+      }
     } catch (err) {
       setFeedback(`Lỗi tải trạng thái: ${err.message}`);
     }
@@ -75,12 +80,12 @@ export function ZaloBotConfigModal({ open, onClose }) {
   if (!open) return null;
 
   const handleSave = async () => {
-    const payload = { enabled: true, demoFastMode };
+    const payload = { enabled: true, demoFastMode, requirePairingPassword };
     if (botToken.trim()) payload.botToken = botToken.trim();
     const updated = await saveZaloBotConfig(payload);
     setStatus(updated?.status || updated);
     setBotToken('');
-    setFeedback('✅ Đã lưu cấu hình Bot Zalo & kích hoạt chế độ trực ban!');
+    setFeedback('✅ Đã lưu cấu hình Bot Zalo & kích hoạt bảo mật trực ban!');
   };
 
   const handleGenerateCmd = async () => {
@@ -160,6 +165,10 @@ export function ZaloBotConfigModal({ open, onClose }) {
               placeholder={status?.hasToken ? `Đang lưu: ${status.maskedToken}` : 'Dán BOT_TOKEN từ Zalo Bot Platform...'}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #334155', background: '#090f1d', color: '#fff', marginBottom: 10 }}
             />
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, marginBottom: 8, cursor: 'pointer', color: '#86efac' }}>
+              <input type="checkbox" checked={requirePairingPassword} onChange={e => setRequirePairingPassword(e.target.checked)} />
+              <span>🔒 <b>Bắt buộc Mật khẩu Trực ban</b> khi gõ <code>/ketnoi</code> trên Zalo</span>
+            </label>
             <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, marginBottom: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={demoFastMode} onChange={e => setDemoFastMode(e.target.checked)} />
               <span>Chế độ Demo nhanh: Nhắc khẩn <b>20 giây</b> / Leo thang Tỉnh <b>45 giây</b></span>
@@ -226,28 +235,31 @@ export function ZaloBotConfigModal({ open, onClose }) {
           </div>
         </div>
 
-        <h4 style={{ marginBottom: 8 }}>4. Bộ Mã Đơn Vị Mẫu Sẵn Sàng Test</h4>
+        <h4 style={{ marginBottom: 8 }}>4. Bộ Mã Đơn Vị Mẫu Sẵn Sàng Test (Kèm Mật Khẩu Trực Ban)</h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 10, marginBottom: 18 }}>
-          {(status?.presets || []).map(p => (
-            <div key={p.unitCode} style={{ padding: 12, borderRadius: 12, background: '#111c33', border: '1px solid #1e293b' }}>
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{p.unitName}</div>
-              <div style={{ fontSize: 12, color: '#38bdf8', margin: '4px 0 8px' }}>/ketnoi {p.unitCode}</div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  onClick={() => { navigator.clipboard?.writeText(`/ketnoi ${p.unitCode}`); setFeedback(`Đã sao chép /ketnoi ${p.unitCode}`); }}
-                  style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #38bdf8', background: 'transparent', color: '#7dd3fc', cursor: 'pointer', fontSize: 12 }}
-                >
-                  Copy Lệnh
-                </button>
-                <button
-                  onClick={async () => { await simulateZaloUnitPair({ unitCode: p.unitCode }); await reloadStatus(); setFeedback(`Đã gắn giả lập ${p.unitName}`); }}
-                  style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #10b981', background: 'transparent', color: '#6ee7b7', cursor: 'pointer', fontSize: 12 }}
-                >
-                  Gắn Giả Lập
-                </button>
+          {(status?.presets || []).map(p => {
+            const cmd = p.pairingCommand || `/ketnoi ${p.unitCode}`;
+            return (
+              <div key={p.unitCode} style={{ padding: 12, borderRadius: 12, background: '#111c33', border: '1px solid #1e293b' }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.unitName}</div>
+                <div style={{ fontSize: 12, color: '#38bdf8', margin: '4px 0 8px' }}>{cmd}</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => { navigator.clipboard?.writeText(cmd); setFeedback(`Đã sao chép ${cmd}`); }}
+                    style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #38bdf8', background: 'transparent', color: '#7dd3fc', cursor: 'pointer', fontSize: 12 }}
+                  >
+                    Copy Lệnh
+                  </button>
+                  <button
+                    onClick={async () => { await simulateZaloUnitPair({ unitCode: p.unitCode }); await reloadStatus(); setFeedback(`Đã gắn giả lập ${p.unitName}`); }}
+                    style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid #10b981', background: 'transparent', color: '#6ee7b7', cursor: 'pointer', fontSize: 12 }}
+                  >
+                    Gắn Giả Lập
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <h4 style={{ marginBottom: 8 }}>5. Nhóm Zalo Đang Liên Kết ({boundCount})</h4>

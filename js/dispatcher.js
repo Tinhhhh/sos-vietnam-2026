@@ -15977,6 +15977,7 @@ class DispatcherApp {
       btnSave.addEventListener('click', async () => {
         const inpToken = document.getElementById('inputZaloBotToken');
         const chkFast = document.getElementById('chkZaloDemoFastMode');
+        const chkReqPass = document.getElementById('chkZaloRequirePairingPassword');
         btnSave.disabled = true;
         const origLabel = btnSave.textContent;
         btnSave.textContent = 'Đang kết nối với Zalo Bot Platform...';
@@ -15986,7 +15987,8 @@ class DispatcherApp {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               botToken: inpToken ? inpToken.value.trim() : undefined,
-              demoFastMode: Boolean(chkFast?.checked)
+              demoFastMode: Boolean(chkFast?.checked),
+              requirePairingPassword: chkReqPass ? Boolean(chkReqPass.checked) : true
             })
           });
           const data = await res.json();
@@ -16032,6 +16034,10 @@ class DispatcherApp {
           });
           const data = await res.json();
           if (data.ok && data.command) {
+            this._customZaloCmdOverride = {
+              command: data.command,
+              label: data.unit?.unitName || 'Đơn vị vừa tạo'
+            };
             const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
             const lblEl = document.getElementById('zaloCurrentOfficerLabel');
             if (cmdEl) cmdEl.textContent = data.command;
@@ -16186,19 +16192,12 @@ class DispatcherApp {
 
   openZaloBotModal() {
     if (!this.zaloBotModal) return;
+    this._customZaloCmdOverride = null;
     this.zaloBotModal.style.display = 'flex';
     const curOfficer = this.currentOfficer;
-    const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
     const lblEl = document.getElementById('zaloCurrentOfficerLabel');
-    if (curOfficer && curOfficer.username) {
-      if (curOfficer.username === 'admin') {
-        if (cmdEl) cmdEl.textContent = '/ketnoi cap_tanan';
-        if (lblEl) lblEl.textContent = 'Mẫu CA Phường Tân An — Nếu muốn giám sát Toàn Quốc dùng /ketnoi tongtrucban';
-      } else {
-        const code = curOfficer.username.toLowerCase();
-        if (cmdEl) cmdEl.textContent = `/ketnoi ${code}`;
-        if (lblEl) lblEl.textContent = curOfficer.unitName || curOfficer.agencyName || curOfficer.username;
-      }
+    if (curOfficer && curOfficer.username && curOfficer.username !== 'admin') {
+      if (lblEl) lblEl.textContent = curOfficer.unitName || curOfficer.agencyName || curOfficer.username;
     }
     this.refreshZaloBotStatus(false);
   }
@@ -16342,25 +16341,56 @@ class DispatcherApp {
     }
     const chkFast = document.getElementById('chkZaloDemoFastMode');
     if (chkFast) chkFast.checked = Boolean(status.demoFastMode);
+    const chkReqPass = document.getElementById('chkZaloRequirePairingPassword');
+    if (chkReqPass) {
+      chkReqPass.checked = status.requirePairingPassword !== false;
+      chkReqPass.disabled = !status.viewerIsAdmin;
+      chkReqPass.title = status.viewerIsAdmin ? '' : 'Chỉ Tổng Trực Ban Quốc Gia (Admin) mới được phép thay đổi khóa bảo mật mật khẩu.';
+    }
+
+    if (!this._customZaloCmdOverride) {
+      const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
+      const lblEl = document.getElementById('zaloCurrentOfficerLabel');
+      const curOfficer = this.currentOfficer;
+      if (cmdEl && status.viewerPairingCommand) {
+        cmdEl.textContent = status.viewerPairingCommand;
+      }
+      if (lblEl) {
+        if (!curOfficer || curOfficer.username === 'admin' || status.viewerIsAdmin) {
+          lblEl.textContent = `Mẫu CA Phường Tân An — Giám sát Toàn Quốc dùng: ${status.nationalPairingCommand || '/ketnoi tongtrucban Admin'}`;
+        } else {
+          lblEl.textContent = curOfficer.unitName || curOfficer.agencyName || curOfficer.username;
+        }
+      }
+    }
 
     // 3. Render Preset Unit Cards
     const presetGrid = document.getElementById('zaloPresetCardsGrid');
     if (presetGrid) {
       presetGrid.innerHTML = presets.map(p => {
         const isBound = bindings.some(b => b.unitCode === p.unitCode);
-        const cmd = `/ketnoi ${p.unitCode}`;
+        const cmd = p.pairingCommand || `/ketnoi ${p.unitCode}`;
+        const simLocked = Boolean(p.requiresAdminAuth && !status.viewerIsAdmin);
+        const passBadge = status.requirePairingPassword !== false
+          ? (p.pairingPasswordMasked
+              ? '<span style="font-size:9px; font-weight:700; color:#fca5a5;">🔒 Cần Pass Đơn Vị</span>'
+              : '<span style="font-size:9px; font-weight:700; color:#86efac;">🔐 Có Mật Khẩu</span>')
+          : '';
         return `
           <div style="background: rgba(30, 41, 59, 0.72); border: 1px solid ${isBound ? 'rgba(16,185,129,0.5)' : 'rgba(148,163,184,0.2)'}; border-radius: 9px; padding: 9px 10px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; flex-wrap: wrap;">
                 <span style="font-size: 11.5px; font-weight: 800; color: #f8fafc;">${this.escapeZaloUiHtml(p.unitName)}</span>
-                ${isBound ? '<span style="font-size:9px; font-weight:800; background:rgba(16,185,129,0.22); color:#34d399; padding:1px 5px; border-radius:4px;">ĐÃ GẮN</span>' : ''}
+                <span style="display: inline-flex; gap: 4px; align-items: center;">
+                  ${passBadge}
+                  ${isBound ? '<span style="font-size:9px; font-weight:800; background:rgba(16,185,129,0.22); color:#34d399; padding:1px 5px; border-radius:4px;">ĐÃ GẮN</span>' : ''}
+                </span>
               </div>
-              <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${this.escapeZaloUiHtml(p.agencyLabel)} · Mã: <code style="color:#38bdf8;">${this.escapeZaloUiHtml(cmd)}</code></div>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${this.escapeZaloUiHtml(p.agencyLabel)} · Lệnh: <code style="color:#38bdf8;">${this.escapeZaloUiHtml(cmd)}</code></div>
             </div>
             <div style="display: flex; gap: 5px;">
               <button type="button" class="btn-zalo-copy-preset btn-refresh-loc" data-cmd="${this.escapeZaloUiHtml(cmd)}" style="flex: 1; padding: 4px 6px; font-size: 10.5px; cursor: pointer; color: #7dd3fc;">Copy Lệnh</button>
-              <button type="button" class="btn-zalo-sim-preset btn-refresh-loc" data-code="${this.escapeZaloUiHtml(p.unitCode)}" data-title="Nhóm Zalo: ${this.escapeZaloUiHtml(p.unitName)}" style="flex: 1; padding: 4px 6px; font-size: 10.5px; cursor: pointer; color: #34d399; border-color: rgba(16,185,129,0.4);">Gắn Giả Lập</button>
+              <button type="button" class="btn-zalo-sim-preset btn-refresh-loc" data-code="${this.escapeZaloUiHtml(p.unitCode)}" data-title="Nhóm Zalo: ${this.escapeZaloUiHtml(p.unitName)}" ${simLocked ? 'disabled title="Chỉ Tổng Trực Ban Quốc Gia (Admin) mới được gắn kênh Toàn Quốc"' : ''} style="flex: 1; padding: 4px 6px; font-size: 10.5px; cursor: ${simLocked ? 'not-allowed' : 'pointer'}; opacity: ${simLocked ? '0.45' : '1'}; color: #34d399; border-color: rgba(16,185,129,0.4);">Gắn Giả Lập</button>
             </div>
           </div>
         `;
@@ -16460,11 +16490,16 @@ class DispatcherApp {
                   <option value="fire_province" ${roleKey === 'fire_province' ? 'selected' : ''}>Cảnh Sát PCCC &amp; CNCH</option>
                   <option value="hospital_province" ${roleKey === 'hospital_province' ? 'selected' : ''}>Trung Tâm Cấp Cứu 115</option>
                   <option value="all_province" ${roleKey === 'all_province' ? 'selected' : ''}>Chỉ Huy Công An Tỉnh/TP (Nhận Leo Thang)</option>
-                  <option value="all_national" ${roleKey === 'all_national' ? 'selected' : ''}>Tổng Trực Ban Toàn Quốc (Giám sát tất cả)</option>
+                  ${(status.viewerIsAdmin || roleKey === 'all_national') ? `<option value="all_national" ${roleKey === 'all_national' ? 'selected' : ''}>Tổng Trực Ban Toàn Quốc (Giám sát tất cả)</option>` : ''}
                 </select>
                 <button type="button" class="btn-primary btn-zalo-save-edit" data-chat="${this.escapeZaloUiHtml(b.chatId)}" style="padding: 6px 12px; font-size: 11px; font-weight: 800; background: #059669; border: none; border-radius: 6px; color: #fff; cursor: pointer; white-space: nowrap;">💾 Lưu &amp; Báo Zalo</button>
                 <button type="button" class="btn-refresh-loc btn-zalo-cancel-edit" data-idx="${idx}" style="padding: 5px 8px; font-size: 10.5px; cursor: pointer;">Đóng</button>
               </div>
+              ${status.viewerIsAdmin ? `
+              <div style="margin-top: 6px;">
+                <input type="text" class="input-field inp-zalo-edit-custompass" value="" placeholder="🔐 Đổi mật khẩu /ketnoi riêng cho đơn vị này (Bỏ trống = giữ mặc định${b.hasCustomPassword ? '; gõ __CLEAR__ để xóa pass riêng' : ''})" style="width: 100%; font-size: 10.5px; padding: 5px 8px;" />
+              </div>
+              ` : ''}
             </div>
           </div>
           `;
@@ -16540,6 +16575,7 @@ class DispatcherApp {
             const officerName = card.querySelector('.inp-zalo-edit-officer')?.value?.trim() || '';
             const province = card.querySelector('.inp-zalo-edit-prov')?.value?.trim() || 'Cần Thơ';
             const ward = card.querySelector('.inp-zalo-edit-ward')?.value?.trim() || '';
+            const customPassword = card.querySelector('.inp-zalo-edit-custompass')?.value?.trim() || '';
             const roleVal = card.querySelector('.inp-zalo-edit-role')?.value || 'police_ward';
             const [agency, level] = roleVal.split('_');
 
@@ -16563,6 +16599,7 @@ class DispatcherApp {
                   level,
                   chatTitle,
                   officerName,
+                  customPassword: customPassword || undefined,
                   notifyChat: true
                 })
               });
@@ -16630,7 +16667,9 @@ class DispatcherApp {
           );
           const bcastTag = item.stage === 'system_broadcast'
             ? '<span style="color:#f97316; font-weight:800; margin-right:4px;">[📢 PHÁT TOÀN BỘ]</span>'
-            : '';
+            : ((item.stage === 'cmd_ketnoi_denied' || item.stage === 'cmd_ketnoi_missing_pass' || item.stage === 'cmd_ketnoi_locked')
+                ? '<span style="color:#f87171; font-weight:800; margin-right:4px;">[🔒 CHẶN KẾT NỐI]</span>'
+                : '');
           const badge = bcastTag + (item.delivered
             ? '<span style="color:#34d399; font-weight:800;">[ĐÃ BẮN ZALO THẬT]</span>'
             : '<span style="color:#fbbf24; font-weight:800;">[BẢN GHI MÔ PHỎNG]</span>');

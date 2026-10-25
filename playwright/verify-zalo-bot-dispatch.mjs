@@ -70,12 +70,49 @@ async function run() {
   try {
     await waitForServer(BASE_URL);
 
-    // 1. Test Webhook Pairing via Go-http-client User-Agent (proving SecurityFirewall compatibility)
+    // 1a. Security Gate: Reject unauthorized `/ketnoi` without password, with wrong unit password, or with `2002`
+    const unauthorizedAttempts = [
+      { chatId: 'zalo_grp_rogue_01', text: '@Bot Vĩnh Nam /ketnoi tongtrucban', expectedAction: 'ketnoi_missing_password' },
+      { chatId: 'zalo_grp_rogue_01', text: '@Bot Vĩnh Nam /ketnoi tongtrucban Congan@113', expectedAction: 'ketnoi_wrong_password' },
+      { chatId: 'zalo_grp_rogue_01', text: '@Bot Vĩnh Nam /ketnoi tongtrucban 2002', expectedAction: 'ketnoi_wrong_password' },
+      { chatId: 'zalo_grp_rogue_02', text: '@BotSOS /ketnoi cap_tanan SaiMatKhau999', expectedAction: 'ketnoi_wrong_password' }
+    ];
+    const secResults = [];
+    for (const [idx, att] of unauthorizedAttempts.entries()) {
+      const r = await fetch(`${BASE_URL}/api/zalo/webhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'Go-http-client/1.1' },
+        body: JSON.stringify({
+          result: {
+            event_name: 'message.text.received',
+            message: {
+              message_id: `msg_sec_deny_${idx}_${Date.now()}`,
+              chat: { id: att.chatId, chat_type: 'GROUP', title: 'Nhóm Thử Thách Bảo Mật' },
+              from: { id: 'rogue_user', display_name: 'Người Lạ' },
+              text: att.text
+            }
+          }
+        })
+      });
+      const j = await r.json();
+      secResults.push({
+        text: att.text,
+        expected: att.expectedAction,
+        actual: j?.outcomes?.[0]?.action
+      });
+    }
+    assertCheck(
+      '1a. Dispatcher Password Gate blocks passwordless "/ketnoi tongtrucban", cross-unit "Congan@113" on National Command, "2002", and wrong ward password',
+      secResults.every(x => x.actual === x.expected),
+      { secResults }
+    );
+
+    // 1. Test Webhook Pairing via Go-http-client User-Agent with valid Web Dispatcher Passwords
     const pairUnits = [
-      { chatId: 'zalo_grp_tanan_01', title: 'Trực Ban CA Phường Tân An', cmd: '@BotSOS /ketnoi cap_tanan' },
-      { chatId: 'zalo_grp_longtuyen_01', title: 'Trực Ban CA Phường Long Tuyền', cmd: '@BotSOS /ketnoi cap_longtuyen' },
-      { chatId: 'zalo_grp_csgt_ct', title: 'Đội Tuần Tra CSGT Cần Thơ', cmd: '@BotSOS /ketnoi csgt_cantho' },
-      { chatId: 'zalo_grp_chihuy_ct', title: 'Chỉ Huy Công An TP. Cần Thơ', cmd: '@BotSOS /ketnoi chihuy_cantho' }
+      { chatId: 'zalo_grp_tanan_01', title: 'Trực Ban CA Phường Tân An', cmd: '@BotSOS /ketnoi cap_tanan Congan@113' },
+      { chatId: 'zalo_grp_longtuyen_01', title: 'Trực Ban CA Phường Long Tuyền', cmd: '@BotSOS /ketnoi cap_longtuyen Congan@113' },
+      { chatId: 'zalo_grp_csgt_ct', title: 'Đội Tuần Tra CSGT Cần Thơ', cmd: '@BotSOS /ketnoi csgt_cantho Csgt@113' },
+      { chatId: 'zalo_grp_chihuy_ct', title: 'Chỉ Huy Công An TP. Cần Thơ', cmd: '@BotSOS /ketnoi chihuy_cantho Congan@113' }
     ];
 
     for (const u of pairUnits) {
@@ -98,8 +135,8 @@ async function run() {
         })
       });
       const whJson = await whRes.json();
-      if (!whRes.ok || !whJson.ok) {
-        throw new Error(`Webhook pairing failed for ${u.chatId}: HTTP ${whRes.status}`);
+      if (!whRes.ok || !whJson.ok || whJson?.outcomes?.[0]?.action !== 'ketnoi_ok') {
+        throw new Error(`Webhook pairing failed for ${u.chatId}: HTTP ${whRes.status} (${JSON.stringify(whJson)})`);
       }
     }
 
@@ -217,16 +254,27 @@ async function run() {
       const modal = document.getElementById('zaloBotConfigModal');
       const boundCount = document.getElementById('zaloBoundCount')?.textContent?.trim();
       const presetCards = document.querySelectorAll('#zaloPresetCardsGrid > div').length;
+      const reqPassChecked = Boolean(document.getElementById('chkZaloRequirePairingPassword')?.checked);
+      const currentCmd = document.getElementById('zaloCurrentOfficerCommand')?.textContent?.trim() || '';
+      const firstPresetCmd = document.querySelector('#zaloPresetCardsGrid .btn-zalo-copy-preset')?.getAttribute('data-cmd') || '';
       return {
         visible: modal && getComputedStyle(modal).display !== 'none',
         boundCount: Number(boundCount || 0),
-        presetCards
+        presetCards,
+        reqPassChecked,
+        currentCmd,
+        firstPresetCmd
       };
     });
 
     assertCheck(
-      '2. Dispatcher UI #btnHeaderZaloBot opens #zaloBotConfigModal showing 4 paired Zalo groups & 9 presets',
-      modalState.visible && modalState.boundCount === 4 && modalState.presetCards >= 5,
+      '2. Dispatcher UI #btnHeaderZaloBot opens #zaloBotConfigModal showing 4 authorized Zalo groups, password lock ON, & password-ready copy commands',
+      modalState.visible &&
+        modalState.boundCount === 4 &&
+        modalState.presetCards >= 5 &&
+        modalState.reqPassChecked === true &&
+        modalState.currentCmd === '/ketnoi cap_tanan Congan@113' &&
+        modalState.firstPresetCmd === '/ketnoi cap_tanan Congan@113',
       modalState
     );
 
@@ -398,7 +446,7 @@ async function run() {
       { escId, hqChats: hqEscMsgs.map(m => m.chatId) }
     );
 
-    // 8. Real Zalo Group Scenario A: Group without `chat.title` accidentally pairs `/ketnoi tongtrucban`,
+    // 8. Real Zalo Group Scenario A: Group without `chat.title` pairs `/ketnoi tongtrucban Admin`,
     //    then Dispatcher clicks `✏️ Sửa Đơn Vị` on Web UI to reassign to `Phường Tân An` + `Trực Ban CA Phường Tân An`!
     await fetch(`${BASE_URL}/api/zalo/webhook`, {
       method: 'POST',
@@ -410,7 +458,7 @@ async function run() {
             message_id: `msg_real_grp_init_${Date.now()}`,
             chat: { id: 'zgr-bf54e33e72519b0fc240', chat_type: 'GROUP' }, // Zalo Group Privacy: no title!
             from: { id: 'zalo_uid_vinhan', display_name: 'Vĩnh An' },
-            text: '@Bot Vĩnh Nam /ketnoi tongtrucban'
+            text: '@Bot Vĩnh Nam /ketnoi tongtrucban Admin'
           }
         }
       })
@@ -444,7 +492,7 @@ async function run() {
       editedBinding || {}
     );
 
-    // 9. Real Zalo Group Scenario B: Natural Vietnamese `/ketnoi Phường Tân An, Cần Thơ` directly in Zalo chat
+    // 9. Real Zalo Group Scenario B: Natural Vietnamese `/ketnoi Phường Tân An, Cần Thơ Congan@113` directly in Zalo chat
     const natRes = await fetch(`${BASE_URL}/api/zalo/webhook`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'Go-http-client/1.1' },
@@ -455,7 +503,7 @@ async function run() {
             message_id: `msg_nat_ketnoi_${Date.now()}`,
             chat: { id: 'zgr-natural-tanan', chat_type: 'GROUP' },
             from: { id: 'zalo_uid_vinhan', display_name: 'Vĩnh An' },
-            text: '@Bot Vĩnh Nam /ketnoi Phường Tân An, Cần Thơ | Tổ Cảnh Sát Khu Vực Tân An'
+            text: '@Bot Vĩnh Nam /ketnoi Phường Tân An, Cần Thơ Congan@113 | Tổ Cảnh Sát Khu Vực Tân An'
           }
         }
       })
@@ -568,9 +616,9 @@ async function run() {
       }
     );
 
-    // Dismiss floating banner so modal header isn't covered, scroll composer + outbox into view, & capture desktop verification screenshot
+    // Dismiss floating banner so modal header isn't covered, scroll Step 1 + Step 2 + Preset Cards into view, & capture desktop verification screenshot
     await page.click('#btnCloseLiveSysBanner').catch(() => {});
-    await page.locator('#zaloBroadcastComposerCard').scrollIntoViewIfNeeded();
+    await page.locator('#chkZaloRequirePairingPassword').scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
     await page.screenshot({ path: SCREENSHOT_PATH });
 

@@ -3575,6 +3575,10 @@
             <input type="password" id="inputZaloBotToken" class="input-field" placeholder="Dán BOT_TOKEN (VD: 123456789:abcXYZ...)" style="flex: 1; font-size: 12px; padding: 8px 10px;" autocomplete="off" />
             <button type="button" id="btnToggleShowZaloToken" class="btn-refresh-loc" style="padding: 6px 10px; font-size: 11px; cursor: pointer;" title="Hiện/Ẩn Token">Hiện</button>
           </div>
+          <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: #86efac; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 8px;">
+            <input type="checkbox" id="chkZaloRequirePairingPassword" checked style="margin-top: 2px; cursor: pointer; accent-color: #10b981;" />
+            <span><b>🔒 Bảo mật Mật khẩu Trực ban khi /ketnoi:</b> Bắt buộc nhập kèm <b>Mật khẩu Trực ban</b> của đúng đơn vị khi gõ <code>/ketnoi</code> trên Zalo để ngăn đơn vị khác hoặc người lạ kết nối trái phép.</span>
+          </label>
           <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: #fde047; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 10px;">
             <input type="checkbox" id="chkZaloDemoFastMode" style="margin-top: 2px; cursor: pointer;" />
             <span><b>Chế độ Demo / Test Nhanh:</b> Nhắc khẩn lần 2 sau <b>20 giây</b> &amp; Tự động leo thang lên Chỉ Huy Tỉnh/TP sau <b>45 giây</b> (Mặc định thực tế: 3 phút / 15 phút).</span>
@@ -3584,17 +3588,17 @@
           </button>
         </div>
 
-        <!-- Step 2: Unit Pairing without Phone Numbers -->
+        <!-- Step 2: Unit Pairing without Phone Numbers (Protected by Dispatcher Password) -->
         <div style="background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 14px;">
-          <div style="font-size: 12.5px; font-weight: 800; color: #34d399; margin-bottom: 6px;">2. LỆNH /KETNOI ĐÚNG XÃ/PHƯỜNG &amp; NHẬN CA /TN 2 CHIỀU</div>
+          <div style="font-size: 12.5px; font-weight: 800; color: #34d399; margin-bottom: 6px;">2. LỆNH /KETNOI KÈM MẬT KHẨU TRỰC BAN &amp; NHẬN CA /TN 2 CHIỀU</div>
           <div style="font-size: 11px; color: #94a3b8; line-height: 1.45; margin-bottom: 8px;">
-            Trong nhóm Zalo đơn vị, gõ <b>/ketnoi cap_tanan</b> hoặc gõ thẳng tên địa bàn <b>/ketnoi Phường Tân An, Cần Thơ</b> (có thể kèm <b>@TênBot</b>). Khi có SOS, gõ <b>/tn</b> (hoặc <b>@TênBot TN</b>) để nhận ca &amp; tự trích xuất tên cán bộ Zalo!
+            Trong nhóm Zalo đơn vị, gõ <b>/ketnoi &lt;mã_đơn_vị&gt; &lt;Mật_khẩu_trực_ban&gt;</b> (VD: <b>/ketnoi cap_tanan Congan@113</b> hoặc <b>/ketnoi Phường Tân An, Cần Thơ Congan@113</b>, có thể kèm <b>@TênBot</b>). Mật khẩu mặc định trùng với mật khẩu đăng nhập Bàn Trực Ban của đơn vị!
           </div>
 
           <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
             <div style="font-size: 10.5px; color: #a7f3d0; margin-bottom: 4px;">Đơn vị phiên đăng nhập hiện tại (<span id="zaloCurrentOfficerLabel">Trực ban</span>):</div>
             <div style="display: flex; align-items: center; gap: 6px;">
-              <code id="zaloCurrentOfficerCommand" style="flex: 1; background: rgba(2, 6, 23, 0.7); padding: 6px 8px; border-radius: 6px; color: #34d399; font-size: 12px; font-weight: 800;">/ketnoi cap_tanan</code>
+              <code id="zaloCurrentOfficerCommand" style="flex: 1; background: rgba(2, 6, 23, 0.7); padding: 6px 8px; border-radius: 6px; color: #34d399; font-size: 12px; font-weight: 800;">/ketnoi cap_tanan Congan@113</code>
               <button type="button" id="btnCopyCurrentOfficerZaloCmd" class="btn-refresh-loc" style="padding: 6px 10px; font-size: 11px; color: #34d399; border-color: rgba(16, 185, 129, 0.45); cursor: pointer;">Sao chép</button>
             </div>
           </div>
@@ -3735,7 +3739,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v4"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v5"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {

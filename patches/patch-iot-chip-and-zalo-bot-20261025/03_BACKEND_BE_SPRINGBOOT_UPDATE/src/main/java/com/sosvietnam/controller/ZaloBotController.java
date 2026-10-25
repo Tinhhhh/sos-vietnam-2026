@@ -75,10 +75,11 @@ public class ZaloBotController {
     @PostMapping({"/api/dispatcher/zalo/register-unit", "/api/zalo/register-unit"})
     public ResponseEntity<Map<String, Object>> registerUnit(@RequestBody Map<String, Object> body) {
         ZaloBotDispatchService.ZaloBinding unit = zaloBotService.registerCustomUnit(body);
+        String pass = zaloBotService.resolveDefaultPasswordForUnit(unit);
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("ok", true);
         resp.put("unit", unit);
-        resp.put("command", "/ketnoi " + unit.getUnitCode());
+        resp.put("command", "/ketnoi " + unit.getUnitCode() + " " + pass);
         return ResponseEntity.ok(resp);
     }
 
@@ -102,7 +103,7 @@ public class ZaloBotController {
                         )
                 )
         );
-        zaloBotService.handleWebhookPayload(fakeWebhook, buildOrigin(request));
+        zaloBotService.handleWebhookPayload(fakeWebhook, buildOrigin(request), true);
         return ResponseEntity.ok(zaloBotService.getPublicStatus());
     }
 

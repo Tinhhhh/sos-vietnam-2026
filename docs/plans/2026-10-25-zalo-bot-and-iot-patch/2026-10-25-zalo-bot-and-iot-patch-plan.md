@@ -289,6 +289,22 @@
   - Implementation Gate: `P5-A` and `P5-B` completed.
   - Acceptance: All Playwright E2E assertions pass (`0 failed`), `.zip` updated, and commit pushed to `origin/main`.
 
+### P6: Dispatcher Password Authentication Gate on Zalo `/ketnoi` Onboarding
+
+- [x] P6-A: Enforce Dispatcher Password Authentication & Brute-Force Protection on `/ketnoi` (`services/zalo-bot-service.js`, `server.js`)
+  - Goal: Prevent unauthorized Zalo groups/units from binding to National Command (`tongtrucban`) or other units' SOS channels by requiring the target unit's Web Dispatcher password on `/ketnoi` (`Admin` for `tongtrucban`, `Congan@113` for Police, `Csgt@113` for CSGT, `Pccc@114` for PCCC, `Capcuu@115` for 115, `Cuuhoxe@113` for Traffic Rescue, plus `AGENCY_ACCOUNTS` custom `passwordHash` and optional per-unit `unitPasswords` override).
+  - Work Steps:
+    1. Import `defaultPasswordForAccount` (`services/agency-password-policy.js`) and `securityCryptoService` (`services/security-crypto-service.js`) in `services/zalo-bot-service.js`; implement `resolveDefaultPasswordForUnit`, `verifyUnitPairingPassword`, `parseKetnoiCommandArgs` (supporting `/ketnoi <code> <pass>`, `/ketnoi <Phường, Tỉnh> <pass>`, and `|` pipe syntax), and per-`chatId` brute-force lockout (`5` wrong attempts / `10` minutes).
+    2. Mask cross-role/Admin pairing passwords in `getPublicStatus(viewerCtx)` for non-admin Web officers, enforce RBAC on `simulate-pair` & `update-binding` in `server.js`, and include pairing password in `/api/dispatcher/zalo/register-unit` command output.
+  - Implementation Gate: Anvien `analyze --force`, `file-detail`, and `impact` verified for `services/agency-password-policy.js`, `services/zalo-bot-service.js`, and `server.js`.
+  - Acceptance: `node --check services/zalo-bot-service.js` and `node --check server.js` exit `0`.
+- [x] P6-B: Update Dispatcher Zalo Modal UI with Password-Protected `/ketnoi` Commands & Custom Unit Password (`dispatcher.html`, `js/dispatcher.js`)
+  - Goal: Display password-authenticated `/ketnoi <mã> <mật_khẩu>` commands on `#zaloBotConfigModal` (respecting role visibility), add `#chkZaloRequirePairingPassword` security toggle in Step 1, and allow optional custom per-unit password override in Inline Unit Editor (`✏️ Sửa Đơn Vị`).
+  - Acceptance: `node --check js/dispatcher.js` exits `0` and UI copies full `/ketnoi <unitCode> <password>` commands cleanly.
+- [x] P6-C: Playwright Security E2E Verification (`playwright/verify-zalo-bot-dispatch.mjs`), Sync Standalone Patch ZIP & Deploy to Render
+  - Goal: Verify missing-password rejection, wrong-password rejection (e.g., Ward password `Congan@113` rejected on `tongtrucban`), valid-password acceptance (`Admin` on `tongtrucban`, `Congan@113` on `cap_tanan`), sync `patches/patch-iot-chip-and-zalo-bot-20261025/` + `.zip`, run Anvien `detect-changes`, commit, and push to `origin/main`.
+  - Acceptance: All `15/15` Playwright E2E assertions pass (`0 failed`), `.zip` updated, and commit pushed to `origin/main`.
+
 ## Risk Notes
 
 - **Zalo Webhook Anti-Bot Filter**: `services/security-firewall-middleware.js` blocks `go-http-client` User-Agent. Placing `POST /api/zalo/webhook` (authenticated via `X-Bot-Api-Secret-Token` header) and `GET /api/zalo/quick-accept` (authenticated via HMAC-SHA256 signature) before `checkAntiBot` eliminates false-positive 403 blocks while keeping strict cryptographic authentication.

@@ -1,13 +1,41 @@
 {
   "suite": "Hierarchical Zalo Bot Dispatch & Two-Way Field Acceptance E2E QA",
-  "timestamp": "2026-10-25T11:31:55.310Z",
+  "timestamp": "2026-10-25T15:06:30.323Z",
   "targetUrl": "http://127.0.0.1:3099",
   "summary": {
-    "total": 14,
-    "passed": 14,
+    "total": 15,
+    "passed": 15,
     "failed": 0
   },
   "assertions": [
+    {
+      "name": "1a. Dispatcher Password Gate blocks passwordless \"/ketnoi tongtrucban\", cross-unit \"Congan@113\" on National Command, \"2002\", and wrong ward password",
+      "passed": true,
+      "details": {
+        "secResults": [
+          {
+            "text": "@Bot Vĩnh Nam /ketnoi tongtrucban",
+            "expected": "ketnoi_missing_password",
+            "actual": "ketnoi_missing_password"
+          },
+          {
+            "text": "@Bot Vĩnh Nam /ketnoi tongtrucban Congan@113",
+            "expected": "ketnoi_wrong_password",
+            "actual": "ketnoi_wrong_password"
+          },
+          {
+            "text": "@Bot Vĩnh Nam /ketnoi tongtrucban 2002",
+            "expected": "ketnoi_wrong_password",
+            "actual": "ketnoi_wrong_password"
+          },
+          {
+            "text": "@BotSOS /ketnoi cap_tanan SaiMatKhau999",
+            "expected": "ketnoi_wrong_password",
+            "actual": "ketnoi_wrong_password"
+          }
+        ]
+      }
+    },
     {
       "name": "1. Webhook /ketnoi with Go-http-client/1.1 User-Agent succeeds without AI-Bot 403 block",
       "passed": true,
@@ -45,19 +73,22 @@
       }
     },
     {
-      "name": "2. Dispatcher UI #btnHeaderZaloBot opens #zaloBotConfigModal showing 4 paired Zalo groups & 9 presets",
+      "name": "2. Dispatcher UI #btnHeaderZaloBot opens #zaloBotConfigModal showing 4 authorized Zalo groups, password lock ON, & password-ready copy commands",
       "passed": true,
       "details": {
         "visible": true,
         "boundCount": 4,
-        "presetCards": 9
+        "presetCards": 9,
+        "reqPassChecked": true,
+        "currentCmd": "/ketnoi cap_tanan Congan@113",
+        "firstPresetCmd": "/ketnoi cap_tanan Congan@113"
       }
     },
     {
       "name": "3. Territorial Ward Isolation: SOS in Phường Tân An routes ONLY to zalo_grp_tanan_01 (not Long Tuyền or CSGT)",
       "passed": true,
       "details": {
-        "incidentId": "IOT-MVNQZQZJ-555",
+        "incidentId": "IOT-MVNYNPXJ-487",
         "notifiedChatsForTanAn": [
           "zalo_grp_tanan_01"
         ]
@@ -82,7 +113,7 @@
       "name": "6. Two-Way Zalo Chat Reply \"@BotSOS TN\" routes Step-2 SOS to CSGT and transitions status to dispatching",
       "passed": true,
       "details": {
-        "csgtId": "IOT-MVNQZRN0-681",
+        "csgtId": "IOT-MVNYNQW7-494",
         "status": "dispatching",
         "acceptedVia": "zalo_chat",
         "officer": "Đại úy Lê Quốc Bảo"
@@ -92,7 +123,7 @@
       "name": "7. Provincial Escalation dispatches urgent alert to Chỉ Huy Công An TP. Cần Thơ (zalo_grp_chihuy_ct)",
       "passed": true,
       "details": {
-        "escId": "IOT-MVNQZRUJ-717",
+        "escId": "IOT-MVNYNR46-615",
         "hqChats": [
           "zalo_grp_chihuy_ct"
         ]
@@ -119,8 +150,9 @@
         "defaultOfficerRank": "Thượng tá",
         "defaultPhone": "113",
         "enabled": true,
-        "linkedAt": "2026-10-25T11:32:04.171Z",
-        "updatedAt": "2026-10-25T11:32:06.741Z"
+        "linkedAt": "2026-10-25T15:06:40.259Z",
+        "updatedAt": "2026-10-25T15:06:42.823Z",
+        "hasCustomPassword": false
       }
     },
     {
@@ -144,7 +176,7 @@
         "defaultOfficerRank": "Cán bộ",
         "defaultPhone": "02923820113",
         "enabled": true,
-        "linkedAt": "2026-10-25T11:32:07.324Z"
+        "linkedAt": "2026-10-25T15:06:43.526Z"
       }
     },
     {

@@ -2804,22 +2804,45 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   // API: Hierarchical Zalo Bot Management (Authenticated Dispatcher / Admin)
   // -------------------------------------------------------------
+  const getZaloViewerContext = (reqObj) => {
+    const u = reqObj?.user || reqObj?.officer || {};
+    const username = String(u.username || '').trim();
+    const role = String(u.role || '').trim().toLowerCase();
+    const level = String(u.level || '').trim().toLowerCase();
+    const agency = String(u.agency || '').trim().toLowerCase();
+    const viewerIsAdmin = Boolean(role === 'admin' || username === 'admin' || level === 'national');
+    return {
+      viewerIsAdmin,
+      viewerUsername: username,
+      viewerAgency: agency,
+      viewerLevel: level,
+      viewerProvince: String(u.province || ''),
+      viewerWard: String(u.ward || '')
+    };
+  };
+
   if ((urlPath === '/api/dispatcher/zalo/status' || urlPath === '/api/zalo/status') && req.method === 'GET') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify(zaloBotService.getPublicStatus()));
+    return res.end(JSON.stringify(zaloBotService.getPublicStatus(viewerCtx)));
   }
 
   if ((urlPath === '/api/dispatcher/zalo/config' || urlPath === '/api/zalo/config') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     let body = '';
     req.on('data', chunk => { if (body.length < 32768) body += chunk; });
     req.on('end', async () => {
       try {
         const data = JSON.parse(body || '{}');
+        if (!viewerCtx.viewerIsAdmin) {
+          delete data.requirePairingPassword;
+        }
         const updated = await zaloBotService.updateConfig({
           ...data,
-          detectedOrigin: detectRequestOrigin(req)
+          detectedOrigin: detectRequestOrigin(req),
+          viewerCtx
         });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify(updated));
@@ -2833,14 +2856,22 @@ const server = http.createServer(async (req, res) => {
 
   if ((urlPath === '/api/dispatcher/zalo/register-unit' || urlPath === '/api/zalo/register-unit') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     let body = '';
     req.on('data', chunk => { if (body.length < 16384) body += chunk; });
     req.on('end', () => {
       try {
         const data = JSON.parse(body || '{}');
+        if (!viewerCtx.viewerIsAdmin && String(data.level || '').toLowerCase() === 'national') {
+          res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chỉ Tổng Trực Ban Quốc Gia (Admin) mới được đăng ký kênh cấp Toàn Quốc.' }));
+        }
         const unit = zaloBotService.registerCustomUnit(data);
+        const snap = zaloBotService.getPublicStatus(viewerCtx);
+        const unitPass = zaloBotService.resolveDefaultPasswordForUnit(unit);
+        const command = snap.requirePairingPassword ? `/ketnoi ${unit.unitCode} ${unitPass}` : `/ketnoi ${unit.unitCode}`;
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ ok: true, unit, command: `/ketnoi ${unit.unitCode}` }));
+        return res.end(JSON.stringify({ ok: true, unit, command }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -2851,11 +2882,17 @@ const server = http.createServer(async (req, res) => {
 
   if ((urlPath === '/api/dispatcher/zalo/simulate-pair' || urlPath === '/api/zalo/simulate-pair') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     let body = '';
     req.on('data', chunk => { if (body.length < 16384) body += chunk; });
     req.on('end', async () => {
       try {
         const { unitCode, chatId, chatTitle, senderName, text } = JSON.parse(body || '{}');
+        const normTargetCode = String(unitCode || '').trim().toLowerCase();
+        if (!viewerCtx.viewerIsAdmin && (normTargetCode === 'tongtrucban' || normTargetCode === 'admin' || /tongtrucban/i.test(String(text || '')))) {
+          res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chỉ Tổng Trực Ban Quốc Gia (Admin) mới được kết nối kênh Giám sát Toàn Quốc.' }));
+        }
         const simChatId = String(chatId || `zalo_sim_${String(unitCode || 'unit').replace(/[^a-zA-Z0-9_-]/g, '')}`).trim();
         const simText = text || `/ketnoi ${unitCode || 'cap_tanan'}`;
         const webhookOutcome = await zaloBotService.handleWebhookPayload({
@@ -2868,9 +2905,9 @@ const server = http.createServer(async (req, res) => {
               text: simText
             }
           }
-        }, { skipSecretCheck: true, origin: detectRequestOrigin(req) });
+        }, { skipSecretCheck: true, skipPasswordCheck: true, origin: detectRequestOrigin(req) });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ ok: true, outcome: webhookOutcome, status: zaloBotService.getPublicStatus() }));
+        return res.end(JSON.stringify({ ok: true, outcome: webhookOutcome, status: zaloBotService.getPublicStatus(viewerCtx) }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -2881,12 +2918,13 @@ const server = http.createServer(async (req, res) => {
 
   if ((urlPath === '/api/dispatcher/zalo/test-send' || urlPath === '/api/zalo/test-send') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     let body = '';
     req.on('data', chunk => { if (body.length < 16384) body += chunk; });
     req.on('end', async () => {
       try {
         const { chatId, unitCode } = JSON.parse(body || '{}');
-        const snap = zaloBotService.getPublicStatus();
+        const snap = zaloBotService.getPublicStatus(viewerCtx);
         const targets = (snap.bindings || []).filter(b => {
           if (chatId) return String(b.chatId) === String(chatId);
           if (unitCode) return b.unitCode === unitCode;
@@ -2912,7 +2950,7 @@ const server = http.createServer(async (req, res) => {
           results.push({ chatId: t.chatId, unitName: t.unitName, ...r });
         }
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ ok: true, sentCount: results.length, results, status: zaloBotService.getPublicStatus() }));
+        return res.end(JSON.stringify({ ok: true, sentCount: results.length, results, status: zaloBotService.getPublicStatus(viewerCtx) }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -2920,8 +2958,10 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+
   if ((urlPath === '/api/dispatcher/zalo/broadcast' || urlPath === '/api/zalo/broadcast') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     let body = '';
     req.on('data', chunk => { if (body.length < 65536) body += chunk; });
     req.on('end', async () => {
@@ -2967,7 +3007,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ ...out, status: zaloBotService.getPublicStatus() }));
+        return res.end(JSON.stringify({ ...out, status: zaloBotService.getPublicStatus(viewerCtx) }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -2978,14 +3018,24 @@ const server = http.createServer(async (req, res) => {
 
   if ((urlPath === '/api/dispatcher/zalo/update-binding' || urlPath === '/api/zalo/update-binding') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     let body = '';
     req.on('data', chunk => { if (body.length < 32768) body += chunk; });
     req.on('end', async () => {
       try {
         const data = JSON.parse(body || '{}');
+        const targetCode = String(data.unitCode || '').trim().toLowerCase();
+        const targetLevel = String(data.level || '').trim().toLowerCase();
+        if (!viewerCtx.viewerIsAdmin && (targetLevel === 'national' || targetCode === 'tongtrucban' || targetCode === 'admin')) {
+          res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chỉ Tổng Trực Ban Quốc Gia (Admin) mới được chuyển nhóm Zalo sang cấp Giám sát Toàn Quốc.' }));
+        }
+        if (!viewerCtx.viewerIsAdmin) {
+          delete data.customPassword;
+        }
         const updated = await zaloBotService.updateBinding(data);
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ ok: true, binding: updated, status: zaloBotService.getPublicStatus() }));
+        return res.end(JSON.stringify({ ok: true, binding: updated, status: zaloBotService.getPublicStatus(viewerCtx) }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -2996,6 +3046,7 @@ const server = http.createServer(async (req, res) => {
 
   if ((urlPath === '/api/dispatcher/zalo/unlink' || urlPath === '/api/zalo/unlink') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
     let body = '';
     req.on('data', chunk => { if (body.length < 16384) body += chunk; });
     req.on('end', () => {
@@ -3003,7 +3054,7 @@ const server = http.createServer(async (req, res) => {
         const { chatId, unitCode } = JSON.parse(body || '{}');
         const out = zaloBotService.unlinkBinding({ chatId, unitCode });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ ...out, status: zaloBotService.getPublicStatus() }));
+        return res.end(JSON.stringify({ ...out, status: zaloBotService.getPublicStatus(viewerCtx) }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));

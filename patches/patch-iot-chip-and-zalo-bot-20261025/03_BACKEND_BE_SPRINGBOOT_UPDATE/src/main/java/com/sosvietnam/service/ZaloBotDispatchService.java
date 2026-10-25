@@ -108,6 +108,8 @@ public class ZaloBotDispatchService {
         private String hmacSecret = UUID.randomUUID().toString() + UUID.randomUUID();
         private boolean webhookActive = false;
         private boolean demoFastMode = false;
+        private boolean requirePairingPassword = true;
+        private Map<String, String> unitPasswords = new ConcurrentHashMap<>();
         private int reminderSeconds = 180;
         private int escalationSeconds = 900;
         private int demoReminderSeconds = 20;
@@ -594,8 +596,45 @@ public class ZaloBotDispatchService {
         return null;
     }
 
+    public String resolveDefaultPasswordForUnit(ZaloBinding unit) {
+        if (unit == null) return "Congan@113";
+        String code = unit.getUnitCode() == null ? "" : unit.getUnitCode().toLowerCase(Locale.ROOT).trim();
+        if (!code.isBlank() && state.getUnitPasswords() != null && state.getUnitPasswords().containsKey(code)) {
+            String custom = state.getUnitPasswords().get(code);
+            if (custom != null && !custom.isBlank()) return custom.trim();
+        }
+        if ("national".equalsIgnoreCase(unit.getLevel()) || "tongtrucban".equals(code) || "admin".equals(code)) {
+            return "Admin";
+        }
+        String agency = unit.getAgency() == null ? "police" : unit.getAgency().toLowerCase(Locale.ROOT);
+        return switch (agency) {
+            case "csgt" -> "Csgt@113";
+            case "fire" -> "Pccc@114";
+            case "hospital", "ambulance" -> "Capcuu@115";
+            case "traffic-rescue" -> "Cuuhoxe@113";
+            default -> "Congan@113";
+        };
+    }
+
+    public boolean verifyUnitPairingPassword(ZaloBinding unit, String rawPassword) {
+        String pwd = rawPassword == null ? "" : rawPassword.trim();
+        if (pwd.isBlank() || "2002".equals(pwd)) return false;
+        String expected = resolveDefaultPasswordForUnit(unit);
+        if (expected.equalsIgnoreCase(pwd)) return true;
+        if ("national".equalsIgnoreCase(unit.getLevel()) || "tongtrucban".equalsIgnoreCase(unit.getUnitCode())) {
+            return "admin@2026".equalsIgnoreCase(pwd) || "admin123".equalsIgnoreCase(pwd);
+        }
+        if ("fire".equalsIgnoreCase(unit.getAgency()) && "cuuho@114".equalsIgnoreCase(pwd)) return true;
+        return false;
+    }
+
     @SuppressWarnings("unchecked")
     public Map<String, Object> handleWebhookPayload(Map<String, Object> payload, String origin) {
+        return handleWebhookPayload(payload, origin, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> handleWebhookPayload(Map<String, Object> payload, String origin, boolean skipPasswordCheck) {
         List<Map<String, Object>> msgs = extractMessages(payload);
         List<Map<String, Object>> outcomes = new ArrayList<>();
         Pattern ketnoiPattern = Pattern.compile("^/?(?:ketnoi|ket_noi|lienket|pair)\\s+([\\s\\S]+)$", Pattern.CASE_INSENSITIVE);
@@ -613,16 +652,46 @@ public class ZaloBotDispatchService {
             Matcher km = ketnoiPattern.matcher(cleaned);
             if (km.find()) {
                 String[] parts = km.group(1).split("\\|", 2);
-                String unitArg = parts[0].trim();
+                String seg0 = parts[0].trim();
                 String customTitle = parts.length > 1 ? parts[1].trim() : chatTitle;
-                ZaloBinding unit = resolveUnitByCodeOrQuery(unitArg);
+                String[] tokens = seg0.split("\\s+");
+                String unitArg = seg0;
+                String suppliedPass = "";
+                ZaloBinding unit = tokens.length > 0 ? resolveUnitByCode(tokens[0]) : null;
+                if (unit != null) {
+                    unitArg = tokens[0];
+                    suppliedPass = tokens.length >= 2 ? String.join(" ", Arrays.copyOfRange(tokens, 1, tokens.length)).trim() : "";
+                } else if (tokens.length >= 2) {
+                    String lastTok = tokens[tokens.length - 1];
+                    String prefix = seg0.substring(0, seg0.lastIndexOf(lastTok)).replaceAll("[\\s,;-]+$", "").trim();
+                    if (lastTok.length() >= 4 && lastTok.matches(".*[0-9@#$!%^&*_=+~].*")) {
+                        unitArg = prefix;
+                        suppliedPass = lastTok;
+                    }
+                    unit = resolveUnitByCodeOrQuery(unitArg);
+                } else {
+                    unit = resolveUnitByCodeOrQuery(unitArg);
+                }
+
                 if (unit == null) {
-                    sendZaloMessage(chatId, "❌ Không nhận diện được đơn vị \"" + unitArg + "\". Thử: /ketnoi cap_tanan hoặc /ketnoi Phường Tân An, Cần Thơ", Map.of("stage", "cmd_ketnoi_invalid"));
+                    sendZaloMessage(chatId, "❌ Không nhận diện được đơn vị \"" + unitArg + "\". Thử: /ketnoi cap_tanan <Mật_khẩu_trực_ban>", Map.of("stage", "cmd_ketnoi_invalid"));
                     outcomes.add(Map.of("action", "ketnoi_invalid", "code", unitArg));
                     continue;
                 }
+                if (state.isRequirePairingPassword() && !skipPasswordCheck) {
+                    if (suppliedPass.isBlank()) {
+                        sendZaloMessage(chatId, "🔒 YÊU CẦU MẬT KHẨU TRỰC BAN ĐỂ KẾT NỐI ĐƠN VỊ!\n🏢 Đơn vị: " + unit.getUnitName() + "\n👉 Cú pháp: /ketnoi " + unit.getUnitCode() + " <Mật_khẩu_trực_ban>", Map.of("stage", "cmd_ketnoi_missing_pass", "unitCode", unit.getUnitCode()));
+                        outcomes.add(Map.of("action", "ketnoi_missing_password", "unitCode", unit.getUnitCode()));
+                        continue;
+                    }
+                    if (!verifyUnitPairingPassword(unit, suppliedPass)) {
+                        sendZaloMessage(chatId, "⛔ SAI MẬT KHẨU TRỰC BAN — TỪ CHỐI KẾT NỐI!\n🏢 Đơn vị: " + unit.getUnitName() + " (" + unit.getUnitCode() + ")", Map.of("stage", "cmd_ketnoi_denied", "unitCode", unit.getUnitCode()));
+                        outcomes.add(Map.of("action", "ketnoi_wrong_password", "unitCode", unit.getUnitCode()));
+                        continue;
+                    }
+                }
                 ZaloBinding bound = bindChat(chatId, customTitle, senderName, unit);
-                sendZaloMessage(chatId, "✅ LIÊN KẾT BOT TRỰC BAN THÀNH CÔNG!\n🏢 Đơn vị: " + bound.getUnitName() + "\n👮 Cán bộ kích hoạt: " + senderName + "\n💡 Khi có sự cố, bấm Link Tiếp Nhận hoặc gõ /tn (hoặc @TênBot TN) để nhận ca!", Map.of("stage", "cmd_ketnoi_ok", "unitCode", bound.getUnitCode()));
+                sendZaloMessage(chatId, "✅ LIÊN KẾT BOT TRỰC BAN THÀNH CÔNG!\n🏢 Đơn vị: " + bound.getUnitName() + "\n🔐 Xác thực mật khẩu trực ban: HỢP LỆ\n👮 Cán bộ kích hoạt: " + senderName + "\n💡 Khi có sự cố, bấm Link Tiếp Nhận hoặc gõ /tn (hoặc @TênBot TN) để nhận ca!", Map.of("stage", "cmd_ketnoi_ok", "unitCode", bound.getUnitCode()));
                 outcomes.add(Map.of("action", "ketnoi_ok", "unitCode", bound.getUnitCode(), "binding", bound));
                 continue;
             }
@@ -746,11 +815,20 @@ public class ZaloBotDispatchService {
         res.put("maskedToken", state.getBotToken() != null && state.getBotToken().length() > 8
                 ? state.getBotToken().substring(0, 5) + "••••••••" + state.getBotToken().substring(state.getBotToken().length() - 4) : "");
         res.put("demoFastMode", state.isDemoFastMode());
+        res.put("requirePairingPassword", state.isRequirePairingPassword());
+        res.put("viewerPairingCommand", state.isRequirePairingPassword() ? "/ketnoi cap_tanan Congan@113" : "/ketnoi cap_tanan");
         res.put("effectiveReminderSeconds", state.isDemoFastMode() ? state.getDemoReminderSeconds() : state.getReminderSeconds());
         res.put("effectiveEscalationSeconds", state.isDemoFastMode() ? state.getDemoEscalationSeconds() : state.getEscalationSeconds());
         res.put("bindingsCount", state.getBindings().size());
         res.put("bindings", state.getBindings());
-        res.put("presets", PRESETS);
+        List<Map<String, Object>> presetList = new ArrayList<>();
+        for (ZaloBinding p : PRESETS) {
+            Map<String, Object> pm = objectMapper.convertValue(p, new TypeReference<Map<String, Object>>() {});
+            String pass = resolveDefaultPasswordForUnit(p);
+            pm.put("pairingCommand", state.isRequirePairingPassword() ? ("/ketnoi " + p.getUnitCode() + " " + pass) : ("/ketnoi " + p.getUnitCode()));
+            presetList.add(pm);
+        }
+        res.put("presets", presetList);
         res.put("recentOutbox", state.getOutboxLog());
         return res;
     }
@@ -758,6 +836,7 @@ public class ZaloBotDispatchService {
     public Map<String, Object> updateConfig(Map<String, Object> patch) {
         if (patch.containsKey("enabled")) state.setEnabled(Boolean.parseBoolean(String.valueOf(patch.get("enabled"))));
         if (patch.containsKey("demoFastMode")) state.setDemoFastMode(Boolean.parseBoolean(String.valueOf(patch.get("demoFastMode"))));
+        if (patch.containsKey("requirePairingPassword")) state.setRequirePairingPassword(Boolean.parseBoolean(String.valueOf(patch.get("requirePairingPassword"))));
         if (patch.containsKey("publicBaseUrl")) state.setPublicBaseUrl(String.valueOf(patch.get("publicBaseUrl")).trim());
         if (patch.containsKey("botToken")) {
             String tok = String.valueOf(patch.get("botToken")).trim();
