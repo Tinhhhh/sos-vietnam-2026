@@ -1,7 +1,7 @@
 # 📦 GÓI PATCH CẬP NHẬT ĐỘC LẬP (FE + BE + FIRMWARE)
 ## Tích Hợp Mạch Phát Tín Hiệu 4G GPS (`ESP32-C3 TDM2421`) + Giọng Đọc Tiếng Việt + Hệ Thống Bot Zalo Trực Ban Phân Tầng 2 Chiều
 
-- **Phiên bản Patch:** `2026.10.25-iot-zalo-v1`
+- **Phiên bản Patch:** `2026.10.25-iot-zalo-v3`
 - **Tương thích với cả 2 kiến trúc:**
   1. **Web Chính tách rời FE & BE:**
      - **Frontend (`sos-vietnam-2026-FE`)**: React 19 + Vite + `public/dispatcher.html` & `public/js/dispatcher.js`
@@ -100,3 +100,5 @@ patch-iot-chip-and-zalo-bot-20261025/
    - **Cách ly địa bàn tuyệt đối:** Sự cố tại *Phường Tân An* chỉ đổ chuông Zalo của *CA Phường Tân An*, không làm phiền *Phường Long Tuyền* hay đơn vị khác.
    - **Tiếp nhận ngay khi đi ăn cơm / tuần tra:** bấm **Link Tiếp Nhận 1 Chạm** (ký số HMAC-SHA256 chống giả mạo) để mở ngay nút **Dẫn đường Google Maps + Gọi nạn nhân**, hoặc trả lời chữ **`TN`** ngay trên Zalo.
    - **Nhắc khẩn 3 phút & Leo thang Tỉnh 15 phút** (kèm công tắc **Demo Nhanh 20 giây / 45 giây** ngay trên giao diện Web để trình diễn hội đồng).
+4. **Phát Thông Báo Khẩn Cấp / Bảo Trì & Cập Nhật Hệ Thống (Bắn Thẳng Toàn Bộ Zalo — `/api/dispatcher/zalo/broadcast`):**
+   - Cho phép Trung tâm Chỉ huy / Quản trị viên chọn nhanh 4 mẫu (🔧 *Sắp bảo trì & cập nhật*, 🚨 *Công điện trực chiến khẩn*, ⛈️ *Cảnh báo mưa bão / ngập lụt*, ✅ *Hoàn tất nâng cấp*) hoặc tự nhập tiêu đề + nội dung và **bắn thẳng đồng loạt** về toàn bộ nhóm & cán bộ Zalo đã liên kết (hoặc lọc riêng theo Công an Xã/Phường, CSGT, PCCC, 115, Tỉnh/TP), đồng thời hiện băng rôn thông báo nổi realtime qua SSE trên tất cả màn hình Web Bàn Trực Ban.

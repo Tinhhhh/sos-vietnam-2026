@@ -1,10 +1,10 @@
 {
   "suite": "Hierarchical Zalo Bot Dispatch & Two-Way Field Acceptance E2E QA",
-  "timestamp": "2026-10-25T09:28:28.523Z",
+  "timestamp": "2026-10-25T11:31:55.310Z",
   "targetUrl": "http://127.0.0.1:3099",
   "summary": {
-    "total": 13,
-    "passed": 13,
+    "total": 14,
+    "passed": 14,
     "failed": 0
   },
   "assertions": [
@@ -57,7 +57,7 @@
       "name": "3. Territorial Ward Isolation: SOS in Phường Tân An routes ONLY to zalo_grp_tanan_01 (not Long Tuyền or CSGT)",
       "passed": true,
       "details": {
-        "incidentId": "IOT-MVNMKZZK-987",
+        "incidentId": "IOT-MVNQZQZJ-555",
         "notifiedChatsForTanAn": [
           "zalo_grp_tanan_01"
         ]
@@ -82,7 +82,7 @@
       "name": "6. Two-Way Zalo Chat Reply \"@BotSOS TN\" routes Step-2 SOS to CSGT and transitions status to dispatching",
       "passed": true,
       "details": {
-        "csgtId": "IOT-MVNML0VF-817",
+        "csgtId": "IOT-MVNQZRN0-681",
         "status": "dispatching",
         "acceptedVia": "zalo_chat",
         "officer": "Đại úy Lê Quốc Bảo"
@@ -92,7 +92,7 @@
       "name": "7. Provincial Escalation dispatches urgent alert to Chỉ Huy Công An TP. Cần Thơ (zalo_grp_chihuy_ct)",
       "passed": true,
       "details": {
-        "escId": "IOT-MVNML144-851",
+        "escId": "IOT-MVNQZRUJ-717",
         "hqChats": [
           "zalo_grp_chihuy_ct"
         ]
@@ -119,8 +119,8 @@
         "defaultOfficerRank": "Thượng tá",
         "defaultPhone": "113",
         "enabled": true,
-        "linkedAt": "2026-10-25T09:28:37.870Z",
-        "updatedAt": "2026-10-25T09:28:40.559Z"
+        "linkedAt": "2026-10-25T11:32:04.171Z",
+        "updatedAt": "2026-10-25T11:32:06.741Z"
       }
     },
     {
@@ -144,7 +144,7 @@
         "defaultOfficerRank": "Cán bộ",
         "defaultPhone": "02923820113",
         "enabled": true,
-        "linkedAt": "2026-10-25T09:28:41.121Z"
+        "linkedAt": "2026-10-25T11:32:07.324Z"
       }
     },
     {
@@ -160,7 +160,18 @@
       }
     },
     {
-      "name": "11. Desktop & Mobile screenshots captured cleanly",
+      "name": "11. Emergency/Maintenance Broadcast Composer auto-fills template, blasts to ALL connected Zalo groups, and triggers live Web SSE banner",
+      "passed": true,
+      "details": {
+        "targetBadgeCount": 6,
+        "totalMatched": 6,
+        "sentCount": 6,
+        "outboxBroadcastEntries": 6,
+        "sseBannerVisible": true
+      }
+    },
+    {
+      "name": "12. Desktop & Mobile screenshots captured cleanly",
       "passed": true,
       "details": {
         "desktopScreenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-25-zalo-bot-modal-verified.png",

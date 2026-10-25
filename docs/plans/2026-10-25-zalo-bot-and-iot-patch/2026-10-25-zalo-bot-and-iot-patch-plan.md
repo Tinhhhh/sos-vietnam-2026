@@ -264,6 +264,31 @@
   - Goal: Verify all new real-Zalo behaviors in Playwright E2E suite, update `patches/patch-iot-chip-and-zalo-bot-20261025/` + `.zip`, run Anvien `analyze --force` + `detect-changes`, commit, and push to `origin/main`.
   - Acceptance: All Playwright assertions pass, `.zip` updated, and Render deploys latest commit.
 
+### P5: Tactical Broadcast & Emergency System Notice Composer (Blast to All Connected Zalo Units)
+
+- [x] P5-A: Implement `broadcastAnnouncement` in `services/zalo-bot-service.js` and `POST /api/dispatcher/zalo/broadcast` in `server.js`
+  - Goal: Enable composing and blasting emergency directives, maintenance schedules, system updates, or severe weather alerts straight to all (or filtered by force/province) connected Zalo groups & officers (`chatId`-deduplicated), plus optional live SSE broadcast (`system_announcement`) to active Web Dispatcher consoles.
+  - Work Steps:
+    1. Add `broadcastAnnouncement({ category, title, message, senderLabel, targetScope, provinceFilter })` in `services/zalo-bot-service.js` with Vietnam timezone formatting, unique `chatId` deduplication, outbox logging (`stage: 'system_broadcast'`), and delivery summary counts.
+    2. Add `POST /api/dispatcher/zalo/broadcast` and `/api/zalo/broadcast` in `server.js` with `securityFirewall.authenticate`, sender resolution from `req.officer`, and optional `broadcastToDispatchers('system_announcement', ...)`.
+  - Implementation Gate: Anvien `analyze --force`, `file-detail`, and `impact` verified for `services/zalo-bot-service.js` and `server.js`.
+  - Acceptance: `node --check services/zalo-bot-service.js` and `node --check server.js` exit `0`.
+- [x] P5-B: Add Visual Broadcast & Maintenance Notice Composer UI in `dispatcher.html` and `js/dispatcher.js`
+  - Goal: Render a prominent "PHÁT THÔNG BÁO KHẨN / BẢO TRÌ HỆ THỐNG TỚI TOÀN BỘ ZALO ĐƠN VỊ" section inside `#zaloBotConfigModal` with 1-click quick templates (Bảo trì & Cập nhật, Công điện trực chiến khẩn, Cảnh báo Thiên tai/Mưa bão, Hoàn tất nâng cấp), target scope selector (`Toàn bộ`, `Công an Xã/Phường`, `CSGT`, `PCCC`, `Y tế 115`, `Chỉ huy Tỉnh`), title & content inputs, live target count badge, 1-click blast button, and live SSE `system_announcement` banner/toast on `js/dispatcher.js`.
+  - Work Steps:
+    1. Add the Broadcast Composer card in `dispatcher.html` inside `#zaloBotConfigModal` and bump script cache-buster to `?v=20261025_zalo_bot_v4`.
+    2. Wire template preset chips, live recipient count calculation, `POST /api/dispatcher/zalo/broadcast` submission, outbox refresh, and `system_announcement` SSE listener in `js/dispatcher.js`.
+  - Implementation Gate: `P5-A` completed and `dispatcher.html` blast radius verified (`LOW`).
+  - Acceptance: `node --check js/dispatcher.js` exits `0` and UI renders & submits cleanly.
+- [x] P5-C: Playwright E2E Verification (`playwright/verify-zalo-bot-dispatch.mjs`), Sync Standalone Patch ZIP & Deploy to Render
+  - Goal: Add E2E assertions verifying 1-click Maintenance/Emergency Broadcast blasts straight to all connected Zalo groups (`totalMatched`, `outboxLog` entries with `[THÔNG BÁO BẢO TRÌ & CẬP NHẬT HỆ THỐNG]`) and triggers SSE `system_announcement`, sync `patches/patch-iot-chip-and-zalo-bot-20261025/` (including React `ZaloBotConfigModal.jsx`, `zaloBotApi.js`, and Spring Boot `ZaloBotController.java` + `ZaloBotDispatchService.java`) + `.zip`, run Anvien `detect-changes`, commit, and push to `origin/main`.
+  - Work Steps:
+    1. Extend `playwright/verify-zalo-bot-dispatch.mjs` and run full E2E verification.
+    2. Sync all patch files and rebuild `patches/SOS_VIETNAM_2026_PATCH_IOT_CHIP_VA_ZALO_BOT_FE_BE_20261025.zip`.
+    3. Run `anvien analyze --force` + `anvien detect-changes`, commit explicit paths, push to `origin/main`, and restart local server on port `3000`.
+  - Implementation Gate: `P5-A` and `P5-B` completed.
+  - Acceptance: All Playwright E2E assertions pass (`0 failed`), `.zip` updated, and commit pushed to `origin/main`.
+
 ## Risk Notes
 
 - **Zalo Webhook Anti-Bot Filter**: `services/security-firewall-middleware.js` blocks `go-http-client` User-Agent. Placing `POST /api/zalo/webhook` (authenticated via `X-Bot-Api-Secret-Token` header) and `GET /api/zalo/quick-accept` (authenticated via HMAC-SHA256 signature) before `checkAntiBot` eliminates false-positive 403 blocks while keeping strict cryptographic authentication.

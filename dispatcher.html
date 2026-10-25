@@ -3628,6 +3628,61 @@
         </div>
       </div>
 
+      <!-- Step 3: Tactical Broadcast & Maintenance / Emergency System Notice Composer -->
+      <div id="zaloBroadcastComposerCard" style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(251, 191, 36, 0.42); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+          <div style="font-size: 12.5px; font-weight: 800; color: #fbbf24; letter-spacing: 0.2px;">
+            📢 3. PHÁT THÔNG BÁO KHẨN CẤP / BẢO TRÌ &amp; CẬP NHẬT HỆ THỐNG (BẮN THẲNG TOÀN BỘ ZALO)
+          </div>
+          <div style="font-size: 11px; color: #fde68a; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(251, 191, 36, 0.35); padding: 3px 9px; border-radius: 999px; font-weight: 700;">
+            Phạm vi khớp: <b id="zaloBroadcastTargetCountTop">0</b> nhóm/đơn vị Zalo
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 9px; line-height: 1.45;">
+          Soạn công điện khẩn, thông báo <b>sắp bảo trì / cập nhật máy chủ</b>, cảnh báo mưa bão hoặc hoàn tất nâng cấp và <b>bắn thẳng đồng loạt</b> về tất cả nhóm Zalo Công an Xã/Phường, CSGT, PCCC, Y tế 115 đã liên kết.
+        </div>
+
+        <!-- 1-Click Quick Templates -->
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="maintenance" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #fde047; border-color: rgba(250, 204, 21, 0.45); background: rgba(234, 179, 8, 0.14); cursor: pointer;">🔧 Mẫu Sắp Bảo Trì / Cập Nhật</button>
+          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="emergency" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #fca5a5; border-color: rgba(248, 113, 113, 0.5); background: rgba(239, 68, 68, 0.15); cursor: pointer;">🚨 Mẫu Công Điện Trực Chiến Khẩn</button>
+          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="weather" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #7dd3fc; border-color: rgba(56, 189, 248, 0.45); background: rgba(14, 165, 233, 0.14); cursor: pointer;">⛈️ Mẫu Cảnh Báo Mưa Bão / Ngập</button>
+          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="recovery" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #6ee7b7; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.14); cursor: pointer;">✅ Mẫu Hoàn Tất Nâng Cấp</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 8px;">
+          <select id="selectZaloBroadcastCategory" class="input-field" style="font-size: 11.5px; padding: 7px 9px;">
+            <option value="maintenance">🔧 Thông báo Bảo trì &amp; Cập nhật hệ thống</option>
+            <option value="emergency">🚨 Công điện &amp; Chỉ đạo khẩn cấp</option>
+            <option value="weather">⛈️ Cảnh báo Thiên tai / Mưa bão</option>
+            <option value="recovery">✅ Thông báo Hoàn tất nâng cấp</option>
+            <option value="general">📢 Thông báo Điều hành chung</option>
+          </select>
+          <select id="selectZaloBroadcastScope" class="input-field" style="font-size: 11.5px; padding: 7px 9px;">
+            <option value="all">🌐 Bắn thẳng cho TOÀN BỘ đơn vị đã liên kết</option>
+            <option value="police">👮 Chỉ Công An Xã/Phường</option>
+            <option value="csgt">🚓 Chỉ lực lượng CSGT</option>
+            <option value="fire">🚒 Chỉ lực lượng PCCC &amp; CNCH</option>
+            <option value="hospital">🚑 Chỉ Cấp Cứu Y Tế 115</option>
+            <option value="province_hq">🏛️ Chỉ Trung Tâm Chỉ Huy Cấp Tỉnh/QG</option>
+          </select>
+          <input type="text" id="inputZaloBroadcastProvince" class="input-field" placeholder="Tất cả Tỉnh/TP (Hoặc lọc VD: Cần Thơ)" style="font-size: 11.5px; padding: 7px 9px;" />
+        </div>
+
+        <input type="text" id="inputZaloBroadcastTitle" class="input-field" placeholder="Chủ đề thông báo (VD: Tạm bảo trì nâng cấp máy chủ SOS Việt Nam trong 15 phút)" style="width: 100%; font-size: 12px; font-weight: 700; padding: 8px 10px; margin-bottom: 8px;" />
+        <textarea id="textareaZaloBroadcastMessage" class="input-field" rows="3" placeholder="Nhập nội dung thông báo khẩn cấp, lịch bảo trì cập nhật hệ thống, hoặc chỉ đạo trực ban cần bắn thẳng về Zalo tất cả đơn vị..." style="width: 100%; font-size: 12px; line-height: 1.5; padding: 8px 10px; resize: vertical; min-height: 70px;"></textarea>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+          <label style="display: flex; align-items: center; gap: 7px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+            <input type="checkbox" id="chkZaloBroadcastWebSync" checked style="accent-color: #f59e0b; width: 15px; height: 15px;" />
+            <span>Đồng thời hiện băng rôn thông báo khẩn trên tất cả màn hình Web Bàn Trực Ban đang mở</span>
+          </label>
+          <button type="button" id="btnSendZaloBroadcastAll" class="btn-primary" style="padding: 9px 18px; font-size: 12px; font-weight: 800; background: linear-gradient(135deg, #dc2626, #ea580c); border: 1px solid rgba(254, 202, 202, 0.35); border-radius: 9px; color: #ffffff; cursor: pointer; box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35); white-space: nowrap;">
+            📢 BẮN THẲNG CHO TOÀN BỘ (<span id="zaloBroadcastTargetCount">0</span> NHÓM ZALO)
+          </button>
+        </div>
+      </div>
+
       <!-- Connected Zalo Chats & Live Outbox Feed -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
         <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 12px; padding: 12px 14px;">
@@ -3680,7 +3735,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v3"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v4"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {

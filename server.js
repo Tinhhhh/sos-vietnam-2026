@@ -2920,6 +2920,61 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+  if ((urlPath === '/api/dispatcher/zalo/broadcast' || urlPath === '/api/zalo/broadcast') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 65536) body += chunk; });
+    req.on('end', async () => {
+      try {
+        const {
+          category = 'maintenance',
+          title = '',
+          message = '',
+          senderLabel = '',
+          targetScope = 'all',
+          provinceFilter = '',
+          alsoNotifyWebDispatchers = true
+        } = JSON.parse(body || '{}');
+
+        const authUser = req.user || req.officer || null;
+        const resolvedSender = String(
+          senderLabel ||
+          authUser?.unitName ||
+          authUser?.agencyName ||
+          ''
+        ).trim() || 'Trung Tâm Chỉ Huy SOS Việt Nam 2026';
+
+        const out = await zaloBotService.broadcastAnnouncement({
+          category,
+          title,
+          message,
+          senderLabel: resolvedSender,
+          targetScope,
+          provinceFilter
+        });
+
+        if (alsoNotifyWebDispatchers !== false) {
+          broadcastToDispatchers('system_announcement', {
+            category: out.category,
+            title: out.title,
+            message: String(message || '').trim(),
+            senderLabel: out.senderLabel,
+            targetScope: out.targetScope,
+            totalMatched: out.totalMatched,
+            timeVN: out.timeVN,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ...out, status: zaloBotService.getPublicStatus() }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
 
   if ((urlPath === '/api/dispatcher/zalo/update-binding' || urlPath === '/api/zalo/update-binding') && req.method === 'POST') {
     if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;

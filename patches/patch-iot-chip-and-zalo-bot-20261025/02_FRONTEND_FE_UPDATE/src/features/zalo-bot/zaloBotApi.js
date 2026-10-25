@@ -1,5 +1,5 @@
 /**
- * Zalo Bot Hierarchical Dispatch API Client for sos-vietnam-2026-FE (React 19 + Vite)
+ * Zalo Bot Hierarchical Dispatch & Mass Broadcast API Client for sos-vietnam-2026-FE (React 19 + Vite)
  */
 const API_BASE = import.meta.env?.VITE_API_BASE_URL || '';
 
@@ -18,36 +18,64 @@ async function requestJson(path, options = {}) {
   return res.json();
 }
 
+export const fetchZaloBotStatus = () =>
+  requestJson('/api/dispatcher/zalo/status', { method: 'GET' });
+
+export const saveZaloBotConfig = (payload) =>
+  requestJson('/api/dispatcher/zalo/config', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+export const registerCustomZaloUnit = (payload) =>
+  requestJson('/api/dispatcher/zalo/register-unit', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+export const simulateZaloUnitPair = (payload) =>
+  requestJson('/api/dispatcher/zalo/simulate-pair', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+export const sendZaloTestAlert = (chatIdOrPayload = {}) => {
+  const payload = typeof chatIdOrPayload === 'string' ? { chatId: chatIdOrPayload } : chatIdOrPayload;
+  return requestJson('/api/dispatcher/zalo/test-send', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateZaloBinding = (payload) =>
+  requestJson('/api/dispatcher/zalo/update-binding', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+export const unlinkZaloUnit = (chatIdOrPayload, unitCode = '') => {
+  const payload = typeof chatIdOrPayload === 'string'
+    ? { chatId: chatIdOrPayload, unitCode }
+    : (chatIdOrPayload || {});
+  return requestJson('/api/dispatcher/zalo/unlink', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const broadcastZaloAnnouncement = (payload) =>
+  requestJson('/api/dispatcher/zalo/broadcast', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
 export const zaloBotApi = {
-  getStatus: () => requestJson('/api/dispatcher/zalo/status', { method: 'GET' }),
-  saveConfig: (payload) =>
-    requestJson('/api/dispatcher/zalo/config', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }),
-  registerCustomUnit: (payload) =>
-    requestJson('/api/dispatcher/zalo/register-unit', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }),
-  simulatePair: (payload) =>
-    requestJson('/api/dispatcher/zalo/simulate-pair', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }),
-  sendTestAlert: (payload = {}) =>
-    requestJson('/api/dispatcher/zalo/test-send', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }),
-  updateBinding: (payload) =>
-    requestJson('/api/dispatcher/zalo/update-binding', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }),
-  unlinkUnit: (payload) =>
-    requestJson('/api/dispatcher/zalo/unlink', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    })
+  getStatus: fetchZaloBotStatus,
+  saveConfig: saveZaloBotConfig,
+  registerCustomUnit: registerCustomZaloUnit,
+  simulatePair: simulateZaloUnitPair,
+  sendTestAlert: sendZaloTestAlert,
+  updateBinding: updateZaloBinding,
+  unlinkUnit: unlinkZaloUnit,
+  broadcastAnnouncement: broadcastZaloAnnouncement
 };

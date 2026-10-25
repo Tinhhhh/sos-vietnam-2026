@@ -119,6 +119,17 @@ public class ZaloBotController {
         return ResponseEntity.ok(out);
     }
 
+    @PostMapping({"/api/dispatcher/zalo/broadcast", "/api/zalo/broadcast"})
+    public ResponseEntity<Map<String, Object>> broadcast(@RequestBody Map<String, Object> body) {
+        try {
+            Map<String, Object> out = new LinkedHashMap<>(zaloBotService.broadcastAnnouncement(body == null ? Map.of() : body));
+            out.put("status", zaloBotService.getPublicStatus());
+            return ResponseEntity.ok(out);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("ok", false, "error", e.getMessage()));
+        }
+    }
+
     @PostMapping({"/api/dispatcher/zalo/update-binding", "/api/zalo/update-binding"})
     public ResponseEntity<Map<String, Object>> updateBinding(@RequestBody Map<String, Object> body) {
         ZaloBotDispatchService.ZaloBinding updated = zaloBotService.updateBinding(body);

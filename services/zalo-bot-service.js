@@ -772,6 +772,132 @@ export function createZaloBotService({
   }
 
   /**
+   * Broadcast an emergency directive, scheduled maintenance notice, system update,
+   * or severe weather warning directly to ALL (or filtered) connected Zalo groups & officers.
+   */
+  async function broadcastAnnouncement({
+    category = 'maintenance',
+    title = '',
+    message = '',
+    senderLabel = '',
+    targetScope = 'all',
+    provinceFilter = ''
+  } = {}) {
+    const cleanMessage = String(message || '').trim();
+    if (!cleanMessage) {
+      throw new Error('Vui lòng nhập nội dung thông báo khẩn cấp / bảo trì cần phát đi!');
+    }
+
+    const cleanCategory = String(category || 'maintenance').trim().toLowerCase();
+    const cleanTitle = String(title || '').trim();
+    const cleanScope = String(targetScope || 'all').trim().toLowerCase();
+    const provFilterSlug = normalizeGeoSlug(provinceFilter || '');
+    const resolvedSender = String(senderLabel || '').trim() || 'Trung Tâm Chỉ Huy SOS Việt Nam 2026';
+
+    const seenChatIds = new Set();
+    const targets = [];
+
+    for (const b of state.bindings) {
+      if (!b || b.enabled === false || !b.chatId) continue;
+      const chatKey = String(b.chatId).trim();
+      if (!chatKey || seenChatIds.has(chatKey)) continue;
+
+      const bindAgency = String(b.agency || 'police').toLowerCase();
+      const bindLevel = String(b.level || 'ward').toLowerCase();
+
+      if (cleanScope === 'police' && bindAgency !== 'police') continue;
+      if (cleanScope === 'csgt' && bindAgency !== 'csgt') continue;
+      if (cleanScope === 'fire' && bindAgency !== 'fire') continue;
+      if (cleanScope === 'hospital' && bindAgency !== 'hospital' && bindAgency !== 'ambulance') continue;
+      if (cleanScope === 'province_hq' && bindLevel !== 'province' && bindLevel !== 'national') continue;
+
+      if (provFilterSlug && bindLevel !== 'national') {
+        const bindProvSlug = normalizeGeoSlug(b.province || '');
+        if (bindProvSlug !== provFilterSlug) continue;
+      }
+
+      seenChatIds.add(chatKey);
+      targets.push(b);
+    }
+
+    if (targets.length === 0) {
+      throw new Error('Hiện chưa có nhóm/cán bộ Zalo nào khớp phạm vi nhận thông báo. Hãy liên kết nhóm Zalo trước!');
+    }
+
+    const categoryHeaderMap = {
+      emergency: '🚨📢 [CÔNG ĐIỆN KHẨN — TRUNG TÂM CHỈ HUY SOS VIỆT NAM]',
+      maintenance: '🔧🛠️ [THÔNG BÁO BẢO TRÌ & CẬP NHẬT HỆ THỐNG]',
+      weather: '⛈️🌊 [CẢNH BÁO THIÊN TAI & TRỰC CỨU HỘ KHẨN CẤP]',
+      recovery: '✅🟢 [THÔNG BÁO HOÀN TẤT NÂNG CẤP — HỆ THỐNG THÔNG SUỐT]',
+      general: '📢 [THÔNG BÁO ĐIỀU HÀNH TRỰC BAN TOÀN HỆ THỐNG]'
+    };
+    const headerLine = categoryHeaderMap[cleanCategory] || categoryHeaderMap.general;
+    const timeVN = new Date().toLocaleString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour12: false
+    });
+
+    const formattedText = [
+      headerLine,
+      ...(cleanTitle ? [`📌 Chủ đề: ${cleanTitle}`] : []),
+      `🏛️ Phát lệnh từ: ${resolvedSender}`,
+      `⏱️ Thời gian phát: ${timeVN}`,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      cleanMessage,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      `💬 Hệ thống Điều phối Trực ban 2 chiều — SOS Việt Nam 2026`
+    ].join('\n').slice(0, 1900);
+
+    let deliveredCount = 0;
+    let simulatedCount = 0;
+    let failedCount = 0;
+    const results = [];
+
+    for (const t of targets) {
+      const sendRes = await sendZaloMessage(t.chatId, formattedText, {
+        province: t.province || '',
+        meta: {
+          stage: 'system_broadcast',
+          category: cleanCategory,
+          title: cleanTitle,
+          senderLabel: resolvedSender,
+          targetScope: cleanScope,
+          unitCode: t.unitCode,
+          unitName: t.unitName || t.chatTitle || t.chatId
+        }
+      });
+
+      if (sendRes.ok && !sendRes.simulated) deliveredCount += 1;
+      else if (sendRes.simulated) simulatedCount += 1;
+      else failedCount += 1;
+
+      results.push({
+        chatId: t.chatId,
+        unitCode: t.unitCode,
+        unitName: t.unitName,
+        chatTitle: t.chatTitle,
+        ...sendRes
+      });
+    }
+
+    return {
+      ok: true,
+      category: cleanCategory,
+      title: cleanTitle,
+      senderLabel: resolvedSender,
+      targetScope: cleanScope,
+      timeVN,
+      totalMatched: targets.length,
+      sentCount: deliveredCount + simulatedCount,
+      deliveredCount,
+      simulatedCount,
+      failedCount,
+      formattedText,
+      results
+    };
+  }
+
+  /**
    * Match bound Zalo chats for an incident according to Vietnam 2-tier hierarchy:
    * - stage === 'initial' | 'reminder':
    *     * National supervisory chats (`level === 'national'`)
@@ -1835,6 +1961,7 @@ export function createZaloBotService({
     updateBinding,
     unlinkBinding,
     sendZaloMessage,
+    broadcastAnnouncement,
     onIncidentCreated,
     onIncidentEscalated,
     onIncidentAcceptedOrClosed,

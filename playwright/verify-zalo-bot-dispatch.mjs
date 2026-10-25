@@ -526,15 +526,56 @@ async function run() {
       }
     );
 
-    // Refresh modal UI, open inline edit panel on zgr-bf54e33e72519b0fc240 for visual evidence, & capture desktop verification screenshot
+    // 11. Tactical Broadcast & Maintenance Notice Composer: 1-Click Template + Blast to ALL Connected Zalo Groups + Live Web SSE Banner
     await page.click('#btnRefreshZaloStatus');
-    await page.waitForTimeout(400);
-    await page.click(`${cardSelector} .btn-zalo-edit-one`).catch(() => {});
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(350);
+    await page.locator('#zaloBroadcastComposerCard').scrollIntoViewIfNeeded();
+    await page.click('.btn-zalo-bcast-tpl[data-tpl="maintenance"]');
+    await page.waitForTimeout(150);
+
+    const populatedTitle = await page.inputValue('#inputZaloBroadcastTitle');
+    const populatedMsg = await page.inputValue('#textareaZaloBroadcastMessage');
+    const targetBadgeCount = Number(await page.textContent('#zaloBroadcastTargetCount'));
+
+    const [bcastResp] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/dispatcher/zalo/broadcast') && r.request().method() === 'POST'),
+      page.click('#btnSendZaloBroadcastAll')
+    ]);
+    const bcastJson = await bcastResp.json();
+    await page.waitForTimeout(450);
+
+    const sseBannerVisible = await page.locator('#liveSystemAnnouncementBanner').isVisible().catch(() => false);
+    const bcastOutboxHits = (bcastJson?.status?.recentOutbox || []).filter(
+      m => m.stage === 'system_broadcast' && String(m.text || '').includes('[THÔNG BÁO BẢO TRÌ & CẬP NHẬT HỆ THỐNG]')
+    );
+
+    assertCheck(
+      '11. Emergency/Maintenance Broadcast Composer auto-fills template, blasts to ALL connected Zalo groups, and triggers live Web SSE banner',
+      Boolean(populatedTitle) &&
+        populatedMsg.includes('bảo trì') &&
+        targetBadgeCount >= 5 &&
+        bcastJson?.ok === true &&
+        bcastJson?.totalMatched === targetBadgeCount &&
+        bcastJson?.sentCount === bcastJson?.totalMatched &&
+        bcastOutboxHits.length === bcastJson?.totalMatched &&
+        sseBannerVisible,
+      {
+        targetBadgeCount,
+        totalMatched: bcastJson?.totalMatched,
+        sentCount: bcastJson?.sentCount,
+        outboxBroadcastEntries: bcastOutboxHits.length,
+        sseBannerVisible
+      }
+    );
+
+    // Dismiss floating banner so modal header isn't covered, scroll composer + outbox into view, & capture desktop verification screenshot
+    await page.click('#btnCloseLiveSysBanner').catch(() => {});
+    await page.locator('#zaloBroadcastComposerCard').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
     await page.screenshot({ path: SCREENSHOT_PATH });
 
     assertCheck(
-      '11. Desktop & Mobile screenshots captured cleanly',
+      '12. Desktop & Mobile screenshots captured cleanly',
       fs.existsSync(SCREENSHOT_PATH) && fs.existsSync(MOBILE_ACCEPT_SCREENSHOT_PATH),
       { desktopScreenshot: SCREENSHOT_PATH, mobileScreenshot: MOBILE_ACCEPT_SCREENSHOT_PATH }
     );

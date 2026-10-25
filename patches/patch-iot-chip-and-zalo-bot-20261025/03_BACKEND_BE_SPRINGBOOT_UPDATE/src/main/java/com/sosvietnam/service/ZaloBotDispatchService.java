@@ -27,6 +27,9 @@ import java.security.MessageDigest;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
@@ -350,6 +353,109 @@ public class ZaloBotDispatchService {
             saveState();
             return Map.of("ok", false, "error", e.getMessage());
         }
+    }
+
+    public Map<String, Object> broadcastAnnouncement(Map<String, Object> body) {
+        String message = String.valueOf(body.getOrDefault("message", "")).trim();
+        if (message.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập nội dung thông báo khẩn cấp / bảo trì cần phát đi!");
+        }
+        String category = String.valueOf(body.getOrDefault("category", "maintenance")).trim().toLowerCase(Locale.ROOT);
+        String title = String.valueOf(body.getOrDefault("title", "")).trim();
+        String scope = String.valueOf(body.getOrDefault("targetScope", "all")).trim().toLowerCase(Locale.ROOT);
+        String provSlug = normalizeGeoSlug(String.valueOf(body.getOrDefault("provinceFilter", "")));
+        String senderLabel = String.valueOf(body.getOrDefault("senderLabel", "")).trim();
+        if (senderLabel.isBlank()) senderLabel = "Trung Tâm Chỉ Huy SOS Việt Nam 2026";
+
+        Set<String> seenChats = new LinkedHashSet<>();
+        List<ZaloBinding> targets = new ArrayList<>();
+        for (ZaloBinding b : state.getBindings()) {
+            if (!b.isEnabled() || b.getChatId() == null || b.getChatId().isBlank()) continue;
+            String chatKey = b.getChatId().trim();
+            if (!seenChats.add(chatKey)) continue;
+
+            String ag = String.valueOf(b.getAgency()).toLowerCase(Locale.ROOT);
+            String lv = String.valueOf(b.getLevel()).toLowerCase(Locale.ROOT);
+            if ("police".equals(scope) && !"police".equals(ag)) continue;
+            if ("csgt".equals(scope) && !"csgt".equals(ag)) continue;
+            if ("fire".equals(scope) && !"fire".equals(ag)) continue;
+            if ("hospital".equals(scope) && !"hospital".equals(ag) && !"ambulance".equals(ag)) continue;
+            if ("province_hq".equals(scope) && !"province".equals(lv) && !"national".equals(lv)) continue;
+
+            if (!provSlug.isBlank() && !"national".equals(lv)) {
+                if (!normalizeGeoSlug(b.getProvince()).equals(provSlug)) continue;
+            }
+            targets.add(b);
+        }
+
+        if (targets.isEmpty()) {
+            throw new IllegalArgumentException("Hiện chưa có nhóm/cán bộ Zalo nào khớp phạm vi nhận thông báo. Hãy liên kết nhóm Zalo trước!");
+        }
+
+        String header = switch (category) {
+            case "emergency" -> "🚨📢 [CÔNG ĐIỆN KHẨN — TRUNG TÂM CHỈ HUY SOS VIỆT NAM]";
+            case "maintenance" -> "🔧🛠️ [THÔNG BÁO BẢO TRÌ & CẬP NHẬT HỆ THỐNG]";
+            case "weather" -> "⛈️🌊 [CẢNH BÁO THIÊN TAI & TRỰC CỨU HỘ KHẨN CẤP]";
+            case "recovery" -> "✅🟢 [THÔNG BÁO HOÀN TẤT NÂNG CẤP — HỆ THỐNG THÔNG SUỐT]";
+            default -> "📢 [THÔNG BÁO ĐIỀU HÀNH TRỰC BAN TOÀN HỆ THỐNG]";
+        };
+        String timeVN = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))
+                .format(DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy"));
+
+        List<String> lines = new ArrayList<>();
+        lines.add(header);
+        if (!title.isBlank()) lines.add("📌 Chủ đề: " + title);
+        lines.add("🏛️ Phát lệnh từ: " + senderLabel);
+        lines.add("⏱️ Thời gian phát: " + timeVN);
+        lines.add("━━━━━━━━━━━━━━━━━━━━");
+        lines.add(message);
+        lines.add("━━━━━━━━━━━━━━━━━━━━");
+        lines.add("💬 Hệ thống Điều phối Trực ban 2 chiều — SOS Việt Nam 2026");
+
+        String formattedText = String.join("\n", lines);
+        if (formattedText.length() > 1900) formattedText = formattedText.substring(0, 1900);
+
+        int deliveredCount = 0;
+        int simulatedCount = 0;
+        int failedCount = 0;
+        List<Map<String, Object>> results = new ArrayList<>();
+
+        for (ZaloBinding t : targets) {
+            Map<String, Object> sendRes = sendZaloMessage(t.getChatId(), formattedText, Map.of(
+                    "stage", "system_broadcast",
+                    "category", category,
+                    "title", title,
+                    "unitCode", t.getUnitCode() == null ? "" : t.getUnitCode(),
+                    "unitName", t.getUnitName() == null ? "" : t.getUnitName()
+            ));
+            boolean ok = Boolean.TRUE.equals(sendRes.get("ok"));
+            boolean sim = Boolean.TRUE.equals(sendRes.get("simulated"));
+            if (ok && !sim) deliveredCount++;
+            else if (sim) simulatedCount++;
+            else failedCount++;
+
+            Map<String, Object> item = new LinkedHashMap<>(sendRes);
+            item.put("chatId", t.getChatId());
+            item.put("unitCode", t.getUnitCode());
+            item.put("unitName", t.getUnitName());
+            results.add(item);
+        }
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("ok", true);
+        resp.put("category", category);
+        resp.put("title", title);
+        resp.put("senderLabel", senderLabel);
+        resp.put("targetScope", scope);
+        resp.put("timeVN", timeVN);
+        resp.put("totalMatched", targets.size());
+        resp.put("sentCount", deliveredCount + simulatedCount);
+        resp.put("deliveredCount", deliveredCount);
+        resp.put("simulatedCount", simulatedCount);
+        resp.put("failedCount", failedCount);
+        resp.put("formattedText", formattedText);
+        resp.put("results", results);
+        return resp;
     }
 
     public void onIncidentCreated(IncidentResponse inc, String origin, String extraSourceLabel) {

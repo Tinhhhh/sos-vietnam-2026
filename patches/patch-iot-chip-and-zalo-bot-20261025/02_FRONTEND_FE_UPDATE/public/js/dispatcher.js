@@ -10551,6 +10551,15 @@ class DispatcherApp {
         console.warn('Error handling sos_update_all SSE:', err);
       }
     });
+    // API: Live System Broadcast / Maintenance / Emergency Directive Banner
+    this.eventSource.addEventListener('system_announcement', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        this.renderLiveSystemAnnouncementBanner(data);
+      } catch (err) {
+        console.warn('Error handling system_announcement SSE:', err);
+      }
+    });
   }
 
   renderQueue() {
@@ -16057,6 +16066,106 @@ class DispatcherApp {
       });
     }
 
+    // Tactical Broadcast & Maintenance Notice Composer wiring
+    const bcastTemplates = {
+      maintenance: {
+        category: 'maintenance',
+        title: 'Bảo trì & Cập nhật nâng cấp Hệ thống SOS Việt Nam 2026',
+        message: 'Trung tâm Chỉ huy thông báo: Hệ thống chuẩn bị bảo trì & cập nhật phiên bản mới trong ít phút tới. Trong thời gian nâng cấp, các đơn vị Công an Xã/Phường & lực lượng trực chiến duy trì giữ liên lạc qua bộ đàm / điện thoại trực ban 113-114-115. Hệ thống sẽ báo ngay khi hoàn tất!'
+      },
+      emergency: {
+        category: 'emergency',
+        title: 'Công điện trực chiến khẩn cấp 100% quân số',
+        message: 'Yêu cầu toàn bộ Công an Xã/Phường, CSGT, PCCC & CNCH và Y tế 115 kiểm tra thiết bị đầu cuối, bật chuông thông báo Zalo Trực Ban và sẵn sàng xuất phát ngay khi có tín hiệu SOS hoặc Nút bấm phần cứng 4G GPS trên địa bàn!'
+      },
+      weather: {
+        category: 'weather',
+        title: 'Cảnh báo Mưa lớn, Dông lốc & Ngập úng cục bộ trên địa bàn',
+        message: 'Dự báo trong các giờ tới có mưa lớn kèm dông lốc và triều cường gây ngập một số tuyến đường trọng điểm. Đề nghị các đơn vị cơ sở chủ động rà soát điểm xung yếu và ưu tiên tiếp nhận nhanh các ca cứu hộ giao thông, cây đổ, ngập nước!'
+      },
+      recovery: {
+        category: 'recovery',
+        title: 'Hoàn tất nâng cấp — Hệ thống SOS Việt Nam hoạt động thông suốt 100%',
+        message: 'Quá trình bảo trì & cập nhật nâng cấp máy chủ Trung tâm Chỉ huy đã hoàn tất tốt đẹp. Toàn bộ đường truyền định tuyến SOS tự động, Nút bấm 4G GPS và Tiếp nhận 2 chiều qua Bot Zalo (/tn & Link 1 chạm) đã hoạt động bình thường trở lại!'
+      }
+    };
+
+    document.querySelectorAll('.btn-zalo-bcast-tpl').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.getAttribute('data-tpl') || 'maintenance';
+        const tpl = bcastTemplates[key];
+        if (!tpl) return;
+        const catEl = document.getElementById('selectZaloBroadcastCategory');
+        const titleEl = document.getElementById('inputZaloBroadcastTitle');
+        const msgEl = document.getElementById('textareaZaloBroadcastMessage');
+        if (catEl) catEl.value = tpl.category;
+        if (titleEl) titleEl.value = tpl.title;
+        if (msgEl) {
+          msgEl.value = tpl.message;
+          msgEl.focus();
+        }
+        this.updateZaloBroadcastTargetPreview();
+      });
+    });
+
+    const bcastScopeEl = document.getElementById('selectZaloBroadcastScope');
+    const bcastProvEl = document.getElementById('inputZaloBroadcastProvince');
+    if (bcastScopeEl) bcastScopeEl.addEventListener('change', () => this.updateZaloBroadcastTargetPreview());
+    if (bcastProvEl) bcastProvEl.addEventListener('input', () => this.updateZaloBroadcastTargetPreview());
+
+    const btnBroadcastAll = document.getElementById('btnSendZaloBroadcastAll');
+    if (btnBroadcastAll) {
+      btnBroadcastAll.addEventListener('click', async () => {
+        const category = document.getElementById('selectZaloBroadcastCategory')?.value || 'maintenance';
+        const targetScope = document.getElementById('selectZaloBroadcastScope')?.value || 'all';
+        const provinceFilter = document.getElementById('inputZaloBroadcastProvince')?.value?.trim() || '';
+        const title = document.getElementById('inputZaloBroadcastTitle')?.value?.trim() || '';
+        const msgEl = document.getElementById('textareaZaloBroadcastMessage');
+        const message = msgEl?.value?.trim() || '';
+        const alsoNotifyWebDispatchers = Boolean(document.getElementById('chkZaloBroadcastWebSync')?.checked);
+
+        if (!message) {
+          this.showToast?.('Vui lòng nhập nội dung thông báo hoặc bấm chọn 1 mẫu có sẵn ở trên!', 'warning');
+          msgEl?.focus();
+          return;
+        }
+
+        btnBroadcastAll.disabled = true;
+        const prevHtml = btnBroadcastAll.innerHTML;
+        btnBroadcastAll.textContent = '📡 Đang bắn thông báo khẩn tới toàn bộ Zalo...';
+        try {
+          const res = await fetch('/api/dispatcher/zalo/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              category,
+              title,
+              message,
+              targetScope,
+              provinceFilter,
+              alsoNotifyWebDispatchers
+            })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            if (data.status) this.renderZaloBotStatus(data.status);
+            const modeDetail = data.deliveredCount > 0
+              ? `${data.deliveredCount} nhóm Zalo thật`
+              : `${data.simulatedCount} nhóm mô phỏng`;
+            this.showToast?.(`📢 Đã bắn thẳng thông báo tới ${data.totalMatched} nhóm/đơn vị (${modeDetail})!`, 'success');
+          } else {
+            this.showToast?.(data.error || 'Không thể phát thông báo Zalo', 'warning');
+          }
+        } catch (err) {
+          this.showToast?.('Lỗi mạng khi phát thông báo tới Zalo', 'error');
+        } finally {
+          btnBroadcastAll.disabled = false;
+          btnBroadcastAll.innerHTML = prevHtml;
+          this.updateZaloBroadcastTargetPreview();
+        }
+      });
+    }
+
     // Refresh header badge shortly after login/boot
     setTimeout(() => {
       if (this.currentOfficer) this.refreshZaloBotStatus(true);
@@ -16115,9 +16224,80 @@ class DispatcherApp {
       .replace(/"/g, '&quot;');
   }
 
+  normalizeBroadcastGeoSlug(raw = '') {
+    return String(raw || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase()
+      .trim()
+      .replace(/^(thanh pho|tp\.?|tinh|quan|huyen|thi xa|phuong|xa|thi tran)\s+/i, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  updateZaloBroadcastTargetPreview() {
+    const bindings = Array.isArray(this._lastZaloBindings) ? this._lastZaloBindings : [];
+    const scope = (document.getElementById('selectZaloBroadcastScope')?.value || 'all').toLowerCase();
+    const provSlug = this.normalizeBroadcastGeoSlug(document.getElementById('inputZaloBroadcastProvince')?.value || '');
+    const seen = new Set();
+    for (const b of bindings) {
+      if (!b || b.enabled === false || !b.chatId) continue;
+      const key = String(b.chatId).trim();
+      if (!key || seen.has(key)) continue;
+      const ag = String(b.agency || 'police').toLowerCase();
+      const lv = String(b.level || 'ward').toLowerCase();
+      if (scope === 'police' && ag !== 'police') continue;
+      if (scope === 'csgt' && ag !== 'csgt') continue;
+      if (scope === 'fire' && ag !== 'fire') continue;
+      if (scope === 'hospital' && ag !== 'hospital' && ag !== 'ambulance') continue;
+      if (scope === 'province_hq' && lv !== 'province' && lv !== 'national') continue;
+      if (provSlug && lv !== 'national') {
+        if (this.normalizeBroadcastGeoSlug(b.province || '') !== provSlug) continue;
+      }
+      seen.add(key);
+    }
+    const cnt = seen.size;
+    const elBtnCnt = document.getElementById('zaloBroadcastTargetCount');
+    const elTopCnt = document.getElementById('zaloBroadcastTargetCountTop');
+    if (elBtnCnt) elBtnCnt.textContent = String(cnt);
+    if (elTopCnt) elTopCnt.textContent = String(cnt);
+  }
+
+  renderLiveSystemAnnouncementBanner(data = {}) {
+    if (!data || !data.message) return;
+    const existing = document.getElementById('liveSystemAnnouncementBanner');
+    if (existing) existing.remove();
+    const accentMap = {
+      emergency: { border: '#ef4444', bg: 'rgba(127, 29, 29, 0.96)', badge: '🚨 CÔNG ĐIỆN KHẨN' },
+      maintenance: { border: '#f59e0b', bg: 'rgba(120, 53, 15, 0.96)', badge: '🔧 BẢO TRÌ & CẬP NHẬT' },
+      weather: { border: '#38bdf8', bg: 'rgba(12, 74, 110, 0.96)', badge: '⛈️ CẢNH BÁO THIÊN TAI' },
+      recovery: { border: '#10b981', bg: 'rgba(6, 78, 59, 0.96)', badge: '✅ HỆ THỐNG THÔNG SUỐT' },
+      general: { border: '#eab308', bg: 'rgba(30, 41, 59, 0.96)', badge: '📢 THÔNG BÁO ĐIỀU HÀNH' }
+    };
+    const theme = accentMap[data.category] || accentMap.general;
+    const banner = document.createElement('div');
+    banner.id = 'liveSystemAnnouncementBanner';
+    banner.style.cssText = `position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:100005;width:min(680px,94vw);background:${theme.bg};border:1.5px solid ${theme.border};border-radius:14px;padding:13px 16px;color:#f8fafc;box-shadow:0 18px 45px rgba(0,0,0,0.65);backdrop-filter:blur(12px);`;
+    banner.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:5px;">
+        <div style="font-size:12px;font-weight:800;color:#fde047;">${theme.badge} · ${this.escapeZaloUiHtml(data.senderLabel || 'Trung Tâm Chỉ Huy')}</div>
+        <button type="button" id="btnCloseLiveSysBanner" style="background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;">Đóng ✕</button>
+      </div>
+      ${data.title ? `<div style="font-size:13.5px;font-weight:800;color:#ffffff;margin-bottom:4px;">${this.escapeZaloUiHtml(data.title)}</div>` : ''}
+      <div style="font-size:12px;line-height:1.5;color:#e2e8f0;white-space:pre-wrap;">${this.escapeZaloUiHtml(data.message)}</div>
+    `;
+    document.body.appendChild(banner);
+    banner.querySelector('#btnCloseLiveSysBanner')?.addEventListener('click', () => banner.remove());
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 14000);
+  }
+
   renderZaloBotStatus(status) {
     if (!status) return;
     const bindings = Array.isArray(status.bindings) ? status.bindings : [];
+    this._lastZaloBindings = bindings;
+    this.updateZaloBroadcastTargetPreview();
     const presets = Array.isArray(status.presets) ? status.presets : [];
     const outbox = Array.isArray(status.recentOutbox) ? status.recentOutbox : [];
 
@@ -16448,9 +16628,12 @@ class DispatcherApp {
             /(https?:\/\/[^\s<]+)/g,
             '<a href="$1" target="_blank" rel="noopener" style="color:#38bdf8; word-break:break-all; font-weight:700;">$1</a>'
           );
-          const badge = item.delivered
+          const bcastTag = item.stage === 'system_broadcast'
+            ? '<span style="color:#f97316; font-weight:800; margin-right:4px;">[📢 PHÁT TOÀN BỘ]</span>'
+            : '';
+          const badge = bcastTag + (item.delivered
             ? '<span style="color:#34d399; font-weight:800;">[ĐÃ BẮN ZALO THẬT]</span>'
-            : '<span style="color:#fbbf24; font-weight:800;">[BẢN GHI MÔ PHỎNG]</span>';
+            : '<span style="color:#fbbf24; font-weight:800;">[BẢN GHI MÔ PHỎNG]</span>');
           const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString('vi-VN') : '';
           return `
             <div style="background: rgba(2, 6, 23, 0.72); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 8px; padding: 8px 10px;">
