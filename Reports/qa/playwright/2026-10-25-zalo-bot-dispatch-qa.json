@@ -1,0 +1,81 @@
+{
+  "suite": "Hierarchical Zalo Bot Dispatch & Two-Way Field Acceptance E2E QA",
+  "timestamp": "2026-10-25T04:50:01.304Z",
+  "targetUrl": "http://127.0.0.1:3099",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0
+  },
+  "assertions": [
+    {
+      "name": "1. Webhook /ketnoi with Go-http-client/1.1 User-Agent succeeds without AI-Bot 403 block",
+      "passed": true,
+      "details": {
+        "pairedGroups": 4
+      }
+    },
+    {
+      "name": "2. Dispatcher UI #btnHeaderZaloBot opens #zaloBotConfigModal showing 4 paired Zalo groups & 9 presets",
+      "passed": true,
+      "details": {
+        "visible": true,
+        "boundCount": 4,
+        "presetCards": 9
+      }
+    },
+    {
+      "name": "3. Territorial Ward Isolation: SOS in Phường Tân An routes ONLY to zalo_grp_tanan_01 (not Long Tuyền or CSGT)",
+      "passed": true,
+      "details": {
+        "incidentId": "IOT-MVNCMTXJ-770",
+        "notifiedChatsForTanAn": [
+          "zalo_grp_tanan_01"
+        ]
+      }
+    },
+    {
+      "name": "4. 1-Tap Mobile Quick-Accept Link verifies HMAC, renders confirmation HTML, and transitions SOS to dispatching",
+      "passed": true,
+      "details": {
+        "status": "dispatching",
+        "acceptedVia": "zalo_link"
+      }
+    },
+    {
+      "name": "5. Forged Quick-Accept link signature is rejected with HTTP 403",
+      "passed": true,
+      "details": {
+        "httpStatus": 403
+      }
+    },
+    {
+      "name": "6. Two-Way Zalo Chat Reply \"@BotSOS TN\" routes Step-2 SOS to CSGT and transitions status to dispatching",
+      "passed": true,
+      "details": {
+        "csgtId": "IOT-MVNCMUHI-688",
+        "status": "dispatching",
+        "acceptedVia": "zalo_chat",
+        "officer": "Đại úy Lê Quốc Bảo"
+      }
+    },
+    {
+      "name": "7. Provincial Escalation dispatches urgent alert to Chỉ Huy Công An TP. Cần Thơ (zalo_grp_chihuy_ct)",
+      "passed": true,
+      "details": {
+        "escId": "IOT-MVNCMUP1-511",
+        "hqChats": [
+          "zalo_grp_chihuy_ct"
+        ]
+      }
+    },
+    {
+      "name": "8. Desktop & Mobile screenshots captured cleanly",
+      "passed": true,
+      "details": {
+        "desktopScreenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-25-zalo-bot-modal-verified.png",
+        "mobileScreenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-25-zalo-quick-accept-mobile.png"
+      }
+    }
+  ]
+}

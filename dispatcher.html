@@ -1650,6 +1650,20 @@
         </div>
       </div>
 
+      <!-- Zalo Bot Dispatch Quick Trigger Pill -->
+      <div class="header-widget-pill liquid-glass" id="btnHeaderZaloBot" title="Cấu hình Bot Zalo Trực Ban & Lấy mã /ketnoi cho Xã/Phường" style="cursor: pointer; border-color: rgba(14, 165, 233, 0.55); background: linear-gradient(135deg, rgba(2, 132, 199, 0.24), rgba(15, 23, 42, 0.72)); display: flex;">
+        <span class="widget-icon" style="color: #38bdf8;">
+          <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+        </span>
+        <div class="widget-text">
+          <div style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+            <span class="widget-primary" style="color: #7dd3fc; font-weight: 800;">Bot Zalo</span>
+            <span id="headerZaloConnectedBadge" style="font-size: 8.5px; font-weight: 800; background: rgba(14, 165, 233, 0.35); border: 1px solid rgba(56, 189, 248, 0.5); color: #e0f2fe; padding: 1px 5px; border-radius: 4px;">CẤU HÌNH</span>
+          </div>
+          <span class="widget-secondary" id="headerZaloSubStatus">Định tuyến 2 chiều</span>
+        </div>
+      </div>
+
       <!-- Header Action Icons: Only Gear Button -->
       <div class="header-icon-buttons">
         <div style="position: relative;" id="gearSettingsWrap">
@@ -1659,6 +1673,13 @@
 
           <!-- GEAR DROPDOWN MENU -->
           <div class="gear-dropdown-menu liquid-glass" id="gearDropdownMenu" style="display: none;">
+            <div class="gear-menu-item" id="gearMenuItemZaloBot" title="Kết nối Bot Zalo Trực Ban & Định tuyến Xã/Phường">
+              <div class="gear-menu-icon" style="background: rgba(14, 165, 233, 0.25); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.5);"><svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></div>
+              <div class="gear-menu-content">
+                <div class="gear-menu-title" style="color: #7dd3fc;">Bot Zalo Trực Ban 2 Chiều</div>
+                <div class="gear-menu-desc">Lấy mã /ketnoi, báo động di động, nhắc 3p</div>
+              </div>
+            </div>
             <div class="gear-menu-item" id="gearMenuItemAdmin" title="Bảng phân quyền & quản trị hệ thống">
               <div class="gear-menu-icon" style="background: rgba(139, 92, 246, 0.25); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.5);"><svg class="svg-ico ico-xs ico-purple" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div>
               <div class="gear-menu-content">
@@ -3476,6 +3497,120 @@
     </div>
   </div>
 
+  <!-- =====================================================================
+       MODAL: HIERARCHICAL ZALO BOT DISPATCH & TWO-WAY FIELD ACCEPTANCE
+       ===================================================================== -->
+  <div id="zaloBotConfigModal" style="display: none; position: fixed; inset: 0; z-index: 9850; background: rgba(2, 6, 23, 0.84); backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 16px;">
+    <div style="width: 100%; max-width: 920px; max-height: 90vh; overflow-y: auto; background: linear-gradient(165deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98)); border: 1.5px solid rgba(56, 189, 248, 0.45); border-radius: 16px; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85); color: #f8fafc; padding: 20px 22px;">
+      <!-- Modal Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.18); padding-bottom: 12px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0ea5e9); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 18px rgba(14, 165, 233, 0.45);">
+            <svg class="svg-ico ico-sm ico-white" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          </div>
+          <div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #f8fafc; letter-spacing: 0.3px;">TRUNG TÂM ĐIỀU PHỐI BOT ZALO TRỰC BAN 2 CHIỀU</h3>
+            <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">Định tuyến thông minh theo Xã/Phường & Lực lượng · Tiếp nhận 1 chạm trên di động · Nhắc khẩn 3 phút / Leo thang Tỉnh 15 phút</div>
+          </div>
+        </div>
+        <button type="button" id="btnCloseZaloBotModal" style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; border-radius: 8px; width: 34px; height: 34px; font-size: 18px; font-weight: 800; cursor: pointer;">&times;</button>
+      </div>
+
+      <!-- Status Banner -->
+      <div id="zaloBotConnectionStatusBar" style="padding: 10px 14px; border-radius: 10px; background: rgba(14, 165, 233, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); margin-bottom: 14px; font-size: 12.5px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+        <div id="zaloBotConnectionStatusText" style="color: #bae6fd; font-weight: 700;">Đang kiểm tra trạng thái kết nối Bot Zalo...</div>
+        <button type="button" id="btnRefreshZaloStatus" class="btn-refresh-loc" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Làm mới trạng thái</button>
+      </div>
+
+      <!-- Step 1: BOT TOKEN & Timer Mode -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 16px;">
+        <div style="background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 14px;">
+          <div style="font-size: 12.5px; font-weight: 800; color: #38bdf8; margin-bottom: 6px;">1. CẤU HÌNH BOT ZALO TỔNG (ZALO BOT PLATFORM)</div>
+          <div style="font-size: 11px; color: #94a3b8; line-height: 1.45; margin-bottom: 8px;">
+            Tạo Bot miễn phí tại <a href="https://bot.zaloplatforms.com" target="_blank" rel="noopener" style="color: #7dd3fc; font-weight: 700;">bot.zaloplatforms.com</a>, sao chép <b>BOT_TOKEN</b> dán vào ô dưới đây (hệ thống tự động gắn Webhook HTTPS hoặc Long-Polling):
+          </div>
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <input type="password" id="inputZaloBotToken" class="input-field" placeholder="Dán BOT_TOKEN (VD: 123456789:abcXYZ...)" style="flex: 1; font-size: 12px; padding: 8px 10px;" autocomplete="off" />
+            <button type="button" id="btnToggleShowZaloToken" class="btn-refresh-loc" style="padding: 6px 10px; font-size: 11px; cursor: pointer;" title="Hiện/Ẩn Token">Hiện</button>
+          </div>
+          <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: #fde047; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 10px;">
+            <input type="checkbox" id="chkZaloDemoFastMode" style="margin-top: 2px; cursor: pointer;" />
+            <span><b>Chế độ Demo / Test Nhanh:</b> Nhắc khẩn lần 2 sau <b>20 giây</b> &amp; Tự động leo thang lên Chỉ Huy Tỉnh/TP sau <b>45 giây</b> (Mặc định thực tế: 3 phút / 15 phút).</span>
+          </label>
+          <button type="button" id="btnSaveZaloBotConfig" class="btn-primary" style="width: 100%; padding: 9px 14px; font-size: 12.5px; font-weight: 800; background: linear-gradient(135deg, #0284c7, #0ea5e9); border: none; border-radius: 8px; color: #fff; cursor: pointer;">
+            Lưu Cấu Hình &amp; Kích Hoạt Bot Zalo
+          </button>
+        </div>
+
+        <!-- Step 2: Unit Pairing without Phone Numbers -->
+        <div style="background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 14px;">
+          <div style="font-size: 12.5px; font-weight: 800; color: #34d399; margin-bottom: 6px;">2. LỆNH /KETNOI TỰ ĐỘNG (KHÔNG CẦN SĐT CÁ NHÂN)</div>
+          <div style="font-size: 11px; color: #94a3b8; line-height: 1.45; margin-bottom: 8px;">
+            Tạo nhóm Zalo đơn vị (VD: <i>"Trực Ban CA Phường Tân An"</i>), thêm Bot vào nhóm rồi gõ <b>@TênBot /ketnoi mã_đơn_vị</b> (hoặc nhắn riêng 1-1 cho Bot):
+          </div>
+
+          <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
+            <div style="font-size: 10.5px; color: #a7f3d0; margin-bottom: 4px;">Đơn vị phiên đăng nhập hiện tại (<span id="zaloCurrentOfficerLabel">Trực ban</span>):</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <code id="zaloCurrentOfficerCommand" style="flex: 1; background: rgba(2, 6, 23, 0.7); padding: 6px 8px; border-radius: 6px; color: #34d399; font-size: 12px; font-weight: 800;">/ketnoi cap_tanan</code>
+              <button type="button" id="btnCopyCurrentOfficerZaloCmd" class="btn-refresh-loc" style="padding: 6px 10px; font-size: 11px; color: #34d399; border-color: rgba(16, 185, 129, 0.45); cursor: pointer;">Sao chép</button>
+            </div>
+          </div>
+
+          <!-- Custom Ward Code Generator -->
+          <div style="font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 5px;">Tạo nhanh mã kết nối cho Xã/Phường bất kỳ (34 Tỉnh/TP):</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+            <input type="text" id="inputZaloCustomProvince" class="input-field" placeholder="Tỉnh/TP (VD: Cần Thơ)" value="Cần Thơ" style="font-size: 11.5px; padding: 6px 8px;" />
+            <input type="text" id="inputZaloCustomWard" class="input-field" placeholder="Xã/Phường (VD: Phường Tân An)" value="Phường Tân An" style="font-size: 11.5px; padding: 6px 8px;" />
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <select id="selectZaloCustomAgency" class="input-field" style="flex: 1; font-size: 11.5px; padding: 6px 8px;">
+              <option value="police">Công An Xã/Phường (Nhấn 1 lần)</option>
+              <option value="csgt">Đội CSGT Tỉnh/TP (Nhấn 2 lần)</option>
+              <option value="fire">Cảnh Sát PCCC &amp; CNCH (Nhấn 3 lần)</option>
+              <option value="all_province">Chỉ Huy Công An Tỉnh/TP (Nhận Leo Thang)</option>
+            </select>
+            <button type="button" id="btnGenerateCustomZaloUnit" class="btn-primary" style="padding: 6px 12px; font-size: 11.5px; font-weight: 800; background: #059669; border: none; border-radius: 6px; color: #fff; cursor: pointer; white-space: nowrap;">Tạo &amp; Copy Mã</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preset Quick-Pair Cards (Ideal for immediate Tân An / CSGT / PCCC testing) -->
+      <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+          <div style="font-size: 12px; font-weight: 800; color: #7dd3fc;">BỘ MÃ KẾT NỐI MẪU SẴN SÀNG TEST NGAY (CẦN THƠ &amp; TOÀN QUỐC)</div>
+          <div style="font-size: 10.5px; color: #94a3b8;">Bấm <b>Copy Lệnh</b> để dán vào Zalo thật, hoặc bấm <b>Gắn Giả Lập</b> để test ngay luồng định tuyến trên Web</div>
+        </div>
+        <div id="zaloPresetCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 8px;">
+          <!-- Populated dynamically by js/dispatcher.js -->
+        </div>
+      </div>
+
+      <!-- Connected Zalo Chats & Live Outbox Feed -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
+        <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 12px; padding: 12px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 12px; font-weight: 800; color: #f8fafc;">NHÓM / CÁN BỘ ĐÃ LIÊN KẾT (<span id="zaloBoundCount">0</span>)</div>
+            <button type="button" id="btnSendZaloTestAll" class="btn-refresh-loc" style="padding: 4px 10px; font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); cursor: pointer;">Bắn Tin Test Tất Cả</button>
+          </div>
+          <div id="zaloBindingsListContainer" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; font-size: 11.5px;">
+            <div style="color: #64748b; font-style: italic; padding: 10px 0;">Chưa có nhóm Zalo nào liên kết.</div>
+          </div>
+        </div>
+
+        <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 12px; padding: 12px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 12px; font-weight: 800; color: #fbbf24;">NHẬT KÝ TIN BÁO ĐỘNG ZALO GẦN NHẤT</div>
+            <span style="font-size: 10px; color: #94a3b8;">Hỗ trợ test Link Tiếp Nhận 1 Chạm</span>
+          </div>
+          <div id="zaloOutboxPreviewContainer" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+            <div style="color: #64748b; font-style: italic; padding: 10px 0;">Chưa có tin báo động nào phát ra.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Audio Alert Chimes -->
   <audio id="sfxAlert" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2874/2874-preview.mp3"></audio>
 
@@ -3500,7 +3635,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261021_tdm2421_4g_gps_vi"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v1"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {

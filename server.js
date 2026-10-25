@@ -12,6 +12,7 @@ import { securityFirewall } from './services/security-firewall-middleware.js';
 import { readRuntimeData, runtimeDataPath, writeRuntimeData } from './services/runtime-data-store.js';
 import { defaultPasswordForAccount } from './services/agency-password-policy.js';
 import { generateAccountsWorkbookBuffer } from './services/accounts-excel-generator.js';
+import { createZaloBotService } from './services/zalo-bot-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -592,6 +593,127 @@ const incidents = new Map();
 const citizenSubscribers = new Map();
 const dispatcherSubscribers = new Set();
 const escalationTimers = new Map();
+
+function detectRequestOrigin(req) {
+  const protoHeader = String(req?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+  const hostHeader = String(req?.headers?.['x-forwarded-host'] || req?.headers?.host || `localhost:${PORT}`).split(',')[0].trim();
+  const proto = protoHeader || (/^(localhost|127\.0\.0\.1)/i.test(hostHeader) ? 'http' : 'https');
+  return `${proto}://${hostHeader}`;
+}
+
+function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, officerName = '', officerRank = '', unitName = '', officerPhone = '', via = 'zalo_link' } = {}) {
+  const incident = incidents.get(incidentId);
+  if (!incident) {
+    return { ok: false, error: `Không tìm thấy ca sự cố #${incidentId}` };
+  }
+  if (incident.status === 'resolved' || incident.status === 'fake_alarm') {
+    return { ok: false, error: `Ca sự cố #${incidentId} đã kết thúc xử lý.` };
+  }
+  if (incident.status === 'dispatching' || incident.status === 'approaching' || incident.status === 'arrived') {
+    return { ok: true, alreadyHandled: true, incident };
+  }
+  if (incident.status === 'escalated' && binding && binding.level === 'ward') {
+    return { ok: false, error: 'Ca sự cố đã leo thang lên Chỉ Huy Cấp Tỉnh/TP. Cấp Xã/Phường không còn quyền tiếp nhận.' };
+  }
+
+  if (escalationTimers.has(incident.id)) {
+    clearTimeout(escalationTimers.get(incident.id));
+    escalationTimers.delete(incident.id);
+  }
+  zaloBotService.clearIncidentZaloTimer(incident.id);
+
+  const eta = 5;
+  const assignedAddr = incident.assignedUnit?.address || 'Trụ sở trực ban';
+  const respondingName = unitName || binding?.unitName || incident.assignedUnit?.name || 'Đơn vị Trực ban';
+  const resolvedOfficer = (officerName && officerName !== 'Đang cập nhật')
+    ? officerName
+    : (binding?.defaultOfficerName && binding.defaultOfficerName !== 'Đang cập nhật')
+    ? binding.defaultOfficerName
+    : (incident.assignedUnit?.officerName && incident.assignedUnit.officerName !== 'Đang cập nhật')
+    ? incident.assignedUnit.officerName
+    : 'Cán bộ trực ban Zalo';
+  const resolvedRank = (officerRank && officerRank !== 'Đang cập nhật')
+    ? officerRank
+    : (binding?.defaultOfficerRank && binding.defaultOfficerRank !== 'Đang cập nhật')
+    ? binding.defaultOfficerRank
+    : (incident.assignedUnit?.officerRank && incident.assignedUnit.officerRank !== 'Đang cập nhật')
+    ? incident.assignedUnit.officerRank
+    : 'Cán bộ';
+  const resolvedPhone = officerPhone || binding?.defaultPhone || incident.assignedUnit?.phone || '113';
+  const hasEmbeddedRank = /^(Đại tướng|Thượng tướng|Trung tướng|Thiếu tướng|Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy|Thượng sĩ|Trung sĩ|Hạ sĩ|Bác sĩ|Điều dưỡng|Đồng chí|Cán bộ)\b/i.test(resolvedOfficer.trim());
+  const fullOfficerTitle = hasEmbeddedRank ? resolvedOfficer.trim() : `${resolvedRank} ${resolvedOfficer}`.trim();
+
+  incident.status = 'dispatching';
+  incident.stepIndex = 3;
+  incident.acceptedVia = via;
+  incident.statusText = `Đã điều động ${respondingName} qua Zalo Trực Ban (Địa chỉ: ${assignedAddr}). Dự kiến tiếp cận sau ${eta} phút.`;
+  incident.dispatchUnit = {
+    unitName: respondingName,
+    stationAddress: assignedAddr,
+    officerName: resolvedOfficer,
+    officerRank: resolvedRank,
+    officerFullTitle: fullOfficerTitle,
+    officerPhone: resolvedPhone,
+    officerSms: incident.assignedUnit?.sms || resolvedPhone,
+    officerEmail: incident.assignedUnit?.email || '',
+    etaMinutes: eta,
+    acceptedVia: via,
+    dispatchedAt: new Date().toISOString()
+  };
+  incident.updatedAt = new Date().toISOString();
+
+  if (!incident.signatures) {
+    incident.signatures = {
+      citizen: { signed: false, name: incident.reporterName || '', type: 'draw', signatureData: '', signedAt: null },
+      officer: { signed: false, name: resolvedOfficer, type: 'draw', signatureData: '', signedAt: null },
+      isFullySigned: false
+    };
+  } else if (incident.signatures.officer && (!incident.signatures.officer.name || incident.signatures.officer.name === 'Đang cập nhật')) {
+    incident.signatures.officer.name = resolvedOfficer;
+  }
+
+  incident.timeline.push({
+    step: 2,
+    title: 'Đơn vị phụ trách đã tiếp nhận (Qua Zalo Trực Ban)',
+    desc: `${respondingName} (${assignedAddr}) - ${incident.dispatchUnit.officerFullTitle} đã xác nhận tiếp nhận từ điện thoại di động`,
+    time: new Date().toISOString(),
+    done: true
+  });
+  incident.timeline.push({
+    step: 3,
+    title: 'Lực lượng đang xuất phát',
+    desc: `${incident.dispatchUnit.unitName} - Chỉ huy: ${incident.dispatchUnit.officerFullTitle} (SĐT: ${incident.dispatchUnit.officerPhone})`,
+    time: new Date().toISOString(),
+    done: true
+  });
+  incident.messages.push({
+    id: 'msg-' + Date.now(),
+    sender: 'dispatcher',
+    senderName: `${incident.dispatchUnit.officerFullTitle} (${incident.dispatchUnit.unitName})`,
+    text: `Chào bạn, tôi là ${incident.dispatchUnit.officerFullTitle} từ ${respondingName}. Tôi vừa tiếp nhận tín hiệu khẩn cấp qua Zalo Trực Ban và lực lượng đang khẩn trương di chuyển tới vị trí của bạn (dự kiến ${eta} phút). Liên hệ trực tiếp SĐT: ${resolvedPhone}!`,
+    timestamp: new Date().toISOString()
+  });
+
+  saveIncidentHistory();
+  notifyCitizen(incident.id, 'sos_update', incident);
+  broadcastToDispatchers('sos_update', incident);
+
+  zaloBotService.onIncidentAcceptedOrClosed(incident, {
+    via: via === 'zalo_chat' ? 'zalo_chat' : 'zalo',
+    acceptedChatId: chatId,
+    officerDisplay: incident.dispatchUnit.officerFullTitle
+  }).catch(() => {});
+
+  console.log(`📲 [ZALO QUICK-ACCEPT] #${incident.id} accepted by ${incident.dispatchUnit.officerFullTitle} (${respondingName})`);
+  return { ok: true, alreadyHandled: false, incident };
+}
+
+const zaloBotService = createZaloBotService({
+  getAgencyAccounts: () => AGENCY_ACCOUNTS,
+  getStationsList: () => (Array.isArray(stationsDirectory?.stations) ? stationsDirectory.stations : (Array.isArray(stationsDirectory) ? stationsDirectory : [])),
+  getIncidentById: (id) => incidents.get(id),
+  acceptIncidentFromZalo: performZaloIncidentAccept
+});
 
 // History Trash & 24h Undo Policy (Hoàn tác có hiệu lực 24h từ khi xóa, sau 24h sẽ xóa vĩnh viễn)
 const TRASH_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 giờ (1 ngày)
@@ -2500,6 +2622,62 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ ok: false, error: 'Dịch vụ đang khởi động lại' }));
   }
 
+  // -------------------------------------------------------------
+  // PUBLIC ZALO BOT WEBHOOK & 1-TAP SIGNED MOBILE QUICK-ACCEPT
+  // Placed prior to generic AI-bot UA filter because Zalo Bot Platform
+  // webhook servers may use Go-http-client User-Agent; protected instead
+  // by X-Bot-Api-Secret-Token and HMAC-SHA256 signatures.
+  // -------------------------------------------------------------
+  if (urlPath === '/api/zalo/webhook' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      if (body.length < 65536) body += chunk;
+    });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const secretHeader = String(req.headers['x-bot-api-secret-token'] || '').trim();
+        const result = await zaloBotService.handleWebhookPayload(payload, {
+          secretHeader,
+          origin: detectRequestOrigin(req)
+        });
+        res.writeHead(result.status || 200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: 'Invalid webhook payload' }));
+      }
+    });
+    return;
+  }
+
+  if (urlPath === '/api/zalo/quick-accept' && req.method === 'GET') {
+    const id = String(urlObj.searchParams.get('id') || '').trim();
+    const chat = String(urlObj.searchParams.get('chat') || '').trim();
+    const sig = String(urlObj.searchParams.get('sig') || '').trim();
+
+    if (!zaloBotService.verifyQuickAccept(id, chat, sig)) {
+      const html = zaloBotService.renderQuickAcceptHtml({
+        ok: false,
+        error: 'Chữ ký bảo mật liên kết tiếp nhận không hợp lệ hoặc đã bị thay đổi.'
+      });
+      res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(html);
+    }
+
+    const statusSnap = zaloBotService.getPublicStatus();
+    const binding = (statusSnap.bindings || []).find(b => String(b.chatId) === chat) || null;
+    const result = performZaloIncidentAccept({
+      incidentId: id,
+      chatId: chat,
+      binding,
+      via: 'zalo_link'
+    });
+    const html = zaloBotService.renderQuickAcceptHtml(result);
+    res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(html);
+  }
+
   // 1. Layer 7 Anti-AI Crawler & Scraper Bot WAF
   if (!securityFirewall.checkAntiBot(req, res)) {
     return;
@@ -2576,6 +2754,144 @@ const server = http.createServer(async (req, res) => {
         playChime: true
       }
     }));
+  }
+
+  // -------------------------------------------------------------
+  // API: Hierarchical Zalo Bot Management (Authenticated Dispatcher / Admin)
+  // -------------------------------------------------------------
+  if ((urlPath === '/api/dispatcher/zalo/status' || urlPath === '/api/zalo/status') && req.method === 'GET') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify(zaloBotService.getPublicStatus()));
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/config' || urlPath === '/api/zalo/config') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 32768) body += chunk; });
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const updated = await zaloBotService.updateConfig({
+          ...data,
+          detectedOrigin: detectRequestOrigin(req)
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify(updated));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/register-unit' || urlPath === '/api/zalo/register-unit') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 16384) body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const unit = zaloBotService.registerCustomUnit(data);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: true, unit, command: `/ketnoi ${unit.unitCode}` }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/simulate-pair' || urlPath === '/api/zalo/simulate-pair') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 16384) body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { unitCode, chatId, chatTitle, senderName, text } = JSON.parse(body || '{}');
+        const simChatId = String(chatId || `zalo_sim_${String(unitCode || 'unit').replace(/[^a-zA-Z0-9_-]/g, '')}`).trim();
+        const simText = text || `/ketnoi ${unitCode || 'cap_tanan'}`;
+        const webhookOutcome = await zaloBotService.handleWebhookPayload({
+          result: {
+            event_name: 'message.text.received',
+            message: {
+              message_id: 'sim_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+              chat: { id: simChatId, chat_type: 'GROUP', title: chatTitle || `Nhóm Zalo Trực Ban (${unitCode || 'Demo'})` },
+              from: { id: 'officer_sim', display_name: senderName || 'Cán bộ Trực ban' },
+              text: simText
+            }
+          }
+        }, { skipSecretCheck: true, origin: detectRequestOrigin(req) });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: true, outcome: webhookOutcome, status: zaloBotService.getPublicStatus() }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/test-send' || urlPath === '/api/zalo/test-send') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 16384) body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { chatId, unitCode } = JSON.parse(body || '{}');
+        const snap = zaloBotService.getPublicStatus();
+        const targets = (snap.bindings || []).filter(b => {
+          if (chatId) return String(b.chatId) === String(chatId);
+          if (unitCode) return b.unitCode === unitCode;
+          return true;
+        });
+        if (targets.length === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chưa có nhóm/cán bộ Zalo nào liên kết để gửi tin test. Hãy gõ /ketnoi trên Zalo hoặc bấm Kết nối Demo trước!' }));
+        }
+        const results = [];
+        for (const t of targets) {
+          const msg = [
+            `🔔 [KIỂM TRA ĐƯỜNG TRUYỀN BOT TRỰC BAN SOS VIỆT NAM 2026]`,
+            `🏢 Đơn vị: ${t.unitName}`,
+            `📍 Địa bàn phụ trách: ${t.ward ? `${t.ward}, ${t.province}` : t.province}`,
+            `⏱️ Thời gian kiểm tra: ${getVietnamTimeString()}`,
+            `✅ Trạng thái: Đường truyền báo động 2 chiều hoạt động TỐT!`
+          ].join('\n');
+          const r = await zaloBotService.sendZaloMessage(t.chatId, msg, {
+            province: t.province,
+            meta: { stage: 'test_ping', unitCode: t.unitCode, unitName: t.unitName }
+          });
+          results.push({ chatId: t.chatId, unitName: t.unitName, ...r });
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: true, sentCount: results.length, results, status: zaloBotService.getPublicStatus() }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/unlink' || urlPath === '/api/zalo/unlink') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 16384) body += chunk; });
+    req.on('end', () => {
+      try {
+        const { chatId, unitCode } = JSON.parse(body || '{}');
+        const out = zaloBotService.unlinkBinding({ chatId, unitCode });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ...out, status: zaloBotService.getPublicStatus() }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
   }
 
   // -------------------------------------------------------------
@@ -4385,12 +4701,19 @@ const server = http.createServer(async (req, res) => {
         console.log(`   👮‍♂️ Cán bộ tiếp nhận: ${localUnit.officerFullTitle}`);
         console.log(`   ========================================================\n`);
 
-        // 3. Auto-Escalation Timer (Áp dụng cho Công An cấp xã/phường và các Đội PCCC&CNCH / Đội CSGT khu vực sau 15 phút chuyển lên Trụ sở chính cấp Thành phố)
+        // 3. Auto-Escalation Timer (Áp dụng cho Công An cấp xã/phường và các Đội PCCC&CNCH / Đội CSGT khu vực sau 15 phút chuyển lên Trụ sở chính cấp Thành phố; hỗ trợ chế độ Demo nhanh)
+        const reqOriginForZalo = detectRequestOrigin(req);
+        const effectiveEscalationMs = zaloBotService.getEffectiveEscalationMs();
+        if (initialLevel === 'ward') {
+          incident.escalationDueAt = new Date(Date.now() + effectiveEscalationMs).toISOString();
+        }
         if ((agency === 'police' || agency === 'fire' || agency === 'csgt') && initialLevel === 'ward') {
           const timer = setTimeout(() => {
             const inc = incidents.get(id);
             if (inc && inc.status === 'pending') {
-              console.log(`⚠️ [ESCALATION #${id}] Cấp cơ sở/Đội khu vực chưa xử lý xong sau 15 phút. Chuyển thẳng quyền xử lý lên Trụ sở chính cấp Tỉnh/TP: ${provinceUnit.name}!`);
+              const escMinutesLabel = effectiveEscalationMs >= 60000 ? `${Math.round(effectiveEscalationMs / 60000)} phút` : `${Math.round(effectiveEscalationMs / 1000)} giây`;
+              console.log(`⚠️ [ESCALATION #${id}] Cấp cơ sở/Đội khu vực chưa xử lý xong sau ${escMinutesLabel}. Chuyển thẳng quyền xử lý lên Trụ sở chính cấp Tỉnh/TP: ${provinceUnit.name}!`);
+              inc.previousAssignedUnit = inc.assignedUnit;
               inc.currentLevel = 'province';
               inc.status = 'escalated';
               inc.escalationStatus = 'ESCALATED_CITY_HQ';
@@ -4404,8 +4727,8 @@ const server = http.createServer(async (req, res) => {
 
               inc.timeline.push({
                 step: 1,
-                title: `Chuyển thẳng quyền xử lý lên Trụ sở chính cấp Tỉnh/Thành Phố (Sau 15 phút)`,
-                desc: `Do cấp cơ sở/Đội khu vực quá 15 phút chưa giải quyết, hệ thống đã chuyển toàn bộ quyền xử lý lên ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address}).`,
+                title: `Chuyển thẳng quyền xử lý lên Trụ sở chính cấp Tỉnh/Thành Phố (Sau ${escMinutesLabel})`,
+                desc: `Do cấp cơ sở/Đội khu vực quá ${escMinutesLabel} chưa giải quyết, hệ thống đã chuyển toàn bộ quyền xử lý lên ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address}).`,
                 time: new Date().toISOString(),
                 done: true
               });
@@ -4421,13 +4744,19 @@ const server = http.createServer(async (req, res) => {
               saveIncidentHistory();
               notifyCitizen(id, 'sos_update', inc);
               broadcastToDispatchers('sos_escalate', inc);
+              zaloBotService.onIncidentEscalated(inc, { origin: reqOriginForZalo }).catch(err => {
+                console.warn('[ZALO-BOT] Escalation notify warning:', err.message);
+              });
             }
-          }, 15 * 60 * 1000);
+          }, effectiveEscalationMs);
 
           escalationTimers.set(id, timer);
         }
 
         broadcastToDispatchers('sos_new', incident);
+        zaloBotService.onIncidentCreated(incident, { origin: reqOriginForZalo }).catch(err => {
+          console.warn('[ZALO-BOT] Initial notify warning:', err.message);
+        });
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         // This is the sole response containing the raw citizen token.  The UI
@@ -4633,6 +4962,7 @@ const server = http.createServer(async (req, res) => {
     incidents.clear();
     for (const timer of escalationTimers.values()) clearTimeout(timer);
     escalationTimers.clear();
+    zaloBotService.clearAllIncidentTimers();
     saveIncidentHistory();
     console.log('🧹 [DISPATCHER] Cleared all incidents from memory & persisted to disk.');
     broadcastToDispatchers('sos_update_all', { incidents: [] });
@@ -5017,8 +5347,13 @@ const server = http.createServer(async (req, res) => {
 
         console.log(`🚓 [DISPATCH ACCEPT] #${id} by ${incident.dispatchUnit.officerFullTitle} (${incident.dispatchUnit.unitName})`);
 
+        saveIncidentHistory();
         notifyCitizen(id, 'sos_update', incident);
         broadcastToDispatchers('sos_update', incident);
+        zaloBotService.onIncidentAcceptedOrClosed(incident, {
+          via: 'web',
+          officerDisplay: incident.dispatchUnit.officerFullTitle
+        }).catch(() => {});
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, incident }));
@@ -5090,6 +5425,7 @@ const server = http.createServer(async (req, res) => {
         notifyCitizen(id, 'sos_update', incident);
         broadcastToDispatchers('sos_escalate', incident);
         broadcastToDispatchers('sos_update', incident);
+        zaloBotService.onIncidentEscalated(incident, { origin: detectRequestOrigin(req) }).catch(() => {});
 
         console.log(`⚡ [MANUAL ESCALATE CITY HQ] #${id} -> ${targetCityHq.name}`);
 
@@ -5219,6 +5555,7 @@ const server = http.createServer(async (req, res) => {
             done: true
           });
         } else if (status === 'resolved') {
+          zaloBotService.clearIncidentZaloTimer(id);
           incident.stepIndex = 5;
           incident.statusText = 'Sự cố đã được giải quyết an toàn và hoàn tất.';
           incident.timeline.push({
@@ -5329,6 +5666,7 @@ const server = http.createServer(async (req, res) => {
           }
         };
 
+        zaloBotService.clearIncidentZaloTimer(id);
         incident.status = 'fake_alarm';
         incident.isFakeAlarm = true;
         incident.fakeAlarmTrace = osintTrace;
@@ -7244,6 +7582,10 @@ function gracefulShutdown(signal) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   console.log(`🛑 Received ${signal}; draining SOS service before shutdown.`);
+  try {
+    zaloBotService.stopPolling();
+    zaloBotService.clearAllIncidentTimers();
+  } catch (e) {}
 
   const forceExitTimer = setTimeout(() => {
     console.error(`🛑 Graceful shutdown exceeded ${GRACEFUL_SHUTDOWN_TIMEOUT_MS}ms; forcing exit.`);

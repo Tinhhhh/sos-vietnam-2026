@@ -110,6 +110,7 @@ class DispatcherApp {
     try { this.initEnterprisesDirectory(); } catch (e) { console.error('initEnterprisesDirectory error:', e); }
     try { this.initHospitalsDirectory(); } catch (e) { console.error('initHospitalsDirectory error:', e); }
     try { this.initLocationPickerModal(); } catch (e) { console.error('initLocationPickerModal error:', e); }
+    try { this.initZaloBotModal(); } catch (e) { console.error('initZaloBotModal error:', e); }
     try { this.checkAuth(); } catch (e) { console.error('checkAuth error:', e); }
     try { this.initMap(); } catch (e) { console.error('initMap error:', e); }
     try { this.updateDynamicYearUI(); } catch (e) { console.error('updateDynamicYearUI error:', e); }
@@ -10211,6 +10212,7 @@ class DispatcherApp {
       if (!this.isIncidentInTerritory(inc)) return;
 
       this.incidents.set(inc.id, inc);
+      this.handleZaloAcceptLiveSync?.(inc);
       const dossier = document.getElementById('incidentReportDocxModal');
       const isVisibleDossier = Boolean(dossier && dossier.style.display !== 'none');
       // A signature can be made by the other party while this report stays
@@ -15874,6 +15876,401 @@ class DispatcherApp {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  // =========================================================================
+  // HIERARCHICAL ZALO BOT DISPATCH & TWO-WAY FIELD ACCEPTANCE CONTROLLER
+  // =========================================================================
+  handleZaloAcceptLiveSync(inc) {
+    if (!inc || inc.status !== 'dispatching' || !inc.acceptedVia || !String(inc.acceptedVia).startsWith('zalo')) return;
+    if (!this._zaloAcceptedToastShown) this._zaloAcceptedToastShown = new Set();
+    if (!this._zaloAcceptedToastShown.has(inc.id)) {
+      this._zaloAcceptedToastShown.add(inc.id);
+      try {
+        if (this._activeViTtsAudio) {
+          this._activeViTtsAudio.pause();
+          this._activeViTtsAudio = null;
+        }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      } catch (err) {}
+      this.showToast?.(`📲 Ca #${inc.id} đã được ${inc.dispatchUnit?.officerFullTitle || 'Cán bộ'} tiếp nhận ngay trên Zalo Trực Ban!`, 'success');
+    }
+    if (this.zaloBotModal && this.zaloBotModal.style.display !== 'none') {
+      this.refreshZaloBotStatus(true);
+    }
+  }
+
+  initZaloBotModal() {
+    this.zaloBotModal = document.getElementById('zaloBotConfigModal');
+    const btnHeader = document.getElementById('btnHeaderZaloBot');
+    const gearItem = document.getElementById('gearMenuItemZaloBot');
+    const btnClose = document.getElementById('btnCloseZaloBotModal');
+    const btnRefresh = document.getElementById('btnRefreshZaloStatus');
+    const btnToggleToken = document.getElementById('btnToggleShowZaloToken');
+    const btnSave = document.getElementById('btnSaveZaloBotConfig');
+    const btnCopyCur = document.getElementById('btnCopyCurrentOfficerZaloCmd');
+    const btnGenCustom = document.getElementById('btnGenerateCustomZaloUnit');
+    const btnTestAll = document.getElementById('btnSendZaloTestAll');
+
+    const openModal = () => {
+      const gearMenu = document.getElementById('gearDropdownMenu');
+      if (gearMenu) gearMenu.style.display = 'none';
+      this.openZaloBotModal();
+    };
+
+    if (btnHeader) btnHeader.addEventListener('click', openModal);
+    if (gearItem) gearItem.addEventListener('click', openModal);
+    if (btnClose) {
+      btnClose.addEventListener('click', () => {
+        if (this.zaloBotModal) this.zaloBotModal.style.display = 'none';
+      });
+    }
+    if (this.zaloBotModal) {
+      this.zaloBotModal.addEventListener('click', (e) => {
+        if (e.target === this.zaloBotModal) this.zaloBotModal.style.display = 'none';
+      });
+    }
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', () => this.refreshZaloBotStatus(false));
+    }
+    if (btnToggleToken) {
+      btnToggleToken.addEventListener('click', () => {
+        const inp = document.getElementById('inputZaloBotToken');
+        if (!inp) return;
+        const isPwd = inp.type === 'password';
+        inp.type = isPwd ? 'text' : 'password';
+        btnToggleToken.textContent = isPwd ? 'Ẩn' : 'Hiện';
+      });
+    }
+    if (btnSave) {
+      btnSave.addEventListener('click', async () => {
+        const inpToken = document.getElementById('inputZaloBotToken');
+        const chkFast = document.getElementById('chkZaloDemoFastMode');
+        btnSave.disabled = true;
+        const origLabel = btnSave.textContent;
+        btnSave.textContent = 'Đang kết nối với Zalo Bot Platform...';
+        try {
+          const res = await fetch('/api/dispatcher/zalo/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              botToken: inpToken ? inpToken.value.trim() : undefined,
+              demoFastMode: Boolean(chkFast?.checked)
+            })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            if (data.status) this.renderZaloBotStatus(data.status);
+            if (data.botCheck && !data.botCheck.ok && inpToken?.value.trim()) {
+              this.showToast?.(`Đã lưu cấu hình nhưng Token báo lỗi từ Zalo: ${data.botCheck.error}`, 'warning');
+            } else {
+              this.showToast?.('Đã lưu cấu hình Bot Zalo Trực Ban thành công!', 'success');
+            }
+          } else {
+            this.showToast?.(data.error || 'Không thể lưu cấu hình Bot Zalo', 'error');
+          }
+        } catch (err) {
+          this.showToast?.('Lỗi kết nối máy chủ khi lưu Bot Zalo', 'error');
+        } finally {
+          btnSave.disabled = false;
+          btnSave.textContent = origLabel;
+        }
+      });
+    }
+    if (btnCopyCur) {
+      btnCopyCur.addEventListener('click', () => {
+        const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
+        const cmd = cmdEl ? cmdEl.textContent.trim() : '/ketnoi cap_tanan';
+        this.copyZaloTextWithToast(cmd, 'Đã sao chép lệnh liên kết của đơn vị đang trực!');
+      });
+    }
+    if (btnGenCustom) {
+      btnGenCustom.addEventListener('click', async () => {
+        const prov = document.getElementById('inputZaloCustomProvince')?.value.trim() || 'Cần Thơ';
+        const wardRaw = document.getElementById('inputZaloCustomWard')?.value.trim() || '';
+        const agencyRaw = document.getElementById('selectZaloCustomAgency')?.value || 'police';
+        const isProvHq = agencyRaw === 'all_province';
+        const agency = isProvHq ? 'all' : agencyRaw;
+        const level = (agency === 'police' && wardRaw) ? 'ward' : 'province';
+        const ward = level === 'ward' ? wardRaw : '';
+        try {
+          const res = await fetch('/api/dispatcher/zalo/register-unit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ province: prov, ward, agency, level })
+          });
+          const data = await res.json();
+          if (data.ok && data.command) {
+            const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
+            const lblEl = document.getElementById('zaloCurrentOfficerLabel');
+            if (cmdEl) cmdEl.textContent = data.command;
+            if (lblEl) lblEl.textContent = data.unit?.unitName || 'Đơn vị vừa tạo';
+            this.copyZaloTextWithToast(data.command, `Đã tạo & sao chép: ${data.command}`);
+          } else {
+            this.showToast?.(data.error || 'Không thể tạo mã đơn vị', 'error');
+          }
+        } catch (err) {
+          this.showToast?.('Lỗi mạng khi tạo mã đơn vị', 'error');
+        }
+      });
+    }
+    if (btnTestAll) {
+      btnTestAll.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/api/dispatcher/zalo/test-send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+          const data = await res.json();
+          if (data.ok) {
+            if (data.status) this.renderZaloBotStatus(data.status);
+            this.showToast?.(`Đã phát tin kiểm tra tới ${data.sentCount} nhóm/cán bộ Zalo!`, 'success');
+          } else {
+            this.showToast?.(data.error || 'Chưa có nhóm liên kết', 'warning');
+          }
+        } catch (err) {
+          this.showToast?.('Lỗi gửi tin kiểm tra Zalo', 'error');
+        }
+      });
+    }
+
+    // Refresh header badge shortly after login/boot
+    setTimeout(() => {
+      if (this.currentOfficer) this.refreshZaloBotStatus(true);
+    }, 1500);
+  }
+
+  copyZaloTextWithToast(text, successMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.showToast?.(successMsg || `Đã sao chép: ${text}`, 'success');
+      }).catch(() => {
+        this.showToast?.(`Lệnh: ${text}`, 'info');
+      });
+    } else {
+      this.showToast?.(`Lệnh: ${text}`, 'info');
+    }
+  }
+
+  openZaloBotModal() {
+    if (!this.zaloBotModal) return;
+    this.zaloBotModal.style.display = 'flex';
+    const curOfficer = this.currentOfficer;
+    const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
+    const lblEl = document.getElementById('zaloCurrentOfficerLabel');
+    if (curOfficer && curOfficer.username) {
+      const code = curOfficer.username === 'admin' ? 'tongtrucban' : curOfficer.username.toLowerCase();
+      if (cmdEl) cmdEl.textContent = `/ketnoi ${code}`;
+      if (lblEl) lblEl.textContent = curOfficer.unitName || curOfficer.agencyName || curOfficer.username;
+    }
+    this.refreshZaloBotStatus(false);
+  }
+
+  async refreshZaloBotStatus(silent = false) {
+    try {
+      const res = await fetch('/api/dispatcher/zalo/status');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.ok) {
+        this.renderZaloBotStatus(data);
+      }
+    } catch (err) {
+      if (!silent) console.warn('refreshZaloBotStatus error:', err);
+    }
+  }
+
+  escapeZaloUiHtml(str = '') {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  renderZaloBotStatus(status) {
+    if (!status) return;
+    const bindings = Array.isArray(status.bindings) ? status.bindings : [];
+    const presets = Array.isArray(status.presets) ? status.presets : [];
+    const outbox = Array.isArray(status.recentOutbox) ? status.recentOutbox : [];
+
+    // 1. Update Header Pill Badge
+    const hdrBadge = document.getElementById('headerZaloConnectedBadge');
+    const hdrSub = document.getElementById('headerZaloSubStatus');
+    if (hdrBadge) {
+      if (bindings.length > 0) {
+        hdrBadge.textContent = `${bindings.length} NHÓM`;
+        hdrBadge.style.background = status.hasToken ? 'rgba(16, 185, 129, 0.32)' : 'rgba(245, 158, 11, 0.3)';
+        hdrBadge.style.borderColor = status.hasToken ? '#10b981' : '#f59e0b';
+      } else {
+        hdrBadge.textContent = status.hasToken ? 'ONLINE' : 'CẤU HÌNH';
+      }
+    }
+    if (hdrSub) {
+      hdrSub.textContent = status.hasToken
+        ? (status.botProfile?.name || 'Đã nối Bot Zalo')
+        : (bindings.length > 0 ? `${bindings.length} nhóm mô phỏng` : 'Định tuyến 2 chiều');
+    }
+
+    // 2. Update Status Banner & Inputs
+    const statusText = document.getElementById('zaloBotConnectionStatusText');
+    const statusBar = document.getElementById('zaloBotConnectionStatusBar');
+    if (statusText && statusBar) {
+      if (status.hasToken) {
+        const botName = this.escapeZaloUiHtml(status.botProfile?.name || 'Zalo Bot Trực Ban');
+        const modeTxt = status.webhookActive ? `Webhook HTTPS Thời Gian Thực (${this.escapeZaloUiHtml(status.webhookUrl)})` : 'Long-Polling Tự Động (getUpdates)';
+        statusText.innerHTML = `✅ <b>ĐÃ KẾT NỐI ZALO BOT THẬT:</b> <span style="color:#34d399;">${botName}</span> · Chế độ: <b>${modeTxt}</b> · Nhắc khẩn: <b>${status.effectiveReminderSeconds}s</b> / Leo thang Tỉnh: <b>${status.effectiveEscalationSeconds}s</b>`;
+        statusBar.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+        statusBar.style.background = 'rgba(16, 185, 129, 0.14)';
+      } else {
+        statusText.innerHTML = `🧪 <b>CHẾ ĐỘ MÔ PHỎNG SẴN SÀNG:</b> Chưa nhập BOT_TOKEN thực (vẫn có thể bấm <b>Gắn Giả Lập</b> bên dưới để test luồng định tuyến Xã/Phường &amp; Link Tiếp Nhận 1 Chạm!). Nhắc khẩn: <b>${status.effectiveReminderSeconds}s</b> / Leo thang: <b>${status.effectiveEscalationSeconds}s</b>`;
+        statusBar.style.borderColor = 'rgba(245, 158, 11, 0.45)';
+        statusBar.style.background = 'rgba(245, 158, 11, 0.12)';
+      }
+    }
+
+    const inpToken = document.getElementById('inputZaloBotToken');
+    if (inpToken && status.maskedToken && !inpToken.value) {
+      inpToken.placeholder = `Đang lưu: ${status.maskedToken} (Nhập mới nếu muốn đổi)`;
+    }
+    const chkFast = document.getElementById('chkZaloDemoFastMode');
+    if (chkFast) chkFast.checked = Boolean(status.demoFastMode);
+
+    // 3. Render Preset Unit Cards
+    const presetGrid = document.getElementById('zaloPresetCardsGrid');
+    if (presetGrid) {
+      presetGrid.innerHTML = presets.map(p => {
+        const isBound = bindings.some(b => b.unitCode === p.unitCode);
+        const cmd = `/ketnoi ${p.unitCode}`;
+        return `
+          <div style="background: rgba(30, 41, 59, 0.72); border: 1px solid ${isBound ? 'rgba(16,185,129,0.5)' : 'rgba(148,163,184,0.2)'}; border-radius: 9px; padding: 9px 10px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                <span style="font-size: 11.5px; font-weight: 800; color: #f8fafc;">${this.escapeZaloUiHtml(p.unitName)}</span>
+                ${isBound ? '<span style="font-size:9px; font-weight:800; background:rgba(16,185,129,0.22); color:#34d399; padding:1px 5px; border-radius:4px;">ĐÃ GẮN</span>' : ''}
+              </div>
+              <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${this.escapeZaloUiHtml(p.agencyLabel)} · Mã: <code style="color:#38bdf8;">${this.escapeZaloUiHtml(cmd)}</code></div>
+            </div>
+            <div style="display: flex; gap: 5px;">
+              <button type="button" class="btn-zalo-copy-preset btn-refresh-loc" data-cmd="${this.escapeZaloUiHtml(cmd)}" style="flex: 1; padding: 4px 6px; font-size: 10.5px; cursor: pointer; color: #7dd3fc;">Copy Lệnh</button>
+              <button type="button" class="btn-zalo-sim-preset btn-refresh-loc" data-code="${this.escapeZaloUiHtml(p.unitCode)}" data-title="Nhóm Zalo: ${this.escapeZaloUiHtml(p.unitName)}" style="flex: 1; padding: 4px 6px; font-size: 10.5px; cursor: pointer; color: #34d399; border-color: rgba(16,185,129,0.4);">Gắn Giả Lập</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      presetGrid.querySelectorAll('.btn-zalo-copy-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.getAttribute('data-cmd') || '';
+          this.copyZaloTextWithToast(cmd, `Đã copy "${cmd}" — Dán vào nhóm Zalo có Bot để liên kết!`);
+        });
+      });
+
+      presetGrid.querySelectorAll('.btn-zalo-sim-preset').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const unitCode = btn.getAttribute('data-code') || '';
+          const chatTitle = btn.getAttribute('data-title') || '';
+          try {
+            const r = await fetch('/api/dispatcher/zalo/simulate-pair', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ unitCode, chatTitle })
+            });
+            const d = await r.json();
+            if (d.ok && d.status) {
+              this.renderZaloBotStatus(d.status);
+              this.showToast?.(`Đã gắn nhóm mô phỏng cho mã ${unitCode}!`, 'success');
+            }
+          } catch (err) {
+            this.showToast?.('Lỗi gắn nhóm giả lập', 'error');
+          }
+        });
+      });
+    }
+
+    // 4. Render Bound Chats List
+    const countEl = document.getElementById('zaloBoundCount');
+    if (countEl) countEl.textContent = String(bindings.length);
+    const listEl = document.getElementById('zaloBindingsListContainer');
+    if (listEl) {
+      if (bindings.length === 0) {
+        listEl.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 8px 0;">Chưa có nhóm Zalo nào liên kết. Hãy gõ <b>/ketnoi cap_tanan</b> trên Zalo hoặc bấm <b>Gắn Giả Lập</b> ở trên để test!</div>';
+      } else {
+        listEl.innerHTML = bindings.map(b => `
+          <div style="background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-weight: 800; color: #e0f2fe; font-size: 11.5px;">${this.escapeZaloUiHtml(b.chatTitle || b.unitName)}</div>
+              <div style="font-size: 10px; color: #94a3b8;">Đơn vị: <b style="color:#34d399;">${this.escapeZaloUiHtml(b.unitName)}</b> · Chat ID: <code>${this.escapeZaloUiHtml(b.chatId)}</code></div>
+            </div>
+            <div style="display: flex; gap: 4px; flex-shrink: 0;">
+              <button type="button" class="btn-zalo-test-one btn-refresh-loc" data-chat="${this.escapeZaloUiHtml(b.chatId)}" style="padding: 3px 8px; font-size: 10px; color: #38bdf8; cursor: pointer;">Test</button>
+              <button type="button" class="btn-zalo-unlink-one btn-refresh-loc" data-chat="${this.escapeZaloUiHtml(b.chatId)}" data-code="${this.escapeZaloUiHtml(b.unitCode)}" style="padding: 3px 8px; font-size: 10px; color: #fca5a5; border-color: rgba(239,68,68,0.4); cursor: pointer;">Gỡ</button>
+            </div>
+          </div>
+        `).join('');
+
+        listEl.querySelectorAll('.btn-zalo-test-one').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const chatId = btn.getAttribute('data-chat') || '';
+            const r = await fetch('/api/dispatcher/zalo/test-send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chatId })
+            });
+            const d = await r.json();
+            if (d.ok && d.status) {
+              this.renderZaloBotStatus(d.status);
+              this.showToast?.('Đã gửi tin kiểm tra tới nhóm Zalo!', 'success');
+            }
+          });
+        });
+
+        listEl.querySelectorAll('.btn-zalo-unlink-one').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const chatId = btn.getAttribute('data-chat') || '';
+            const unitCode = btn.getAttribute('data-code') || '';
+            const r = await fetch('/api/dispatcher/zalo/unlink', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chatId, unitCode })
+            });
+            const d = await r.json();
+            if (d.ok && d.status) {
+              this.renderZaloBotStatus(d.status);
+              this.showToast?.('Đã gỡ liên kết nhóm Zalo.', 'info');
+            }
+          });
+        });
+      }
+    }
+
+    // 5. Render Outbox Feed (with clickable Quick-Accept URL for instant testing!)
+    const outboxEl = document.getElementById('zaloOutboxPreviewContainer');
+    if (outboxEl) {
+      if (outbox.length === 0) {
+        outboxEl.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 8px 0;">Chưa có tin báo động nào phát ra.</div>';
+      } else {
+        outboxEl.innerHTML = outbox.map(item => {
+          const safeMsg = this.escapeZaloUiHtml(item.text || '').replace(
+            /(https?:\/\/[^\s<]+)/g,
+            '<a href="$1" target="_blank" rel="noopener" style="color:#38bdf8; word-break:break-all; font-weight:700;">$1</a>'
+          );
+          const badge = item.delivered
+            ? '<span style="color:#34d399; font-weight:800;">[ĐÃ BẮN ZALO THẬT]</span>'
+            : '<span style="color:#fbbf24; font-weight:800;">[BẢN GHI MÔ PHỎNG]</span>';
+          const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString('vi-VN') : '';
+          return `
+            <div style="background: rgba(2, 6, 23, 0.72); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 8px; padding: 8px 10px;">
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
+                <span>${badge} tới <b>${this.escapeZaloUiHtml(item.unitName || item.chatId)}</b></span>
+                <span>${this.escapeZaloUiHtml(timeStr)}</span>
+              </div>
+              <div style="white-space: pre-wrap; font-size: 10.5px; line-height: 1.45; color: #e2e8f0;">${safeMsg}</div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
   }
 }
 
