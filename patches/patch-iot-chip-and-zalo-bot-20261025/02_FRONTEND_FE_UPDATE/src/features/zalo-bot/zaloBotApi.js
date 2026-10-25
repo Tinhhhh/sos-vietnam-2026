@@ -40,6 +40,11 @@ export const zaloBotApi = {
       method: 'POST',
       body: JSON.stringify(payload)
     }),
+  updateBinding: (payload) =>
+    requestJson('/api/dispatcher/zalo/update-binding', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
   unlinkUnit: (payload) =>
     requestJson('/api/dispatcher/zalo/unlink', {
       method: 'POST',

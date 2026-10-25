@@ -252,6 +252,18 @@
   - Implementation Gate: `Pn-B` passed.
   - Acceptance: Final commit pushed and plan marked `complete`.
 
+### P4: Real-Zalo Group Field Feedback Fixes (Multi-Word `@Bot` `TN`, Officer Name Auto-Extraction & Exact Ward Assignment)
+
+- [x] P4-A: Fix Multi-Word `@Bot Vĩnh Nam TN` & `/tn` Group Commands, Real Officer Name Extraction, Escalated Acceptance & Exact GPS Ward Alert Labels (`services/zalo-bot-service.js`, `server.js`)
+  - Goal: Ensure `@Bot Vĩnh Nam TN` and `/tn` work reliably in real Zalo Groups, extract `from.display_name` (e.g. `Vĩnh An`) into `dispatchUnit` for both chat & 1-tap link accepts, support natural Vietnamese ward names in `/ketnoi <Phường/Xã, Tỉnh>` plus `POST /api/dispatcher/zalo/update-binding`, allow Ward units to accept `escalated` incidents if still unaccepted, protect `/api/zalo/quick-accept` from link-preview crawlers, and always display exact GPS Polygon Ward & Station in Zalo alerts.
+  - Acceptance: `node --check services/zalo-bot-service.js` and `node --check server.js` pass with 0 errors.
+- [x] P4-B: Add Inline Connected-Group Unit/Ward Editor on Dispatcher UI (`dispatcher.html`, `js/dispatcher.js`)
+  - Goal: Allow dispatchers/admins to edit a connected Zalo Group's custom title (e.g. `Trực Ban CA Phường Tân An`), Officer Name, Province, Ward/Commune, and Agency directly from `NHÓM / CÁN BỘ ĐÃ LIÊN KẾT` in 1 click, notifying the Zalo Group immediately.
+  - Acceptance: `node --check js/dispatcher.js` passes and UI renders inline edit controls cleanly.
+- [x] P4-C: Regression Verification (`playwright/verify-zalo-bot-dispatch.mjs`), Sync Standalone Patch ZIP & Deploy to Render
+  - Goal: Verify all new real-Zalo behaviors in Playwright E2E suite, update `patches/patch-iot-chip-and-zalo-bot-20261025/` + `.zip`, run Anvien `analyze --force` + `detect-changes`, commit, and push to `origin/main`.
+  - Acceptance: All Playwright assertions pass, `.zip` updated, and Render deploys latest commit.
+
 ## Risk Notes
 
 - **Zalo Webhook Anti-Bot Filter**: `services/security-firewall-middleware.js` blocks `go-http-client` User-Agent. Placing `POST /api/zalo/webhook` (authenticated via `X-Bot-Api-Secret-Token` header) and `GET /api/zalo/quick-accept` (authenticated via HMAC-SHA256 signature) before `checkAntiBot` eliminates false-positive 403 blocks while keeping strict cryptographic authentication.

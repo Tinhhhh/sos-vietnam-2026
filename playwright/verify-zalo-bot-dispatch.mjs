@@ -398,13 +398,143 @@ async function run() {
       { escId, hqChats: hqEscMsgs.map(m => m.chatId) }
     );
 
-    // Refresh modal UI & capture desktop verification screenshot
+    // 8. Real Zalo Group Scenario A: Group without `chat.title` accidentally pairs `/ketnoi tongtrucban`,
+    //    then Dispatcher clicks `✏️ Sửa Đơn Vị` on Web UI to reassign to `Phường Tân An` + `Trực Ban CA Phường Tân An`!
+    await fetch(`${BASE_URL}/api/zalo/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Go-http-client/1.1' },
+      body: JSON.stringify({
+        result: {
+          event_name: 'message.text.received',
+          message: {
+            message_id: `msg_real_grp_init_${Date.now()}`,
+            chat: { id: 'zgr-bf54e33e72519b0fc240', chat_type: 'GROUP' }, // Zalo Group Privacy: no title!
+            from: { id: 'zalo_uid_vinhan', display_name: 'Vĩnh An' },
+            text: '@Bot Vĩnh Nam /ketnoi tongtrucban'
+          }
+        }
+      })
+    });
     await page.click('#btnRefreshZaloStatus');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(350);
+
+    // Click `✏️ Sửa Đơn Vị` on `zgr-bf54e33e72519b0fc240` card in `#zaloBindingsListContainer`
+    const cardSelector = '.zalo-bound-item-card[data-chat="zgr-bf54e33e72519b0fc240"]';
+    await page.click(`${cardSelector} .btn-zalo-edit-one`);
+    await page.fill(`${cardSelector} .inp-zalo-edit-title`, 'Trực Ban CA Phường Tân An');
+    await page.fill(`${cardSelector} .inp-zalo-edit-prov`, 'Cần Thơ');
+    await page.fill(`${cardSelector} .inp-zalo-edit-ward`, 'Phường Tân An');
+    await page.selectOption(`${cardSelector} .inp-zalo-edit-role`, 'police_ward');
+    await page.click(`${cardSelector} .btn-zalo-save-edit`);
+    await page.waitForTimeout(450);
+
+    const statusAfterWebEdit = await page.evaluate(async () => {
+      const r = await fetch('/api/dispatcher/zalo/status');
+      return r.json();
+    });
+    const editedBinding = (statusAfterWebEdit.bindings || []).find(b => b.chatId === 'zgr-bf54e33e72519b0fc240');
+
+    assertCheck(
+      '8. Web UI Inline Editor (✏️ Sửa Đơn Vị) reassigns zgr-bf54e33e72519b0fc240 to Phường Tân An & preserves officer Vĩnh An',
+      Boolean(editedBinding) &&
+        editedBinding.chatTitle === 'Trực Ban CA Phường Tân An' &&
+        editedBinding.ward === 'Phường Tân An' &&
+        editedBinding.level === 'ward' &&
+        editedBinding.officerName === 'Vĩnh An',
+      editedBinding || {}
+    );
+
+    // 9. Real Zalo Group Scenario B: Natural Vietnamese `/ketnoi Phường Tân An, Cần Thơ` directly in Zalo chat
+    const natRes = await fetch(`${BASE_URL}/api/zalo/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Go-http-client/1.1' },
+      body: JSON.stringify({
+        result: {
+          event_name: 'message.text.received',
+          message: {
+            message_id: `msg_nat_ketnoi_${Date.now()}`,
+            chat: { id: 'zgr-natural-tanan', chat_type: 'GROUP' },
+            from: { id: 'zalo_uid_vinhan', display_name: 'Vĩnh An' },
+            text: '@Bot Vĩnh Nam /ketnoi Phường Tân An, Cần Thơ | Tổ Cảnh Sát Khu Vực Tân An'
+          }
+        }
+      })
+    });
+    const natJson = await natRes.json();
+    const natBinding = natJson?.outcomes?.[0]?.binding;
+
+    assertCheck(
+      '9. Natural Vietnamese "/ketnoi Phường Tân An, Cần Thơ | <Tên nhóm>" auto-matches exact Ward & extracts officer Vĩnh An',
+      natJson.ok &&
+        natBinding?.ward === 'Phường Tân An' &&
+        natBinding?.chatTitle === 'Tổ Cảnh Sát Khu Vực Tân An' &&
+        natBinding?.officerName === 'Vĩnh An',
+      natBinding || {}
+    );
+
+    // 10. Link-Preview Crawler Safety + Multi-Word "@Bot Vĩnh Nam TN" on Escalated Ward Incident (`escId`)
+    const escOutboxMsg = (statusAfterEsc.recentOutbox || []).find(m => m.incidentId === escId);
+    const escLinkMatch = (escOutboxMsg?.text || '').match(/(https?:\/\/[^\s]+\/api\/zalo\/quick-accept\?[^\s]+)/);
+    const escPreviewUrl = escLinkMatch ? escLinkMatch[1].replace(/^https?:\/\/[^/]+/, BASE_URL) : '';
+    if (escPreviewUrl) {
+      await fetch(escPreviewUrl, { headers: { 'User-Agent': 'ZaloPreview/1.0 facebookexternalhit/1.1' } });
+    }
+    const escBeforeHumanAccept = await page.evaluate(async (id) => {
+      const r = await fetch('/api/dispatcher/incidents');
+      const d = await r.json();
+      return (d.incidents || []).find(x => x.id === id);
+    }, escId);
+
+    // Now Officer Vĩnh An sends `@Bot Vĩnh Nam TN` inside `zgr-bf54e33e72519b0fc240`!
+    const multiWordTnRes = await fetch(`${BASE_URL}/api/zalo/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Go-http-client/1.1' },
+      body: JSON.stringify({
+        result: {
+          event_name: 'message.text.received',
+          message: {
+            message_id: `msg_multiword_tn_${Date.now()}`,
+            chat: { id: 'zgr-bf54e33e72519b0fc240', chat_type: 'GROUP' },
+            from: { id: 'zalo_uid_vinhan', display_name: 'Vĩnh An' },
+            text: '@Bot Vĩnh Nam TN'
+          }
+        }
+      })
+    });
+    const multiWordTnJson = await multiWordTnRes.json();
+
+    const escAfterMultiWordTn = await page.evaluate(async (id) => {
+      const r = await fetch('/api/dispatcher/incidents');
+      const d = await r.json();
+      return (d.incidents || []).find(x => x.id === id);
+    }, escId);
+
+    assertCheck(
+      '10. Multi-Word "@Bot Vĩnh Nam TN" accepts escalated Ward SOS, ignores Link-Preview bot, and auto-extracts officer "Vĩnh An"',
+      escBeforeHumanAccept?.status === 'escalated' &&
+        multiWordTnJson?.outcomes?.[0]?.action === 'tn_accepted' &&
+        escAfterMultiWordTn?.status === 'dispatching' &&
+        escAfterMultiWordTn?.dispatchUnit?.officerName === 'Vĩnh An' &&
+        String(escAfterMultiWordTn?.dispatchUnit?.officerFullTitle || '').includes('Vĩnh An'),
+      {
+        beforeHumanStatus: escBeforeHumanAccept?.status,
+        outcomeAction: multiWordTnJson?.outcomes?.[0]?.action,
+        afterStatus: escAfterMultiWordTn?.status,
+        officerName: escAfterMultiWordTn?.dispatchUnit?.officerName,
+        officerFullTitle: escAfterMultiWordTn?.dispatchUnit?.officerFullTitle,
+        unitName: escAfterMultiWordTn?.dispatchUnit?.unitName
+      }
+    );
+
+    // Refresh modal UI, open inline edit panel on zgr-bf54e33e72519b0fc240 for visual evidence, & capture desktop verification screenshot
+    await page.click('#btnRefreshZaloStatus');
+    await page.waitForTimeout(400);
+    await page.click(`${cardSelector} .btn-zalo-edit-one`).catch(() => {});
+    await page.waitForTimeout(250);
     await page.screenshot({ path: SCREENSHOT_PATH });
 
     assertCheck(
-      '8. Desktop & Mobile screenshots captured cleanly',
+      '11. Desktop & Mobile screenshots captured cleanly',
       fs.existsSync(SCREENSHOT_PATH) && fs.existsSync(MOBILE_ACCEPT_SCREENSHOT_PATH),
       { desktopScreenshot: SCREENSHOT_PATH, mobileScreenshot: MOBILE_ACCEPT_SCREENSHOT_PATH }
     );

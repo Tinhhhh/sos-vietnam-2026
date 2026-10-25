@@ -48,6 +48,14 @@ Matching plan item(s): `P3-A`
 
 - `E3-P3A-PKG1`: Assembled 16-file standalone patch package in `patches/patch-iot-chip-and-zalo-bot-20261025/` (`01_WEB_HOSTING_GATEWAY_PATCH`, `02_FRONTEND_FE_UPDATE`, `03_BACKEND_BE_SPRINGBOOT_UPDATE` matching `com.sosvietnam` Java 21 Spring Boot 3.4.2 DTOs, `04_FIRMWARE_CHIP_4G_GPS_ESP32C3`, and `HUONG_DAN_TICH_HOP_PATCH_FE_VA_BE.md`) and compressed into `patches/SOS_VIETNAM_2026_PATCH_IOT_CHIP_VA_ZALO_BOT_FE_BE_20261025.zip` (`419,187` bytes).
 
+## E4 - P4 Real-Zalo Group Field Feedback Evidence
+
+Matching plan item(s): `P4-A`, `P4-B`, `P4-C`
+
+- `E4-P4A-FIX1`: Upgraded `services/zalo-bot-service.js` and `server.js` with `stripBotMentions` (full multi-word Vietnamese `@Bot Vĩnh Nam TN` + `/tn` support), `resolveUnitByCodeOrQuery` (natural Vietnamese `/ketnoi Phường Tân An, Cần Thơ`), `findActiveIncidentForChat` (memory + outboxLog + live active incident fallback), `updateBinding` (`POST /api/dispatcher/zalo/update-binding`), link-preview bot guard on `/api/zalo/quick-accept`, escalated-incident Ward acceptance, exact GPS Polygon Ward display in alerts, and automatic real officer `from.display_name` (`Vĩnh An`) extraction. `node --check` passed on both files.
+- `E4-P4B-UI1`: Added 1-click inline group assignment editor (`✏️ Sửa Đơn Vị`) in `js/dispatcher.js` + `dispatcher.html` (`?v=20261025_zalo_bot_v3`). `node --check js/dispatcher.js` passed.
+- `E4-P4C-PW1`: Executed `node playwright/verify-zalo-bot-dispatch.mjs` -> **13/13 assertions PASSED** (`Reports/qa/playwright/2026-10-25-zalo-bot-dispatch-qa.json` & `.md`), including Web UI inline reassignment of `zgr-bf54e33e72519b0fc240`, natural Vietnamese `/ketnoi Phường Tân An, Cần Thơ`, link-preview crawler protection, and `@Bot Vĩnh Nam TN` accepting an escalated Ward incident with `officerName: "Vĩnh An"`. Rebuilt `patches/SOS_VIETNAM_2026_PATCH_IOT_CHIP_VA_ZALO_BOT_FE_BE_20261025.zip` (`456,008` bytes).
+
 ## Closure Evidence
 
-- `En-CLOSE-1`: Cleaned `.tmp/zalo-qa-runtime`, ran `anvien analyze --force` + `anvien detect-changes --repo sos-vietnam-2026 --scope all`, verified all acceptance criteria, and prepared explicit-path git commit & Render deployment.
+- `En-CLOSE-1`: Cleaned `.tmp/`, ran `anvien analyze --force` + `anvien detect-changes --repo sos-vietnam-2026 --scope all`, verified all acceptance criteria, and deployed explicit-path git commit to `origin main` (Render).

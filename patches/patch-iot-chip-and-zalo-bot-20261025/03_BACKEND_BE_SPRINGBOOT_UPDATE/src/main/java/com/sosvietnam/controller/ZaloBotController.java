@@ -119,6 +119,16 @@ public class ZaloBotController {
         return ResponseEntity.ok(out);
     }
 
+    @PostMapping({"/api/dispatcher/zalo/update-binding", "/api/zalo/update-binding"})
+    public ResponseEntity<Map<String, Object>> updateBinding(@RequestBody Map<String, Object> body) {
+        ZaloBotDispatchService.ZaloBinding updated = zaloBotService.updateBinding(body);
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("ok", true);
+        resp.put("binding", updated);
+        resp.put("status", zaloBotService.getPublicStatus());
+        return ResponseEntity.ok(resp);
+    }
+
     @PostMapping({"/api/dispatcher/zalo/unlink", "/api/zalo/unlink"})
     public ResponseEntity<Map<String, Object>> unlink(@RequestBody Map<String, Object> body) {
         String chatId = String.valueOf(body.getOrDefault("chatId", "")).trim();

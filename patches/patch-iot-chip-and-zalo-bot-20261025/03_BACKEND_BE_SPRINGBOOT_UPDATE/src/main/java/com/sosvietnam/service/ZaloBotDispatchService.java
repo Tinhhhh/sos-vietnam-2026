@@ -80,6 +80,7 @@ public class ZaloBotDispatchService {
         private String chatTitle;
         private String chatType = "GROUP";
         private String senderName;
+        private String officerName;
         private String unitCode;
         private String unitName;
         private String agency = "police"; // police | csgt | fire | hospital | all
@@ -435,7 +436,13 @@ public class ZaloBotDispatchService {
                 .filter(b -> Objects.equals(b.getChatId(), chatId))
                 .findFirst()
                 .orElse(null);
-        String officer = (senderName != null && !senderName.isBlank()) ? senderName : (binding != null ? binding.getDefaultOfficerRank() + " " + binding.getDefaultOfficerName() : "Cán bộ trực ban Zalo");
+        String officer = (senderName != null && !senderName.isBlank())
+                ? senderName
+                : (binding != null && binding.getOfficerName() != null && !binding.getOfficerName().isBlank()
+                        ? binding.getOfficerName()
+                        : (binding != null && binding.getSenderName() != null && !binding.getSenderName().isBlank()
+                                ? binding.getSenderName()
+                                : (binding != null ? binding.getDefaultOfficerRank() + " " + binding.getDefaultOfficerName() : "Cán bộ trực ban Zalo")));
 
         DispatchRequest dReq = new DispatchRequest();
         dReq.setDispatcherName(officer);
@@ -446,12 +453,47 @@ public class ZaloBotDispatchService {
         return Map.of("ok", true, "incident", updated, "binding", binding != null ? binding : Map.of(), "officer", officer);
     }
 
+    public static String stripBotMentions(String rawText) {
+        if (rawText == null) return "";
+        String text = rawText.trim();
+        if (text.startsWith("@")) {
+            String ascii = stripTones(text);
+            Matcher tail = Pattern.compile("^@[^\\n]{1,65}?\\s+(/(?:ketnoi|ket_noi|lienket|pair|huyketnoi|unlink|danhsach|status|tn|tiepnhan|nhanca)\\b[\\s\\S]*|(?:ketnoi|ket_noi|lienket|pair)\\s+[\\s\\S]+|(?:tn|tiep\\s*nhan|nhan\\s*ca)(?:\\s+#?[a-zA-Z0-9-]+)?)\\s*$", Pattern.CASE_INSENSITIVE).matcher(ascii);
+            if (tail.find()) {
+                int len = tail.group(1).length();
+                text = text.substring(text.length() - len).trim();
+            } else {
+                text = text.replaceAll("^(?:@\\S+[,:\\s]+)+", "").trim();
+            }
+        }
+        return text.replaceAll("\\s+@bot\\S*$", "").trim();
+    }
+
+    public ZaloBinding resolveUnitByCodeOrQuery(String rawInput) {
+        ZaloBinding direct = resolveUnitByCode(rawInput);
+        if (direct != null) return direct;
+        if (rawInput == null || rawInput.isBlank()) return null;
+        String cleaned = rawInput.trim();
+        Matcher wp = Pattern.compile("(?:công\\s*an\\s+|trực\\s*ban\\s+|ca\\s+)?((?:phường|xã|thị\\s*trấn|đặc\\s*khu)\\s+[^,|-]+)(?:[,|-]\\s*(.+))?$", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(cleaned);
+        if (wp.find()) {
+            String ward = wp.group(1).trim();
+            String prov = wp.group(2) != null && !wp.group(2).isBlank() ? wp.group(2).trim() : "Cần Thơ";
+            for (ZaloBinding p : PRESETS) {
+                if (normalizeGeoSlug(p.getWard()).equals(normalizeGeoSlug(ward)) && normalizeGeoSlug(p.getProvince()).equals(normalizeGeoSlug(prov))) {
+                    return p;
+                }
+            }
+            return registerCustomUnit(Map.of("province", prov, "ward", ward, "agency", "police", "level", "ward", "unitName", "Công An " + ward + ", " + prov));
+        }
+        return null;
+    }
+
     @SuppressWarnings("unchecked")
     public Map<String, Object> handleWebhookPayload(Map<String, Object> payload, String origin) {
         List<Map<String, Object>> msgs = extractMessages(payload);
         List<Map<String, Object>> outcomes = new ArrayList<>();
-        Pattern ketnoiPattern = Pattern.compile("/?(?:ketnoi|ket_noi|lienket|pair)\\s+([a-zA-Z0-9_-]+)", Pattern.CASE_INSENSITIVE);
-        Pattern tnPattern = Pattern.compile("^/?(?:tn|tiepnhan|nhan)(?:\\s+#?([A-Za-z0-9_-]+))?$", Pattern.CASE_INSENSITIVE);
+        Pattern ketnoiPattern = Pattern.compile("^/?(?:ketnoi|ket_noi|lienket|pair)\\s+([\\s\\S]+)$", Pattern.CASE_INSENSITIVE);
+        Pattern tnPattern = Pattern.compile("^/?(?:tn|tiep\\s*nhan|nhan\\s*ca)(?:\\s+#?([A-Za-z0-9_-]+))?$", Pattern.CASE_INSENSITIVE);
 
         for (Map<String, Object> m : msgs) {
             String msgId = String.valueOf(m.getOrDefault("messageId", ""));
@@ -460,45 +502,49 @@ public class ZaloBotDispatchService {
             String chatId = String.valueOf(m.get("chatId"));
             String chatTitle = String.valueOf(m.get("chatTitle"));
             String senderName = String.valueOf(m.get("senderName"));
-            String cleaned = String.valueOf(m.get("text")).replaceAll("^(?:@\\S+\\s+)+", "").trim();
+            String cleaned = stripBotMentions(String.valueOf(m.get("text")));
 
             Matcher km = ketnoiPattern.matcher(cleaned);
             if (km.find()) {
-                String code = km.group(1);
-                ZaloBinding unit = resolveUnitByCode(code);
+                String[] parts = km.group(1).split("\\|", 2);
+                String unitArg = parts[0].trim();
+                String customTitle = parts.length > 1 ? parts[1].trim() : chatTitle;
+                ZaloBinding unit = resolveUnitByCodeOrQuery(unitArg);
                 if (unit == null) {
-                    sendZaloMessage(chatId, "❌ Không tìm thấy mã đơn vị \"" + code + "\". Thử: /ketnoi cap_tanan hoặc /ketnoi csgt_cantho", Map.of("stage", "cmd_ketnoi_invalid"));
-                    outcomes.add(Map.of("action", "ketnoi_invalid", "code", code));
+                    sendZaloMessage(chatId, "❌ Không nhận diện được đơn vị \"" + unitArg + "\". Thử: /ketnoi cap_tanan hoặc /ketnoi Phường Tân An, Cần Thơ", Map.of("stage", "cmd_ketnoi_invalid"));
+                    outcomes.add(Map.of("action", "ketnoi_invalid", "code", unitArg));
                     continue;
                 }
-                ZaloBinding bound = bindChat(chatId, chatTitle, senderName, unit);
-                sendZaloMessage(chatId, "✅ LIÊN KẾT BOT TRỰC BAN THÀNH CÔNG!\n🏢 Đơn vị: " + bound.getUnitName() + "\n💡 Khi có sự cố, bấm Link Tiếp Nhận hoặc nhắn lại chữ TN để nhận ca!", Map.of("stage", "cmd_ketnoi_ok", "unitCode", bound.getUnitCode()));
-                outcomes.add(Map.of("action", "ketnoi_ok", "unitCode", bound.getUnitCode()));
+                ZaloBinding bound = bindChat(chatId, customTitle, senderName, unit);
+                sendZaloMessage(chatId, "✅ LIÊN KẾT BOT TRỰC BAN THÀNH CÔNG!\n🏢 Đơn vị: " + bound.getUnitName() + "\n👮 Cán bộ kích hoạt: " + senderName + "\n💡 Khi có sự cố, bấm Link Tiếp Nhận hoặc gõ /tn (hoặc @TênBot TN) để nhận ca!", Map.of("stage", "cmd_ketnoi_ok", "unitCode", bound.getUnitCode()));
+                outcomes.add(Map.of("action", "ketnoi_ok", "unitCode", bound.getUnitCode(), "binding", bound));
                 continue;
             }
 
-            Matcher tm = tnPattern.matcher(stripTones(cleaned));
+            Matcher tm = tnPattern.matcher(stripTones(cleaned).trim());
             if (tm.matches()) {
                 String incId = tm.group(1) != null ? tm.group(1).toUpperCase(Locale.ROOT) : lastPendingIncidentByChat.get(chatId);
                 if (incId == null) {
-                    sendZaloMessage(chatId, "ℹ️ Hiện không có ca SOS nào đang chờ tiếp nhận tại nhóm này.", Map.of("stage", "cmd_tn_empty"));
+                    sendZaloMessage(chatId, "✅ Đường truyền phản hồi 2 chiều HOẠT ĐỘNG TỐT!\n👮 Đã nhận diện cán bộ: " + senderName + "\nℹ️ Hiện chưa có ca SOS khẩn cấp nào đang chờ tiếp nhận tại nhóm này.", Map.of("stage", "cmd_tn_empty"));
+                    outcomes.add(Map.of("action", "tn_no_incident", "officerName", senderName));
                     continue;
                 }
                 Map<String, Object> res = acceptFromZalo(incId, chatId, senderName, "zalo_chat");
                 IncidentResponse inc = (IncidentResponse) res.get("incident");
-                sendZaloMessage(chatId, "✅ ĐÃ XÁC NHẬN TIẾP NHẬN CA #" + inc.getId() + "!\n🧭 Google Maps: https://www.google.com/maps/dir/?api=1&destination=" + inc.getLatitude() + "," + inc.getLongitude(), Map.of("stage", "cmd_tn_ok", "incidentId", inc.getId()));
-                outcomes.add(Map.of("action", "tn_accepted", "incidentId", inc.getId()));
+                sendZaloMessage(chatId, "✅ ĐÃ XÁC NHẬN TIẾP NHẬN CA #" + inc.getId() + "!\n👮 Cán bộ nhận ca: " + senderName + "\n🧭 Google Maps: https://www.google.com/maps/dir/?api=1&destination=" + inc.getLatitude() + "," + inc.getLongitude(), Map.of("stage", "cmd_tn_ok", "incidentId", inc.getId()));
+                outcomes.add(Map.of("action", "tn_accepted", "incidentId", inc.getId(), "officerName", senderName));
             }
         }
         return Map.of("ok", true, "count", msgs.size(), "outcomes", outcomes);
     }
 
     private ZaloBinding bindChat(String chatId, String chatTitle, String senderName, ZaloBinding unit) {
-        state.getBindings().removeIf(b -> Objects.equals(b.getChatId(), chatId) && Objects.equals(b.getUnitCode(), unit.getUnitCode()));
+        state.getBindings().removeIf(b -> Objects.equals(b.getChatId(), chatId));
         ZaloBinding copy = new ZaloBinding();
         copy.setChatId(chatId);
-        copy.setChatTitle(chatTitle == null || chatTitle.isBlank() ? unit.getUnitName() : chatTitle);
+        copy.setChatTitle(chatTitle == null || chatTitle.isBlank() ? "Nhóm Zalo — " + unit.getUnitName() : chatTitle);
         copy.setSenderName(senderName);
+        copy.setOfficerName(senderName != null && !senderName.isBlank() ? senderName : unit.getDefaultOfficerName());
         copy.setUnitCode(unit.getUnitCode());
         copy.setUnitName(unit.getUnitName());
         copy.setAgency(unit.getAgency());
@@ -506,13 +552,54 @@ public class ZaloBotDispatchService {
         copy.setLevel(unit.getLevel());
         copy.setProvince(unit.getProvince());
         copy.setWard(unit.getWard());
-        copy.setDefaultOfficerName(unit.getDefaultOfficerName());
+        copy.setDefaultOfficerName(copy.getOfficerName());
         copy.setDefaultOfficerRank(unit.getDefaultOfficerRank());
         copy.setDefaultPhone(unit.getDefaultPhone());
         copy.setLinkedAt(Instant.now().toString());
         state.getBindings().add(copy);
         saveState();
         return copy;
+    }
+
+    public ZaloBinding updateBinding(Map<String, Object> body) {
+        String chatId = String.valueOf(body.getOrDefault("chatId", "")).trim();
+        ZaloBinding existing = state.getBindings().stream()
+                .filter(b -> Objects.equals(b.getChatId(), chatId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy nhóm Zalo đã liên kết."));
+
+        String unitCode = String.valueOf(body.getOrDefault("unitCode", "")).trim();
+        String province = String.valueOf(body.getOrDefault("province", existing.getProvince())).trim();
+        String ward = String.valueOf(body.getOrDefault("ward", existing.getWard())).trim();
+        String agency = String.valueOf(body.getOrDefault("agency", existing.getAgency())).trim();
+        String level = String.valueOf(body.getOrDefault("level", existing.getLevel())).trim();
+        String chatTitle = String.valueOf(body.getOrDefault("chatTitle", existing.getChatTitle())).trim();
+        String officerName = String.valueOf(body.getOrDefault("officerName", existing.getOfficerName() != null ? existing.getOfficerName() : "")).trim();
+
+        ZaloBinding target = !unitCode.isBlank() ? resolveUnitByCode(unitCode) : null;
+        if (target == null && (!ward.isBlank() || !province.isBlank())) {
+            target = registerCustomUnit(Map.of("province", province, "ward", "ward".equals(level) ? ward : "", "agency", agency, "level", level));
+        }
+        if (target != null) {
+            existing.setUnitCode(target.getUnitCode());
+            existing.setUnitName(target.getUnitName());
+            existing.setAgency(target.getAgency());
+            existing.setAgencyLabel(target.getAgencyLabel());
+            existing.setLevel(target.getLevel());
+            existing.setProvince(target.getProvince());
+            existing.setWard(target.getWard());
+        }
+        if (!chatTitle.isBlank()) existing.setChatTitle(chatTitle);
+        if (!officerName.isBlank()) {
+            existing.setOfficerName(officerName);
+            existing.setDefaultOfficerName(officerName);
+        }
+        saveState();
+
+        if (!Boolean.FALSE.equals(body.get("notifyChat"))) {
+            sendZaloMessage(chatId, "🔄 [CẬP NHẬT ĐỊA BÀN TRỰC BAN THÀNH CÔNG]\n🏷️ Tên nhóm: " + existing.getChatTitle() + "\n🏢 Đơn vị: " + existing.getUnitName(), Map.of("stage", "binding_updated_web"));
+        }
+        return existing;
     }
 
     @SuppressWarnings("unchecked")

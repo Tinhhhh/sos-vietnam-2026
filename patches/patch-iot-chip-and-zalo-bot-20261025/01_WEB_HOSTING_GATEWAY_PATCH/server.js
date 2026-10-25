@@ -601,7 +601,23 @@ function detectRequestOrigin(req) {
   return `${proto}://${hostHeader}`;
 }
 
-function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, officerName = '', officerRank = '', unitName = '', officerPhone = '', via = 'zalo_link' } = {}) {
+function isPlaceholderOfficerLabel(name = '') {
+  const s = String(name || '').trim().toLowerCase();
+  if (!s) return true;
+  return (
+    s === 'đang cập nhật' ||
+    s === 'cán bộ' ||
+    s === 'cán bộ zalo' ||
+    s === 'cán bộ trực ban' ||
+    s === 'cán bộ trực zalo' ||
+    s === 'cán bộ trực ban zalo' ||
+    s.startsWith('trực ban ') ||
+    s.startsWith('sĩ quan trực ban') ||
+    s.startsWith('bác sĩ trực')
+  );
+}
+
+function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, officerName = '', officerRank = '', unitName = '', officerPhone = '', via = 'zalo_link', allowOfficerRename = false } = {}) {
   const incident = incidents.get(incidentId);
   if (!incident) {
     return { ok: false, error: `Không tìm thấy ca sự cố #${incidentId}` };
@@ -610,12 +626,25 @@ function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, of
     return { ok: false, error: `Ca sự cố #${incidentId} đã kết thúc xử lý.` };
   }
   if (incident.status === 'dispatching' || incident.status === 'approaching' || incident.status === 'arrived') {
+    if (allowOfficerRename && officerName && !isPlaceholderOfficerLabel(officerName) && incident.dispatchUnit) {
+      const cleanOfficer = String(officerName).trim();
+      const rankPrefix = incident.dispatchUnit.officerRank || binding?.defaultOfficerRank || 'Cán bộ';
+      const hasRank = /^(Đại tướng|Thượng tướng|Trung tướng|Thiếu tướng|Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy|Thượng sĩ|Trung sĩ|Hạ sĩ|Bác sĩ\s*CKII|Bác sĩ\s*CKI|Bác sĩ|Điều dưỡng|Đồng chí|Cán bộ)(?=\s|$)/iu.test(cleanOfficer);
+      incident.dispatchUnit.officerName = cleanOfficer;
+      incident.dispatchUnit.officerFullTitle = hasRank ? cleanOfficer : `${rankPrefix} ${cleanOfficer}`.trim();
+      if (incident.signatures?.officer && !incident.signatures.officer.signed) {
+        incident.signatures.officer.name = cleanOfficer;
+      }
+      incident.updatedAt = new Date().toISOString();
+      saveIncidentHistory();
+      notifyCitizen(incident.id, 'sos_update', incident);
+      broadcastToDispatchers('sos_update', incident);
+      return { ok: true, alreadyHandled: false, renamedOfficer: true, incident };
+    }
     return { ok: true, alreadyHandled: true, incident };
   }
-  if (incident.status === 'escalated' && binding && binding.level === 'ward') {
-    return { ok: false, error: 'Ca sự cố đã leo thang lên Chỉ Huy Cấp Tỉnh/TP. Cấp Xã/Phường không còn quyền tiếp nhận.' };
-  }
 
+  // Allow any responding unit (including local Ward Police if Fast-Demo escalated early) to accept while still unaccepted!
   if (escalationTimers.has(incident.id)) {
     clearTimeout(escalationTimers.get(incident.id));
     escalationTimers.delete(incident.id);
@@ -624,14 +653,16 @@ function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, of
 
   const eta = 5;
   const assignedAddr = incident.assignedUnit?.address || 'Trụ sở trực ban';
-  const respondingName = unitName || binding?.unitName || incident.assignedUnit?.name || 'Đơn vị Trực ban';
-  const resolvedOfficer = (officerName && officerName !== 'Đang cập nhật')
-    ? officerName
-    : (binding?.defaultOfficerName && binding.defaultOfficerName !== 'Đang cập nhật')
-    ? binding.defaultOfficerName
-    : (incident.assignedUnit?.officerName && incident.assignedUnit.officerName !== 'Đang cập nhật')
-    ? incident.assignedUnit.officerName
-    : 'Cán bộ trực ban Zalo';
+  const effectiveBindingUnit = (binding && binding.level !== 'national') ? binding.unitName : '';
+  const respondingName = unitName || effectiveBindingUnit || incident.assignedUnit?.name || binding?.unitName || 'Đơn vị Trực ban';
+  const officerCandidates = [
+    officerName,
+    binding?.officerName,
+    binding?.senderName,
+    binding?.defaultOfficerName,
+    incident.assignedUnit?.officerName
+  ];
+  const resolvedOfficer = officerCandidates.find(c => c && !isPlaceholderOfficerLabel(c)) || 'Cán bộ trực ban Zalo';
   const resolvedRank = (officerRank && officerRank !== 'Đang cập nhật')
     ? officerRank
     : (binding?.defaultOfficerRank && binding.defaultOfficerRank !== 'Đang cập nhật')
@@ -640,7 +671,7 @@ function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, of
     ? incident.assignedUnit.officerRank
     : 'Cán bộ';
   const resolvedPhone = officerPhone || binding?.defaultPhone || incident.assignedUnit?.phone || '113';
-  const hasEmbeddedRank = /^(Đại tướng|Thượng tướng|Trung tướng|Thiếu tướng|Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy|Thượng sĩ|Trung sĩ|Hạ sĩ|Bác sĩ|Điều dưỡng|Đồng chí|Cán bộ)\b/i.test(resolvedOfficer.trim());
+  const hasEmbeddedRank = /^(Đại tướng|Thượng tướng|Trung tướng|Thiếu tướng|Đại tá|Thượng tá|Trung tá|Thiếu tá|Đại úy|Thượng úy|Trung úy|Thiếu úy|Thượng sĩ|Trung sĩ|Hạ sĩ|Bác sĩ\s*CKII|Bác sĩ\s*CKI|Bác sĩ|Điều dưỡng|Đồng chí|Cán bộ)(?=\s|$)/iu.test(resolvedOfficer.trim());
   const fullOfficerTitle = hasEmbeddedRank ? resolvedOfficer.trim() : `${resolvedRank} ${resolvedOfficer}`.trim();
 
   incident.status = 'dispatching';
@@ -712,6 +743,7 @@ const zaloBotService = createZaloBotService({
   getAgencyAccounts: () => AGENCY_ACCOUNTS,
   getStationsList: () => (Array.isArray(stationsDirectory?.stations) ? stationsDirectory.stations : (Array.isArray(stationsDirectory) ? stationsDirectory : [])),
   getIncidentById: (id) => incidents.get(id),
+  getActiveIncidents: () => Array.from(incidents.values()),
   acceptIncidentFromZalo: performZaloIncidentAccept
 });
 
@@ -2651,10 +2683,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (urlPath === '/api/zalo/quick-accept' && req.method === 'GET') {
+  if (urlPath === '/api/zalo/quick-accept' && (req.method === 'GET' || req.method === 'HEAD')) {
     const id = String(urlObj.searchParams.get('id') || '').trim();
     const chat = String(urlObj.searchParams.get('chat') || '').trim();
     const sig = String(urlObj.searchParams.get('sig') || '').trim();
+    const officerParam = String(urlObj.searchParams.get('officer') || '').trim();
+
+    const ua = String(req.headers['user-agent'] || '');
+    const isLinkPreviewBot = req.method === 'HEAD' || /facebookexternalhit|Facebot|TelegramBot|Twitterbot|Slackbot|WhatsApp|Discordbot|LinkedInBot|ZaloPreview|Preview/i.test(ua);
+    if (isLinkPreviewBot) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(req.method === 'HEAD' ? '' : '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta property="og:title" content="Bấm Tiếp Nhận Ca SOS Khẩn Cấp — SOS Việt Nam 2026"><title>Tiếp Nhận Ca SOS</title></head><body>Bấm để xác nhận tiếp nhận ca SOS khẩn cấp.</body></html>');
+    }
 
     if (!zaloBotService.verifyQuickAccept(id, chat, sig)) {
       const html = zaloBotService.renderQuickAcceptHtml({
@@ -2667,13 +2707,18 @@ const server = http.createServer(async (req, res) => {
 
     const statusSnap = zaloBotService.getPublicStatus();
     const binding = (statusSnap.bindings || []).find(b => String(b.chatId) === chat) || null;
+    if (officerParam && binding) {
+      zaloBotService.updateBinding({ chatId: chat, officerName: officerParam, notifyChat: false }).catch(() => {});
+    }
     const result = performZaloIncidentAccept({
       incidentId: id,
       chatId: chat,
       binding,
+      officerName: officerParam || binding?.officerName || binding?.senderName || '',
+      allowOfficerRename: Boolean(officerParam),
       via: 'zalo_link'
     });
-    const html = zaloBotService.renderQuickAcceptHtml(result);
+    const html = zaloBotService.renderQuickAcceptHtml({ ...result, chatId: chat, sig });
     res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(html);
   }
@@ -2868,6 +2913,24 @@ const server = http.createServer(async (req, res) => {
         }
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: true, sentCount: results.length, results, status: zaloBotService.getPublicStatus() }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/update-binding' || urlPath === '/api/zalo/update-binding') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 32768) body += chunk; });
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const updated = await zaloBotService.updateBinding(data);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: true, binding: updated, status: zaloBotService.getPublicStatus() }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));

@@ -52,6 +52,7 @@ Out of scope:
 |---------|------|------------|----------------|----------------|----------|-------------------|
 | R0 | 2026-10-25 | commit `19c1af1` | Full Zalo Bot + FE/BE Patch scope | Initial baseline classified | `E0-P0A-ANV1`, `E0-P0A-FD1..FD3`, `E0-P0A-SEC1`, `E0-P0A-FEBE1` | Proceed to `P1-A` |
 | R1 | 2026-10-25 | working tree post-P1..P3 | `services/zalo-bot-service.js`, `server.js`, `dispatcher.html`, `js/dispatcher.js`, `patches/` | All `missing` surfaces transitioned to `correct` (8/8 E2E assertions passed; 16-file patch `.zip` verified) | `E1-P1A-MOD1`, `E1-P1B-SRV1`, `E2-P2A-PW1`, `E3-P3A-PKG1` | Proceed to `Pn-A..Pn-C` closure |
+| R2 | 2026-10-25 | working tree post-P4 | `services/zalo-bot-service.js`, `server.js`, `dispatcher.html`, `js/dispatcher.js`, `playwright/verify-zalo-bot-dispatch.mjs`, `patches/` | Real Zalo Group `@Bot Vĩnh Nam TN` & `/tn`, `Vĩnh An` officer extraction, natural `/ketnoi Phường Tân An` & Web inline `✏️ Sửa Đơn Vị` verified (13/13 E2E assertions passed; `.zip` 456,008 bytes) | `E4-P4A-FIX1`, `E4-P4B-UI1`, `E4-P4C-PW1` | Close & deploy to Render |
 
 ## Phase Touch Map
 
