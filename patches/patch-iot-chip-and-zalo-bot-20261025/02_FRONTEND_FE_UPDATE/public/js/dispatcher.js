@@ -6439,9 +6439,10 @@ class DispatcherApp {
         }
         this.restoreDutyShift();
 
-        // 5. Connect live stream and load active incidents
+        // 5. Connect live stream, load active incidents & sync Zalo Bot status
         this.loadIncidents();
         this.connectLiveStream();
+        this.refreshZaloBotStatus?.(true);
 
         await new Promise(r => setTimeout(r, 260));
 
@@ -6477,12 +6478,16 @@ class DispatcherApp {
             window.tacticalCosmic.stop();
           }
         } catch(e) {}
-        // 6. Resize MapLibre canvas cleanly
+        // 6. Resize MapLibre canvas cleanly & open Zalo Bot modal if requested from portal
         setTimeout(() => {
           if (this.mapController?.map) {
             this.mapController.map.resize();
           }
-        }, 150);
+          if (this.pendingOpenZaloModal) {
+            this.pendingOpenZaloModal = false;
+            this.openZaloBotModal?.();
+          }
+        }, 180);
       } catch (uiErr) {
         console.error('UI transition error after login:', uiErr);
         document.body.classList.add('officer-authenticated');
@@ -15903,6 +15908,7 @@ class DispatcherApp {
   initZaloBotModal() {
     this.zaloBotModal = document.getElementById('zaloBotConfigModal');
     const btnHeader = document.getElementById('btnHeaderZaloBot');
+    const btnPortal = document.getElementById('btnPortalZaloBot');
     const gearItem = document.getElementById('gearMenuItemZaloBot');
     const btnClose = document.getElementById('btnCloseZaloBotModal');
     const btnRefresh = document.getElementById('btnRefreshZaloStatus');
@@ -15920,6 +15926,22 @@ class DispatcherApp {
 
     if (btnHeader) btnHeader.addEventListener('click', openModal);
     if (gearItem) gearItem.addEventListener('click', openModal);
+    if (btnPortal) {
+      btnPortal.addEventListener('click', () => {
+        if (document.body.classList.contains('officer-authenticated') && this.currentOfficer) {
+          openModal();
+          return;
+        }
+        this.pendingOpenZaloModal = true;
+        const adminBubble = document.querySelector('.cosmic-bubble-item[data-agency="admin"]') || document.querySelector('.cosmic-bubble-item');
+        if (adminBubble) adminBubble.click();
+        const subEl = document.getElementById('authHeaderSubtitle');
+        if (subEl) {
+          subEl.innerHTML = '💬 Đăng nhập tài khoản trực ban (VD: <b>admin</b>) hoặc bấm Đổi đơn vị để mở ngay <b>Bảng Cấu Hình Bot Zalo 2 Chiều</b>!';
+        }
+        setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
+      });
+    }
     if (btnClose) {
       btnClose.addEventListener('click', () => {
         if (this.zaloBotModal) this.zaloBotModal.style.display = 'none';

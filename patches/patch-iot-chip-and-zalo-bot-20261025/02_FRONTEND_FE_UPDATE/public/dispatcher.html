@@ -54,6 +54,45 @@
       pointer-events: none !important;
     }
 
+    /* Ensure Bot Zalo trigger & Gear Settings never get clipped on 1024px-1440px laptops */
+    #btnHeaderZaloBot,
+    .header-icon-buttons {
+      flex-shrink: 0 !important;
+    }
+    @media (max-width: 1440px) {
+      #weatherWidget {
+        display: none !important;
+      }
+    }
+    @media (max-width: 1240px) {
+      #locationWidget,
+      #btnHeaderZaloBot .widget-secondary {
+        display: none !important;
+      }
+      #btnHeaderZaloBot {
+        padding: 5px 11px !important;
+      }
+    }
+    @media (max-width: 520px) {
+      #btnHeaderZaloBot #headerZaloConnectedBadge {
+        display: none !important;
+      }
+      #btnHeaderZaloBot {
+        padding: 5px 9px !important;
+      }
+      #btnPortalZaloBot {
+        font-size: 9.5px !important;
+        padding: 3px 10px !important;
+      }
+    }
+    @media (max-height: 680px) {
+      #cosmicPortalView { padding-top: 10px !important; padding-bottom: 10px !important; }
+      #cosmicPortalView .cosmic-portal-header { margin-bottom: 8px !important; padding: 10px 18px !important; }
+      #cosmicPortalView .cosmic-stage-wrapper { min-height: 0 !important; padding: 4px 0 8px !important; }
+      #cosmicPortalView .cosmic-stage { gap: 16px 44% !important; }
+      #cosmicPortalView .cosmic-portal-bottom-bar { margin-top: 4px !important; gap: 10px !important; }
+    }
+
     .auth-gate-backdrop {
       position: fixed; inset: 0;
       background: rgba(4, 35, 72, 0.38) !important;
@@ -577,6 +616,9 @@
       </div>
       <button type="button" id="btnBackToGatekeeper" style="pointer-events: auto; background: rgba(4, 35, 72, 0.82); backdrop-filter: blur(12px); border: 1px solid rgba(223, 176, 119, 0.35); color: #F1ECCB; font-size: 11.5px; font-weight: 700; padding: 6px 16px; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
         <svg class="svg-ico ico-xs ico-amber" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Khóa Màn Hình (Mã Nội Bộ)
+      </button>
+      <button type="button" id="btnPortalZaloBot" title="Đăng nhập đơn vị để mở Cấu hình Bot Zalo Trực Ban 2 Chiều" style="pointer-events: auto; background: linear-gradient(135deg, rgba(2, 132, 199, 0.88), rgba(4, 35, 72, 0.92)); backdrop-filter: blur(12px); border: 1.5px solid rgba(56, 189, 248, 0.78); box-shadow: 0 0 18px rgba(14, 165, 233, 0.42); color: #e0f2fe; font-size: 11.5px; font-weight: 800; padding: 6px 16px; border-radius: 9999px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        <svg class="svg-ico ico-xs ico-blue" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg> Kết Nối Bot Zalo Trực Ban
       </button>
       <div style="font-size: 11px; color: rgba(241, 236, 203, 0.72); letter-spacing: 0.5px; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">
         HỆ THỐNG ĐIỀU PHỐI CỨU HỘ KHẨN CẤP QUỐC GIA 2026
@@ -3635,7 +3677,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v1"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v2"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {

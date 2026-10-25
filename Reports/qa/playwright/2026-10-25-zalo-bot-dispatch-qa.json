@@ -1,10 +1,10 @@
 {
   "suite": "Hierarchical Zalo Bot Dispatch & Two-Way Field Acceptance E2E QA",
-  "timestamp": "2026-10-25T04:50:01.304Z",
+  "timestamp": "2026-10-25T08:26:06.224Z",
   "targetUrl": "http://127.0.0.1:3099",
   "summary": {
-    "total": 8,
-    "passed": 8,
+    "total": 10,
+    "passed": 10,
     "failed": 0
   },
   "assertions": [
@@ -13,6 +13,35 @@
       "passed": true,
       "details": {
         "pairedGroups": 4
+      }
+    },
+    {
+      "name": "1b. Outer Cosmic Portal (1024x555) displays #btnPortalZaloBot clearly before login",
+      "passed": true,
+      "details": {
+        "exists": true,
+        "visible": true,
+        "rect": {
+          "left": 520,
+          "top": 429,
+          "right": 720,
+          "bottom": 460,
+          "width": 200
+        }
+      }
+    },
+    {
+      "name": "1c. Logged-in Top Header at 1024x555 displays #btnHeaderZaloBot unclipped inside viewport",
+      "passed": true,
+      "details": {
+        "exists": true,
+        "unclipped": true,
+        "rect": {
+          "left": 826,
+          "top": 9,
+          "right": 972,
+          "width": 146
+        }
       }
     },
     {
@@ -28,7 +57,7 @@
       "name": "3. Territorial Ward Isolation: SOS in Phường Tân An routes ONLY to zalo_grp_tanan_01 (not Long Tuyền or CSGT)",
       "passed": true,
       "details": {
-        "incidentId": "IOT-MVNCMTXJ-770",
+        "incidentId": "IOT-MVNKCRET-151",
         "notifiedChatsForTanAn": [
           "zalo_grp_tanan_01"
         ]
@@ -53,7 +82,7 @@
       "name": "6. Two-Way Zalo Chat Reply \"@BotSOS TN\" routes Step-2 SOS to CSGT and transitions status to dispatching",
       "passed": true,
       "details": {
-        "csgtId": "IOT-MVNCMUHI-688",
+        "csgtId": "IOT-MVNKCRXW-631",
         "status": "dispatching",
         "acceptedVia": "zalo_chat",
         "officer": "Đại úy Lê Quốc Bảo"
@@ -63,7 +92,7 @@
       "name": "7. Provincial Escalation dispatches urgent alert to Chỉ Huy Công An TP. Cần Thơ (zalo_grp_chihuy_ct)",
       "passed": true,
       "details": {
-        "escId": "IOT-MVNCMUP1-511",
+        "escId": "IOT-MVNKCS5C-551",
         "hqChats": [
           "zalo_grp_chihuy_ct"
         ]
