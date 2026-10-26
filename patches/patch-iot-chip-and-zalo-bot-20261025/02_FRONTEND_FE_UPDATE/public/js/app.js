@@ -1653,6 +1653,209 @@ class SOSApp {
     });
   }
 
+  formatVideoDurationLabel(sec) {
+    const total = Math.max(1, Math.round(Number(sec) || 1));
+    const m = String(Math.floor(total / 60)).padStart(2, '0');
+    const s = String(total % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  async extractVideoStoryboardCard(file) {
+    return new Promise((resolve) => {
+      let settled = false;
+      let objUrl = '';
+      let video = null;
+      const finish = (res) => {
+        if (settled) return;
+        settled = true;
+        try {
+          if (video && video.parentNode) video.parentNode.removeChild(video);
+        } catch {}
+        try {
+          if (objUrl) URL.revokeObjectURL(objUrl);
+        } catch {}
+        resolve(res || { posterDataUrl: '', durationSec: 0 });
+      };
+
+      const safetyTimer = setTimeout(() => finish({ posterDataUrl: '', durationSec: 0 }), 3800);
+
+      try {
+        objUrl = URL.createObjectURL(file);
+        video = document.createElement('video');
+        video.muted = true;
+        video.defaultMuted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.preload = 'auto';
+        video.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:2px;height:2px;opacity:0;pointer-events:none;z-index:-1;';
+        document.body.appendChild(video);
+
+        const seekAndCapture = (targetSec) => new Promise((resFrame) => {
+          let done = false;
+          const onDone = () => {
+            if (done) return;
+            done = true;
+            video.removeEventListener('seeked', onDone);
+            try {
+              const vw = Math.max(2, video.videoWidth || 640);
+              const vh = Math.max(2, video.videoHeight || 480);
+              const maxW = 720;
+              const scale = vw > maxW ? maxW / vw : 1;
+              const cw = Math.max(2, Math.round(vw * scale));
+              const ch = Math.max(2, Math.round(vh * scale));
+              const c = document.createElement('canvas');
+              c.width = cw;
+              c.height = ch;
+              const cx = c.getContext('2d');
+              cx.drawImage(video, 0, 0, cw, ch);
+              const sample = cx.getImageData(0, 0, Math.min(32, cw), Math.min(32, ch)).data;
+              let lumaSum = 0;
+              let alphaSum = 0;
+              for (let i = 0; i < sample.length; i += 4) {
+                lumaSum += (sample[i] + sample[i + 1] + sample[i + 2]) / 3;
+                alphaSum += sample[i + 3];
+              }
+              const pxCount = Math.max(1, sample.length / 4);
+              resFrame({ canvas: c, cw, ch, avgLuma: lumaSum / pxCount, avgAlpha: alphaSum / pxCount, timeSec: targetSec });
+            } catch {
+              resFrame(null);
+            }
+          };
+          const t = setTimeout(onDone, 750);
+          video.addEventListener('seeked', () => { clearTimeout(t); onDone(); }, { once: true });
+          try {
+            video.currentTime = Math.max(0, targetSec);
+          } catch {
+            clearTimeout(t);
+            onDone();
+          }
+        });
+
+        video.addEventListener('error', () => {
+          clearTimeout(safetyTimer);
+          finish({ posterDataUrl: '', durationSec: 0 });
+        }, { once: true });
+
+        video.addEventListener('loadeddata', async () => {
+          try {
+            const rawDur = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 3;
+            const dur = Math.max(0.4, Math.min(300, rawDur));
+            const stamps = dur >= 1.5
+              ? [Math.min(0.35, dur * 0.15), dur * 0.42, dur * 0.72, Math.max(0.2, dur * 0.92)]
+              : [Math.min(0.15, dur * 0.3)];
+
+            const frames = [];
+            for (const st of stamps) {
+              const f = await seekAndCapture(st);
+              if (f && f.avgAlpha > 10) frames.push(f);
+            }
+
+            if (frames.length === 0) {
+              clearTimeout(safetyTimer);
+              return finish({ posterDataUrl: '', durationSec: Math.round(dur) });
+            }
+
+            const nonBlack = frames.filter(f => f.avgLuma > 3.5);
+            if (nonBlack.length === 0) {
+              clearTimeout(safetyTimer);
+              return finish({ posterDataUrl: '', durationSec: Math.round(dur) });
+            }
+            const hero = nonBlack[0];
+            const outW = hero.cw;
+            const showStrip = frames.length >= 3 && outW >= 280;
+            const stripGap = 4;
+            const stripCols = 3;
+            const thumbW = Math.floor((outW - stripGap * (stripCols + 1)) / stripCols);
+            const thumbH = showStrip ? Math.round(thumbW * (hero.ch / hero.cw)) : 0;
+            const footerH = 38;
+            const outH = hero.ch + (showStrip ? (thumbH + stripGap * 2) : 0) + footerH;
+
+            const out = document.createElement('canvas');
+            out.width = outW;
+            out.height = outH;
+            const ctx = out.getContext('2d');
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, outW, outH);
+            ctx.drawImage(hero.canvas, 0, 0, outW, hero.ch);
+
+            const durLabel = this.formatVideoDurationLabel(dur);
+            ctx.fillStyle = 'rgba(220, 38, 38, 0.88)';
+            ctx.fillRect(10, 10, Math.min(outW - 95, 215), 26);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px system-ui, sans-serif';
+            ctx.fillText('🎥 VIDEO HIỆN TRƯỜNG SOS', 18, 27);
+
+            const pillW = 68;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
+            ctx.fillRect(outW - pillW - 10, 10, pillW, 26);
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 12px system-ui, sans-serif';
+            ctx.fillText(`▶ ${durLabel}`, outW - pillW - 1, 27);
+
+            const r = Math.max(18, Math.min(26, Math.round(outW * 0.055)));
+            const cx = outW - r - 14;
+            const cy = hero.ch - r - 14;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(220, 38, 38, 0.86)';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx - r * 0.28, cy - r * 0.42);
+            ctx.lineTo(cx - r * 0.28, cy + r * 0.42);
+            ctx.lineTo(cx + r * 0.46, cy);
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+
+            if (showStrip) {
+              const stripFrames = frames.slice(-3);
+              const stripY = hero.ch + stripGap;
+              stripFrames.forEach((sf, i) => {
+                const sx = stripGap + i * (thumbW + stripGap);
+                ctx.drawImage(sf.canvas, sx, stripY, thumbW, thumbH);
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(sx, stripY, thumbW, thumbH);
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.78)';
+                ctx.fillRect(sx + 3, stripY + thumbH - 17, 44, 14);
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = 'bold 10px system-ui, sans-serif';
+                ctx.fillText(this.formatVideoDurationLabel(sf.timeSec), sx + 7, stripY + thumbH - 6);
+              });
+            }
+
+            const footY = outH - footerH;
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, footY, outW, footerH);
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 12px system-ui, sans-serif';
+            ctx.fillText(`▶ Bấm link dưới ảnh để phát Video có tiếng (${durLabel})`, 12, footY + 23);
+
+            let posterDataUrl = out.toDataURL('image/jpeg', 0.82);
+            if (posterDataUrl.length > 520000) {
+              posterDataUrl = out.toDataURL('image/jpeg', 0.65);
+            }
+            clearTimeout(safetyTimer);
+            finish({ posterDataUrl, durationSec: Math.round(dur) });
+          } catch {
+            clearTimeout(safetyTimer);
+            finish({ posterDataUrl: '', durationSec: 0 });
+          }
+        }, { once: true });
+
+        video.src = objUrl;
+        video.load();
+      } catch {
+        clearTimeout(safetyTimer);
+        finish({ posterDataUrl: '', durationSec: 0 });
+      }
+    });
+  }
+
   async prepareMediaItemsFromFileList(fileList) {
     const prepared = [];
     if (!fileList || fileList.length === 0) return prepared;
@@ -1665,12 +1868,17 @@ class SOSApp {
           continue;
         }
         try {
-          const dataUrl = await this.readFileAsDataUrl(file);
+          const [dataUrl, storyboard] = await Promise.all([
+            this.readFileAsDataUrl(file),
+            this.extractVideoStoryboardCard(file)
+          ]);
           if (dataUrl) {
             prepared.push({
               type: 'video',
               name: file.name || 'video-hien-truong.mp4',
-              dataUrl
+              dataUrl,
+              posterDataUrl: storyboard?.posterDataUrl || '',
+              durationSec: storyboard?.durationSec || 0
             });
           }
         } catch (err) {

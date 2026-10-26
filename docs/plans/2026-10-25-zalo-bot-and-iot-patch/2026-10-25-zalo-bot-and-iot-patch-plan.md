@@ -327,6 +327,18 @@
   - Goal: Add E2E regression tests covering sticky `BOT_TOKEN` save, container-restart vault `restore-backup`, initial SOS photo + video forwarding to Zalo, live post-SOS `POST /api/sos/media` photo/video forwarding, `Go-http-client` fetch on `/api/zalo/media/...`, HTTP `206` video range streaming, and `/api/zalo/media-view` HTML player; sync `patches/patch-iot-chip-and-zalo-bot-20261025/` (`v5`) + `.zip`; run Anvien `detect-changes`; commit explicit paths; and push to `origin/main`.
   - Acceptance: All Playwright E2E assertions pass (`0 failed`), `.zip` updated, and commit pushed to `origin/main`.
 
+### P8: Visual Video Storyboard/Poster Card Delivery Inside Zalo Chat (`sendPhoto`) & iOS 26 Safari Video Player Polish
+
+- [x] P8-A: Client-Side Automatic HD Video Storyboard / Filmstrip Poster Extraction (`js/app.js`, `index.html`)
+  - Goal: Because `bot-api.zaloplatforms.com` officially exposes `sendMessage`, `sendPhoto`, `sendSticker`, `sendVoice`, and `sendChatAction` (and returns `400 Bad request` on `/sendVideo`), extract a crisp JPEG Video Storyboard Card (`posterDataUrl`: main hero frame + 3-frame timeline filmstrip + duration badge, `<= 380 KB`) automatically on the citizen's device whenever a video is selected/recorded in `prepareMediaItemsFromFileList`.
+  - Acceptance: `node --check js/app.js` exits `0` and video items include `posterDataUrl` (`data:image/jpeg;base64,...`) + `durationSec`.
+- [x] P8-B: Server-Side `ffmpeg` Video Poster Extraction + `sendPhoto` Video Card Delivery & iOS Safari Viewer Upgrade (`Dockerfile`, `services/zalo-bot-service.js`, `server.js`)
+  - Goal: Add `ffmpeg` to `Dockerfile`, implement `ensureVideoPosterDataUrl` (`ffmpeg` frame extraction + pure-Node PNG fallback when `posterDataUrl` is absent), serve signed `<idx>_poster` JPEG/PNG at `/api/zalo/media/...`, upgrade `sendZaloVideo` to push the visual Video Storyboard Card directly into Zalo Group Chat via `sendPhoto` (with 1-tap full-audio player + `.mp4` download links in caption), and fix iOS 26 Safari autoplay (`muted autoplay playsinline` + 1-tap unmute button) & bottom bar safe-area padding on `/api/zalo/media-view`.
+  - Acceptance: `node --check services/zalo-bot-service.js` and `node --check server.js` exit `0`, `/api/zalo/media/<id>/0_poster/<sig>/preview.jpg` serves `200 image/jpeg` (or `image/png`), and `sendZaloVideo` dispatches via `sendPhoto` on HTTPS origins.
+- [x] P8-C: Playwright E2E Verification (`playwright/verify-zalo-bot-dispatch.mjs`), Sync Standalone Patch `v6` ZIP & Deploy to Render
+  - Goal: Extend E2E verification to prove citizen video upload generates a real visual `0_poster` image, `sendZaloVideo` delivers via `sendPhoto` (`photo` URL pointing to `0_poster`), and `/api/zalo/media-view` includes `og:image` + `og:video` + 1-tap sound & `.mp4` download controls; sync `patches/` (`v6`) + `.zip`; run Anvien `detect-changes`; commit explicit paths; and push to `origin/main`.
+  - Acceptance: All Playwright E2E assertions pass (`0 failed`), `.zip` updated, and commit pushed to `origin/main`.
+
 ## Risk Notes
 
 - **Zalo Webhook Anti-Bot Filter**: `services/security-firewall-middleware.js` blocks `go-http-client` User-Agent. Placing `POST /api/zalo/webhook` (authenticated via `X-Bot-Api-Secret-Token` header) and `GET /api/zalo/quick-accept` (authenticated via HMAC-SHA256 signature) before `checkAntiBot` eliminates false-positive 403 blocks while keeping strict cryptographic authentication.

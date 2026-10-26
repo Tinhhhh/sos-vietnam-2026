@@ -2745,8 +2745,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     const incident = incidents.get(incId);
+    if (incident && /_poster$/i.test(mediaKey)) {
+      await zaloBotService.ensureVideoPosterForIncidentItem(incident, parseInt(mediaKey, 10) || 0);
+    }
     const decoded = zaloBotService.decodeIncidentMediaBuffer(incident, mediaKey);
-    if (!decoded) {
+    if (!decoded || (!decoded.buffer && !decoded.redirectUrl)) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end('404 - Không tìm thấy tệp hiện trường');
     }
@@ -2759,12 +2762,13 @@ const server = http.createServer(async (req, res) => {
     const buf = decoded.buffer;
     const totalLen = buf.length;
     const safeFilename = String(decoded.filename || 'hien-truong.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const dispositionMode = urlObj.searchParams.get('dl') === '1' ? 'attachment' : 'inline';
     const baseHeaders = {
       'Content-Type': decoded.mime || 'application/octet-stream',
       'Accept-Ranges': 'bytes',
       'Access-Control-Allow-Origin': '*',
       'Cross-Origin-Resource-Policy': 'cross-origin',
-      'Content-Disposition': `inline; filename="${safeFilename}"`,
+      'Content-Disposition': `${dispositionMode}; filename="${safeFilename}"`,
       'Cache-Control': 'public, max-age=86400'
     };
 
@@ -2801,6 +2805,9 @@ const server = http.createServer(async (req, res) => {
     const chatId = (urlObj.searchParams.get('chat') || '').trim();
     const valid = Boolean(incId && zaloBotService.verifyMediaAccess(incId, mediaKey, sig));
     const incident = valid ? incidents.get(incId) : null;
+    if (incident) {
+      await zaloBotService.ensureVideoPosterForIncidentItem(incident, Number(mediaKey) || 0);
+    }
     const html = zaloBotService.renderMediaViewerHtml({
       ok: Boolean(valid && incident),
       incident,
@@ -6531,11 +6538,19 @@ const server = http.createServer(async (req, res) => {
             const dataUrl = typeof item === 'string' ? item.trim() : String(item.dataUrl || item.url || '').trim();
             if (!dataUrl) return null;
             const isVid = String(item?.type || '').toLowerCase() === 'video' || /^data:video\//i.test(dataUrl) || /\.(mp4|mov|webm)(\?|$)/i.test(dataUrl);
+            const posterDataUrl = (typeof item === "object" && typeof item.posterDataUrl === "string" && /^data:image\/(jpeg|png);base64,/i.test(item.posterDataUrl.trim()))
+              ? item.posterDataUrl.trim()
+              : "";
+            const durationSec = (typeof item === "object" && Number.isFinite(Number(item.durationSec)) && Number(item.durationSec) > 0)
+              ? Number(item.durationSec)
+              : 0;
             return {
               id: `media-${Date.now()}-${idx}`,
               type: isVid ? 'video' : 'image',
               name: String(item?.name || (isVid ? `video-hien-truong-${idx + 1}.mp4` : `anh-hien-truong-${idx + 1}.jpg`)).slice(0, 120),
               dataUrl,
+              ...(posterDataUrl ? { posterDataUrl } : {}),
+              ...(durationSec > 0 ? { durationSec } : {}),
               uploadedAt: nowIso
             };
           })
@@ -6637,11 +6652,19 @@ const server = http.createServer(async (req, res) => {
             const dataUrl = typeof item === 'string' ? item.trim() : String(item.dataUrl || item.url || '').trim();
             if (!dataUrl) return null;
             const isVid = String(item?.type || '').toLowerCase() === 'video' || /^data:video\//i.test(dataUrl);
+            const posterDataUrl = (typeof item === "object" && typeof item.posterDataUrl === "string" && /^data:image\/(jpeg|png);base64,/i.test(item.posterDataUrl.trim()))
+              ? item.posterDataUrl.trim()
+              : "";
+            const durationSec = (typeof item === "object" && Number.isFinite(Number(item.durationSec)) && Number(item.durationSec) > 0)
+              ? Number(item.durationSec)
+              : 0;
             return {
               id: `media-${Date.now()}-${idx}`,
               type: isVid ? 'video' : 'image',
               name: String(item?.name || (isVid ? `video-${idx + 1}.mp4` : `anh-${idx + 1}.jpg`)).slice(0, 120),
               dataUrl,
+              ...(posterDataUrl ? { posterDataUrl } : {}),
+              ...(durationSec > 0 ? { durationSec } : {}),
               uploadedAt: nowIso
             };
           })

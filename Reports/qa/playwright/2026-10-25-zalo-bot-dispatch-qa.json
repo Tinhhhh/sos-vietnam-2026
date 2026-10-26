@@ -1,10 +1,10 @@
 {
   "suite": "Hierarchical Zalo Bot Dispatch & Two-Way Field Acceptance E2E QA",
-  "timestamp": "2026-10-26T00:57:30.013Z",
+  "timestamp": "2026-10-26T01:55:41.979Z",
   "targetUrl": "http://127.0.0.1:3099",
   "summary": {
-    "total": 19,
-    "passed": 19,
+    "total": 21,
+    "passed": 21,
     "failed": 0
   },
   "assertions": [
@@ -88,7 +88,7 @@
       "name": "3. Territorial Ward Isolation: SOS in Phường Tân An routes ONLY to zalo_grp_tanan_01 (not Long Tuyền or CSGT)",
       "passed": true,
       "details": {
-        "incidentId": "IOT-MVOJRPES-221",
+        "incidentId": "IOT-MVOLULM2-924",
         "notifiedChatsForTanAn": [
           "zalo_grp_tanan_01"
         ]
@@ -113,7 +113,7 @@
       "name": "6. Two-Way Zalo Chat Reply \"@BotSOS TN\" routes Step-2 SOS to CSGT and transitions status to dispatching",
       "passed": true,
       "details": {
-        "csgtId": "IOT-MVOJRQI9-761",
+        "csgtId": "IOT-MVOLUMOQ-442",
         "status": "dispatching",
         "acceptedVia": "zalo_chat",
         "officer": "Đại úy Lê Quốc Bảo"
@@ -123,7 +123,7 @@
       "name": "7. Provincial Escalation dispatches urgent alert to Chỉ Huy Công An TP. Cần Thơ (zalo_grp_chihuy_ct)",
       "passed": true,
       "details": {
-        "escId": "IOT-MVOJRQQ0-853",
+        "escId": "IOT-MVOLUMZB-316",
         "hqChats": [
           "zalo_grp_chihuy_ct"
         ]
@@ -150,8 +150,8 @@
         "defaultOfficerRank": "Thượng tá",
         "defaultPhone": "113",
         "enabled": true,
-        "linkedAt": "2026-10-26T00:57:38.356Z",
-        "updatedAt": "2026-10-26T00:57:40.972Z",
+        "linkedAt": "2026-10-26T01:55:52.745Z",
+        "updatedAt": "2026-10-26T01:55:56.316Z",
         "hasCustomPassword": false
       }
     },
@@ -176,7 +176,7 @@
         "defaultOfficerRank": "Cán bộ",
         "defaultPhone": "02923820113",
         "enabled": true,
-        "linkedAt": "2026-10-26T00:57:41.649Z"
+        "linkedAt": "2026-10-26T01:55:57.160Z"
       }
     },
     {
@@ -206,7 +206,7 @@
       "name": "12a. Initial SOS Photo & Video forward to Zalo, pass Go-http-client Anti-Bot WAF, support HTTP 206 Video Range, and render HTML5 player",
       "passed": true,
       "details": {
-        "mediaSosId": "SOS-MVOJRW6U-424",
+        "mediaSosId": "SOS-MVOLUU98-341",
         "photoStatus": 200,
         "photoBytes": 70,
         "videoRangeStatus": 206,
@@ -221,6 +221,33 @@
         "httpStatus": 200,
         "totalMediaCount": 3,
         "liveZaloDispatches": 3
+      }
+    },
+    {
+      "name": "12e. Video Storyboard Poster (`1_poster`) serves 200 image to Zalo Go-http-client/2.0, `?dl=1` triggers MP4 attachment, and iOS 26 Safari viewer has og:image/og:video + 1-tap unmute + safe-area padding",
+      "passed": true,
+      "details": {
+        "posterStatus": 200,
+        "posterContentType": "image/png",
+        "posterBytes": 3398,
+        "dlDisposition": "attachment; filename=\"video-hien-truong-1.mp4\"",
+        "mobileVidState": {
+          "hasPosterAttr": true,
+          "isUnmutedAfterClick": true,
+          "btnTextAfterClick": "🔊 ĐANG PHÁT ÂM THANH GỐC HIỆN TRƯỜNG",
+          "bodyPaddingBottom": "120px"
+        },
+        "mobileVideoScreenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-26-zalo-video-player-mobile.png"
+      }
+    },
+    {
+      "name": "12f. Live Citizen Video upload (`POST /api/sos/media`) preserves `posterDataUrl` & `(0:05)` duration badge and serves 200 image/jpeg poster URL to Zalo",
+      "passed": true,
+      "details": {
+        "httpStatus": 200,
+        "durationInCaption": true,
+        "posterUrl": "http://127.0.0.1:3099/api/zalo/media/SOS-MVOLUU98-341/3_poster/30dbe7285c324e72abdcd2a4d237/video-hien-truong-4-preview.jpg",
+        "posterContentType": "image/jpeg"
       }
     },
     {

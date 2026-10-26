@@ -11,6 +11,7 @@ const SCREENSHOT_PATH = path.join(REPORTS_DIR, '2026-10-25-zalo-bot-modal-verifi
 const PORTAL_1024_SCREENSHOT_PATH = path.join(REPORTS_DIR, '2026-10-25-zalo-portal-1024x555.png');
 const HEADER_1024_SCREENSHOT_PATH = path.join(REPORTS_DIR, '2026-10-25-zalo-header-1024x555.png');
 const MOBILE_ACCEPT_SCREENSHOT_PATH = path.join(REPORTS_DIR, '2026-10-25-zalo-quick-accept-mobile.png');
+const MOBILE_VIDEO_PLAYER_SCREENSHOT_PATH = path.join(REPORTS_DIR, '2026-10-26-zalo-video-player-mobile.png');
 const JSON_REPORT_PATH = path.join(REPORTS_DIR, '2026-10-25-zalo-bot-dispatch-qa.json');
 const MD_REPORT_PATH = path.join(REPORTS_DIR, '2026-10-25-zalo-bot-dispatch-qa.md');
 
@@ -748,6 +749,132 @@ async function run() {
         httpStatus: liveUploadRes.status,
         totalMediaCount: liveUploadJson?.totalMediaCount,
         liveZaloDispatches: liveChatMediaOutbox.length
+      }
+    );
+
+    // 12e. Video Storyboard Poster (`1_poster`) via Go-http-client/2.0 + `?dl=1` MP4 Download + iOS 26 Safari Video Player Polish
+    const localVideoPosterUrl = videoEntry?.posterUrl
+      ? String(videoEntry.posterUrl).replace(/^https?:\/\/[^/]+/, BASE_URL)
+      : '';
+    const goPosterFetch = localVideoPosterUrl
+      ? await fetch(localVideoPosterUrl, { headers: { 'User-Agent': 'Go-http-client/2.0' } })
+      : null;
+    const goPosterBuf = goPosterFetch ? Buffer.from(await goPosterFetch.arrayBuffer()) : Buffer.alloc(0);
+
+    const videoDlFetch = localVideoBinaryUrl
+      ? await fetch(`${localVideoBinaryUrl}?dl=1`, { headers: { 'User-Agent': CHROME_UA } })
+      : null;
+    const videoDlDisposition = videoDlFetch ? String(videoDlFetch.headers.get('content-disposition') || '') : '';
+
+    // Open mobile video player in iPhone 16 Pro / iOS 26 viewport (390x844) and test 1-tap Sound Unmute button
+    const mobileVidCtx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1'
+    });
+    const mobileVidPage = await mobileVidCtx.newPage();
+    await mobileVidPage.goto(localMediaViewerUrl, { waitUntil: 'domcontentloaded' });
+    await mobileVidPage.waitForTimeout(250);
+    await mobileVidPage.click('#btnUnmuteSceneVideo');
+    await mobileVidPage.waitForTimeout(150);
+    const mobileVidState = await mobileVidPage.evaluate(() => {
+      const vid = document.getElementById('sceneVideoPlayer');
+      const btn = document.getElementById('btnUnmuteSceneVideo');
+      return {
+        hasPosterAttr: Boolean(vid?.getAttribute('poster')),
+        isUnmutedAfterClick: vid ? vid.muted === false : false,
+        btnTextAfterClick: btn?.textContent || '',
+        bodyPaddingBottom: getComputedStyle(document.body).paddingBottom
+      };
+    });
+    await mobileVidPage.screenshot({ path: MOBILE_VIDEO_PLAYER_SCREENSHOT_PATH });
+    await mobileVidCtx.close();
+
+    assertCheck(
+      '12e. Video Storyboard Poster (`1_poster`) serves 200 image to Zalo Go-http-client/2.0, `?dl=1` triggers MP4 attachment, and iOS 26 Safari viewer has og:image/og:video + 1-tap unmute + safe-area padding',
+      Boolean(localVideoPosterUrl) &&
+        localVideoPosterUrl.includes('1_poster') &&
+        goPosterFetch?.status === 200 &&
+        /^image\/(jpeg|png)/i.test(String(goPosterFetch.headers.get('content-type') || '')) &&
+        goPosterFetch.headers.get('cross-origin-resource-policy') === 'cross-origin' &&
+        goPosterBuf.length > 150 &&
+        videoDlFetch?.status === 200 &&
+        videoDlDisposition.startsWith('attachment;') &&
+        viewerHtml.includes('property="og:image"') &&
+        viewerHtml.includes('1_poster') &&
+        viewerHtml.includes('property="og:video"') &&
+        viewerHtml.includes('id="btnUnmuteSceneVideo"') &&
+        viewerHtml.includes('env(safe-area-inset-bottom') &&
+        mobileVidState.hasPosterAttr === true &&
+        mobileVidState.isUnmutedAfterClick === true &&
+        mobileVidState.btnTextAfterClick.includes('ĐANG PHÁT ÂM THANH GỐC'),
+      {
+        posterStatus: goPosterFetch?.status,
+        posterContentType: goPosterFetch?.headers.get('content-type'),
+        posterBytes: goPosterBuf.length,
+        dlDisposition: videoDlDisposition,
+        mobileVidState,
+        mobileVideoScreenshot: MOBILE_VIDEO_PLAYER_SCREENSHOT_PATH
+      }
+    );
+
+    // 12f. Live Active-SOS Citizen Video Upload (`POST /api/sos/media`) preserves client `posterDataUrl` & `durationSec` and generates real JPEG poster via ffmpeg when absent
+    const sampleClientJpegPoster = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+    const liveVideoUploadRes = await fetch(`${BASE_URL}/api/sos/media`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': CHROME_UA,
+        'x-citizen-access-token': mediaCitizenToken
+      },
+      body: JSON.stringify({
+        incidentId: mediaSosId,
+        sender: 'citizen',
+        senderName: 'Anh Nguyễn Minh Khôi',
+        caption: 'Video quay trực tiếp hiện trường 5 giây từ iPhone người dân',
+        media: [
+          {
+            type: 'video',
+            name: 'video-iphone-5s.mp4',
+            dataUrl: sampleMp4DataUrl,
+            posterDataUrl: sampleClientJpegPoster,
+            durationSec: 5.2
+          }
+        ]
+      })
+    });
+    const liveVideoUploadJson = await liveVideoUploadRes.json();
+    await page.waitForTimeout(350);
+
+    const statusAfterLiveVideo = await page.evaluate(async () => {
+      const r = await fetch('/api/dispatcher/zalo/status');
+      return r.json();
+    });
+    const liveVideoOutbox = (statusAfterLiveVideo.recentOutbox || []).filter(
+      m => m.incidentId === mediaSosId && m.stage === 'chat_media_video'
+    );
+    const latestLiveVideoEntry = liveVideoOutbox[0] || null;
+    const liveClientPosterUrl = latestLiveVideoEntry?.posterUrl
+      ? String(latestLiveVideoEntry.posterUrl).replace(/^https?:\/\/[^/]+/, BASE_URL)
+      : '';
+    const liveClientPosterFetch = liveClientPosterUrl
+      ? await fetch(liveClientPosterUrl, { headers: { 'User-Agent': 'Go-http-client/2.0' } })
+      : null;
+
+    assertCheck(
+      '12f. Live Citizen Video upload (`POST /api/sos/media`) preserves `posterDataUrl` & `(0:05)` duration badge and serves 200 image/jpeg poster URL to Zalo',
+      liveVideoUploadRes.status === 200 &&
+        liveVideoUploadJson?.ok === true &&
+        Boolean(latestLiveVideoEntry) &&
+        String(latestLiveVideoEntry.text || '').includes('(0:05)') &&
+        String(latestLiveVideoEntry.text || '').includes('dl=1') &&
+        liveClientPosterUrl.endsWith('.jpg') &&
+        liveClientPosterFetch?.status === 200 &&
+        String(liveClientPosterFetch.headers.get('content-type') || '').includes('image/jpeg'),
+      {
+        httpStatus: liveVideoUploadRes.status,
+        durationInCaption: String(latestLiveVideoEntry?.text || '').includes('(0:05)'),
+        posterUrl: liveClientPosterUrl,
+        posterContentType: liveClientPosterFetch?.headers.get('content-type')
       }
     );
 

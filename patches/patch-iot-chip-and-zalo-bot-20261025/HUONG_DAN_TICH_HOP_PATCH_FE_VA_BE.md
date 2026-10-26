@@ -1,7 +1,7 @@
 # 📦 GÓI PATCH CẬP NHẬT ĐỘC LẬP (FE + BE + FIRMWARE)
 ## Tích Hợp Mạch Phát Tín Hiệu 4G GPS (`ESP32-C3 TDM2421`) + Giọng Đọc Tiếng Việt + Hệ Thống Bot Zalo Trực Ban Phân Tầng 2 Chiều
 
-- **Phiên bản Patch:** `2026.10.26-iot-zalo-v5`
+- **Phiên bản Patch:** `2026.10.26-iot-zalo-v6`
 - **Tương thích với cả 2 kiến trúc:**
   1. **Web Chính tách rời FE & BE:**
      - **Frontend (`sos-vietnam-2026-FE`)**: React 19 + Vite + `public/dispatcher.html` & `public/js/dispatcher.js`
@@ -106,3 +106,11 @@ patch-iot-chip-and-zalo-bot-20261025/
    - Nhập `BOT_TOKEN` **1 lần duy nhất**: hệ thống khóa chống ghi đè rỗng khi bấm *Lưu cấu hình* ở các lần sau, hiển thị huy hiệu `✅ Đã lưu cố định BOT_TOKEN` kèm nút `Xóa Token` riêng biệt, đồng thời đồng bộ dự phòng Browser Vault để tự động khôi phục cả `BOT_TOKEN`, Webhook HTTPS và danh sách nhóm Zalo ngay cả khi container đám mây (Render) khởi động lại.
 6. **Truyền Trực Tiếp Ảnh & Video Hiện Trường Từ Người Dân Về Zalo (`sendPhoto` + `/api/zalo/media` HTTP 206 + `/api/zalo/media-view`):**
    - Người dân đính kèm Ảnh/Video lúc phát SOS **hoặc** bấm nút **`📷`** ngay trong khung chat cứu hộ trực tiếp (`POST /api/sos/media`): hệ thống lập tức bắn ảnh (`sendPhoto`) và thẻ phát Video HTML5 di động 1 chạm (`/api/zalo/media-view` hỗ trợ tua byte-range HTTP `206` & miễn trừ Anti-Bot WAF cho `Go-http-client` bằng chữ ký số HMAC-SHA256) thẳng về nhóm Zalo của đơn vị đang phụ trách ca!
+
+
+## Cập nhật v6 — Visual Video Storyboard Card trực tiếp trong Zalo Chat (`sendPhoto`) & iOS 26 Safari Video Player
+- **Nguyên nhân gốc từ Zalo Bot Platform (`bot.zaloplatforms.com`)**: Tài liệu API chính thức của Zalo Bot chỉ cung cấp `sendPhoto`, `sendMessage`, `sendSticker`, `sendVoice` (không có `sendVideo` — gọi `/sendVideo` trả lỗi HTTP 400).
+- **Giải pháp v6**:
+  1. **Trích xuất Thẻ Hình Storyboard Video HD (`posterDataUrl`)**: App người dân (`js/app.js`) tự chụp khung hình chính + dải phim 3 mốc thời gian + nhãn thời lượng; đồng thời Backend (`Dockerfile` + `ffmpeg` trong `services/zalo-bot-service.js`) tự trích xuất khung hình thật phía máy chủ nếu gửi thô.
+  2. **Đẩy Thẻ Hình Video vào thẳng Nhóm Zalo qua `sendPhoto`**: Phục vụ ảnh `<idx>_poster` có chữ ký HMAC tại `GET /api/zalo/media/<id>/<idx>_poster/<sig>/video-hien-truong-1-preview.jpg` và bắn trực tiếp qua `sendPhoto` kèm link mở trình phát Full Âm Thanh 1 chạm (`/api/zalo/media-view`) và link tải file `.MP4` gốc (`?dl=1`).
+  3. **Tối ưu iPhone iOS 26 Safari**: Tự chạy hình chuyển động ngay khi mở (`autoplay muted loop playsinline`), nút **BẤM BẬT ÂM THANH HIỆN TRƯỜNG (100%)**, nút **TẢI VIDEO .MP4 GỐC**, và khoảng đệm `env(safe-area-inset-bottom)` chống thanh địa chỉ nổi Safari che nút Tiếp Nhận.

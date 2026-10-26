@@ -22,9 +22,174 @@
  */
 
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import zlib from 'zlib';
+import { execFile } from 'child_process';
+import { fileURLToPath } from 'url';
 import { readRuntimeData, writeRuntimeData } from './runtime-data-store.js';
 import { defaultPasswordForAccount } from './agency-password-policy.js';
 import { securityCryptoService } from './security-crypto-service.js';
+
+const __zaloServiceDir = path.dirname(fileURLToPath(import.meta.url));
+const ZALO_PROJECT_ROOT = path.join(__zaloServiceDir, '..');
+
+let _crcTable = null;
+function crc32Buffer(buf) {
+  if (!_crcTable) {
+    _crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) {
+        c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      _crcTable[n] = c >>> 0;
+    }
+  }
+  let crc = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    crc = _crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makePngChunk(typeStr, dataBuf) {
+  const typeBuf = Buffer.from(typeStr, 'ascii');
+  const lenBuf = Buffer.alloc(4);
+  lenBuf.writeUInt32BE(dataBuf.length, 0);
+  const crcInput = Buffer.concat([typeBuf, dataBuf]);
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(crc32Buffer(crcInput), 0);
+  return Buffer.concat([lenBuf, typeBuf, dataBuf, crcBuf]);
+}
+
+/**
+ * Pure-Node zero-dependency RGB PNG Tactical Video Card generator (480x270)
+ * Used as guaranteed visual fallback when client posterDataUrl is absent and ffmpeg cannot decode synthetic bytes.
+ */
+function buildSyntheticVideoPosterPngBuffer(width = 480, height = 270) {
+  const stride = width * 3 + 1;
+  const raw = Buffer.alloc(stride * height);
+  const cx = Math.floor(width / 2);
+  const cy = Math.floor(height / 2);
+  const circleR = 42;
+  const circleR2 = circleR * circleR;
+
+  for (let y = 0; y < height; y++) {
+    const rowOff = y * stride;
+    raw[rowOff] = 0; // filter type 0
+    const isTopOrBottomAccent = y < 6 || y >= height - 6;
+    const isBanner = (y >= 16 && y < 44);
+    for (let x = 0; x < width; x++) {
+      const px = rowOff + 1 + x * 3;
+      let r = 11;
+      let g = 20 + Math.floor((y / height) * 18);
+      let b = 42 + Math.floor((x / width) * 24);
+
+      if (isTopOrBottomAccent) {
+        r = 56; g = 189; b = 248; // #38bdf8 tactical cyan border
+      } else if (isBanner && x >= 16 && x < 190) {
+        r = 220; g = 38; b = 38; // #dc2626 SOS LIVE VIDEO badge bar
+      }
+
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist2 = dx * dx + dy * dy;
+      if (dist2 <= circleR2) {
+        if (dist2 >= (circleR - 3) * (circleR - 3)) {
+          r = 255; g = 255; b = 255;
+        } else {
+          // White Play Triangle inside red circle: dx in [-11..18], |dy| <= (18 - dx) * 0.58
+          const inTri = dx >= -11 && dx <= 18 && Math.abs(dy) <= (18 - dx) * 0.58;
+          if (inTri) {
+            r = 255; g = 255; b = 255;
+          } else {
+            r = 220; g = 38; b = 38;
+          }
+        }
+      }
+      raw[px] = r;
+      raw[px + 1] = g;
+      raw[px + 2] = b;
+    }
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // RGB color type
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  const idatData = zlib.deflateSync(raw, { level: 6 });
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    makePngChunk('IHDR', ihdr),
+    makePngChunk('IDAT', idatData),
+    makePngChunk('IEND', Buffer.alloc(0))
+  ]);
+}
+
+function resolveFfmpegBinary() {
+  if (process.env.FFMPEG_PATH && fs.existsSync(process.env.FFMPEG_PATH)) {
+    return process.env.FFMPEG_PATH;
+  }
+  if (process.platform === 'win32') {
+    const winGetPath = path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'ffmpeg.exe');
+    if (winGetPath && fs.existsSync(winGetPath)) return winGetPath;
+  }
+  return 'ffmpeg';
+}
+
+function runFfmpegOnce(ffmpegBin, args, timeoutMs = 6500) {
+  return new Promise((resolve) => {
+    execFile(ffmpegBin, args, { timeout: timeoutMs, windowsHide: true }, (err) => {
+      resolve(!err);
+    });
+  });
+}
+
+async function extractVideoPosterViaFfmpeg(videoBuffer, ext = 'mp4') {
+  if (!Buffer.isBuffer(videoBuffer) || videoBuffer.length < 128) return '';
+  const runtimeBase = process.env.SOS_RUNTIME_DATA_DIR
+    ? path.resolve(process.env.SOS_RUNTIME_DATA_DIR)
+    : path.join(ZALO_PROJECT_ROOT, '.runtime-data');
+  const tmpDir = path.join(runtimeBase, 'tmp-ffmpeg');
+  const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const safeExt = /^[a-z0-9]{2,5}$/i.test(ext) ? ext : 'mp4';
+  const tmpIn = path.join(tmpDir, `vid_${stamp}.${safeExt}`);
+  const tmpOut = path.join(tmpDir, `vid_${stamp}.jpg`);
+  try {
+    fs.mkdirSync(tmpDir, { recursive: true });
+    fs.writeFileSync(tmpIn, videoBuffer);
+    const ffmpegBin = resolveFfmpegBinary();
+    const vf = "scale='min(840,iw)':-2,drawbox=x=0:y=0:w=iw:h=6:color=0xdc2626@0.95:t=fill,drawbox=x=0:y=ih-6:w=iw:h=6:color=0x38bdf8@0.95:t=fill";
+    let ok = await runFfmpegOnce(ffmpegBin, [
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-ss', '0.35', '-i', tmpIn,
+      '-frames:v', '1', '-vf', vf, '-q:v', '4', tmpOut
+    ]);
+    if (!ok || !fs.existsSync(tmpOut) || fs.statSync(tmpOut).size < 200) {
+      ok = await runFfmpegOnce(ffmpegBin, [
+        '-hide_banner', '-loglevel', 'error', '-y',
+        '-i', tmpIn,
+        '-frames:v', '1', '-vf', vf, '-q:v', '4', tmpOut
+      ]);
+    }
+    if (ok && fs.existsSync(tmpOut)) {
+      const jpgBuf = fs.readFileSync(tmpOut);
+      if (jpgBuf.length >= 200 && jpgBuf.length <= 950000) {
+        return `data:image/jpeg;base64,${jpgBuf.toString('base64')}`;
+      }
+    }
+  } catch {} finally {
+    try { if (fs.existsSync(tmpIn)) fs.unlinkSync(tmpIn); } catch {}
+    try { if (fs.existsSync(tmpOut)) fs.unlinkSync(tmpOut); } catch {}
+  }
+  return '';
+}
 
 const CONFIG_FILENAME = 'zalo-bot-config.json';
 const DEFAULT_ZALO_API_BASE = 'https://bot-api.zaloplatforms.com';
@@ -433,7 +598,7 @@ export function createZaloBotService({
 
     let mimeType = explicitMime || 'image/jpeg';
     let base64Payload = '';
-    const dataMatch = dataUrl.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,([\s\S]+)$/i);
+    const dataMatch = dataUrl.match(/^data:([^;,]+)?(?:;[\s\S]*?)?;base64,([\s\S]+)$/i);
     if (dataMatch) {
       if (dataMatch[1]) mimeType = dataMatch[1].trim().toLowerCase();
       base64Payload = dataMatch[2].replace(/\s+/g, '');
@@ -445,7 +610,7 @@ export function createZaloBotService({
     }
 
     const kind = (explicitType === 'video' || mimeType.startsWith('video/')) ? 'video' : 'image';
-    if (kind === 'video' && !mimeType.startsWith('video/')) {
+    if (kind === 'video' && (!mimeType.startsWith('video/') || mimeType === 'video/quicktime')) {
       mimeType = 'video/mp4';
     }
     let ext = 'jpg';
@@ -471,6 +636,8 @@ export function createZaloBotService({
       filename: resolvedFilename,
       dataUrl,
       base64Payload,
+      posterDataUrl: typeof rawItem?.posterDataUrl === 'string' ? rawItem.posterDataUrl.trim() : '',
+      durationSec: Number.isFinite(Number(rawItem?.durationSec)) ? Number(rawItem.durationSec) : 0,
       isDataUrl: Boolean(dataMatch),
       isExternalHttp: /^https?:\/\//i.test(dataUrl),
       redirectUrl: /^https?:\/\//i.test(dataUrl) ? dataUrl : ''
@@ -482,6 +649,56 @@ export function createZaloBotService({
       return null;
     }
     const cleanRef = String(mediaRef ?? '0').trim();
+
+    // Support `<idx>_poster` signed visual preview card for Zalo Bot `sendPhoto` & `og:image`
+    const posterMatch = cleanRef.match(/^(\d+)_poster$/i);
+    if (posterMatch) {
+      const pIdx = parseInt(posterMatch[1], 10);
+      if (pIdx < 0 || pIdx >= incident.media.length) return null;
+      const rawItem = incident.media[pIdx];
+      const posterDataUrl = typeof rawItem?.posterDataUrl === 'string' ? rawItem.posterDataUrl.trim() : '';
+      const pDataMatch = posterDataUrl.match(/^data:([^;,]+)?(?:;[\s\S]*?)?;base64,([\s\S]+)$/i);
+      if (pDataMatch && pDataMatch[2]) {
+        const posterMime = (pDataMatch[1] || 'image/jpeg').trim().toLowerCase();
+        const posterExt = posterMime.includes('png') ? 'png' : 'jpg';
+        try {
+          const buffer = Buffer.from(pDataMatch[2].replace(/\s+/g, ''), 'base64');
+          if (buffer.length > 0) {
+            return {
+              index: pIdx,
+              mediaIndex: pIdx,
+              id: `med_${pIdx}_poster`,
+              kind: 'image',
+              isPoster: true,
+              mimeType: posterMime,
+              mime: posterMime,
+              ext: posterExt,
+              name: `video-hien-truong-${pIdx + 1}-preview.${posterExt}`,
+              filename: `video-hien-truong-${pIdx + 1}-preview.${posterExt}`,
+              buffer
+            };
+          }
+        } catch {
+          // Fall through to synthetic PNG fallback below
+        }
+      }
+      // Resilient fallback: valid pure-Node Tactical Play Card PNG so Zalo CDN `sendPhoto` NEVER gets 404
+      const fallbackPng = buildSyntheticVideoPosterPngBuffer();
+      return {
+        index: pIdx,
+        mediaIndex: pIdx,
+        id: `med_${pIdx}_poster`,
+        kind: 'image',
+        isPoster: true,
+        mimeType: 'image/png',
+        mime: 'image/png',
+        ext: 'png',
+        name: `video-hien-truong-${pIdx + 1}-preview.png`,
+        filename: `video-hien-truong-${pIdx + 1}-preview.png`,
+        buffer: fallbackPng
+      };
+    }
+
     let idx = /^\d+$/.test(cleanRef) ? parseInt(cleanRef, 10) : -1;
     if (idx < 0 || idx >= incident.media.length) {
       idx = incident.media.findIndex(m => m && String(m.id || '') === cleanRef);
@@ -506,6 +723,55 @@ export function createZaloBotService({
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Ensure a video item in `incident.media[mediaIndex]` has a crisp visual `posterDataUrl`
+   * (either uploaded from citizen's device storyboard extractor, extracted server-side via `ffmpeg`,
+   * or synthesized via pure-Node valid PNG Tactical Play Card).
+   */
+  async function ensureVideoPosterForIncidentItem(incident, mediaIndex = 0) {
+    if (!incident || !Array.isArray(incident.media)) return '';
+    const idx = Number(mediaIndex) || 0;
+    if (idx < 0 || idx >= incident.media.length) return '';
+
+    let rawItem = incident.media[idx];
+    if (typeof rawItem === 'string') {
+      const parsedStr = parseIncidentMediaItem(rawItem, idx);
+      if (parsedStr.kind !== 'video') return '';
+      rawItem = {
+        id: `med_${idx}`,
+        type: 'video',
+        name: parsedStr.filename,
+        dataUrl: rawItem
+      };
+      incident.media[idx] = rawItem;
+    }
+    if (!rawItem || typeof rawItem !== 'object') return '';
+
+    const parsed = parseIncidentMediaItem(rawItem, idx);
+    if (parsed.kind !== 'video') return '';
+
+    if (typeof rawItem.posterDataUrl === 'string' && /^data:image\/(jpeg|png);base64,/i.test(rawItem.posterDataUrl.trim())) {
+      return rawItem.posterDataUrl.trim();
+    }
+
+    if (parsed.isDataUrl && parsed.base64Payload) {
+      try {
+        const videoBuf = Buffer.from(parsed.base64Payload, 'base64');
+        const ffmpegJpeg = await extractVideoPosterViaFfmpeg(videoBuf, parsed.ext);
+        if (ffmpegJpeg && ffmpegJpeg.length > 400) {
+          rawItem.posterDataUrl = `data:image/jpeg;base64,${ffmpegJpeg.toString('base64')}`;
+          return rawItem.posterDataUrl;
+        }
+      } catch {
+        // Fallback to pure-Node tactical PNG below
+      }
+    }
+
+    const fallbackPng = buildSyntheticVideoPosterPngBuffer();
+    rawItem.posterDataUrl = `data:image/png;base64,${fallbackPng.toString('base64')}`;
+    return rawItem.posterDataUrl;
   }
 
   function signMediaAccessWithSecret(incidentId, mediaKey = '0', secret = state.hmacSecret) {
@@ -541,6 +807,16 @@ export function createZaloBotService({
     const key = String(mediaIndex);
     const sig = signMediaAccess(incidentId, key);
     return `${base}/api/zalo/media/${encodeURIComponent(incidentId)}/${encodeURIComponent(key)}/${sig}/hien-truong-${Number(mediaIndex) + 1}.${parsed.ext}`;
+  }
+
+  function buildSignedVideoPosterUrl(incidentId, mediaIndex = 0, rawItem = null, fallbackOrigin = '') {
+    const base = resolvePublicOrigin(fallbackOrigin);
+    const idx = Number(mediaIndex) || 0;
+    const posterKey = `${idx}_poster`;
+    const sig = signMediaAccess(incidentId, posterKey);
+    const posterData = typeof rawItem?.posterDataUrl === 'string' ? rawItem.posterDataUrl.trim() : '';
+    const ext = /^data:image\/png/i.test(posterData) ? 'png' : 'jpg';
+    return `${base}/api/zalo/media/${encodeURIComponent(incidentId)}/${encodeURIComponent(posterKey)}/${sig}/video-hien-truong-${idx + 1}-preview.${ext}`;
   }
 
   function buildSignedMediaViewerUrl(incidentId, mediaIndex = 0, chatId = '', fallbackOrigin = '') {
@@ -1122,7 +1398,7 @@ export function createZaloBotService({
    * fallback to signed viewer link message if running on localhost or if Zalo CDN rejects fetch).
    */
   async function sendZaloPhoto(chatId, photoBinaryUrl, caption, { province = '', viewerUrl = '', meta = {} } = {}) {
-    const safeCaption = String(caption || '').trim().slice(0, 480);
+    const safeCaption = String(caption || '').trim().slice(0, 1500);
     const token = resolveTokenForProvince(province);
 
     if (!token) {
@@ -1146,7 +1422,7 @@ export function createZaloBotService({
         chat_id: String(chatId),
         photo: photoBinaryUrl,
         caption: safeCaption
-      }, token, 10000);
+      }, token, 12000);
 
       if (apiRes.ok) {
         recordOutboxEntry({
@@ -1184,16 +1460,24 @@ export function createZaloBotService({
   }
 
   /**
-   * Push a Citizen Scene Video directly into a Zalo chat (`sendVideo` when supported on public HTTPS,
-   * plus guaranteed 1-tap Mobile HTML5 Video Player card `/api/zalo/media-view` for instant playback in Zalo).
+   * Push a Citizen Scene Video visually into a Zalo chat!
+   * Ground-truth `bot.zaloplatforms.com` only implements `sendPhoto` (no `sendVideo` endpoint — calling
+   * `/sendVideo` returns HTTP 400). Therefore, on public HTTPS we push the extracted HD Video Storyboard /
+   * Scene Frame JPEG (`posterUrl`, <= 400 KB) via `sendPhoto` with a rich caption containing both the
+   * 1-tap Full-Audio Mobile HTML5 Player (`viewerUrl`) AND the direct `.mp4` download link (`?dl=1`),
+   * with automatic resilient fallback to `sendMessage` on localhost or if Zalo CDN fetch times out.
    */
-  async function sendZaloVideo(chatId, videoBinaryUrl, viewerUrl, caption, { province = '', meta = {} } = {}) {
-    const safeCaption = String(caption || '').trim().slice(0, 600);
+  async function sendZaloVideo(chatId, videoBinaryUrl, viewerUrl, caption, { posterUrl = '', province = '', meta = {} } = {}) {
+    const safeCaption = String(caption || '').trim().slice(0, 900);
+    const directMp4DownloadUrl = videoBinaryUrl
+      ? `${videoBinaryUrl}${videoBinaryUrl.includes('?') ? '&' : '?'}dl=1`
+      : '';
     const fullVideoText = [
       safeCaption,
-      `▶️ BẤM XEM NGAY VIDEO HIỆN TRƯỜNG TRÊN ĐIỆN THOẠI:`,
-      viewerUrl || videoBinaryUrl
-    ].filter(Boolean).join('\n').slice(0, 1950);
+      `▶️ BẤM XEM & NGHE TIẾNG VIDEO HIỆN TRƯỜNG (1 CHẠM):`,
+      viewerUrl || videoBinaryUrl,
+      ...(directMp4DownloadUrl ? [`📥 Tải file Video .MP4 gốc:`, directMp4DownloadUrl] : [])
+    ].filter(Boolean).join('\n').slice(0, 1850);
 
     const token = resolveTokenForProvince(province);
     if (!token) {
@@ -1202,40 +1486,57 @@ export function createZaloBotService({
         text: fullVideoText,
         mediaType: 'video',
         mediaUrl: videoBinaryUrl,
+        posterUrl: posterUrl || null,
         viewerUrl: viewerUrl || videoBinaryUrl,
         delivered: false,
         simulated: true,
-        note: 'Chế độ Mô phỏng (Video hiện trường từ người dân)',
+        note: 'Chế độ Mô phỏng (Thẻ Hình Video Hiện Trường + Trình phát MP4 có tiếng)',
         ...meta
       });
-      return { ok: true, simulated: true, mediaType: 'video', mediaUrl: videoBinaryUrl, viewerUrl };
+      return {
+        ok: true,
+        simulated: true,
+        mediaType: 'video',
+        mediaUrl: videoBinaryUrl,
+        posterUrl: posterUrl || '',
+        viewerUrl
+      };
     }
 
-    const isPublicHttps = /^https:\/\/(?!localhost|127\.0\.0\.1)/i.test(videoBinaryUrl);
-    if (isPublicHttps) {
-      const vidRes = await callZaloApi('sendVideo', {
+    const isPublicHttpsPoster = posterUrl && /^https:\/\/(?!localhost|127\.0\.0\.1)/i.test(posterUrl);
+    if (isPublicHttpsPoster) {
+      const photoCardRes = await callZaloApi('sendPhoto', {
         chat_id: String(chatId),
-        video: videoBinaryUrl,
-        caption: safeCaption.slice(0, 480)
-      }, token, 8000);
+        photo: posterUrl,
+        caption: fullVideoText
+      }, token, 12000);
 
-      if (vidRes.ok) {
+      if (photoCardRes.ok) {
         recordOutboxEntry({
           chatId: String(chatId),
           text: fullVideoText,
           mediaType: 'video',
+          deliveryMethod: 'sendPhoto_video_poster',
           mediaUrl: videoBinaryUrl,
+          posterUrl,
           viewerUrl: viewerUrl || videoBinaryUrl,
           delivered: true,
           simulated: false,
           error: null,
           ...meta
         });
-        return { ...vidRes, mediaType: 'video', mediaUrl: videoBinaryUrl, viewerUrl };
+        return {
+          ...photoCardRes,
+          mediaType: 'video',
+          deliveryMethod: 'sendPhoto_video_poster',
+          mediaUrl: videoBinaryUrl,
+          posterUrl,
+          viewerUrl
+        };
       }
     }
 
-    // Standard Zalo Bot Platform path: send rich mobile video player link card
+    // Automatic resilient fallback (localhost or Zalo CDN timeout): send rich mobile video player link card
     const msgRes = await callZaloApi('sendMessage', {
       chat_id: String(chatId),
       text: fullVideoText
@@ -1245,7 +1546,9 @@ export function createZaloBotService({
       chatId: String(chatId),
       text: fullVideoText,
       mediaType: 'video',
+      deliveryMethod: 'sendMessage_fallback',
       mediaUrl: videoBinaryUrl,
+      posterUrl: posterUrl || null,
       viewerUrl: viewerUrl || videoBinaryUrl,
       delivered: Boolean(msgRes.ok),
       simulated: false,
@@ -1253,7 +1556,14 @@ export function createZaloBotService({
       ...meta
     });
 
-    return { ...msgRes, mediaType: 'video', mediaUrl: videoBinaryUrl, viewerUrl };
+    return {
+      ...msgRes,
+      mediaType: 'video',
+      deliveryMethod: 'sendMessage_fallback',
+      mediaUrl: videoBinaryUrl,
+      posterUrl: posterUrl || '',
+      viewerUrl
+    };
   }
 
   /**
@@ -1264,28 +1574,46 @@ export function createZaloBotService({
       return [];
     }
 
+    // Pre-generate posters once per video item across all target bindings
+    for (const entry of indexedItems) {
+      const mediaIndex = Number(entry.mediaIndex) || 0;
+      const parsed = parseIncidentMediaItem(entry.item, mediaIndex);
+      if (parsed.kind === 'video') {
+        await ensureVideoPosterForIncidentItem(incident, mediaIndex);
+        if (Array.isArray(incident.media) && incident.media[mediaIndex]) {
+          entry.item = incident.media[mediaIndex];
+        }
+      }
+    }
+
     const dispatches = [];
     for (const binding of bindings) {
       if (!binding || !binding.chatId) continue;
       for (const entry of indexedItems) {
         const mediaIndex = Number(entry.mediaIndex) || 0;
-        const parsed = parseIncidentMediaItem(entry.item, mediaIndex);
+        const currentItem = (Array.isArray(incident.media) && incident.media[mediaIndex]) || entry.item;
+        const parsed = parseIncidentMediaItem(currentItem, mediaIndex);
         if (!parsed.dataUrl) continue;
 
         const binaryUrl = parsed.isExternalHttp
           ? parsed.dataUrl
-          : buildSignedMediaBinaryUrl(incident.id, mediaIndex, entry.item, origin);
+          : buildSignedMediaBinaryUrl(incident.id, mediaIndex, currentItem, origin);
         const viewerUrl = buildSignedMediaViewerUrl(incident.id, mediaIndex, binding.chatId, origin);
 
         if (parsed.kind === 'video') {
+          const posterUrl = buildSignedVideoPosterUrl(incident.id, mediaIndex, currentItem, origin);
+          const durLabel = parsed.durationSec > 0
+            ? ` (${Math.floor(parsed.durationSec / 60)}:${String(Math.max(1, Math.round(parsed.durationSec % 60))).padStart(2, '0')})`
+            : '';
           const videoCaption = [
-            `🎥 [VIDEO HIỆN TRƯỜNG #${mediaIndex + 1} — CA #${incident.id}]`,
+            `🎥 [VIDEO HIỆN TRƯỜNG #${mediaIndex + 1}${durLabel} — CA #${incident.id}]`,
             `👤 Người dân gửi: ${incident.reporterName || 'Người dân'} (${incident.reporterPhone || 'Đang cập nhật'})`,
             `📍 Vị trí: ${incident.address || `${incident.lat}, ${incident.lng}`}`,
             ...(caption ? [`💬 Ghi chú: ${caption}`] : [])
           ].join('\n');
 
           const res = await sendZaloVideo(binding.chatId, binaryUrl, viewerUrl, videoCaption, {
+            posterUrl,
             province: binding.province || '',
             meta: {
               incidentId: incident.id,
@@ -2816,9 +3144,10 @@ export function createZaloBotService({
         ? parsed.dataUrl
         : buildSignedMediaBinaryUrl(incident.id, idx, rawItem, fallbackOrigin);
       if (parsed.kind === 'video') {
+        const posterSrc = buildSignedVideoPosterUrl(incident.id, idx, rawItem, fallbackOrigin);
         return `<div style="margin-bottom:10px;">
           <div style="font-size:11.5px;color:#7dd3fc;font-weight:700;margin-bottom:4px;">🎥 Video hiện trường #${idx + 1}</div>
-          <video src="${escapeHtml(src)}" controls playsinline preload="metadata" style="width:100%;max-height:340px;border-radius:10px;border:1px solid rgba(56,189,248,0.45);background:#000;"></video>
+          <video src="${escapeHtml(src)}" poster="${escapeHtml(posterSrc)}" controls playsinline webkit-playsinline preload="metadata" style="width:100%;max-height:340px;border-radius:10px;border:1px solid rgba(56,189,248,0.45);background:#000;"></video>
         </div>`;
       }
       return `<div style="margin-bottom:10px;">
@@ -2838,8 +3167,11 @@ export function createZaloBotService({
 
   /**
    * Render a crisp mobile-first HTML5 Video & Photo Player page (`/api/zalo/media-view`)
-   * so officers tapping a citizen photo/video link inside Zalo can immediately play the video
-   * with sound, view all scene photos, navigate via Google Maps, or 1-tap accept the SOS!
+   * optimized for iPhone iOS 26 Safari & Android Zalo In-App Browser:
+   * - Instant moving video autoplay (`autoplay muted loop playsinline webkit-playsinline`)
+   * - 1-tap Full-Audio Unmute button (`#btnUnmuteSceneVideo`) + Direct `.MP4` Download/Share (`?dl=1`)
+   * - OpenGraph `og:image` (`<idx>_poster`) + `og:video` tags even on video-only incidents
+   * - Generous bottom safe-area clearance so iOS 26 floating address bar never overlaps action buttons
    */
   function renderMediaViewerHtml({ ok, incident, mediaIndex = 0, chatId = '', fallbackOrigin = '', error = '' }) {
     if (!ok || !incident || !Array.isArray(incident.media) || incident.media.length === 0) {
@@ -2855,15 +3187,22 @@ export function createZaloBotService({
     }
 
     const safeIdx = Math.max(0, Math.min(incident.media.length - 1, Number(mediaIndex) || 0));
-    const primaryParsed = parseIncidentMediaItem(incident.media[safeIdx], safeIdx);
+    const primaryItem = incident.media[safeIdx];
+    const primaryParsed = parseIncidentMediaItem(primaryItem, safeIdx);
     const primarySrc = primaryParsed.isExternalHttp
       ? primaryParsed.dataUrl
-      : buildSignedMediaBinaryUrl(incident.id, safeIdx, incident.media[safeIdx], fallbackOrigin);
+      : buildSignedMediaBinaryUrl(incident.id, safeIdx, primaryItem, fallbackOrigin);
+    const primaryDownloadSrc = `${primarySrc}${primarySrc.includes('?') ? '&' : '?'}dl=1`;
+    const primaryPosterSrc = primaryParsed.kind === 'video'
+      ? buildSignedVideoPosterUrl(incident.id, safeIdx, primaryItem, fallbackOrigin)
+      : '';
 
     const firstImgIdx = incident.media.findIndex((m, i) => parseIncidentMediaItem(m, i).kind === 'image');
-    const ogImageUrl = firstImgIdx >= 0
-      ? buildSignedMediaBinaryUrl(incident.id, firstImgIdx, incident.media[firstImgIdx], fallbackOrigin)
-      : '';
+    const ogImageUrl = primaryParsed.kind === 'video'
+      ? primaryPosterSrc
+      : (firstImgIdx >= 0
+          ? buildSignedMediaBinaryUrl(incident.id, firstImgIdx, incident.media[firstImgIdx], fallbackOrigin)
+          : '');
 
     const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(incident.lat)},${encodeURIComponent(incident.lng)}`;
     const telHref = incident.reporterPhone ? `tel:${escapeHtml(incident.reporterPhone)}` : '';
@@ -2878,9 +3217,11 @@ export function createZaloBotService({
           if (idx === safeIdx) return '';
           const p = parseIncidentMediaItem(rawItem, idx);
           const s = p.isExternalHttp ? p.dataUrl : buildSignedMediaBinaryUrl(incident.id, idx, rawItem, fallbackOrigin);
-          return p.kind === 'video'
-            ? `<div style="margin-top:10px;"><div style="font-size:11.5px;color:#7dd3fc;font-weight:700;margin-bottom:4px;">🎥 Video đính kèm #${idx + 1}</div><video src="${escapeHtml(s)}" controls playsinline preload="metadata" style="width:100%;max-height:320px;border-radius:10px;background:#000;border:1px solid rgba(56,189,248,0.4);"></video></div>`
-            : `<div style="margin-top:10px;"><div style="font-size:11.5px;color:#86efac;font-weight:700;margin-bottom:4px;">📷 Ảnh đính kèm #${idx + 1}</div><img src="${escapeHtml(s)}" alt="Hiện trường #${idx + 1}" style="width:100%;max-height:340px;object-fit:contain;border-radius:10px;background:#020617;border:1px solid rgba(16,185,129,0.4);"/></div>`;
+          if (p.kind === 'video') {
+            const pPoster = buildSignedVideoPosterUrl(incident.id, idx, rawItem, fallbackOrigin);
+            return `<div style="margin-top:10px;"><div style="font-size:11.5px;color:#7dd3fc;font-weight:700;margin-bottom:4px;">🎥 Video đính kèm #${idx + 1}</div><video src="${escapeHtml(s)}" poster="${escapeHtml(pPoster)}" controls playsinline webkit-playsinline preload="metadata" style="width:100%;max-height:320px;border-radius:10px;background:#000;border:1px solid rgba(56,189,248,0.4);"></video></div>`;
+          }
+          return `<div style="margin-top:10px;"><div style="font-size:11.5px;color:#86efac;font-weight:700;margin-bottom:4px;">📷 Ảnh đính kèm #${idx + 1}</div><img src="${escapeHtml(s)}" alt="Hiện trường #${idx + 1}" style="width:100%;max-height:340px;object-fit:contain;border-radius:10px;background:#020617;border:1px solid rgba(16,185,129,0.4);"/></div>`;
         }).filter(Boolean).join('')
       : '';
 
@@ -2888,21 +3229,26 @@ export function createZaloBotService({
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, viewport-fit=cover" />
   <meta property="og:title" content="${escapeHtml(pageTitle)}" />
   <meta property="og:description" content="${escapeHtml(`${incident.reporterName || 'Người dân'} — ${incident.address || ''}`)}" />
+  <meta property="og:type" content="${primaryParsed.kind === 'video' ? 'video.other' : 'website'}" />
   ${ogImageUrl ? `<meta property="og:image" content="${escapeHtml(ogImageUrl)}" />` : ''}
+  ${primaryParsed.kind === 'video' ? `<meta property="og:video" content="${escapeHtml(primarySrc)}" /><meta property="og:video:secure_url" content="${escapeHtml(primarySrc)}" /><meta property="og:video:type" content="video/mp4" />` : ''}
   <title>${escapeHtml(pageTitle)}</title>
   <style>
     * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); color: #f8fafc; padding: 14px; display: flex; justify-content: center; align-items: flex-start; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); color: #f8fafc; padding: 14px 14px calc(120px + env(safe-area-inset-bottom, 28px)) 14px; display: flex; justify-content: center; align-items: flex-start; }
     .card { width: 100%; max-width: 520px; background: rgba(15, 23, 42, 0.96); border: 1.5px solid #38bdf8; border-radius: 18px; padding: 18px 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.75); }
     .badge { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: rgba(56,189,248,0.18); color: #38bdf8; border: 1px solid rgba(56,189,248,0.45); margin-bottom: 10px; }
     h1 { font-size: 18px; margin: 0 0 10px 0; color: #fff; line-height: 1.35; }
-    .player-box { background: #000; border-radius: 12px; overflow: hidden; border: 1px solid rgba(56,189,248,0.45); margin-bottom: 12px; }
+    .player-box { background: #000; border-radius: 12px; overflow: hidden; border: 1px solid rgba(56,189,248,0.45); margin-bottom: 10px; position: relative; }
     .meta { background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 12px; padding: 11px 13px; margin: 12px 0; font-size: 13.5px; line-height: 1.55; color: #cbd5e1; }
     .meta b { color: #f8fafc; }
-    .btn { display: block; width: 100%; text-align: center; text-decoration: none; padding: 13px 15px; border-radius: 12px; font-weight: 800; font-size: 14.5px; margin-top: 9px; }
+    .btn { display: block; width: 100%; text-align: center; text-decoration: none; padding: 13px 15px; border-radius: 12px; font-weight: 800; font-size: 14.5px; margin-top: 9px; border: none; cursor: pointer; }
+    .btn-sound { background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35); }
+    .btn-sound.active { background: rgba(16, 185, 129, 0.22); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.5); box-shadow: none; }
+    .btn-dl { background: rgba(56, 189, 248, 0.14); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.45); font-size: 13.5px; padding: 11px 14px; }
     .btn-accept { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; box-shadow: 0 8px 22px rgba(239, 68, 68, 0.4); }
     .btn-map { background: linear-gradient(135deg, #059669, #10b981); color: #fff; }
     .btn-call { background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; }
@@ -2914,10 +3260,17 @@ export function createZaloBotService({
     <h1>Hồ sơ khẩn cấp #${escapeHtml(incident.id)}</h1>
     <div class="player-box">
       ${primaryParsed.kind === 'video'
-        ? `<video src="${escapeHtml(primarySrc)}" controls autoplay playsinline preload="metadata" style="width:100%;max-height:68vh;display:block;background:#000;"></video>`
+        ? `<video id="sceneVideoPlayer" src="${escapeHtml(primarySrc)}" poster="${escapeHtml(primaryPosterSrc)}" controls autoplay muted loop playsinline webkit-playsinline preload="auto" style="width:100%;max-height:64vh;display:block;background:#000;"></video>`
         : `<img src="${escapeHtml(primarySrc)}" alt="Ảnh hiện trường" style="width:100%;max-height:70vh;object-fit:contain;display:block;background:#000;" />`
       }
     </div>
+    ${primaryParsed.kind === 'video' ? `
+      <button type="button" id="btnUnmuteSceneVideo" class="btn btn-sound">🔊 BẤM BẬT ÂM THANH HIỆN TRƯỜNG (100%)</button>
+      <a class="btn btn-dl" href="${escapeHtml(primaryDownloadSrc)}" download="video-hien-truong-${escapeHtml(incident.id)}.${escapeHtml(primaryParsed.ext)}">⬇️ TẢI VIDEO .MP4 GỐC VỀ MÁY / CHUYỂN TIẾP ZALO</a>
+    ` : `
+      <a class="btn btn-dl" href="${escapeHtml(primaryDownloadSrc)}" download="anh-hien-truong-${escapeHtml(incident.id)}.${escapeHtml(primaryParsed.ext)}">⬇️ TẢI ẢNH HIỆN TRƯỜNG GỐC VỀ MÁY</a>
+    `}
+    ${quickAcceptUrl ? `<a class="btn btn-accept" href="${escapeHtml(quickAcceptUrl)}">✅ XÁC NHẬN TIẾP NHẬN CA NÀY NGAY</a>` : ''}
     ${otherItemsHtml}
     <div class="meta">
       <div><b>Người dân gửi:</b> ${escapeHtml(incident.reporterName || 'Người dân')}</div>
@@ -2926,10 +3279,40 @@ export function createZaloBotService({
       ${incident.customNotes ? `<div><b>Mô tả hiện trường:</b> ${escapeHtml(incident.customNotes)}</div>` : ''}
       <div><b>Đơn vị phụ trách:</b> ${escapeHtml(incident.assignedUnit?.name || '')}</div>
     </div>
-    ${quickAcceptUrl ? `<a class="btn btn-accept" href="${escapeHtml(quickAcceptUrl)}">✅ XÁC NHẬN TIẾP NHẬN CA NÀY NGAY</a>` : ''}
     <a class="btn btn-map" href="${gmapsUrl}" target="_blank" rel="noopener">🧭 MỞ GOOGLE MAPS DẪN ĐƯỜNG TỚI NẠN NHÂN</a>
     ${telHref ? `<a class="btn btn-call" href="${telHref}">📞 GỌI ĐIỆN NGAY CHO NGƯỜI DÂN (${escapeHtml(incident.reporterPhone)})</a>` : ''}
   </div>
+  ${primaryParsed.kind === 'video' ? `<script>
+  (function () {
+    var vid = document.getElementById('sceneVideoPlayer');
+    var btn = document.getElementById('btnUnmuteSceneVideo');
+    if (!vid) return;
+    var p = vid.play();
+    if (p && typeof p.catch === 'function') p.catch(function () {});
+    function syncSoundBtn() {
+      if (!btn) return;
+      if (!vid.muted && vid.volume > 0) {
+        btn.textContent = '🔊 ĐANG PHÁT ÂM THANH GỐC HIỆN TRƯỜNG';
+        btn.classList.add('active');
+      } else {
+        btn.textContent = '🔊 BẤM BẬT ÂM THANH HIỆN TRƯỜNG (100%)';
+        btn.classList.remove('active');
+      }
+    }
+    if (btn) {
+      btn.addEventListener('click', function () {
+        vid.muted = false;
+        vid.volume = 1.0;
+        if (vid.paused) {
+          var rp = vid.play();
+          if (rp && typeof rp.catch === 'function') rp.catch(function () {});
+        }
+        syncSoundBtn();
+      });
+    }
+    vid.addEventListener('volumechange', syncSoundBtn);
+  })();
+  </script>` : ''}
 </body>
 </html>`;
   }
@@ -2955,12 +3338,12 @@ export function createZaloBotService({
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
   <meta property="og:title" content="Bấm Tiếp Nhận Ca SOS Khẩn Cấp — SOS Việt Nam 2026" />
   <title>${title} — SOS Việt Nam 2026</title>
   <style>
     * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); color: #f8fafc; display: flex; align-items: center; justify-content: center; padding: 18px; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); color: #f8fafc; display: flex; align-items: flex-start; justify-content: center; padding: 18px 16px calc(120px + env(safe-area-inset-bottom, 28px)) 16px; }
     .card { width: 100%; max-width: 460px; background: rgba(15, 23, 42, 0.95); border: 1.5px solid ${ok ? '#10b981' : '#f59e0b'}; border-radius: 18px; padding: 22px 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.65); }
     .badge { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; background: ${ok ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}; color: ${ok ? '#34d399' : '#fbbf24'}; border: 1px solid ${ok ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.45)'}; margin-bottom: 12px; }
     h1 { font-size: 20px; margin: 0 0 8px 0; line-height: 1.3; color: #ffffff; }
@@ -3056,7 +3439,9 @@ export function createZaloBotService({
     signMediaAccess,
     verifyMediaAccess,
     decodeIncidentMediaBuffer,
+    ensureVideoPosterForIncidentItem,
     buildSignedMediaBinaryUrl,
+    buildSignedVideoPosterUrl,
     buildSignedMediaViewerUrl,
     renderMediaViewerHtml,
     renderQuickAcceptHtml,
