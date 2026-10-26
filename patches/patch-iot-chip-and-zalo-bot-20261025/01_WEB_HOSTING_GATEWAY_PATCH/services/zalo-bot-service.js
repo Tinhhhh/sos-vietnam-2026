@@ -420,6 +420,142 @@ export function createZaloBotService({
     return `${base}/api/zalo/quick-accept?${params.toString()}`;
   }
 
+  function parseIncidentMediaItem(rawItem, index = 0) {
+    const dataUrl = String(
+      rawItem?.dataUrl ||
+      rawItem?.url ||
+      rawItem?.data ||
+      (typeof rawItem === 'string' ? rawItem : '') ||
+      ''
+    ).trim();
+    const explicitType = String(rawItem?.type || '').toLowerCase();
+    const explicitMime = String(rawItem?.mimeType || '').toLowerCase();
+
+    let mimeType = explicitMime || 'image/jpeg';
+    let base64Payload = '';
+    const dataMatch = dataUrl.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,([\s\S]+)$/i);
+    if (dataMatch) {
+      if (dataMatch[1]) mimeType = dataMatch[1].trim().toLowerCase();
+      base64Payload = dataMatch[2].replace(/\s+/g, '');
+    } else if (/^https?:\/\//i.test(dataUrl)) {
+      if (/\.(mp4|mov)(\?|$)/i.test(dataUrl)) mimeType = 'video/mp4';
+      else if (/\.webm(\?|$)/i.test(dataUrl)) mimeType = 'video/webm';
+      else if (/\.png(\?|$)/i.test(dataUrl)) mimeType = 'image/png';
+      else if (/\.webp(\?|$)/i.test(dataUrl)) mimeType = 'image/webp';
+    }
+
+    const kind = (explicitType === 'video' || mimeType.startsWith('video/')) ? 'video' : 'image';
+    if (kind === 'video' && !mimeType.startsWith('video/')) {
+      mimeType = 'video/mp4';
+    }
+    let ext = 'jpg';
+    if (kind === 'video') {
+      ext = mimeType.includes('webm') ? 'webm' : 'mp4';
+    } else if (mimeType.includes('png')) {
+      ext = 'png';
+    } else if (mimeType.includes('webp')) {
+      ext = 'webp';
+    } else if (mimeType.includes('gif')) {
+      ext = 'gif';
+    }
+
+    const resolvedFilename = String(rawItem?.name || `hien-truong-${Number(index) + 1}.${ext}`);
+    return {
+      index: Number(index) || 0,
+      id: String(rawItem?.id || `med_${index}`),
+      kind,
+      mimeType,
+      mime: mimeType,
+      ext,
+      name: resolvedFilename,
+      filename: resolvedFilename,
+      dataUrl,
+      base64Payload,
+      isDataUrl: Boolean(dataMatch),
+      isExternalHttp: /^https?:\/\//i.test(dataUrl),
+      redirectUrl: /^https?:\/\//i.test(dataUrl) ? dataUrl : ''
+    };
+  }
+
+  function decodeIncidentMediaBuffer(incident, mediaRef = '0') {
+    if (!incident || !Array.isArray(incident.media) || incident.media.length === 0) {
+      return null;
+    }
+    const cleanRef = String(mediaRef ?? '0').trim();
+    let idx = /^\d+$/.test(cleanRef) ? parseInt(cleanRef, 10) : -1;
+    if (idx < 0 || idx >= incident.media.length) {
+      idx = incident.media.findIndex(m => m && String(m.id || '') === cleanRef);
+    }
+    if (idx < 0 || idx >= incident.media.length) return null;
+
+    const parsed = parseIncidentMediaItem(incident.media[idx], idx);
+    if (!parsed.isDataUrl || !parsed.base64Payload) {
+      return {
+        ...parsed,
+        mediaIndex: idx,
+        buffer: null
+      };
+    }
+    try {
+      const buffer = Buffer.from(parsed.base64Payload, 'base64');
+      return {
+        ...parsed,
+        mediaIndex: idx,
+        buffer
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function signMediaAccessWithSecret(incidentId, mediaKey = '0', secret = state.hmacSecret) {
+    return crypto
+      .createHmac('sha256', secret)
+      .update(`media|${incidentId}|${mediaKey}`)
+      .digest('hex')
+      .slice(0, 28);
+  }
+
+  function signMediaAccess(incidentId, mediaKey = '0') {
+    return signMediaAccessWithSecret(incidentId, String(mediaKey ?? '0'), state.hmacSecret);
+  }
+
+  function verifyMediaAccess(incidentId, mediaKey = '0', signature = '') {
+    if (!incidentId || !signature) return false;
+    const keyStr = String(mediaKey ?? '0');
+    const candidates = [state.hmacSecret, deterministicHmacSecret].filter(Boolean);
+    for (const sec of candidates) {
+      const expected = signMediaAccessWithSecret(incidentId, keyStr, sec);
+      const a = Buffer.from(String(signature));
+      const b = Buffer.from(String(expected));
+      if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function buildSignedMediaBinaryUrl(incidentId, mediaIndex = 0, rawItem = null, fallbackOrigin = '') {
+    const base = resolvePublicOrigin(fallbackOrigin);
+    const parsed = parseIncidentMediaItem(rawItem || {}, mediaIndex);
+    const key = String(mediaIndex);
+    const sig = signMediaAccess(incidentId, key);
+    return `${base}/api/zalo/media/${encodeURIComponent(incidentId)}/${encodeURIComponent(key)}/${sig}/hien-truong-${Number(mediaIndex) + 1}.${parsed.ext}`;
+  }
+
+  function buildSignedMediaViewerUrl(incidentId, mediaIndex = 0, chatId = '', fallbackOrigin = '') {
+    const base = resolvePublicOrigin(fallbackOrigin);
+    const key = String(mediaIndex);
+    const sig = signMediaAccess(incidentId, key);
+    const params = new URLSearchParams({
+      id: incidentId,
+      m: key,
+      sig
+    });
+    if (chatId) params.set('chat', String(chatId));
+    return `${base}/api/zalo/media-view?${params.toString()}`;
+  }
+
   function getBotMentionHint(chatType = 'GROUP') {
     const botName = String(state.botProfile?.name || '').trim();
     if (chatType === 'PRIVATE') {
@@ -982,6 +1118,291 @@ export function createZaloBotService({
   }
 
   /**
+   * Push a Citizen Scene Photo directly into a Zalo chat via `sendPhoto` (with automatic
+   * fallback to signed viewer link message if running on localhost or if Zalo CDN rejects fetch).
+   */
+  async function sendZaloPhoto(chatId, photoBinaryUrl, caption, { province = '', viewerUrl = '', meta = {} } = {}) {
+    const safeCaption = String(caption || '').trim().slice(0, 480);
+    const token = resolveTokenForProvince(province);
+
+    if (!token) {
+      recordOutboxEntry({
+        chatId: String(chatId),
+        text: `${safeCaption}\n🖼️ ${photoBinaryUrl}`,
+        mediaType: 'image',
+        mediaUrl: photoBinaryUrl,
+        viewerUrl: viewerUrl || photoBinaryUrl,
+        delivered: false,
+        simulated: true,
+        note: 'Chế độ Mô phỏng (Ảnh hiện trường từ người dân)',
+        ...meta
+      });
+      return { ok: true, simulated: true, mediaType: 'image', mediaUrl: photoBinaryUrl, viewerUrl };
+    }
+
+    const isPublicHttps = /^https:\/\/(?!localhost|127\.0\.0\.1)/i.test(photoBinaryUrl);
+    if (isPublicHttps) {
+      const apiRes = await callZaloApi('sendPhoto', {
+        chat_id: String(chatId),
+        photo: photoBinaryUrl,
+        caption: safeCaption
+      }, token, 10000);
+
+      if (apiRes.ok) {
+        recordOutboxEntry({
+          chatId: String(chatId),
+          text: safeCaption,
+          mediaType: 'image',
+          mediaUrl: photoBinaryUrl,
+          viewerUrl: viewerUrl || photoBinaryUrl,
+          delivered: true,
+          simulated: false,
+          error: null,
+          ...meta
+        });
+        return { ...apiRes, mediaType: 'image', mediaUrl: photoBinaryUrl, viewerUrl };
+      }
+    }
+
+    // Automatic resilient fallback: send text card with 1-tap photo viewer link so officers NEVER miss scene evidence
+    const fallbackText = [
+      safeCaption,
+      `🔍 Mở xem ảnh hiện trường gốc (1 chạm):`,
+      viewerUrl || photoBinaryUrl
+    ].filter(Boolean).join('\n');
+
+    return sendZaloMessage(chatId, fallbackText, {
+      province,
+      meta: {
+        ...meta,
+        mediaType: 'image',
+        mediaUrl: photoBinaryUrl,
+        viewerUrl: viewerUrl || photoBinaryUrl,
+        fallbackLinkMode: true
+      }
+    });
+  }
+
+  /**
+   * Push a Citizen Scene Video directly into a Zalo chat (`sendVideo` when supported on public HTTPS,
+   * plus guaranteed 1-tap Mobile HTML5 Video Player card `/api/zalo/media-view` for instant playback in Zalo).
+   */
+  async function sendZaloVideo(chatId, videoBinaryUrl, viewerUrl, caption, { province = '', meta = {} } = {}) {
+    const safeCaption = String(caption || '').trim().slice(0, 600);
+    const fullVideoText = [
+      safeCaption,
+      `▶️ BẤM XEM NGAY VIDEO HIỆN TRƯỜNG TRÊN ĐIỆN THOẠI:`,
+      viewerUrl || videoBinaryUrl
+    ].filter(Boolean).join('\n').slice(0, 1950);
+
+    const token = resolveTokenForProvince(province);
+    if (!token) {
+      recordOutboxEntry({
+        chatId: String(chatId),
+        text: fullVideoText,
+        mediaType: 'video',
+        mediaUrl: videoBinaryUrl,
+        viewerUrl: viewerUrl || videoBinaryUrl,
+        delivered: false,
+        simulated: true,
+        note: 'Chế độ Mô phỏng (Video hiện trường từ người dân)',
+        ...meta
+      });
+      return { ok: true, simulated: true, mediaType: 'video', mediaUrl: videoBinaryUrl, viewerUrl };
+    }
+
+    const isPublicHttps = /^https:\/\/(?!localhost|127\.0\.0\.1)/i.test(videoBinaryUrl);
+    if (isPublicHttps) {
+      const vidRes = await callZaloApi('sendVideo', {
+        chat_id: String(chatId),
+        video: videoBinaryUrl,
+        caption: safeCaption.slice(0, 480)
+      }, token, 8000);
+
+      if (vidRes.ok) {
+        recordOutboxEntry({
+          chatId: String(chatId),
+          text: fullVideoText,
+          mediaType: 'video',
+          mediaUrl: videoBinaryUrl,
+          viewerUrl: viewerUrl || videoBinaryUrl,
+          delivered: true,
+          simulated: false,
+          error: null,
+          ...meta
+        });
+        return { ...vidRes, mediaType: 'video', mediaUrl: videoBinaryUrl, viewerUrl };
+      }
+    }
+
+    // Standard Zalo Bot Platform path: send rich mobile video player link card
+    const msgRes = await callZaloApi('sendMessage', {
+      chat_id: String(chatId),
+      text: fullVideoText
+    }, token);
+
+    recordOutboxEntry({
+      chatId: String(chatId),
+      text: fullVideoText,
+      mediaType: 'video',
+      mediaUrl: videoBinaryUrl,
+      viewerUrl: viewerUrl || videoBinaryUrl,
+      delivered: Boolean(msgRes.ok),
+      simulated: false,
+      error: msgRes.ok ? null : msgRes.error,
+      ...meta
+    });
+
+    return { ...msgRes, mediaType: 'video', mediaUrl: videoBinaryUrl, viewerUrl };
+  }
+
+  /**
+   * Dispatch a list of indexed citizen media items (`[{ item, mediaIndex }]`) to target Zalo bindings.
+   */
+  async function dispatchMediaItemsToBindings(incident, indexedItems = [], bindings = [], { origin = '', caption = '', stage = 'citizen_media' } = {}) {
+    if (!incident || !Array.isArray(indexedItems) || indexedItems.length === 0 || !Array.isArray(bindings) || bindings.length === 0) {
+      return [];
+    }
+
+    const dispatches = [];
+    for (const binding of bindings) {
+      if (!binding || !binding.chatId) continue;
+      for (const entry of indexedItems) {
+        const mediaIndex = Number(entry.mediaIndex) || 0;
+        const parsed = parseIncidentMediaItem(entry.item, mediaIndex);
+        if (!parsed.dataUrl) continue;
+
+        const binaryUrl = parsed.isExternalHttp
+          ? parsed.dataUrl
+          : buildSignedMediaBinaryUrl(incident.id, mediaIndex, entry.item, origin);
+        const viewerUrl = buildSignedMediaViewerUrl(incident.id, mediaIndex, binding.chatId, origin);
+
+        if (parsed.kind === 'video') {
+          const videoCaption = [
+            `🎥 [VIDEO HIỆN TRƯỜNG #${mediaIndex + 1} — CA #${incident.id}]`,
+            `👤 Người dân gửi: ${incident.reporterName || 'Người dân'} (${incident.reporterPhone || 'Đang cập nhật'})`,
+            `📍 Vị trí: ${incident.address || `${incident.lat}, ${incident.lng}`}`,
+            ...(caption ? [`💬 Ghi chú: ${caption}`] : [])
+          ].join('\n');
+
+          const res = await sendZaloVideo(binding.chatId, binaryUrl, viewerUrl, videoCaption, {
+            province: binding.province || '',
+            meta: {
+              incidentId: incident.id,
+              stage: `${stage}_video`,
+              mediaIndex,
+              unitCode: binding.unitCode,
+              unitName: binding.unitName
+            }
+          });
+          dispatches.push({ chatId: binding.chatId, mediaIndex, kind: 'video', ...res });
+        } else {
+          const photoCaption = [
+            `📷 [ẢNH HIỆN TRƯỜNG #${mediaIndex + 1} — CA #${incident.id}]`,
+            `👤 Người dân: ${incident.reporterName || 'Người dân'} (${incident.reporterPhone || 'Đang cập nhật'})`,
+            `📍 Vị trí: ${incident.address || `${incident.lat}, ${incident.lng}`}`,
+            ...(caption ? [`💬 Ghi chú: ${caption}`] : []),
+            `🔗 Xem chi tiết / Nhận ca: ${viewerUrl}`
+          ].join('\n');
+
+          const res = await sendZaloPhoto(binding.chatId, binaryUrl, photoCaption, {
+            province: binding.province || '',
+            viewerUrl,
+            meta: {
+              incidentId: incident.id,
+              stage: `${stage}_photo`,
+              mediaIndex,
+              unitCode: binding.unitCode,
+              unitName: binding.unitName
+            }
+          });
+          dispatches.push({ chatId: binding.chatId, mediaIndex, kind: 'image', ...res });
+        }
+      }
+    }
+    return dispatches;
+  }
+
+  /**
+   * Forward newly captured/uploaded Citizen Photos or Videos during an active SOS
+   * (e.g., via `POST /api/sos/media` or `POST /api/sos/message` with media) straight to
+   * all notified / assigned Zalo chats (works both while pending AND after officer accepted!).
+   */
+  async function onCitizenMediaReceived(incident, newMediaItems = [], { origin = '', caption = '', startIndex = null, stage = 'chat_media' } = {}) {
+    if (!incident || !state.enabled) return { ok: false, dispatched: 0 };
+    const items = Array.isArray(newMediaItems) ? newMediaItems : [newMediaItems].filter(Boolean);
+    if (items.length === 0) return { ok: true, dispatched: 0 };
+
+    await ensureBotProfile();
+
+    const seenChatIds = new Set();
+    const targetBindings = [];
+
+    // 1. Include all chats previously notified about this incident (preserves delivery after status === 'dispatching'!)
+    const prevSet = incidentNotifiedChats.get(incident.id);
+    if (prevSet) {
+      for (const cid of prevSet) {
+        const b = state.bindings.find(x => x && x.enabled !== false && String(x.chatId) === String(cid));
+        if (b && !seenChatIds.has(String(b.chatId))) {
+          seenChatIds.add(String(b.chatId));
+          targetBindings.push(b);
+        }
+      }
+    }
+
+    // 2. Include chat that accepted the incident via Zalo (if any)
+    if (incident.zaloAcceptedByChatId && !seenChatIds.has(String(incident.zaloAcceptedByChatId))) {
+      const acceptedBinding = state.bindings.find(x => x && String(x.chatId) === String(incident.zaloAcceptedByChatId));
+      if (acceptedBinding) {
+        seenChatIds.add(String(acceptedBinding.chatId));
+        targetBindings.push(acceptedBinding);
+      }
+    }
+
+    // 3. Also include current territorial bindings (in case a group connected right after SOS was created)
+    const stageType = incident.currentLevel === 'province' ? 'escalated' : 'initial';
+    for (const b of resolveTargetBindings(incident, stageType)) {
+      if (b && b.chatId && !seenChatIds.has(String(b.chatId))) {
+        seenChatIds.add(String(b.chatId));
+        targetBindings.push(b);
+      }
+    }
+
+    if (targetBindings.length === 0) {
+      return { ok: true, dispatched: 0, targets: [] };
+    }
+
+    const totalLen = Array.isArray(incident.media) ? incident.media.length : items.length;
+    const baseIdx = Number.isInteger(startIndex) && startIndex >= 0
+      ? startIndex
+      : Math.max(0, totalLen - items.length);
+
+    const indexedItems = items.map((item, offset) => ({
+      item,
+      mediaIndex: baseIdx + offset
+    }));
+
+    const notifiedSet = incidentNotifiedChats.get(incident.id) || new Set();
+    incidentNotifiedChats.set(incident.id, notifiedSet);
+    for (const b of targetBindings) {
+      notifiedSet.add(String(b.chatId));
+    }
+
+    const results = await dispatchMediaItemsToBindings(incident, indexedItems, targetBindings, {
+      origin,
+      caption,
+      stage
+    });
+
+    return {
+      ok: true,
+      dispatched: results.length,
+      targetsCount: targetBindings.length,
+      results
+    };
+  }
+
+  /**
    * Broadcast an emergency directive, scheduled maintenance notice, system update,
    * or severe weather warning directly to ALL (or filtered) connected Zalo groups & officers.
    */
@@ -1243,6 +1664,28 @@ export function createZaloBotService({
     const escalationSec = Math.round(getEffectiveEscalationMs() / 1000);
     const remainingMin = Math.max(1, Math.round((escalationSec - reminderSec) / 60));
 
+    // Summarize attached citizen scene photos & videos (if any)
+    const rawMediaList = Array.isArray(incident.media) ? incident.media.filter(Boolean) : [];
+    let photoCount = 0;
+    let videoCount = 0;
+    rawMediaList.forEach((m, idx) => {
+      const p = parseIncidentMediaItem(m, idx);
+      if (p.kind === 'video') videoCount += 1;
+      else if (p.dataUrl) photoCount += 1;
+    });
+    const mediaParts = [];
+    if (photoCount > 0) mediaParts.push(`${photoCount} ảnh`);
+    if (videoCount > 0) mediaParts.push(`${videoCount} video`);
+    const firstMediaViewerUrl = rawMediaList.length > 0
+      ? buildSignedMediaViewerUrl(incident.id, 0, binding?.chatId || '', fallbackOrigin)
+      : '';
+    const mediaLines = mediaParts.length > 0
+      ? [
+          `📷 Bằng chứng hiện trường: ${mediaParts.join(' & ')} từ người dân (Đang gửi kèm ngay bên dưới)`,
+          `🎬 Mở xem toàn bộ Ảnh/Video hiện trường: ${firstMediaViewerUrl}`
+        ]
+      : [];
+
     if (stage === 'reminder') {
       const elapsedLabel = reminderSec >= 60 ? `${Math.round(reminderSec / 60)} phút` : `${reminderSec} giây`;
       return [
@@ -1254,6 +1697,7 @@ export function createZaloBotService({
         `⏱️ Cảnh báo: Đã qua ${elapsedLabel} nhưng ca SOS vẫn đang CHỜ TIẾP NHẬN!`,
         `👤 Người dân: ${incident.reporterName || 'Người dân'} — SĐT: ${incident.reporterPhone || 'Đang cập nhật'}`,
         `📍 Vị trí: ${incident.address || `${incident.lat}, ${incident.lng}`}`,
+        ...mediaLines,
         `⏳ Lưu ý: Sẽ tự động LEO THANG lên Chỉ Huy Cấp Tỉnh/TP nếu không tiếp nhận kịp thời (${state.demoFastMode ? `sau ${escalationSec - reminderSec} giây` : `còn ~${remainingMin} phút`})!`,
         ``,
         `🧭 Mở bản đồ dẫn đường:`,
@@ -1276,6 +1720,7 @@ export function createZaloBotService({
         `📋 Nội dung: ${tagsText}`,
         `👤 Người báo: ${incident.reporterName || 'Người dân'} — SĐT: ${incident.reporterPhone || 'Đang cập nhật'}`,
         `📍 Hiện trường: ${incident.address || `${incident.lat}, ${incident.lng}`}`,
+        ...mediaLines,
         ``,
         `🧭 Dẫn đường Google Maps tới nạn nhân:`,
         gmapsUrl,
@@ -1294,10 +1739,12 @@ export function createZaloBotService({
       ...(supervisoryLine ? [supervisoryLine] : []),
       sourceLine,
       `📋 Phân loại: ${tagsText}`,
+      ...(incident.customNotes ? [`📝 Mô tả: ${String(incident.customNotes).slice(0, 220)}`] : []),
       `👤 Người dân: ${incident.reporterName || 'Người dân cần cứu hộ'}`,
       `📞 SĐT liên hệ: ${incident.reporterPhone || 'Đang cập nhật'}`,
       `📍 Địa điểm: ${incident.address || `${incident.lat}, ${incident.lng}`}`,
       `🎯 Tọa độ GPS: ${Number(incident.lat).toFixed(5)}, ${Number(incident.lng).toFixed(5)}`,
+      ...mediaLines,
       ``,
       `🧭 Dẫn đường Google Maps (1 chạm):`,
       gmapsUrl,
@@ -1344,6 +1791,17 @@ export function createZaloBotService({
       results.push({ chatId: binding.chatId, unitName: binding.unitName, ...sendRes });
     }
 
+    // Immediately forward all Citizen Scene Photos & Videos attached to the SOS!
+    let mediaDispatched = 0;
+    if (Array.isArray(incident.media) && incident.media.length > 0 && targets.length > 0) {
+      const indexedMedia = incident.media.map((item, mediaIndex) => ({ item, mediaIndex }));
+      const mediaRes = await dispatchMediaItemsToBindings(incident, indexedMedia, targets, {
+        origin,
+        stage: 'initial_media'
+      });
+      mediaDispatched = mediaRes.length;
+    }
+
     // Schedule 3-minute (or Demo 20s) Nag Reminder if still pending
     clearIncidentZaloTimer(incident.id);
     const reminderDelayMs = getEffectiveReminderMs();
@@ -1377,6 +1835,7 @@ export function createZaloBotService({
 
     return {
       dispatched: results.length,
+      mediaDispatched,
       reminderScheduledSec: Math.round(reminderDelayMs / 1000),
       targets: results
     };
@@ -1422,6 +1881,16 @@ export function createZaloBotService({
       });
       results.push({ chatId: binding.chatId, unitName: binding.unitName, ...sendRes });
     }
+
+    // Forward citizen scene photos & videos to Provincial HQ as well on escalation!
+    if (Array.isArray(incident.media) && incident.media.length > 0 && hqTargets.length > 0) {
+      const indexedMedia = incident.media.map((item, mediaIndex) => ({ item, mediaIndex }));
+      await dispatchMediaItemsToBindings(incident, indexedMedia, hqTargets, {
+        origin,
+        stage: 'escalated_media'
+      });
+    }
+
     return { dispatched: results.length, targets: results };
   }
 
@@ -2060,6 +2529,7 @@ export function createZaloBotService({
 
   async function updateConfig({
     botToken,
+    clearToken = false,
     enabled,
     demoFastMode,
     requirePairingPassword,
@@ -2067,6 +2537,7 @@ export function createZaloBotService({
     escalationSeconds,
     publicBaseUrl,
     preferPolling = false,
+    forceWebhookSync = false,
     detectedOrigin = '',
     viewerCtx = {}
   } = {}) {
@@ -2083,9 +2554,15 @@ export function createZaloBotService({
       state.publicBaseUrl = publicBaseUrl.trim().replace(/\/+$/, '');
     }
 
-    if (typeof botToken === 'string') {
+    let tokenChanged = false;
+    if (clearToken === true) {
+      tokenChanged = Boolean(state.botToken);
+      state.botToken = '';
+    } else if (typeof botToken === 'string') {
       const trimmed = botToken.trim();
-      if (!trimmed.includes('••••')) {
+      // NEVER wipe saved `state.botToken` on empty input (`""`) or masked placeholder (`••••`)!
+      if (trimmed.length > 0 && !trimmed.includes('••••') && trimmed !== maskToken(state.botToken)) {
+        tokenChanged = trimmed !== state.botToken;
         state.botToken = trimmed;
       }
     }
@@ -2094,14 +2571,16 @@ export function createZaloBotService({
     let webhookSetup = null;
 
     if (state.botToken) {
-      botCheck = await callZaloApi('getMe', {});
-      if (botCheck.ok) {
-        const r = botCheck.result || {};
-        state.botProfile = {
-          id: r.id || r.bot_id || '',
-          name: r.account_name || r.display_name || r.first_name || r.username || 'Zalo Trực Ban Bot',
-          verifiedAt: new Date().toISOString()
-        };
+      if (tokenChanged || !state.botProfile || forceWebhookSync) {
+        botCheck = await callZaloApi('getMe', {});
+        if (botCheck.ok) {
+          const r = botCheck.result || {};
+          state.botProfile = {
+            id: r.id || r.bot_id || '',
+            name: r.account_name || r.display_name || r.first_name || r.username || 'Zalo Trực Ban Bot',
+            verifiedAt: new Date().toISOString()
+          };
+        }
       }
 
       const candidateOrigin = resolvePublicOrigin(detectedOrigin);
@@ -2109,21 +2588,25 @@ export function createZaloBotService({
 
       if (isPublicHttps && !preferPolling) {
         const targetWebhookUrl = `${candidateOrigin}/api/zalo/webhook`;
-        webhookSetup = await callZaloApi('setWebhook', {
-          url: targetWebhookUrl,
-          secret_token: state.webhookSecret
-        });
-        if (webhookSetup.ok) {
-          state.webhookActive = true;
-          state.webhookUrl = targetWebhookUrl;
-          stopPolling();
-        } else {
-          state.webhookActive = false;
-          state.webhookUrl = '';
-          startPollingIfNeeded();
+        if (tokenChanged || !state.webhookActive || state.webhookUrl !== targetWebhookUrl || forceWebhookSync) {
+          webhookSetup = await callZaloApi('setWebhook', {
+            url: targetWebhookUrl,
+            secret_token: state.webhookSecret
+          });
+          if (webhookSetup.ok) {
+            state.webhookActive = true;
+            state.webhookUrl = targetWebhookUrl;
+            stopPolling();
+          } else {
+            state.webhookActive = false;
+            state.webhookUrl = '';
+            startPollingIfNeeded();
+          }
         }
       } else {
-        await callZaloApi('deleteWebhook', {});
+        if (tokenChanged || state.webhookActive || forceWebhookSync) {
+          await callZaloApi('deleteWebhook', {});
+        }
         state.webhookActive = false;
         state.webhookUrl = '';
         startPollingIfNeeded();
@@ -2140,6 +2623,92 @@ export function createZaloBotService({
       ok: true,
       botCheck,
       webhookSetup,
+      status: getPublicStatus(viewerCtx)
+    };
+  }
+
+  /**
+   * Auto-restore `botToken`, `bindings`, `customUnits`, and `unitPasswords` from the Dispatcher's
+   * Browser Vault (`localStorage`) whenever an ephemeral cloud container (e.g. Render redeploy) restarts!
+   */
+  async function restoreBackup({
+    botToken = '',
+    demoFastMode,
+    requirePairingPassword,
+    bindings = [],
+    customUnits = {},
+    unitPasswords = {},
+    detectedOrigin = '',
+    viewerCtx = {}
+  } = {}) {
+    const viewerIsAdmin = Boolean(viewerCtx?.viewerIsAdmin);
+    let restoredToken = false;
+    let restoredBindingsCount = 0;
+
+    if (typeof demoFastMode === 'boolean') {
+      state.demoFastMode = demoFastMode;
+    }
+    if (viewerIsAdmin && typeof requirePairingPassword === 'boolean') {
+      state.requirePairingPassword = requirePairingPassword;
+    }
+
+    if (customUnits && typeof customUnits === 'object') {
+      for (const [rawCode, u] of Object.entries(customUnits)) {
+        if (!u || typeof u !== 'object') continue;
+        const normCode = normalizeUnitCode(rawCode || u.unitCode);
+        if (!normCode) continue;
+        if (!viewerIsAdmin && (String(u.level || '').toLowerCase() === 'national' || normCode === 'tongtrucban')) continue;
+        if (!state.customUnits[normCode]) {
+          state.customUnits[normCode] = { ...u, unitCode: normCode };
+        }
+      }
+    }
+
+    if (viewerIsAdmin && unitPasswords && typeof unitPasswords === 'object') {
+      for (const [rawCode, passVal] of Object.entries(unitPasswords)) {
+        const normCode = normalizeUnitCode(rawCode);
+        const cleanPass = String(passVal || '').trim();
+        if (normCode && cleanPass && !state.unitPasswords[normCode]) {
+          state.unitPasswords[normCode] = cleanPass;
+        }
+      }
+    }
+
+    if (Array.isArray(bindings)) {
+      for (const b of bindings) {
+        if (!b || !b.chatId || !b.unitCode) continue;
+        const normCode = normalizeUnitCode(b.unitCode);
+        if (!viewerIsAdmin && (String(b.level || '').toLowerCase() === 'national' || normCode === 'tongtrucban')) continue;
+        const exists = state.bindings.some(x => String(x.chatId) === String(b.chatId));
+        if (!exists) {
+          state.bindings.push({
+            ...b,
+            chatId: String(b.chatId),
+            enabled: b.enabled !== false,
+            restoredAt: new Date().toISOString()
+          });
+          restoredBindingsCount += 1;
+        }
+      }
+    }
+
+    const candidateToken = typeof botToken === 'string' ? botToken.trim() : '';
+    if (!state.botToken && candidateToken.length > 0 && !candidateToken.includes('••••')) {
+      restoredToken = true;
+      await updateConfig({
+        botToken: candidateToken,
+        detectedOrigin,
+        viewerCtx,
+        forceWebhookSync: true
+      });
+    } else {
+      persistState();
+    }
+
+    return {
+      ok: true,
+      restoredToken,
+      restoredBindingsCount,
       status: getPublicStatus(viewerCtx)
     };
   }
@@ -2229,18 +2798,148 @@ export function createZaloBotService({
       escalationSeconds: state.escalationSeconds,
       effectiveReminderSeconds: Math.round(getEffectiveReminderMs() / 1000),
       effectiveEscalationSeconds: Math.round(getEffectiveEscalationMs() / 1000),
+      customUnits: state.customUnits || {},
       presets: enrichedPresets,
       bindings: enrichedBindings,
-      recentOutbox: state.outboxLog.slice(-15).reverse()
+      recentOutbox: state.outboxLog.slice(-30).reverse()
     };
+  }
+
+  function renderIncidentMediaGalleryHtml(incident, fallbackOrigin = '') {
+    if (!incident || !Array.isArray(incident.media) || incident.media.length === 0) {
+      return '';
+    }
+    const cards = incident.media.map((rawItem, idx) => {
+      const parsed = parseIncidentMediaItem(rawItem, idx);
+      if (!parsed.dataUrl) return '';
+      const src = parsed.isExternalHttp
+        ? parsed.dataUrl
+        : buildSignedMediaBinaryUrl(incident.id, idx, rawItem, fallbackOrigin);
+      if (parsed.kind === 'video') {
+        return `<div style="margin-bottom:10px;">
+          <div style="font-size:11.5px;color:#7dd3fc;font-weight:700;margin-bottom:4px;">🎥 Video hiện trường #${idx + 1}</div>
+          <video src="${escapeHtml(src)}" controls playsinline preload="metadata" style="width:100%;max-height:340px;border-radius:10px;border:1px solid rgba(56,189,248,0.45);background:#000;"></video>
+        </div>`;
+      }
+      return `<div style="margin-bottom:10px;">
+        <div style="font-size:11.5px;color:#86efac;font-weight:700;margin-bottom:4px;">📷 Ảnh hiện trường #${idx + 1}</div>
+        <a href="${escapeHtml(src)}" target="_blank" rel="noopener" style="display:block;">
+          <img src="${escapeHtml(src)}" alt="Ảnh hiện trường #${idx + 1}" style="width:100%;max-height:360px;object-fit:contain;border-radius:10px;border:1px solid rgba(16,185,129,0.45);background:#020617;" />
+        </a>
+      </div>`;
+    }).filter(Boolean).join('');
+
+    if (!cards) return '';
+    return `<div style="background:rgba(2,6,23,0.75);border:1px solid rgba(56,189,248,0.35);border-radius:12px;padding:12px;margin:12px 0;">
+      <div style="font-size:12.5px;font-weight:800;color:#38bdf8;margin-bottom:8px;">📸 HÌNH ẢNH &amp; VIDEO HIỆN TRƯỜNG NGƯỜI DÂN GỬI (${incident.media.length})</div>
+      ${cards}
+    </div>`;
+  }
+
+  /**
+   * Render a crisp mobile-first HTML5 Video & Photo Player page (`/api/zalo/media-view`)
+   * so officers tapping a citizen photo/video link inside Zalo can immediately play the video
+   * with sound, view all scene photos, navigate via Google Maps, or 1-tap accept the SOS!
+   */
+  function renderMediaViewerHtml({ ok, incident, mediaIndex = 0, chatId = '', fallbackOrigin = '', error = '' }) {
+    if (!ok || !incident || !Array.isArray(incident.media) || incident.media.length === 0) {
+      return `<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Bằng Chứng Hiện Trường SOS</title></head>
+<body style="margin:0;min-height:100vh;background:#020617;color:#f8fafc;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:440px;background:#0f172a;border:1.5px solid #f59e0b;border-radius:16px;padding:20px;text-align:center;">
+    <h2 style="margin:0 0 8px 0;font-size:18px;color:#fbbf24;">Không thể mở Ảnh / Video hiện trường</h2>
+    <p style="font-size:13.5px;color:#cbd5e1;line-height:1.5;">${escapeHtml(error || 'Liên kết không hợp lệ hoặc hồ sơ chưa có tệp đính kèm.')}</p>
+  </div>
+</body></html>`;
+    }
+
+    const safeIdx = Math.max(0, Math.min(incident.media.length - 1, Number(mediaIndex) || 0));
+    const primaryParsed = parseIncidentMediaItem(incident.media[safeIdx], safeIdx);
+    const primarySrc = primaryParsed.isExternalHttp
+      ? primaryParsed.dataUrl
+      : buildSignedMediaBinaryUrl(incident.id, safeIdx, incident.media[safeIdx], fallbackOrigin);
+
+    const firstImgIdx = incident.media.findIndex((m, i) => parseIncidentMediaItem(m, i).kind === 'image');
+    const ogImageUrl = firstImgIdx >= 0
+      ? buildSignedMediaBinaryUrl(incident.id, firstImgIdx, incident.media[firstImgIdx], fallbackOrigin)
+      : '';
+
+    const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(incident.lat)},${encodeURIComponent(incident.lng)}`;
+    const telHref = incident.reporterPhone ? `tel:${escapeHtml(incident.reporterPhone)}` : '';
+    const isWaiting = incident.status === 'pending' || incident.status === 'escalated';
+    const quickAcceptUrl = (chatId && isWaiting) ? buildQuickAcceptUrl(incident.id, chatId, fallbackOrigin) : '';
+    const pageTitle = primaryParsed.kind === 'video'
+      ? `🎥 Video Hiện Trường #${incident.id} — SOS Việt Nam 2026`
+      : `📷 Ảnh Hiện Trường #${incident.id} — SOS Việt Nam 2026`;
+
+    const otherItemsHtml = incident.media.length > 1
+      ? incident.media.map((rawItem, idx) => {
+          if (idx === safeIdx) return '';
+          const p = parseIncidentMediaItem(rawItem, idx);
+          const s = p.isExternalHttp ? p.dataUrl : buildSignedMediaBinaryUrl(incident.id, idx, rawItem, fallbackOrigin);
+          return p.kind === 'video'
+            ? `<div style="margin-top:10px;"><div style="font-size:11.5px;color:#7dd3fc;font-weight:700;margin-bottom:4px;">🎥 Video đính kèm #${idx + 1}</div><video src="${escapeHtml(s)}" controls playsinline preload="metadata" style="width:100%;max-height:320px;border-radius:10px;background:#000;border:1px solid rgba(56,189,248,0.4);"></video></div>`
+            : `<div style="margin-top:10px;"><div style="font-size:11.5px;color:#86efac;font-weight:700;margin-bottom:4px;">📷 Ảnh đính kèm #${idx + 1}</div><img src="${escapeHtml(s)}" alt="Hiện trường #${idx + 1}" style="width:100%;max-height:340px;object-fit:contain;border-radius:10px;background:#020617;border:1px solid rgba(16,185,129,0.4);"/></div>`;
+        }).filter(Boolean).join('')
+      : '';
+
+    return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3" />
+  <meta property="og:title" content="${escapeHtml(pageTitle)}" />
+  <meta property="og:description" content="${escapeHtml(`${incident.reporterName || 'Người dân'} — ${incident.address || ''}`)}" />
+  ${ogImageUrl ? `<meta property="og:image" content="${escapeHtml(ogImageUrl)}" />` : ''}
+  <title>${escapeHtml(pageTitle)}</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); color: #f8fafc; padding: 14px; display: flex; justify-content: center; align-items: flex-start; }
+    .card { width: 100%; max-width: 520px; background: rgba(15, 23, 42, 0.96); border: 1.5px solid #38bdf8; border-radius: 18px; padding: 18px 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.75); }
+    .badge { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: rgba(56,189,248,0.18); color: #38bdf8; border: 1px solid rgba(56,189,248,0.45); margin-bottom: 10px; }
+    h1 { font-size: 18px; margin: 0 0 10px 0; color: #fff; line-height: 1.35; }
+    .player-box { background: #000; border-radius: 12px; overflow: hidden; border: 1px solid rgba(56,189,248,0.45); margin-bottom: 12px; }
+    .meta { background: rgba(2, 6, 23, 0.7); border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 12px; padding: 11px 13px; margin: 12px 0; font-size: 13.5px; line-height: 1.55; color: #cbd5e1; }
+    .meta b { color: #f8fafc; }
+    .btn { display: block; width: 100%; text-align: center; text-decoration: none; padding: 13px 15px; border-radius: 12px; font-weight: 800; font-size: 14.5px; margin-top: 9px; }
+    .btn-accept { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; box-shadow: 0 8px 22px rgba(239, 68, 68, 0.4); }
+    .btn-map { background: linear-gradient(135deg, #059669, #10b981); color: #fff; }
+    .btn-call { background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">${primaryParsed.kind === 'video' ? '🎥 VIDEO HIỆN TRƯỜNG TRỰC TIẾP TỪ NGƯỜI DÂN' : '📷 HÌNH ẢNH HIỆN TRƯỜNG TRỰC TIẾP TỪ NGƯỜI DÂN'}</div>
+    <h1>Hồ sơ khẩn cấp #${escapeHtml(incident.id)}</h1>
+    <div class="player-box">
+      ${primaryParsed.kind === 'video'
+        ? `<video src="${escapeHtml(primarySrc)}" controls autoplay playsinline preload="metadata" style="width:100%;max-height:68vh;display:block;background:#000;"></video>`
+        : `<img src="${escapeHtml(primarySrc)}" alt="Ảnh hiện trường" style="width:100%;max-height:70vh;object-fit:contain;display:block;background:#000;" />`
+      }
+    </div>
+    ${otherItemsHtml}
+    <div class="meta">
+      <div><b>Người dân gửi:</b> ${escapeHtml(incident.reporterName || 'Người dân')}</div>
+      <div><b>Số điện thoại:</b> ${escapeHtml(incident.reporterPhone || 'Đang cập nhật')}</div>
+      <div><b>Địa điểm GPS:</b> ${escapeHtml(incident.address || '')} (${Number(incident.lat).toFixed(5)}, ${Number(incident.lng).toFixed(5)})</div>
+      ${incident.customNotes ? `<div><b>Mô tả hiện trường:</b> ${escapeHtml(incident.customNotes)}</div>` : ''}
+      <div><b>Đơn vị phụ trách:</b> ${escapeHtml(incident.assignedUnit?.name || '')}</div>
+    </div>
+    ${quickAcceptUrl ? `<a class="btn btn-accept" href="${escapeHtml(quickAcceptUrl)}">✅ XÁC NHẬN TIẾP NHẬN CA NÀY NGAY</a>` : ''}
+    <a class="btn btn-map" href="${gmapsUrl}" target="_blank" rel="noopener">🧭 MỞ GOOGLE MAPS DẪN ĐƯỜNG TỚI NẠN NHÂN</a>
+    ${telHref ? `<a class="btn btn-call" href="${telHref}">📞 GỌI ĐIỆN NGAY CHO NGƯỜI DÂN (${escapeHtml(incident.reporterPhone)})</a>` : ''}
+  </div>
+</body>
+</html>`;
   }
 
   /**
    * Render a crisp mobile-first confirmation screen when an officer taps the
    * 1-Tap Quick-Accept link inside Zalo on their phone, including an instant
-   * officer-name update box if a different officer in the group tapped the link!
+   * officer-name update box AND inline citizen scene photos/videos!
    */
-  function renderQuickAcceptHtml({ ok, incident, error = '', alreadyHandled = false, chatId = '', sig = '' }) {
+  function renderQuickAcceptHtml({ ok, incident, error = '', alreadyHandled = false, chatId = '', sig = '', origin = '' }) {
     const title = ok
       ? `Đã Tiếp Nhận Ca #${escapeHtml(incident?.id || '')}`
       : `Thông Báo Tiếp Nhận SOS`;
@@ -2250,6 +2949,7 @@ export function createZaloBotService({
     const telHref = incident?.reporterPhone ? `tel:${escapeHtml(incident.reporterPhone)}` : '';
     const currentOfficerName = incident?.dispatchUnit?.officerName || '';
     const currentOfficerTitle = incident?.dispatchUnit?.officerFullTitle || currentOfficerName || 'Cán bộ trực ban';
+    const mediaGalleryHtml = ok && incident ? renderIncidentMediaGalleryHtml(incident, origin) : '';
 
     return `<!DOCTYPE html>
 <html lang="vi">
@@ -2261,7 +2961,7 @@ export function createZaloBotService({
   <style>
     * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
     body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); color: #f8fafc; display: flex; align-items: center; justify-content: center; padding: 18px; }
-    .card { width: 100%; max-width: 450px; background: rgba(15, 23, 42, 0.95); border: 1.5px solid ${ok ? '#10b981' : '#f59e0b'}; border-radius: 18px; padding: 22px 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.65); }
+    .card { width: 100%; max-width: 460px; background: rgba(15, 23, 42, 0.95); border: 1.5px solid ${ok ? '#10b981' : '#f59e0b'}; border-radius: 18px; padding: 22px 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.65); }
     .badge { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: 0.4px; background: ${ok ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}; color: ${ok ? '#34d399' : '#fbbf24'}; border: 1px solid ${ok ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.45)'}; margin-bottom: 12px; }
     h1 { font-size: 20px; margin: 0 0 8px 0; line-height: 1.3; color: #ffffff; }
     .meta { background: rgba(2, 6, 23, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 12px 14px; margin: 14px 0; font-size: 14px; line-height: 1.6; color: #cbd5e1; }
@@ -2288,6 +2988,7 @@ export function createZaloBotService({
           ? `Ca này đang được lực lượng điều động xử lý (${escapeHtml(incident.dispatchUnit?.unitName || incident.assignedUnit?.name || '')}).`
           : `Hệ thống Trung tâm Chỉ huy đã ghi nhận xuất phát, tắt còi báo động & hủy đếm ngược leo thang!`}
       </div>
+      ${mediaGalleryHtml}
       <div class="meta">
         <div><b>Đơn vị điều động:</b> ${escapeHtml(incident.dispatchUnit?.unitName || incident.assignedUnit?.name || '')}</div>
         <div><b>Cán bộ tiếp nhận:</b> <span id="lblOfficerTitle">${escapeHtml(currentOfficerTitle)}</span></div>
@@ -2331,6 +3032,7 @@ export function createZaloBotService({
   return {
     getPublicStatus,
     updateConfig,
+    restoreBackup,
     resolveUnitByCode,
     resolveUnitByCodeOrQuery,
     resolveDefaultPasswordForUnit,
@@ -2340,14 +3042,23 @@ export function createZaloBotService({
     updateBinding,
     unlinkBinding,
     sendZaloMessage,
+    sendZaloPhoto,
+    sendZaloVideo,
     broadcastAnnouncement,
     onIncidentCreated,
     onIncidentEscalated,
+    onCitizenMediaReceived,
     onIncidentAcceptedOrClosed,
     clearIncidentZaloTimer,
     clearAllIncidentTimers,
     handleWebhookPayload,
     verifyQuickAccept,
+    signMediaAccess,
+    verifyMediaAccess,
+    decodeIncidentMediaBuffer,
+    buildSignedMediaBinaryUrl,
+    buildSignedMediaViewerUrl,
+    renderMediaViewerHtml,
     renderQuickAcceptHtml,
     getEffectiveEscalationMs,
     getEffectiveReminderMs,

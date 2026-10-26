@@ -616,6 +616,216 @@ async function run() {
       }
     );
 
+    // 12a. Citizen Initial SOS with Photo + Video -> Forwarded to Zalo + Anti-Bot Safe Binary Stream (200 & 206 Range) + HTML5 Video Viewer
+    const samplePngDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const sampleMp4DataUrl = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAACBtZGF0AAAAAAAAAAAAAAAA';
+
+    const mediaSosRes = await fetch(`${BASE_URL}/api/sos/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
+      body: JSON.stringify({
+        agency: 'police',
+        incidentTags: ['Tai nạn giao thông nghiêm trọng'],
+        customNotes: 'Có hình ảnh & video hiện trường trực tiếp từ người dân',
+        reporterName: 'Anh Nguyễn Minh Khôi',
+        reporterPhone: '0905113999',
+        lat: 10.02728,
+        lng: 105.76097,
+        address: 'Phường Tân An, Quận Ninh Kiều, TP. Cần Thơ',
+        media: [
+          { type: 'image', name: 'hien-truong-1.png', dataUrl: samplePngDataUrl },
+          { type: 'video', name: 'video-hien-truong-1.mp4', dataUrl: sampleMp4DataUrl }
+        ]
+      })
+    });
+    const mediaSosJson = await mediaSosRes.json();
+    const mediaSosId = mediaSosJson?.incident?.id;
+    const mediaCitizenToken = mediaSosJson?.citizenAccessToken || '';
+    await page.waitForTimeout(350);
+
+    const statusAfterMediaSos = await page.evaluate(async () => {
+      const r = await fetch('/api/dispatcher/zalo/status');
+      return r.json();
+    });
+    const mediaOutbox = (statusAfterMediaSos.recentOutbox || []).filter(m => m.incidentId === mediaSosId);
+    const initialAlertEntry = mediaOutbox.find(m => m.stage === 'initial');
+    const photoEntry = mediaOutbox.find(m => m.stage === 'initial_media_photo');
+    const videoEntry = mediaOutbox.find(m => m.stage === 'initial_media_video');
+
+    const localPhotoBinaryUrl = photoEntry?.mediaUrl
+      ? String(photoEntry.mediaUrl).replace(/^https?:\/\/[^/]+/, BASE_URL)
+      : '';
+    const localVideoBinaryUrl = videoEntry?.mediaUrl
+      ? String(videoEntry.mediaUrl).replace(/^https?:\/\/[^/]+/, BASE_URL)
+      : '';
+    const localMediaViewerUrl = (videoEntry?.viewerUrl || photoEntry?.viewerUrl)
+      ? String(videoEntry?.viewerUrl || photoEntry?.viewerUrl).replace(/^https?:\/\/[^/]+/, BASE_URL)
+      : '';
+
+    // Fetch binary endpoints using Go-http-client/1.1 (Zalo Bot Platform server User-Agent) + HTTP Range for video
+    const goPhotoFetch = localPhotoBinaryUrl
+      ? await fetch(localPhotoBinaryUrl, { headers: { 'User-Agent': 'Go-http-client/1.1' } })
+      : null;
+    const goPhotoBuf = goPhotoFetch ? Buffer.from(await goPhotoFetch.arrayBuffer()) : Buffer.alloc(0);
+
+    const goVideoRangeFetch = localVideoBinaryUrl
+      ? await fetch(localVideoBinaryUrl, { headers: { 'User-Agent': 'Go-http-client/1.1', Range: 'bytes=0-15' } })
+      : null;
+    const goVideoRangeBuf = goVideoRangeFetch ? Buffer.from(await goVideoRangeFetch.arrayBuffer()) : Buffer.alloc(0);
+
+    const viewerFetch = localMediaViewerUrl
+      ? await fetch(localMediaViewerUrl, { headers: { 'User-Agent': CHROME_UA } })
+      : null;
+    const viewerHtml = viewerFetch ? await viewerFetch.text() : '';
+
+    assertCheck(
+      '12a. Initial SOS Photo & Video forward to Zalo, pass Go-http-client Anti-Bot WAF, support HTTP 206 Video Range, and render HTML5 player',
+      Boolean(mediaSosId && initialAlertEntry && photoEntry && videoEntry) &&
+        String(initialAlertEntry.text || '').includes('1 ảnh & 1 video') &&
+        goPhotoFetch?.status === 200 &&
+        String(goPhotoFetch.headers.get('content-type') || '').includes('image/png') &&
+        goPhotoFetch.headers.get('cross-origin-resource-policy') === 'cross-origin' &&
+        goPhotoBuf.length > 40 &&
+        goVideoRangeFetch?.status === 206 &&
+        String(goVideoRangeFetch.headers.get('content-type') || '').includes('video/mp4') &&
+        goVideoRangeBuf.length === 16 &&
+        viewerFetch?.status === 200 &&
+        viewerHtml.includes('<video') &&
+        viewerHtml.includes('controls'),
+      {
+        mediaSosId,
+        photoStatus: goPhotoFetch?.status,
+        photoBytes: goPhotoBuf.length,
+        videoRangeStatus: goVideoRangeFetch?.status,
+        videoRangeBytes: goVideoRangeBuf.length,
+        viewerStatus: viewerFetch?.status
+      }
+    );
+
+    // 12b. Live Active-SOS Citizen Upload (`POST /api/sos/media`) forwards new photo/video to Zalo even AFTER officer accepts the SOS!
+    const mediaQaLinkMatch = (initialAlertEntry?.text || '').match(/(https?:\/\/[^\s]+\/api\/zalo\/quick-accept\?[^\s]+)/);
+    if (mediaQaLinkMatch) {
+      const localQaUrl = mediaQaLinkMatch[1].replace(/^https?:\/\/[^/]+/, BASE_URL);
+      await fetch(localQaUrl, { headers: { 'User-Agent': CHROME_UA } });
+    }
+
+    const liveUploadRes = await fetch(`${BASE_URL}/api/sos/media`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': CHROME_UA,
+        'x-citizen-access-token': mediaCitizenToken
+      },
+      body: JSON.stringify({
+        incidentId: mediaSosId,
+        sender: 'citizen',
+        senderName: 'Anh Nguyễn Minh Khôi',
+        caption: 'Biển số xe gây tai nạn vừa chụp thêm tại hiện trường',
+        media: [
+          { type: 'image', name: 'bien-so-xe.png', dataUrl: samplePngDataUrl }
+        ]
+      })
+    });
+    const liveUploadJson = await liveUploadRes.json();
+    await page.waitForTimeout(300);
+
+    const statusAfterLiveUpload = await page.evaluate(async () => {
+      const r = await fetch('/api/dispatcher/zalo/status');
+      return r.json();
+    });
+    const liveChatMediaOutbox = (statusAfterLiveUpload.recentOutbox || []).filter(
+      m => m.incidentId === mediaSosId && m.stage === 'chat_media_photo'
+    );
+
+    assertCheck(
+      '12b. Live Citizen Scene Photo/Video upload during active SOS (`POST /api/sos/media`) updates incident & pushes immediately to Zalo',
+      liveUploadRes.status === 200 &&
+        liveUploadJson?.ok === true &&
+        liveUploadJson?.totalMediaCount === 3 &&
+        liveChatMediaOutbox.length >= 1 &&
+        String(liveChatMediaOutbox[0]?.text || '').includes('Biển số xe gây tai nạn vừa chụp thêm'),
+      {
+        httpStatus: liveUploadRes.status,
+        totalMediaCount: liveUploadJson?.totalMediaCount,
+        liveZaloDispatches: liveChatMediaOutbox.length
+      }
+    );
+
+    // 12c. Sticky BOT_TOKEN UI Persistence: Saving once persists token & badge; re-saving modal WITHOUT re-typing token NEVER wipes it!
+    await page.locator('#inputZaloBotToken').scrollIntoViewIfNeeded();
+    await page.fill('#inputZaloBotToken', '987654321:StickyZaloToken2026');
+    const [saveTokenResp] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/dispatcher/zalo/config') && r.request().method() === 'POST'),
+      page.click('#btnSaveZaloBotConfig')
+    ]);
+    const saveTokenJson = await saveTokenResp.json();
+    await page.waitForTimeout(250);
+
+    // Close modal, re-open modal, toggle Demo Fast Mode WITHOUT touching #inputZaloBotToken, and click Save again!
+    await page.click('#btnCloseZaloBotModal');
+    await page.waitForTimeout(150);
+    await page.click('#btnHeaderZaloBot');
+    await page.waitForTimeout(350);
+
+    const preSecondSaveUi = await page.evaluate(() => ({
+      badgeVisible: getComputedStyle(document.getElementById('zaloSavedTokenBadgeRow')).display !== 'none',
+      inputVal: document.getElementById('inputZaloBotToken')?.value || '',
+      isMaskedAttr: document.getElementById('inputZaloBotToken')?.dataset?.isMasked || '',
+      vaultRaw: localStorage.getItem('sos_zalo_bot_vault_v1') || ''
+    }));
+
+    await page.click('#chkZaloDemoFastMode');
+    const [secondSaveResp] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/dispatcher/zalo/config') && r.request().method() === 'POST'),
+      page.click('#btnSaveZaloBotConfig')
+    ]);
+    const secondSaveJson = await secondSaveResp.json();
+    await page.waitForTimeout(250);
+
+    assertCheck(
+      '12c. Sticky BOT_TOKEN UI: Token stays saved across modal close/reopen & subsequent config saves without re-entering',
+      saveTokenJson?.status?.hasToken === true &&
+        preSecondSaveUi.badgeVisible === true &&
+        preSecondSaveUi.inputVal.includes('••••') &&
+        preSecondSaveUi.isMaskedAttr === '1' &&
+        preSecondSaveUi.vaultRaw.includes('987654321:StickyZaloToken2026') &&
+        secondSaveJson?.status?.hasToken === true &&
+        secondSaveJson?.status?.maskedToken === saveTokenJson?.status?.maskedToken,
+      {
+        firstMasked: saveTokenJson?.status?.maskedToken,
+        secondHasToken: secondSaveJson?.status?.hasToken,
+        secondMasked: secondSaveJson?.status?.maskedToken,
+        badgeVisible: preSecondSaveUi.badgeVisible
+      }
+    );
+
+    // 12d. Ephemeral Cloud Container Restart Auto-Restore (`POST /api/dispatcher/zalo/restore-backup` from Browser Vault)
+    const vaultRestoreResult = await page.evaluate(async () => {
+      // Simulate server container losing token in memory while Browser Vault still holds it
+      await fetch('/api/dispatcher/zalo/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearToken: true })
+      });
+      const afterWipe = await (await fetch('/api/dispatcher/zalo/status')).json();
+      window.dispatcherApp._zaloVaultRestoredOnce = false;
+      await window.dispatcherApp.refreshZaloBotStatus(false);
+      const afterAutoRestore = await (await fetch('/api/dispatcher/zalo/status')).json();
+      return {
+        wipedHasToken: afterWipe.hasToken,
+        restoredHasToken: afterAutoRestore.hasToken,
+        restoredMaskedToken: afterAutoRestore.maskedToken
+      };
+    });
+
+    assertCheck(
+      '12d. Browser Vault auto-restores saved BOT_TOKEN & bindings via /api/dispatcher/zalo/restore-backup after container restart',
+      vaultRestoreResult.wipedHasToken === false &&
+        vaultRestoreResult.restoredHasToken === true &&
+        vaultRestoreResult.restoredMaskedToken === saveTokenJson?.status?.maskedToken,
+      vaultRestoreResult
+    );
+
     // Dismiss floating banner so modal header isn't covered, scroll Step 1 + Step 2 + Preset Cards into view, & capture desktop verification screenshot
     await page.click('#btnCloseLiveSysBanner').catch(() => {});
     await page.locator('#chkZaloRequirePairingPassword').scrollIntoViewIfNeeded();
@@ -623,7 +833,7 @@ async function run() {
     await page.screenshot({ path: SCREENSHOT_PATH });
 
     assertCheck(
-      '12. Desktop & Mobile screenshots captured cleanly',
+      '13. Desktop & Mobile screenshots captured cleanly',
       fs.existsSync(SCREENSHOT_PATH) && fs.existsSync(MOBILE_ACCEPT_SCREENSHOT_PATH),
       { desktopScreenshot: SCREENSHOT_PATH, mobileScreenshot: MOBILE_ACCEPT_SCREENSHOT_PATH }
     );

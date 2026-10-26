@@ -838,12 +838,86 @@ public class ZaloBotDispatchService {
         if (patch.containsKey("demoFastMode")) state.setDemoFastMode(Boolean.parseBoolean(String.valueOf(patch.get("demoFastMode"))));
         if (patch.containsKey("requirePairingPassword")) state.setRequirePairingPassword(Boolean.parseBoolean(String.valueOf(patch.get("requirePairingPassword"))));
         if (patch.containsKey("publicBaseUrl")) state.setPublicBaseUrl(String.valueOf(patch.get("publicBaseUrl")).trim());
-        if (patch.containsKey("botToken")) {
+        if (Boolean.TRUE.equals(patch.get("clearToken"))) {
+            state.setBotToken("");
+        } else if (patch.containsKey("botToken") && patch.get("botToken") != null) {
             String tok = String.valueOf(patch.get("botToken")).trim();
-            if (!tok.contains("••••")) state.setBotToken(tok);
+            // Sticky Token Protection: never wipe saved BOT_TOKEN on empty ("") or masked ("••••") input!
+            if (!tok.isEmpty() && !tok.contains("••••")) {
+                state.setBotToken(tok);
+            }
         }
         saveState();
         return getPublicStatus();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> restoreBackup(Map<String, Object> backup) {
+        if (backup == null) return Map.of("ok", true, "status", getPublicStatus());
+        boolean restoredToken = false;
+        int restoredBindingsCount = 0;
+
+        if (backup.containsKey("demoFastMode")) {
+            state.setDemoFastMode(Boolean.parseBoolean(String.valueOf(backup.get("demoFastMode"))));
+        }
+        if (backup.containsKey("requirePairingPassword")) {
+            state.setRequirePairingPassword(Boolean.parseBoolean(String.valueOf(backup.get("requirePairingPassword"))));
+        }
+        String candidateTok = String.valueOf(backup.getOrDefault("botToken", "")).trim();
+        if ((state.getBotToken() == null || state.getBotToken().isBlank()) && !candidateTok.isEmpty() && !candidateTok.contains("••••")) {
+            state.setBotToken(candidateTok);
+            restoredToken = true;
+        }
+        if (backup.get("bindings") instanceof List<?> rawList) {
+            for (Object item : rawList) {
+                if (!(item instanceof Map<?, ?> m)) continue;
+                ZaloBinding b = objectMapper.convertValue(m, ZaloBinding.class);
+                if (b.getChatId() == null || b.getChatId().isBlank()) continue;
+                boolean exists = state.getBindings().stream().anyMatch(x -> Objects.equals(x.getChatId(), b.getChatId()));
+                if (!exists) {
+                    state.getBindings().add(b);
+                    restoredBindingsCount++;
+                }
+            }
+        }
+        saveState();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("ok", true);
+        out.put("restoredToken", restoredToken);
+        out.put("restoredBindingsCount", restoredBindingsCount);
+        out.put("status", getPublicStatus());
+        return out;
+    }
+
+    public Map<String, Object> sendZaloPhoto(String chatId, String photoUrl, String caption, Map<String, Object> meta) {
+        String safeCap = caption == null ? "" : (caption.length() > 800 ? caption.substring(0, 800) : caption);
+        if (state.getBotToken() == null || state.getBotToken().isBlank()) {
+            Map<String, Object> sim = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+            sim.put("chatId", chatId);
+            sim.put("text", safeCap);
+            sim.put("mediaType", "image");
+            sim.put("mediaUrl", photoUrl);
+            sim.put("simulated", true);
+            sim.put("delivered", false);
+            sim.put("timestamp", java.time.Instant.now().toString());
+            state.getOutboxLog().add(sim);
+            saveState();
+            return Map.of("ok", true, "simulated", true, "mediaUrl", photoUrl);
+        }
+        try {
+            String apiUrl = "https://bot-api.zaloplatforms.com/bot" + state.getBotToken().trim() + "/sendPhoto";
+            String json = objectMapper.writeValueAsString(Map.of("chat_id", chatId, "photo", photoUrl, "caption", safeCap));
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(apiUrl))
+                    .header("Content-Type", "application/json")
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            java.net.http.HttpResponse<String> resp = httpClient.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
+                return Map.of("ok", true, "delivered", true, "mediaUrl", photoUrl);
+            }
+        } catch (Exception ignored) {
+        }
+        return sendZaloMessage(chatId, safeCap + "\n🔍 Xem ảnh hiện trường gốc:\n" + photoUrl, meta == null ? Map.of() : meta);
     }
 
     public int unlinkChat(String chatId, String unitCode) {

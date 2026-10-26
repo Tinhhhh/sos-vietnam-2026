@@ -1,10 +1,10 @@
 {
   "suite": "Hierarchical Zalo Bot Dispatch & Two-Way Field Acceptance E2E QA",
-  "timestamp": "2026-10-25T15:06:30.323Z",
+  "timestamp": "2026-10-26T00:57:30.013Z",
   "targetUrl": "http://127.0.0.1:3099",
   "summary": {
-    "total": 15,
-    "passed": 15,
+    "total": 19,
+    "passed": 19,
     "failed": 0
   },
   "assertions": [
@@ -88,7 +88,7 @@
       "name": "3. Territorial Ward Isolation: SOS in Phường Tân An routes ONLY to zalo_grp_tanan_01 (not Long Tuyền or CSGT)",
       "passed": true,
       "details": {
-        "incidentId": "IOT-MVNYNPXJ-487",
+        "incidentId": "IOT-MVOJRPES-221",
         "notifiedChatsForTanAn": [
           "zalo_grp_tanan_01"
         ]
@@ -113,7 +113,7 @@
       "name": "6. Two-Way Zalo Chat Reply \"@BotSOS TN\" routes Step-2 SOS to CSGT and transitions status to dispatching",
       "passed": true,
       "details": {
-        "csgtId": "IOT-MVNYNQW7-494",
+        "csgtId": "IOT-MVOJRQI9-761",
         "status": "dispatching",
         "acceptedVia": "zalo_chat",
         "officer": "Đại úy Lê Quốc Bảo"
@@ -123,7 +123,7 @@
       "name": "7. Provincial Escalation dispatches urgent alert to Chỉ Huy Công An TP. Cần Thơ (zalo_grp_chihuy_ct)",
       "passed": true,
       "details": {
-        "escId": "IOT-MVNYNR46-615",
+        "escId": "IOT-MVOJRQQ0-853",
         "hqChats": [
           "zalo_grp_chihuy_ct"
         ]
@@ -150,8 +150,8 @@
         "defaultOfficerRank": "Thượng tá",
         "defaultPhone": "113",
         "enabled": true,
-        "linkedAt": "2026-10-25T15:06:40.259Z",
-        "updatedAt": "2026-10-25T15:06:42.823Z",
+        "linkedAt": "2026-10-26T00:57:38.356Z",
+        "updatedAt": "2026-10-26T00:57:40.972Z",
         "hasCustomPassword": false
       }
     },
@@ -176,7 +176,7 @@
         "defaultOfficerRank": "Cán bộ",
         "defaultPhone": "02923820113",
         "enabled": true,
-        "linkedAt": "2026-10-25T15:06:43.526Z"
+        "linkedAt": "2026-10-26T00:57:41.649Z"
       }
     },
     {
@@ -203,7 +203,47 @@
       }
     },
     {
-      "name": "12. Desktop & Mobile screenshots captured cleanly",
+      "name": "12a. Initial SOS Photo & Video forward to Zalo, pass Go-http-client Anti-Bot WAF, support HTTP 206 Video Range, and render HTML5 player",
+      "passed": true,
+      "details": {
+        "mediaSosId": "SOS-MVOJRW6U-424",
+        "photoStatus": 200,
+        "photoBytes": 70,
+        "videoRangeStatus": 206,
+        "videoRangeBytes": 16,
+        "viewerStatus": 200
+      }
+    },
+    {
+      "name": "12b. Live Citizen Scene Photo/Video upload during active SOS (`POST /api/sos/media`) updates incident & pushes immediately to Zalo",
+      "passed": true,
+      "details": {
+        "httpStatus": 200,
+        "totalMediaCount": 3,
+        "liveZaloDispatches": 3
+      }
+    },
+    {
+      "name": "12c. Sticky BOT_TOKEN UI: Token stays saved across modal close/reopen & subsequent config saves without re-entering",
+      "passed": true,
+      "details": {
+        "firstMasked": "987654••••••••2026",
+        "secondHasToken": true,
+        "secondMasked": "987654••••••••2026",
+        "badgeVisible": true
+      }
+    },
+    {
+      "name": "12d. Browser Vault auto-restores saved BOT_TOKEN & bindings via /api/dispatcher/zalo/restore-backup after container restart",
+      "passed": true,
+      "details": {
+        "wipedHasToken": false,
+        "restoredHasToken": true,
+        "restoredMaskedToken": "987654••••••••2026"
+      }
+    },
+    {
+      "name": "13. Desktop & Mobile screenshots captured cleanly",
       "passed": true,
       "details": {
         "desktopScreenshot": "C:\\Users\\dienv\\Desktop\\sos_vietnam_2026_web_hosting\\Reports\\qa\\playwright\\2026-10-25-zalo-bot-modal-verified.png",

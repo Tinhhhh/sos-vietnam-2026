@@ -3571,9 +3571,13 @@
           <div style="font-size: 11px; color: #94a3b8; line-height: 1.45; margin-bottom: 8px;">
             Tạo Bot miễn phí tại <a href="https://bot.zaloplatforms.com" target="_blank" rel="noopener" style="color: #7dd3fc; font-weight: 700;">bot.zaloplatforms.com</a>, sao chép <b>BOT_TOKEN</b> dán vào ô dưới đây (hệ thống tự động gắn Webhook HTTPS hoặc Long-Polling):
           </div>
-          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 6px;">
             <input type="password" id="inputZaloBotToken" class="input-field" placeholder="Dán BOT_TOKEN (VD: 123456789:abcXYZ...)" style="flex: 1; font-size: 12px; padding: 8px 10px;" autocomplete="off" />
             <button type="button" id="btnToggleShowZaloToken" class="btn-refresh-loc" style="padding: 6px 10px; font-size: 11px; cursor: pointer;" title="Hiện/Ẩn Token">Hiện</button>
+          </div>
+          <div id="zaloSavedTokenBadgeRow" style="display: none; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; margin-bottom: 8px; border-radius: 8px; background: rgba(16, 185, 129, 0.14); border: 1px solid rgba(16, 185, 129, 0.42); font-size: 11px; color: #a7f3d0;">
+            <span>✅ <b>Đã lưu cố định BOT_TOKEN:</b> <code id="zaloSavedTokenMaskText" style="color: #34d399; font-weight: 800;"></code> <span style="color: #94a3b8;">(Tự động giữ cho lần sau)</span></span>
+            <button type="button" id="btnClearZaloBotToken" style="background: rgba(239, 68, 68, 0.16); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; border-radius: 6px; padding: 2px 8px; font-size: 10.5px; font-weight: 700; cursor: pointer; white-space: nowrap;">Xóa Token</button>
           </div>
           <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: #86efac; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 8px;">
             <input type="checkbox" id="chkZaloRequirePairingPassword" checked style="margin-top: 2px; cursor: pointer; accent-color: #10b981;" />
@@ -3739,7 +3743,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261025_zalo_bot_v5"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261026_zalo_bot_v6"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {
@@ -3755,7 +3759,7 @@
       }, true);
       // Prevent long-press save on iOS/Android
       document.addEventListener('touchstart', function(e) {
-        if (e.target && e.target.tagName === 'VIDEO') {
+        if (e.target && e.target.tagName === 'VIDEO' && !e.target.hasAttribute('data-scene-media') && !e.target.closest('#drawerMediaGrid') && !e.target.closest('.chat-bubble')) {
           e.target.style.pointerEvents = 'none';
         }
       }, {passive: true});
@@ -3772,6 +3776,9 @@
       function lockVideos() {
         var videos = document.querySelectorAll('video');
         videos.forEach(function(v) {
+          if (v.hasAttribute('data-scene-media') || v.closest('#drawerMediaGrid') || v.closest('.chat-bubble')) {
+            return;
+          }
           v.removeAttribute('controls');
           v.setAttribute('controlslist', 'nodownload nofullscreen noremoteplayback');
           v.disablePictureInPicture = true;

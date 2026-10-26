@@ -69,13 +69,28 @@ export const broadcastZaloAnnouncement = (payload) =>
     body: JSON.stringify(payload)
   });
 
+export const restoreZaloBotBackup = (payload) =>
+  requestJson('/api/dispatcher/zalo/restore-backup', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+
+export const uploadIncidentSceneMedia = (payload, citizenAccessToken = '') =>
+  requestJson('/api/sos/media', {
+    method: 'POST',
+    headers: citizenAccessToken ? { 'x-citizen-access-token': citizenAccessToken } : {},
+    body: JSON.stringify(payload)
+  });
+
 export const zaloBotApi = {
   getStatus: fetchZaloBotStatus,
   saveConfig: saveZaloBotConfig,
+  restoreBackup: restoreZaloBotBackup,
   registerCustomUnit: registerCustomZaloUnit,
   simulatePair: simulateZaloUnitPair,
   sendTestAlert: sendZaloTestAlert,
   updateBinding: updateZaloBinding,
   unlinkUnit: unlinkZaloUnit,
-  broadcastAnnouncement: broadcastZaloAnnouncement
+  broadcastAnnouncement: broadcastZaloAnnouncement,
+  uploadSceneMedia: uploadIncidentSceneMedia
 };

@@ -2,12 +2,28 @@ import React, { useEffect, useState } from 'react';
 import {
   fetchZaloBotStatus,
   saveZaloBotConfig,
+  restoreZaloBotBackup,
   registerCustomZaloUnit,
   simulateZaloUnitPair,
   sendZaloTestAlert,
   unlinkZaloUnit,
   broadcastZaloAnnouncement
 } from './zaloBotApi';
+
+const VAULT_KEY = 'sos_zalo_bot_vault_v1';
+const readVault = () => {
+  try {
+    return JSON.parse(localStorage.getItem(VAULT_KEY) || '{}');
+  } catch {
+    return {};
+  }
+};
+const writeVault = (patch = {}) => {
+  try {
+    const next = { ...readVault(), ...patch, updatedAt: new Date().toISOString() };
+    localStorage.setItem(VAULT_KEY, JSON.stringify(next));
+  } catch {}
+};
 
 const BROADCAST_TEMPLATES = {
   maintenance: {
@@ -61,10 +77,26 @@ export function ZaloBotConfigModal({ open, onClose }) {
 
   const reloadStatus = async () => {
     try {
-      const data = await fetchZaloBotStatus();
+      let data = await fetchZaloBotStatus();
+      const vault = readVault();
+      if (data && ((!data.hasToken && vault.botToken) || ((data.bindings || []).length === 0 && (vault.bindings || []).length > 0))) {
+        const restored = await restoreZaloBotBackup({
+          botToken: !data.hasToken ? vault.botToken : '',
+          demoFastMode: vault.demoFastMode,
+          requirePairingPassword: vault.requirePairingPassword,
+          bindings: (data.bindings || []).length === 0 ? (vault.bindings || []) : []
+        });
+        if (restored?.status) data = restored.status;
+      }
       setStatus(data);
       setDemoFastMode(Boolean(data?.demoFastMode));
       setRequirePairingPassword(data?.requirePairingPassword !== false);
+      const realBindings = (data?.bindings || []).filter((b) => b?.chatId && !String(b.chatId).startsWith('zalo_sim_'));
+      writeVault({
+        demoFastMode: Boolean(data?.demoFastMode),
+        requirePairingPassword: data?.requirePairingPassword !== false,
+        ...(realBindings.length > 0 ? { bindings: realBindings } : {})
+      });
       if (data?.viewerPairingCommand) {
         setGeneratedCmd(data.viewerPairingCommand);
       }
@@ -80,12 +112,15 @@ export function ZaloBotConfigModal({ open, onClose }) {
   if (!open) return null;
 
   const handleSave = async () => {
+    const cleanTok = botToken.trim();
+    const enteredRealToken = Boolean(cleanTok && !cleanTok.includes('••••'));
     const payload = { enabled: true, demoFastMode, requirePairingPassword };
-    if (botToken.trim()) payload.botToken = botToken.trim();
+    if (enteredRealToken) payload.botToken = cleanTok;
     const updated = await saveZaloBotConfig(payload);
+    if (enteredRealToken) writeVault({ botToken: cleanTok });
     setStatus(updated?.status || updated);
     setBotToken('');
-    setFeedback('✅ Đã lưu cấu hình Bot Zalo & kích hoạt bảo mật trực ban!');
+    setFeedback('✅ Đã lưu cố định cấu hình & BOT_TOKEN cho các lần sau!');
   };
 
   const handleGenerateCmd = async () => {

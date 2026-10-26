@@ -43,7 +43,7 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com https://db.onlinewebfonts.com",
   "img-src 'self' data: blob: https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com https://nominatim.openstreetmap.org https://photon.komoot.io",
-  "media-src 'self' https://d8j0ntlcm91z4.cloudfront.net https://assets.mixkit.co",
+  "media-src 'self' data: blob: https://d8j0ntlcm91z4.cloudfront.net https://assets.mixkit.co",
   "connect-src 'self' https://api.open-meteo.com https://nominatim.openstreetmap.org https://photon.komoot.io https://get.geojs.io https://router.project-osrm.org https://demotiles.maplibre.org https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com",
   "worker-src 'self' blob:"
 ].join('; ');
@@ -2718,9 +2718,104 @@ const server = http.createServer(async (req, res) => {
       allowOfficerRename: Boolean(officerParam),
       via: 'zalo_link'
     });
-    const html = zaloBotService.renderQuickAcceptHtml({ ...result, chatId: chat, sig });
+    const html = zaloBotService.renderQuickAcceptHtml({ ...result, chatId: chat, sig, origin: detectRequestOrigin(req) });
     res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(html);
+  }
+
+  // Public HMAC-Signed Citizen Scene Photo/Video Binary Stream & Mobile HTML5 Player for Zalo Bot Platform
+  // Placed BEFORE Anti-Bot WAF so Zalo Bot Platform's Go-http-client / media crawler and iOS/Android WebViews can fetch & stream byte ranges!
+  if ((urlPath === '/api/zalo/media' || urlPath.startsWith('/api/zalo/media/')) && (req.method === 'GET' || req.method === 'HEAD')) {
+    let incId = (urlObj.searchParams.get('id') || '').trim();
+    let mediaKey = (urlObj.searchParams.get('m') || '').trim();
+    let sig = (urlObj.searchParams.get('sig') || '').trim();
+
+    if (urlPath.startsWith('/api/zalo/media/')) {
+      const segs = urlPath.slice('/api/zalo/media/'.length).split('/').filter(Boolean);
+      if (segs.length >= 3) {
+        incId = decodeURIComponent(segs[0]);
+        mediaKey = decodeURIComponent(segs[1]);
+        sig = decodeURIComponent(segs[2]);
+      }
+    }
+
+    if (!incId || mediaKey === '' || !zaloBotService.verifyMediaAccess(incId, mediaKey, sig)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end('403 - Liên kết ảnh/video không hợp lệ');
+    }
+
+    const incident = incidents.get(incId);
+    const decoded = zaloBotService.decodeIncidentMediaBuffer(incident, mediaKey);
+    if (!decoded) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end('404 - Không tìm thấy tệp hiện trường');
+    }
+
+    if (decoded.redirectUrl) {
+      res.writeHead(302, { Location: decoded.redirectUrl, 'Cache-Control': 'public, max-age=3600' });
+      return res.end();
+    }
+
+    const buf = decoded.buffer;
+    const totalLen = buf.length;
+    const safeFilename = String(decoded.filename || 'hien-truong.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const baseHeaders = {
+      'Content-Type': decoded.mime || 'application/octet-stream',
+      'Accept-Ranges': 'bytes',
+      'Access-Control-Allow-Origin': '*',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Content-Disposition': `inline; filename="${safeFilename}"`,
+      'Cache-Control': 'public, max-age=86400'
+    };
+
+    const rangeHeader = req.headers.range;
+    if (rangeHeader && /^bytes=/i.test(rangeHeader) && totalLen > 0) {
+      const parts = rangeHeader.replace(/bytes=/i, '').split('-');
+      const start = Math.max(0, parseInt(parts[0], 10) || 0);
+      const rawEnd = parts[1] ? parseInt(parts[1], 10) : totalLen - 1;
+      const end = Math.min(totalLen - 1, Number.isFinite(rawEnd) ? rawEnd : totalLen - 1);
+      if (start >= totalLen || start > end) {
+        res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${totalLen}` });
+        return res.end();
+      }
+      const chunk = buf.subarray(start, end + 1);
+      res.writeHead(206, {
+        ...baseHeaders,
+        'Content-Range': `bytes ${start}-${end}/${totalLen}`,
+        'Content-Length': chunk.length
+      });
+      return req.method === 'HEAD' ? res.end() : res.end(chunk);
+    }
+
+    res.writeHead(200, {
+      ...baseHeaders,
+      'Content-Length': totalLen
+    });
+    return req.method === 'HEAD' ? res.end() : res.end(buf);
+  }
+
+  if (urlPath === '/api/zalo/media-view' && (req.method === 'GET' || req.method === 'HEAD')) {
+    const incId = (urlObj.searchParams.get('id') || '').trim();
+    const mediaKey = (urlObj.searchParams.get('m') || '0').trim();
+    const sig = (urlObj.searchParams.get('sig') || '').trim();
+    const chatId = (urlObj.searchParams.get('chat') || '').trim();
+    const valid = Boolean(incId && zaloBotService.verifyMediaAccess(incId, mediaKey, sig));
+    const incident = valid ? incidents.get(incId) : null;
+    const html = zaloBotService.renderMediaViewerHtml({
+      ok: Boolean(valid && incident),
+      incident,
+      mediaIndex: Number(mediaKey) || 0,
+      chatId,
+      fallbackOrigin: detectRequestOrigin(req),
+      error: !valid
+        ? 'Chữ ký xác thực ảnh/video hiện trường không hợp lệ.'
+        : (!incident ? 'Không tìm thấy hồ sơ SOS hoặc ca đã được lưu trữ.' : '')
+    });
+    res.writeHead(valid && incident ? 200 : 404, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store'
+    });
+    return req.method === 'HEAD' ? res.end() : res.end(html);
   }
 
   // 1. Layer 7 Anti-AI Crawler & Scraper Bot WAF
@@ -2846,6 +2941,29 @@ const server = http.createServer(async (req, res) => {
         });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify(updated));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/restore-backup' || urlPath === '/api/zalo/restore-backup') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
+    let body = '';
+    req.on('data', chunk => { if (body.length < 131072) body += chunk; });
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const restored = await zaloBotService.restoreBackup({
+          ...data,
+          detectedOrigin: detectRequestOrigin(req),
+          viewerCtx
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify(restored));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -6374,14 +6492,134 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
-  // API: 2-Way Chat Message
+  // API: Live Scene Photo / Video Upload During Active SOS (Synced to Web + Zalo Bot!)
+  // -------------------------------------------------------------
+  if (urlPath === '/api/sos/media' && req.method === 'POST') {
+    const MAX_MEDIA_BODY = 35 * 1024 * 1024;
+    let body = '';
+    let tooLarge = false;
+    req.on('data', chunk => {
+      if (tooLarge) return;
+      if (body.length + chunk.length > MAX_MEDIA_BODY) {
+        tooLarge = true;
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', () => {
+      if (tooLarge) {
+        res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: 'Tệp ảnh/video quá lớn (> 35MB). Vui lòng quay video ngắn hơn để truyền tải tức thời.' }));
+      }
+      try {
+        const payload = JSON.parse(body || '{}');
+        const incidentId = payload.incidentId || payload.id;
+        const incident = incidents.get(incidentId);
+        const actor = requireIncidentActor(req, res, urlObj, incident, payload);
+        if (!actor) return;
+
+        if (incident.status === 'resolved' || incident.status === 'cancelled') {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Phiếu cứu hộ đã kết thúc, không thể gửi thêm tệp.' }));
+        }
+
+        const rawList = Array.isArray(payload.media) ? payload.media : (payload.media ? [payload.media] : []);
+        const nowIso = new Date().toISOString();
+        const normalizedItems = rawList
+          .map((item, idx) => {
+            if (!item) return null;
+            const dataUrl = typeof item === 'string' ? item.trim() : String(item.dataUrl || item.url || '').trim();
+            if (!dataUrl) return null;
+            const isVid = String(item?.type || '').toLowerCase() === 'video' || /^data:video\//i.test(dataUrl) || /\.(mp4|mov|webm)(\?|$)/i.test(dataUrl);
+            return {
+              id: `media-${Date.now()}-${idx}`,
+              type: isVid ? 'video' : 'image',
+              name: String(item?.name || (isVid ? `video-hien-truong-${idx + 1}.mp4` : `anh-hien-truong-${idx + 1}.jpg`)).slice(0, 120),
+              dataUrl,
+              uploadedAt: nowIso
+            };
+          })
+          .filter(Boolean);
+
+        if (normalizedItems.length === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chưa có ảnh hoặc video hợp lệ để gửi.' }));
+        }
+
+        if (!Array.isArray(incident.media)) incident.media = [];
+        const startIndex = incident.media.length;
+        incident.media.push(...normalizedItems);
+
+        const photoCnt = normalizedItems.filter(m => m.type !== 'video').length;
+        const videoCnt = normalizedItems.filter(m => m.type === 'video').length;
+        const summaryParts = [];
+        if (photoCnt > 0) summaryParts.push(`${photoCnt} ảnh`);
+        if (videoCnt > 0) summaryParts.push(`${videoCnt} video`);
+        const caption = String(payload.caption || payload.text || '').trim();
+
+        const mediaMsg = {
+          id: 'msg-media-' + Date.now(),
+          sender: actor.kind === 'citizen' ? 'citizen' : (payload.sender || 'dispatcher'),
+          senderName: actor.kind === 'citizen'
+            ? (incident.reporterName || 'Người dân')
+            : (payload.senderName || 'Tổng Đài'),
+          text: caption
+            ? `📸 Đã gửi ${summaryParts.join(' & ')} hiện trường: "${caption}"`
+            : `📸 Đã gửi ${summaryParts.join(' & ')} hiện trường mới.`,
+          mediaItems: normalizedItems.map((m, offset) => ({
+            mediaIndex: startIndex + offset,
+            type: m.type,
+            name: m.name,
+            dataUrl: m.dataUrl
+          })),
+          timestamp: nowIso
+        };
+
+        if (!Array.isArray(incident.messages)) incident.messages = [];
+        incident.messages.push(mediaMsg);
+        incident.updatedAt = nowIso;
+        saveIncidentHistory();
+
+        notifyCitizen(incidentId, 'new_message', { incidentId, message: mediaMsg });
+        broadcastToDispatchers('new_message', { incidentId, message: mediaMsg });
+        broadcastToDispatchers('sos_update', incident);
+
+        const reqOrigin = detectRequestOrigin(req);
+        if (actor.kind === 'citizen') {
+          zaloBotService.onCitizenMediaReceived(incident, normalizedItems, {
+            origin: reqOrigin,
+            caption,
+            startIndex,
+            stage: 'chat_media'
+          }).catch(err => {
+            console.warn('[ZALO-BOT] Citizen live media forward warning:', err.message);
+          });
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          ok: true,
+          addedCount: normalizedItems.length,
+          totalMediaCount: incident.media.length,
+          message: mediaMsg
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: publicRequestError(err) }));
+      }
+    });
+    return;
+  }
+
+  // -------------------------------------------------------------
+  // API: 2-Way Chat Message (with optional inline media forwarding)
   // -------------------------------------------------------------
   if (urlPath === '/api/sos/message' && req.method === 'POST') {
     let body = '';
-    req.on('data', chunk => body += chunk);
+    req.on('data', chunk => { if (body.length < 35 * 1024 * 1024) body += chunk; });
     req.on('end', () => {
       try {
-        const { incidentId, sender, senderName, text, accessToken } = JSON.parse(body || '{}');
+        const { incidentId, sender, senderName, text, media, accessToken } = JSON.parse(body || '{}');
         const incident = incidents.get(incidentId);
         const actor = requireIncidentActor(req, res, urlObj, incident, { accessToken });
         if (!actor) return;
@@ -6391,6 +6629,30 @@ const server = http.createServer(async (req, res) => {
           return res.end(JSON.stringify({ ok: false, error: 'Phiếu cứu hộ đã hoàn thành. Cuộc trò chuyện đã kết thúc và được lưu vào Lịch sử.' }));
         }
 
+        const nowIso = new Date().toISOString();
+        const rawMedia = Array.isArray(media) ? media : (media ? [media] : []);
+        const normalizedMedia = rawMedia
+          .map((item, idx) => {
+            if (!item) return null;
+            const dataUrl = typeof item === 'string' ? item.trim() : String(item.dataUrl || item.url || '').trim();
+            if (!dataUrl) return null;
+            const isVid = String(item?.type || '').toLowerCase() === 'video' || /^data:video\//i.test(dataUrl);
+            return {
+              id: `media-${Date.now()}-${idx}`,
+              type: isVid ? 'video' : 'image',
+              name: String(item?.name || (isVid ? `video-${idx + 1}.mp4` : `anh-${idx + 1}.jpg`)).slice(0, 120),
+              dataUrl,
+              uploadedAt: nowIso
+            };
+          })
+          .filter(Boolean);
+
+        if (!Array.isArray(incident.media)) incident.media = [];
+        const startIndex = incident.media.length;
+        if (normalizedMedia.length > 0) {
+          incident.media.push(...normalizedMedia);
+        }
+
         const newMsg = {
           id: 'msg-' + Date.now(),
           sender: actor.kind === 'citizen' ? 'citizen' : (sender || 'dispatcher'),
@@ -6398,14 +6660,34 @@ const server = http.createServer(async (req, res) => {
             ? (incident.reporterName || 'Người dân')
             : (senderName || 'Tổng Đài'),
           text: text || '',
-          timestamp: new Date().toISOString()
+          ...(normalizedMedia.length > 0 ? {
+            mediaItems: normalizedMedia.map((m, offset) => ({
+              mediaIndex: startIndex + offset,
+              type: m.type,
+              name: m.name,
+              dataUrl: m.dataUrl
+            }))
+          } : {}),
+          timestamp: nowIso
         };
 
         incident.messages.push(newMsg);
-        incident.updatedAt = new Date().toISOString();
+        incident.updatedAt = nowIso;
+        saveIncidentHistory();
 
         notifyCitizen(incidentId, 'new_message', { incidentId, message: newMsg });
         broadcastToDispatchers('new_message', { incidentId, message: newMsg });
+        if (normalizedMedia.length > 0) {
+          broadcastToDispatchers('sos_update', incident);
+          if (actor.kind === 'citizen') {
+            zaloBotService.onCitizenMediaReceived(incident, normalizedMedia, {
+              origin: detectRequestOrigin(req),
+              caption: text || '',
+              startIndex,
+              stage: 'chat_media'
+            }).catch(() => {});
+          }
+        }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, message: newMsg }));

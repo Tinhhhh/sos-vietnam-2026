@@ -72,6 +72,11 @@ public class ZaloBotController {
         return ResponseEntity.ok(zaloBotService.updateConfig(body));
     }
 
+    @PostMapping({"/api/dispatcher/zalo/restore-backup", "/api/zalo/restore-backup"})
+    public ResponseEntity<Map<String, Object>> restoreBackup(@RequestBody(required = false) Map<String, Object> body) {
+        return ResponseEntity.ok(zaloBotService.restoreBackup(body == null ? Map.of() : body));
+    }
+
     @PostMapping({"/api/dispatcher/zalo/register-unit", "/api/zalo/register-unit"})
     public ResponseEntity<Map<String, Object>> registerUnit(@RequestBody Map<String, Object> body) {
         ZaloBotDispatchService.ZaloBinding unit = zaloBotService.registerCustomUnit(body);

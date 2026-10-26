@@ -7263,8 +7263,9 @@ class DispatcherApp {
       const icon = isCitizen ? '👤' : (isDispatcher ? '🛡️' : 'ℹ️');
       const senderTitle = msg.senderName || (isCitizen ? (incident.reporterName || 'Người dân') : 'Trực ban');
 
+      const mediaHtml = this.renderChatBubbleMediaHtml(msg);
       if (msg.sender === 'system') {
-        bubble.innerHTML = `<div>${msg.text}</div>`;
+        bubble.innerHTML = `<div>${msg.text}</div>${mediaHtml}`;
       } else {
         bubble.innerHTML = `
           <div class="chat-bubble-header">
@@ -7272,8 +7273,10 @@ class DispatcherApp {
             <span class="chat-bubble-time">${timeStr}</span>
           </div>
           <div style="font-size: 12px; line-height: 1.4;">${msg.text}</div>
+          ${mediaHtml}
         `;
       }
+      this.bindChatBubbleMediaEvents(bubble);
       this.chatHubDirectMessagesBody.appendChild(bubble);
     });
 
@@ -7574,6 +7577,33 @@ class DispatcherApp {
     }
   }
 
+  renderChatBubbleMediaHtml(msg) {
+    const items = Array.isArray(msg?.mediaItems) ? msg.mediaItems : [];
+    if (items.length === 0) return '';
+    const cards = items.map(m => {
+      const safeSrc = String(m?.dataUrl || '').replace(/"/g, '&quot;');
+      if (!safeSrc) return '';
+      if (m.type === 'video' || /^data:video\//i.test(safeSrc)) {
+        return `<video data-scene-media="1" src="${safeSrc}" controls playsinline preload="metadata" style="width: 100%; max-width: 240px; max-height: 180px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.45); margin-top: 6px; background: #000; display: block;"></video>`;
+      }
+      return `<img class="chat-scene-img-preview" src="${safeSrc}" alt="Ảnh hiện trường" title="Bấm để phóng to ảnh hiện trường" style="width: 100%; max-width: 220px; max-height: 170px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.45); margin-top: 6px; cursor: pointer; display: block;" />`;
+    }).filter(Boolean).join('');
+    return cards ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">${cards}</div>` : '';
+  }
+
+  bindChatBubbleMediaEvents(container) {
+    if (!container) return;
+    container.querySelectorAll('.chat-scene-img-preview').forEach(img => {
+      img.addEventListener('click', () => {
+        const src = img.getAttribute('src') || '';
+        const win = window.open('');
+        if (win) {
+          win.document.write(`<body style="margin:0;background:#020617;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${src}" style="max-width:96vw;max-height:95vh;border-radius:12px;box-shadow:0 12px 45px rgba(0,0,0,0.85);"></body>`);
+        }
+      });
+    });
+  }
+
   renderDispatcherChat(incident) {
     if (!this.dispatcherChatMessages) return;
     if (!incident) {
@@ -7602,8 +7632,9 @@ class DispatcherApp {
       const icon = isCitizen ? '👤' : (isDispatcher ? '🛡️' : 'ℹ️');
       const senderTitle = msg.senderName || (isCitizen ? 'Người dân' : 'Trực ban');
 
+      const mediaHtml = this.renderChatBubbleMediaHtml(msg);
       if (msg.sender === 'system') {
-        bubble.innerHTML = `<div>${msg.text}</div>`;
+        bubble.innerHTML = `<div>${msg.text}</div>${mediaHtml}`;
       } else {
         bubble.innerHTML = `
           <div class="chat-bubble-header">
@@ -7611,8 +7642,10 @@ class DispatcherApp {
             <span class="chat-bubble-time">${timeStr}</span>
           </div>
           <div style="font-size: 12px; line-height: 1.4;">${msg.text}</div>
+          ${mediaHtml}
         `;
       }
+      this.bindChatBubbleMediaEvents(bubble);
       this.dispatcherChatMessages.appendChild(bubble);
     });
 
@@ -11834,6 +11867,7 @@ class DispatcherApp {
         inc.media.forEach(m => {
           if (m.type === 'video') {
             const vid = document.createElement('video');
+            vid.setAttribute('data-scene-media', '1');
             vid.src = m.dataUrl;
             vid.controls = true;
             vid.playsInline = true;
@@ -15964,6 +15998,24 @@ class DispatcherApp {
     if (btnRefresh) {
       btnRefresh.addEventListener('click', () => this.refreshZaloBotStatus(false));
     }
+    const inpTokenMain = document.getElementById('inputZaloBotToken');
+    if (inpTokenMain) {
+      inpTokenMain.addEventListener('focus', () => {
+        if (inpTokenMain.dataset.isMasked === '1') {
+          inpTokenMain.value = '';
+          inpTokenMain.dataset.isMasked = '0';
+        }
+      });
+      inpTokenMain.addEventListener('input', () => {
+        inpTokenMain.dataset.isMasked = '0';
+      });
+      inpTokenMain.addEventListener('blur', () => {
+        if (!inpTokenMain.value.trim() && this._lastZaloStatus?.hasToken && this._lastZaloStatus?.maskedToken) {
+          inpTokenMain.value = this._lastZaloStatus.maskedToken;
+          inpTokenMain.dataset.isMasked = '1';
+        }
+      });
+    }
     if (btnToggleToken) {
       btnToggleToken.addEventListener('click', () => {
         const inp = document.getElementById('inputZaloBotToken');
@@ -15973,11 +16025,49 @@ class DispatcherApp {
         btnToggleToken.textContent = isPwd ? 'Ẩn' : 'Hiện';
       });
     }
+    const btnClearToken = document.getElementById('btnClearZaloBotToken');
+    if (btnClearToken) {
+      btnClearToken.addEventListener('click', async () => {
+        if (!confirm('Bạn có chắc chắn muốn xóa BOT_TOKEN đã lưu và chuyển về chế độ mô phỏng không?')) return;
+        try {
+          const res = await fetch('/api/dispatcher/zalo/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clearToken: true })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.writeZaloBotVault({ botToken: '' });
+            const inp = document.getElementById('inputZaloBotToken');
+            if (inp) {
+              inp.value = '';
+              inp.dataset.isMasked = '0';
+              inp.placeholder = 'Dán BOT_TOKEN (VD: 123456789:abcXYZ...)';
+            }
+            if (data.status) this.renderZaloBotStatus(data.status);
+            this.showToast?.('Đã xóa BOT_TOKEN khỏi hệ thống.', 'info');
+          }
+        } catch (err) {
+          this.showToast?.('Không thể xóa BOT_TOKEN', 'error');
+        }
+      });
+    }
     if (btnSave) {
       btnSave.addEventListener('click', async () => {
         const inpToken = document.getElementById('inputZaloBotToken');
         const chkFast = document.getElementById('chkZaloDemoFastMode');
         const chkReqPass = document.getElementById('chkZaloRequirePairingPassword');
+        const rawVal = inpToken ? inpToken.value.trim() : '';
+        const enteredNewRealToken = Boolean(rawVal && !rawVal.includes('••••') && inpToken?.dataset.isMasked !== '1');
+
+        const payload = {
+          demoFastMode: Boolean(chkFast?.checked),
+          requirePairingPassword: chkReqPass ? Boolean(chkReqPass.checked) : true
+        };
+        if (enteredNewRealToken) {
+          payload.botToken = rawVal;
+        }
+
         btnSave.disabled = true;
         const origLabel = btnSave.textContent;
         btnSave.textContent = 'Đang kết nối với Zalo Bot Platform...';
@@ -15985,19 +16075,18 @@ class DispatcherApp {
           const res = await fetch('/api/dispatcher/zalo/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              botToken: inpToken ? inpToken.value.trim() : undefined,
-              demoFastMode: Boolean(chkFast?.checked),
-              requirePairingPassword: chkReqPass ? Boolean(chkReqPass.checked) : true
-            })
+            body: JSON.stringify(payload)
           });
           const data = await res.json();
           if (data.ok) {
+            if (enteredNewRealToken) {
+              this.writeZaloBotVault({ botToken: rawVal });
+            }
             if (data.status) this.renderZaloBotStatus(data.status);
-            if (data.botCheck && !data.botCheck.ok && inpToken?.value.trim()) {
-              this.showToast?.(`Đã lưu cấu hình nhưng Token báo lỗi từ Zalo: ${data.botCheck.error}`, 'warning');
+            if (data.botCheck && !data.botCheck.ok && enteredNewRealToken) {
+              this.showToast?.(`Đã lưu cố định Token nhưng Zalo phản hồi: ${data.botCheck.error}`, 'warning');
             } else {
-              this.showToast?.('Đã lưu cấu hình Bot Zalo Trực Ban thành công!', 'success');
+              this.showToast?.('✅ Đã lưu cố định cấu hình & BOT_TOKEN cho các lần sau!', 'success');
             }
           } else {
             this.showToast?.(data.error || 'Không thể lưu cấu hình Bot Zalo', 'error');
@@ -16202,12 +16291,67 @@ class DispatcherApp {
     this.refreshZaloBotStatus(false);
   }
 
+  readZaloBotVault() {
+    try {
+      const raw = localStorage.getItem('sos_zalo_bot_vault_v1');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  writeZaloBotVault(patch = {}) {
+    try {
+      const prev = this.readZaloBotVault();
+      const next = {
+        ...prev,
+        ...patch,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem('sos_zalo_bot_vault_v1', JSON.stringify(next));
+      return next;
+    } catch {
+      return {};
+    }
+  }
+
   async refreshZaloBotStatus(silent = false) {
     try {
       const res = await fetch('/api/dispatcher/zalo/status');
       if (!res.ok) return;
       const data = await res.json();
       if (data && data.ok) {
+        const vault = this.readZaloBotVault();
+        const needsTokenRestore = !data.hasToken && Boolean(vault.botToken && !String(vault.botToken).includes('••••'));
+        const needsBindingsRestore = Array.isArray(data.bindings) && data.bindings.length === 0
+          && Array.isArray(vault.bindings) && vault.bindings.length > 0;
+
+        if (!this._zaloVaultRestoredOnce && (needsTokenRestore || needsBindingsRestore)) {
+          this._zaloVaultRestoredOnce = true;
+          try {
+            const restoreRes = await fetch('/api/dispatcher/zalo/restore-backup', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                botToken: needsTokenRestore ? vault.botToken : '',
+                demoFastMode: vault.demoFastMode,
+                requirePairingPassword: vault.requirePairingPassword,
+                bindings: needsBindingsRestore ? vault.bindings : [],
+                customUnits: vault.customUnits || {}
+              })
+            });
+            const restoreJson = await restoreRes.json();
+            if (restoreJson && restoreJson.ok && restoreJson.status) {
+              this.renderZaloBotStatus(restoreJson.status);
+              if (restoreJson.restoredToken || restoreJson.restoredBindingsCount > 0) {
+                this.showToast?.('🔄 Đã tự động khôi phục BOT_TOKEN & danh sách nhóm Zalo đã lưu!', 'success');
+              }
+              return;
+            }
+          } catch (restoreErr) {
+            console.warn('Auto restore Zalo Bot vault warning:', restoreErr);
+          }
+        }
         this.renderZaloBotStatus(data);
       }
     } catch (err) {
@@ -16294,7 +16438,22 @@ class DispatcherApp {
 
   renderZaloBotStatus(status) {
     if (!status) return;
+    this._lastZaloStatus = status;
     const bindings = Array.isArray(status.bindings) ? status.bindings : [];
+
+    // Sync real bindings & settings into Browser Vault so Render container redeploys never lose configuration
+    const realBindings = bindings.filter(b => b && b.chatId && !String(b.chatId).startsWith('zalo_sim_'));
+    const vaultPatch = {
+      demoFastMode: Boolean(status.demoFastMode),
+      requirePairingPassword: status.requirePairingPassword !== false
+    };
+    if (realBindings.length > 0) {
+      vaultPatch.bindings = realBindings;
+    }
+    if (status.customUnits && Object.keys(status.customUnits).length > 0) {
+      vaultPatch.customUnits = status.customUnits;
+    }
+    this.writeZaloBotVault(vaultPatch);
     this._lastZaloBindings = bindings;
     this.updateZaloBroadcastTargetPreview();
     const presets = Array.isArray(status.presets) ? status.presets : [];
@@ -16336,8 +16495,28 @@ class DispatcherApp {
     }
 
     const inpToken = document.getElementById('inputZaloBotToken');
-    if (inpToken && status.maskedToken && !inpToken.value) {
-      inpToken.placeholder = `Đang lưu: ${status.maskedToken} (Nhập mới nếu muốn đổi)`;
+    const savedBadgeRow = document.getElementById('zaloSavedTokenBadgeRow');
+    const savedMaskText = document.getElementById('zaloSavedTokenMaskText');
+    if (savedBadgeRow) {
+      savedBadgeRow.style.display = status.hasToken ? 'flex' : 'none';
+    }
+    if (savedMaskText) {
+      savedMaskText.textContent = status.maskedToken || '';
+    }
+    if (inpToken) {
+      if (status.hasToken && status.maskedToken) {
+        inpToken.placeholder = `Đã lưu cố định: ${status.maskedToken} (Bấm vào để đổi mới nếu cần)`;
+        if (document.activeElement !== inpToken) {
+          inpToken.value = status.maskedToken;
+          inpToken.dataset.isMasked = '1';
+        }
+      } else {
+        inpToken.placeholder = 'Dán BOT_TOKEN (VD: 123456789:abcXYZ...)';
+        if (inpToken.dataset.isMasked === '1') {
+          inpToken.value = '';
+          inpToken.dataset.isMasked = '0';
+        }
+      }
     }
     const chkFast = document.getElementById('chkZaloDemoFastMode');
     if (chkFast) chkFast.checked = Boolean(status.demoFastMode);

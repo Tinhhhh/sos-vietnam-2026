@@ -184,6 +184,8 @@ class SOSApp {
     this.chatMessages = document.getElementById('chatMessages');
     this.inputChatText = document.getElementById('inputChatText');
     this.btnSendChat = document.getElementById('btnSendChat');
+    this.btnChatAttachMedia = document.getElementById('btnChatAttachMedia');
+    this.inputChatMedia = document.getElementById('inputChatMedia');
 
     this.sfxSiren = document.getElementById('sfxSiren');
 
@@ -443,12 +445,18 @@ class SOSApp {
     // Media upload buttons
     if (this.btnCaptureCamera && this.inputCameraMedia) {
       this.btnCaptureCamera.addEventListener('click', () => this.inputCameraMedia.click());
-      this.inputCameraMedia.addEventListener('change', (e) => this.handleFilesSelected(e.target.files));
+      this.inputCameraMedia.addEventListener('change', async (e) => {
+        await this.handleFilesSelected(e.target.files);
+        e.target.value = '';
+      });
     }
 
     if (this.btnPickGallery && this.inputGalleryMedia) {
       this.btnPickGallery.addEventListener('click', () => this.inputGalleryMedia.click());
-      this.inputGalleryMedia.addEventListener('change', (e) => this.handleFilesSelected(e.target.files));
+      this.inputGalleryMedia.addEventListener('change', async (e) => {
+        await this.handleFilesSelected(e.target.files);
+        e.target.value = '';
+      });
     }
 
     // Agency selector (Fix: Reset selected tags on switch)
@@ -658,7 +666,20 @@ class SOSApp {
       survivalModal.classList.add('is-open');
     });
 
-    // Chat submit
+    // Chat submit & live scene photo/video upload
+    if (this.btnChatAttachMedia && this.inputChatMedia) {
+      this.btnChatAttachMedia.addEventListener('click', () => {
+        if (this.activeIncident && this.activeIncident.status === 'resolved') {
+          alert('Phiếu cứu hộ đã hoàn tất. Cuộc trò chuyện đã kết thúc và được lưu trữ.');
+          return;
+        }
+        this.inputChatMedia.click();
+      });
+      this.inputChatMedia.addEventListener('change', async (e) => {
+        await this.uploadLiveChatMedia(e.target.files);
+        e.target.value = '';
+      });
+    }
     if (this.btnSendChat && this.inputChatText) {
       this.btnSendChat.addEventListener('click', () => this.sendChatMessage());
       this.inputChatText.addEventListener('keydown', (e) => {
@@ -1623,38 +1644,75 @@ class SOSApp {
     });
   }
 
-  async handleFilesSelected(fileList) {
-    if (!fileList || fileList.length === 0) return;
+  readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result || '');
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async prepareMediaItemsFromFileList(fileList) {
+    const prepared = [];
+    if (!fileList || fileList.length === 0) return prepared;
 
     for (const file of Array.from(fileList)) {
-      const isVideo = file.type && file.type.startsWith('video');
+      const isVideo = Boolean((file.type && file.type.startsWith('video')) || /\.(mp4|mov|webm|m4v|3gp)$/i.test(file.name || ''));
       if (isVideo) {
         if (file.size > 15 * 1024 * 1024) {
           alert('Video quá lớn (> 15MB). Vui lòng chọn video ngắn hơn dưới 30 giây để cứu hộ tiếp nhận kịp thời.');
           continue;
         }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          this.attachedMedia.push({
-            type: 'video',
-            name: file.name,
-            dataUrl: e.target.result
-          });
-          this.renderMediaPreviews();
-        };
-        reader.readAsDataURL(file);
+        try {
+          const dataUrl = await this.readFileAsDataUrl(file);
+          if (dataUrl) {
+            prepared.push({
+              type: 'video',
+              name: file.name || 'video-hien-truong.mp4',
+              dataUrl
+            });
+          }
+        } catch (err) {
+          console.warn('Lỗi đọc video hiện trường:', err);
+        }
       } else {
         try {
           const compressed = await this.compressImage(file, 1280, 0.75);
-          this.attachedMedia.push({
-            type: 'image',
-            name: file.name.replace(/\.[^/.]+$/, '') + '.jpg',
-            dataUrl: compressed
-          });
-          this.renderMediaPreviews();
+          if (compressed) {
+            prepared.push({
+              type: 'image',
+              name: (file.name || 'anh-hien-truong').replace(/\.[^/.]+$/, '') + '.jpg',
+              dataUrl: compressed
+            });
+          }
         } catch (err) {
           console.warn('Lỗi nén ảnh:', err);
         }
+      }
+    }
+    return prepared;
+  }
+
+  async handleFilesSelected(fileList) {
+    if (!fileList || fileList.length === 0) return;
+
+    const prevDisabled = this.btnConfirmSOS ? this.btnConfirmSOS.disabled : false;
+    const prevHtml = this.btnConfirmSOS ? this.btnConfirmSOS.innerHTML : '';
+    if (this.btnConfirmSOS) {
+      this.btnConfirmSOS.disabled = true;
+      this.btnConfirmSOS.textContent = '⏳ ĐANG TẢI ẢNH / VIDEO HIỆN TRƯỜNG...';
+    }
+    try {
+      const items = await this.prepareMediaItemsFromFileList(fileList);
+      for (const item of items) {
+        this.attachedMedia.push(item);
+      }
+      this.renderMediaPreviews();
+    } finally {
+      if (this.btnConfirmSOS) {
+        this.btnConfirmSOS.disabled = prevDisabled;
+        if (prevHtml) this.btnConfirmSOS.innerHTML = prevHtml;
       }
     }
   }
@@ -1748,6 +1806,8 @@ class SOSApp {
           this.citizenAccessToken = data.citizenAccessToken;
           sessionStorage.setItem(this.getCitizenTokenKey(data.incident.id), data.citizenAccessToken);
         }
+        this.attachedMedia = [];
+        this.renderMediaPreviews();
         this.closeModal();
         this.startTracking(data.incident);
       } else {
@@ -3195,10 +3255,12 @@ class SOSApp {
         this.inputChatText.disabled = true;
         this.inputChatText.placeholder = '🔒 Phiếu cứu hộ đã hoàn tất. Cuộc trò chuyện đã kết thúc và được lưu vào Lịch sử.';
         this.btnSendChat.disabled = true;
+        if (this.btnChatAttachMedia) this.btnChatAttachMedia.disabled = true;
       } else {
         this.inputChatText.disabled = false;
-        this.inputChatText.placeholder = 'Nhắn tin cho trực ban...';
+        this.inputChatText.placeholder = 'Nhắn tin hoặc bấm 📷 gửi ảnh/video...';
         this.btnSendChat.disabled = false;
+        if (this.btnChatAttachMedia) this.btnChatAttachMedia.disabled = false;
       }
     }
 
@@ -4671,7 +4733,10 @@ class SOSApp {
 
   appendChatMessage(msg) {
     if (!this.chatMessages || !msg) return;
+    if (msg.id && this.chatMessages.querySelector(`[data-msg-id="${msg.id}"]`)) return;
+
     const bubble = document.createElement('div');
+    if (msg.id) bubble.dataset.msgId = msg.id;
     const isCitizen = msg.sender === 'citizen';
     const isDispatcher = msg.sender === 'dispatcher';
     
@@ -4697,9 +4762,80 @@ class SOSApp {
       content.style.cssText = 'font-size: 13px; line-height: 1.45;';
       content.textContent = String(msg.text || '');
       bubble.append(header, content);
+
+      if (Array.isArray(msg.mediaItems) && msg.mediaItems.length > 0) {
+        const mediaGrid = document.createElement('div');
+        mediaGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;';
+        for (const item of msg.mediaItems) {
+          if (!item || !item.dataUrl) continue;
+          if (item.type === 'video' || /^data:video\//i.test(item.dataUrl)) {
+            const vid = document.createElement('video');
+            vid.src = item.dataUrl;
+            vid.controls = true;
+            vid.playsInline = true;
+            vid.preload = 'metadata';
+            vid.style.cssText = 'width:100%;max-width:230px;max-height:175px;border-radius:8px;border:1px solid rgba(56,189,248,0.45);background:#000;';
+            mediaGrid.appendChild(vid);
+          } else {
+            const img = document.createElement('img');
+            img.src = item.dataUrl;
+            img.alt = 'Ảnh hiện trường';
+            img.style.cssText = 'width:100%;max-width:210px;max-height:165px;object-fit:cover;border-radius:8px;border:1px solid rgba(16,185,129,0.45);';
+            mediaGrid.appendChild(img);
+          }
+        }
+        bubble.appendChild(mediaGrid);
+      }
     }
     this.chatMessages.appendChild(bubble);
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+  }
+
+  async uploadLiveChatMedia(fileList) {
+    if (!fileList || fileList.length === 0 || !this.activeIncident) return;
+    if (this.activeIncident.status === 'resolved') {
+      alert('Phiếu cứu hộ đã hoàn tất. Cuộc trò chuyện đã kết thúc và được lưu trữ.');
+      return;
+    }
+
+    const prevLabel = this.btnChatAttachMedia ? this.btnChatAttachMedia.textContent : '📷';
+    if (this.btnChatAttachMedia) {
+      this.btnChatAttachMedia.disabled = true;
+      this.btnChatAttachMedia.textContent = '⏳';
+    }
+
+    try {
+      const items = await this.prepareMediaItemsFromFileList(fileList);
+      if (items.length === 0) return;
+
+      const caption = this.inputChatText ? this.inputChatText.value.trim() : '';
+      const res = await fetch('/api/sos/media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.citizenAccessHeaders() },
+        body: JSON.stringify({
+          incidentId: this.activeIncident.id,
+          sender: 'citizen',
+          senderName: this.activeIncident.reporterName || 'Người dân',
+          caption,
+          media: items
+        })
+      });
+      const data = await res.json();
+      if (data.ok && data.message) {
+        if (caption && this.inputChatText) this.inputChatText.value = '';
+        this.appendChatMessage(data.message);
+      } else {
+        alert(data.error || 'Không thể gửi ảnh/video hiện trường.');
+      }
+    } catch (err) {
+      console.error('Lỗi tải ảnh/video trực tiếp:', err);
+      alert('Lỗi kết nối khi gửi ảnh/video hiện trường.');
+    } finally {
+      if (this.btnChatAttachMedia) {
+        this.btnChatAttachMedia.disabled = false;
+        this.btnChatAttachMedia.textContent = prevLabel;
+      }
+    }
   }
 
   async sendChatMessage() {
