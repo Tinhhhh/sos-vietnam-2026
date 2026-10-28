@@ -116,7 +116,7 @@ Upgrade and deploy (`https://sos-vietnam-2026.onrender.com/`) the Zalo Bot integ
   - Editable: `dispatcher.html`, `js/dispatcher.js`, `playwright/verify-zalo-bot-dispatch.mjs`, `patches/patch-iot-chip-and-zalo-bot-20261025/`
   - Dependencies: `P1-A`
 
-- [ ] P2-A: Implement Unified Zalo Live Chat Board, Compact Integrated Bot Drawer & Collapsible 34-Province Directory UI in `dispatcher.html` and `js/dispatcher.js` (plus `patches/` sync).
+- [x] P2-A: Implement Unified Zalo Live Chat Board, Compact Integrated Bot Drawer & Collapsible 34-Province Directory UI in `dispatcher.html` and `js/dispatcher.js` (plus `patches/` sync).
   - Goal: Deliver a clean, single-hub tactical Zalo experience with live SSE chat bubbles, direct reply input, compact collapsible bot setup bar (auto-locked when active; explicit Delete/Reset only), and collapsible `TP. Cần Thơ` / `TP.HCM` / `Thành phố Hà Nội` / 34-province accordion folders.
   - Work Steps:
     1. Upgrade `#zaloBotConfigModal` in `dispatcher.html` with the Compact Sticky Bot Header Bar + collapsible `#zaloCompactBotSetupDrawer`, Left Tactical Rail (tabs for `💬 Hội thoại & Nhóm`, `📂 Sổ Kết Nối 34 Tỉnh/TP`, `📢 Công Điện Chung`), and Right Live Zalo Chat Board (`#zaloLiveChatMessagesList` + `#inputZaloLiveChatReply` + `#btnSendZaloLiveChatReply`), preserving existing DOM IDs for backward compatibility.

@@ -3540,178 +3540,252 @@
   </div>
 
   <!-- =====================================================================
-       MODAL: HIERARCHICAL ZALO BOT DISPATCH & TWO-WAY FIELD ACCEPTANCE
+       MODAL: UNIFIED ZALO LIVE CHAT BOARD, COMPACT STICKY BOT & 34-PROVINCE DIRECTORY
        ===================================================================== -->
-  <div id="zaloBotConfigModal" style="display: none; position: fixed; inset: 0; z-index: 9850; background: rgba(2, 6, 23, 0.84); backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 16px;">
-    <div style="width: 100%; max-width: 920px; max-height: 90vh; overflow-y: auto; background: linear-gradient(165deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98)); border: 1.5px solid rgba(56, 189, 248, 0.45); border-radius: 16px; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85); color: #f8fafc; padding: 20px 22px;">
+  <div id="zaloBotConfigModal" style="display: none; position: fixed; inset: 0; z-index: 9850; background: rgba(2, 6, 23, 0.86); backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 12px;">
+    <div style="width: 100%; max-width: 1220px; max-height: 92vh; overflow-y: auto; background: linear-gradient(165deg, rgba(15, 23, 42, 0.99), rgba(2, 6, 23, 0.99)); border: 1.5px solid rgba(56, 189, 248, 0.48); border-radius: 16px; box-shadow: 0 24px 70px rgba(0, 0, 0, 0.88); color: #f8fafc; padding: 16px 18px;">
       <!-- Modal Header -->
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.18); padding-bottom: 12px; margin-bottom: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.18); padding-bottom: 10px; margin-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0ea5e9); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 18px rgba(14, 165, 233, 0.45);">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0ea5e9); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 18px rgba(14, 165, 233, 0.45); flex-shrink: 0;">
             <svg class="svg-ico ico-sm ico-white" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
           </div>
           <div>
-            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #f8fafc; letter-spacing: 0.3px;">TRUNG TÂM ĐIỀU PHỐI BOT ZALO TRỰC BAN 2 CHIỀU</h3>
-            <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">Định tuyến thông minh theo Xã/Phường & Lực lượng · Tiếp nhận 1 chạm trên di động · Nhắc khẩn 3 phút / Leo thang Tỉnh 15 phút</div>
+            <h3 style="margin: 0; font-size: 15.5px; font-weight: 800; color: #f8fafc; letter-spacing: 0.3px;">TRUNG TÂM BẢNG CHAT ZALO TRỰC TIẾP &amp; ĐIỀU PHỐI BOT 2 CHIỀU</h3>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Xem trực tiếp &amp; trả lời tin nhắn Zalo thời gian thực · Lệnh gắn nhóm ngắn <b>/kn &lt;tỉnh.đơn_vị&gt; &lt;MK&gt;</b> · Sổ mục 34 Tỉnh/TP · Duy trì Bot liên tục 24/7</div>
           </div>
         </div>
-        <button type="button" id="btnCloseZaloBotModal" style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; border-radius: 8px; width: 34px; height: 34px; font-size: 18px; font-weight: 800; cursor: pointer;">&times;</button>
+        <button type="button" id="btnCloseZaloBotModal" style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; border-radius: 8px; width: 34px; height: 34px; font-size: 18px; font-weight: 800; cursor: pointer; flex-shrink: 0;">&times;</button>
       </div>
 
-      <!-- Status Banner -->
-      <div id="zaloBotConnectionStatusBar" style="padding: 10px 14px; border-radius: 10px; background: rgba(14, 165, 233, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); margin-bottom: 14px; font-size: 12.5px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
-        <div id="zaloBotConnectionStatusText" style="color: #bae6fd; font-weight: 700;">Đang kiểm tra trạng thái kết nối Bot Zalo...</div>
-        <button type="button" id="btnRefreshZaloStatus" class="btn-refresh-loc" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Làm mới trạng thái</button>
-      </div>
+      <!-- UNIFIED COMPACT STICKY BOT BAR (Integrated Status + Add/Reset/Delete Bot in 1 Sleek Section) -->
+      <div id="zaloUnifiedBotControlBar" style="background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(56, 189, 248, 0.36); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px;">
+        <div id="zaloBotConnectionStatusBar" style="padding: 6px 10px; border-radius: 8px; background: rgba(14, 165, 233, 0.12); border: 1px solid rgba(56, 189, 248, 0.32); margin-bottom: 8px; font-size: 11.5px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+          <div id="zaloBotConnectionStatusText" style="color: #bae6fd; font-weight: 700; flex: 1; min-width: 240px;">Đang kiểm tra trạng thái kết nối Bot Zalo...</div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span id="zaloStickyModeIndicator" style="font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: rgba(16, 185, 129, 0.16); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7;">🔒 Chế độ Duy Trì Liên Tục</span>
+            <button type="button" id="btnRefreshZaloStatus" class="btn-refresh-loc" style="padding: 4px 9px; font-size: 10.5px; cursor: pointer;">Làm mới trạng thái</button>
+          </div>
+        </div>
 
-      <!-- Step 1: BOT TOKEN & Timer Mode -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 16px;">
-        <div style="background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 14px;">
-          <div style="font-size: 12.5px; font-weight: 800; color: #38bdf8; margin-bottom: 6px;">1. CẤU HÌNH BOT ZALO TỔNG (ZALO BOT PLATFORM)</div>
-          <div style="font-size: 11px; color: #94a3b8; line-height: 1.45; margin-bottom: 8px;">
-            Tạo Bot miễn phí tại <a href="https://bot.zaloplatforms.com" target="_blank" rel="noopener" style="color: #7dd3fc; font-weight: 700;">bot.zaloplatforms.com</a>, sao chép <b>BOT_TOKEN</b> dán vào ô dưới đây (hệ thống tự động gắn Webhook HTTPS hoặc Long-Polling):
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <div style="font-size: 11px; font-weight: 800; color: #7dd3fc; white-space: nowrap;">
+            🤖 Bot Zalo (<a href="https://bot.zaloplatforms.com" target="_blank" rel="noopener" style="color: #38bdf8; text-decoration: underline;">Lấy Token</a>):
           </div>
-          <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-            <input type="password" id="inputZaloBotToken" class="input-field" placeholder="Dán BOT_TOKEN (VD: 123456789:abcXYZ...)" style="flex: 1; font-size: 12px; padding: 8px 10px;" autocomplete="off" />
-            <button type="button" id="btnToggleShowZaloToken" class="btn-refresh-loc" style="padding: 6px 10px; font-size: 11px; cursor: pointer;" title="Hiện/Ẩn Token">Hiện</button>
+          <div style="display: flex; align-items: center; gap: 5px; flex: 1; min-width: 220px;">
+            <input type="password" id="inputZaloBotToken" class="input-field" placeholder="Dán BOT_TOKEN để thêm / đặt lại Bot mới..." style="flex: 1; font-size: 11.5px; padding: 6px 9px;" autocomplete="off" />
+            <button type="button" id="btnToggleShowZaloToken" class="btn-refresh-loc" style="padding: 5px 8px; font-size: 10.5px; cursor: pointer;" title="Hiện/Ẩn Token">Hiện</button>
           </div>
-          <div id="zaloSavedTokenBadgeRow" style="display: none; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; margin-bottom: 8px; border-radius: 8px; background: rgba(16, 185, 129, 0.14); border: 1px solid rgba(16, 185, 129, 0.42); font-size: 11px; color: #a7f3d0;">
-            <span>✅ <b>Đã lưu cố định BOT_TOKEN:</b> <code id="zaloSavedTokenMaskText" style="color: #34d399; font-weight: 800;"></code> <span style="color: #94a3b8;">(Tự động giữ cho lần sau)</span></span>
-            <button type="button" id="btnClearZaloBotToken" style="background: rgba(239, 68, 68, 0.16); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; border-radius: 6px; padding: 2px 8px; font-size: 10.5px; font-weight: 700; cursor: pointer; white-space: nowrap;">Xóa Token</button>
+
+          <div id="zaloSavedTokenBadgeRow" style="display: none; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 8px; background: rgba(16, 185, 129, 0.16); border: 1px solid rgba(16, 185, 129, 0.45); font-size: 10.5px; color: #a7f3d0;">
+            <span>✅ Duy trì: <code id="zaloSavedTokenMaskText" style="color: #34d399; font-weight: 800;"></code></span>
+            <button type="button" id="btnClearZaloBotToken" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; border-radius: 6px; padding: 2px 7px; font-size: 10px; font-weight: 800; cursor: pointer; white-space: nowrap;" title="Xóa Bot hiện tại (chỉ xóa khi bấm nút này)">Xóa Bot</button>
           </div>
-          <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: #86efac; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 8px;">
-            <input type="checkbox" id="chkZaloRequirePairingPassword" checked style="margin-top: 2px; cursor: pointer; accent-color: #10b981;" />
-            <span><b>🔒 Bảo mật Mật khẩu Trực ban khi /ketnoi:</b> Bắt buộc nhập kèm <b>Mật khẩu Trực ban</b> của đúng đơn vị khi gõ <code>/ketnoi</code> trên Zalo để ngăn đơn vị khác hoặc người lạ kết nối trái phép.</span>
+
+          <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: #86efac; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 8px; border-radius: 7px; cursor: pointer; white-space: nowrap;" title="Bắt buộc nhập kèm Mật khẩu Trực ban của đơn vị khi gõ /kn hoặc /ketnoi trên Zalo">
+            <input type="checkbox" id="chkZaloRequirePairingPassword" checked style="cursor: pointer; accent-color: #10b981; margin: 0;" />
+            <span><b>🔒 Khóa MK /kn</b></span>
           </label>
-          <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: #fde047; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 10px;">
-            <input type="checkbox" id="chkZaloDemoFastMode" style="margin-top: 2px; cursor: pointer;" />
-            <span><b>Chế độ Demo / Test Nhanh:</b> Nhắc khẩn lần 2 sau <b>20 giây</b> &amp; Tự động leo thang lên Chỉ Huy Tỉnh/TP sau <b>45 giây</b> (Mặc định thực tế: 3 phút / 15 phút).</span>
+
+          <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: #fde047; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); padding: 5px 8px; border-radius: 7px; cursor: pointer; white-space: nowrap;" title="Nhắc khẩn sau 20 giây & Leo thang Tỉnh sau 45 giây (Mặc định: 3p / 15p)">
+            <input type="checkbox" id="chkZaloDemoFastMode" style="cursor: pointer; margin: 0;" />
+            <span><b>⚡ Demo 20s/45s</b></span>
           </label>
-          <button type="button" id="btnSaveZaloBotConfig" class="btn-primary" style="width: 100%; padding: 9px 14px; font-size: 12.5px; font-weight: 800; background: linear-gradient(135deg, #0284c7, #0ea5e9); border: none; border-radius: 8px; color: #fff; cursor: pointer;">
-            Lưu Cấu Hình &amp; Kích Hoạt Bot Zalo
+
+          <button type="button" id="btnSaveZaloBotConfig" class="btn-primary" style="padding: 6px 13px; font-size: 11.5px; font-weight: 800; background: linear-gradient(135deg, #0284c7, #0ea5e9); border: none; border-radius: 8px; color: #fff; cursor: pointer; white-space: nowrap;">
+            💾 Lưu / Đặt Lại Bot
           </button>
         </div>
+      </div>
 
-        <!-- Step 2: Unit Pairing without Phone Numbers (Protected by Dispatcher Password) -->
-        <div style="background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 14px;">
-          <div style="font-size: 12.5px; font-weight: 800; color: #34d399; margin-bottom: 6px;">2. LỆNH /KETNOI KÈM MẬT KHẨU TRỰC BAN &amp; NHẬN CA /TN 2 CHIỀU</div>
-          <div style="font-size: 11px; color: #94a3b8; line-height: 1.45; margin-bottom: 8px;">
-            Trong nhóm Zalo đơn vị, gõ <b>/ketnoi &lt;mã_đơn_vị&gt; &lt;Mật_khẩu_trực_ban&gt;</b> (VD: <b>/ketnoi cap_tanan Congan@113</b> hoặc <b>/ketnoi Phường Tân An, Cần Thơ Congan@113</b>, có thể kèm <b>@TênBot</b>). Mật khẩu mặc định trùng với mật khẩu đăng nhập Bàn Trực Ban của đơn vị!
-          </div>
+      <!-- PRIMARY 2-COLUMN WORKSPACE: [LEFT: 34-PROVINCE DIRECTORY & BOUND GROUPS] | [RIGHT: LIVE 2-WAY ZALO CHAT BOARD] -->
+      <div id="zaloMainSplitWorkspace" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(410px, 1fr)); gap: 14px; margin-bottom: 14px; align-items: stretch;">
 
-          <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;">
-            <div style="font-size: 10.5px; color: #a7f3d0; margin-bottom: 4px;">Đơn vị phiên đăng nhập hiện tại (<span id="zaloCurrentOfficerLabel">Trực ban</span>):</div>
+        <!-- LEFT COLUMN: SHORT /KN PAIRING + COLLAPSIBLE 34-PROVINCE ACCORDION + BOUND GROUPS -->
+        <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+          <!-- Short Command Quick Bar for Current Officer -->
+          <div style="background: rgba(16, 185, 129, 0.09); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; padding: 9px 11px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 5px;">
+              <div style="font-size: 10.5px; color: #a7f3d0;">Đơn vị trực (<b id="zaloCurrentOfficerLabel">Trực ban</b>):</div>
+              <span style="font-size: 10px; color: #6ee7b7; font-weight: 700;">✨ Gõ ngắn gọn trong nhóm Zalo</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 5px;">
+              <span style="font-size: 10px; font-weight: 800; color: #fde047; white-space: nowrap;">Lệnh ngắn:</span>
+              <code id="zaloCurrentOfficerShortCommand" style="flex: 1; background: rgba(2, 6, 23, 0.82); padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(52, 211, 153, 0.4); color: #34d399; font-size: 12px; font-weight: 800;">/kn ct.tanan Congan@113</code>
+              <button type="button" id="btnCopyCurrentOfficerShortCmd" class="btn-refresh-loc" style="padding: 5px 9px; font-size: 10.5px; font-weight: 800; color: #fde047; border-color: rgba(250, 204, 21, 0.5); background: rgba(234, 179, 8, 0.14); cursor: pointer; white-space: nowrap;">Copy /kn</button>
+            </div>
             <div style="display: flex; align-items: center; gap: 6px;">
-              <code id="zaloCurrentOfficerCommand" style="flex: 1; background: rgba(2, 6, 23, 0.7); padding: 6px 8px; border-radius: 6px; color: #34d399; font-size: 12px; font-weight: 800;">/ketnoi cap_tanan Congan@113</code>
-              <button type="button" id="btnCopyCurrentOfficerZaloCmd" class="btn-refresh-loc" style="padding: 6px 10px; font-size: 11px; color: #34d399; border-color: rgba(16, 185, 129, 0.45); cursor: pointer;">Sao chép</button>
+              <span style="font-size: 10px; color: #94a3b8; white-space: nowrap;">Mã đầy đủ:</span>
+              <code id="zaloCurrentOfficerCommand" style="flex: 1; background: rgba(2, 6, 23, 0.55); padding: 4px 7px; border-radius: 5px; color: #7dd3fc; font-size: 10.5px; font-weight: 700;">/ketnoi cap_tanan Congan@113</code>
+              <button type="button" id="btnCopyCurrentOfficerZaloCmd" class="btn-refresh-loc" style="padding: 4px 8px; font-size: 10px; color: #7dd3fc; border-color: rgba(56, 189, 248, 0.4); cursor: pointer; white-space: nowrap;">Sao chép</button>
             </div>
           </div>
 
-          <!-- Custom Ward Code Generator -->
-          <div style="font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 5px;">Tạo nhanh mã kết nối cho Xã/Phường bất kỳ (34 Tỉnh/TP):</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
-            <input type="text" id="inputZaloCustomProvince" class="input-field" placeholder="Tỉnh/TP (VD: Cần Thơ)" value="Cần Thơ" style="font-size: 11.5px; padding: 6px 8px;" />
-            <input type="text" id="inputZaloCustomWard" class="input-field" placeholder="Xã/Phường (VD: Phường Tân An)" value="Phường Tân An" style="font-size: 11.5px; padding: 6px 8px;" />
+          <!-- Collapsible 34-Province / City Directory ("Sổ dạng mục: TP. Cần Thơ, TP.HCM, Thành phố Hà Nội...") -->
+          <div id="zaloProvinceAccordionSection" style="background: rgba(15, 23, 42, 0.84); border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 12px; padding: 10px 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;">
+              <div style="font-size: 12px; font-weight: 800; color: #38bdf8;">📂 SỔ MỤC KẾT NỐI NHÓM 34 TỈNH / THÀNH PHỐ</div>
+              <span id="zaloProvinceTotalBadge" style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: rgba(14, 165, 233, 0.18); color: #7dd3fc;">34 Tỉnh/TP</span>
+            </div>
+            <div style="font-size: 10.5px; color: #94a3b8; margin-bottom: 7px; line-height: 1.35;">
+              Bấm sổ mở <b>TP. Cần Thơ</b>, <b>TP.HCM</b>, <b>Thành phố Hà Nội</b>... để lấy lệnh ngắn <code>/kn &lt;mã&gt; &lt;MK&gt;</code> hoặc gắn nhanh nhóm Zalo:
+            </div>
+            <input type="text" id="inputZaloProvinceDirSearch" class="input-field" placeholder="🔍 Tìm Tỉnh/TP, Xã/Phường hoặc mã ngắn (VD: Cần Thơ, TP.HCM, Hà Nội, Tân An, ct.tanan)..." style="width: 100%; font-size: 11.5px; padding: 6px 9px; margin-bottom: 8px;" autocomplete="off" />
+            <div id="zaloProvinceAccordionList" style="max-height: 255px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
+              <div style="font-size: 11px; color: #64748b; padding: 8px;">Đang tải sổ danh bạ 34 Tỉnh/Thành phố...</div>
+            </div>
           </div>
-          <div style="display: flex; gap: 6px;">
-            <select id="selectZaloCustomAgency" class="input-field" style="flex: 1; font-size: 11.5px; padding: 6px 8px;">
-              <option value="police">Công An Xã/Phường (Nhấn 1 lần)</option>
-              <option value="csgt">Đội CSGT Tỉnh/TP (Nhấn 2 lần)</option>
-              <option value="fire">Cảnh Sát PCCC &amp; CNCH (Nhấn 3 lần)</option>
-              <option value="all_province">Chỉ Huy Công An Tỉnh/TP (Nhận Leo Thang)</option>
-            </select>
-            <button type="button" id="btnGenerateCustomZaloUnit" class="btn-primary" style="padding: 6px 12px; font-size: 11.5px; font-weight: 800; background: #059669; border: none; border-radius: 6px; color: #fff; cursor: pointer; white-space: nowrap;">Tạo &amp; Copy Mã</button>
+
+          <!-- Bound Zalo Groups List -->
+          <div style="background: rgba(30, 41, 59, 0.52); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 12px; padding: 10px 12px; flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 6px;">
+              <div style="font-size: 12px; font-weight: 800; color: #f8fafc;">NHÓM / CÁN BỘ ĐÃ LIÊN KẾT (<span id="zaloBoundCount">0</span>)</div>
+              <button type="button" id="btnSendZaloTestAll" class="btn-refresh-loc" style="padding: 4px 9px; font-size: 10.5px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); cursor: pointer;">Bắn Tin Test Tất Cả</button>
+            </div>
+            <div style="font-size: 10px; color: #94a3b8; margin-bottom: 7px; line-height: 1.35;">
+              💡 Bấm <b style="color: #34d399;">💬 Mở Chat</b> để xem/nhắn trực tiếp với nhóm bên phải, hoặc <b style="color: #fbbf24;">✏️ Sửa Đơn Vị</b> để đổi Xã/Phường 1 chạm.
+            </div>
+            <div id="zaloBindingsListContainer" style="max-height: 235px; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; font-size: 11.5px;">
+              <div style="color: #64748b; font-style: italic; padding: 8px 0;">Chưa có nhóm Zalo nào liên kết.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: LIVE TWO-WAY ZALO CHAT BOARD ("Bảng chat xem trực tiếp tin nhắn Zalo") -->
+        <div id="zaloLiveChatBoardCard" style="background: linear-gradient(170deg, rgba(15, 23, 42, 0.96), rgba(9, 14, 28, 0.98)); border: 1.5px solid rgba(16, 185, 129, 0.42); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; min-height: 540px; min-width: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <span style="width: 9px; height: 9px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981; display: inline-block;"></span>
+              <span style="font-size: 12.5px; font-weight: 800; color: #ecfdf5; letter-spacing: 0.2px;">💬 BẢNG CHAT ZALO TRỰC TIẾP 2 CHIỀU</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span id="zaloUnreadTotalBadge" style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(248, 113, 113, 0.45); color: #fca5a5;">0 chưa đọc</span>
+              <span style="font-size: 10px; font-weight: 700; color: #34d399; background: rgba(16, 185, 129, 0.14); padding: 2px 7px; border-radius: 999px;">LIVE SSE</span>
+            </div>
+          </div>
+
+          <!-- Tactical Conversation Folder Tabs (modeled after QuanLy_TieuDoan_CSCD) -->
+          <div id="zaloLiveFolderTabs" style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px;">
+            <button type="button" class="zalo-chat-folder-btn btn-refresh-loc" data-folder="all" style="padding: 3px 9px; font-size: 10.5px; font-weight: 800; background: rgba(14, 165, 233, 0.24); border-color: #38bdf8; color: #e0f2fe; cursor: pointer;">Tất cả</button>
+            <button type="button" class="zalo-chat-folder-btn btn-refresh-loc" data-folder="unread" style="padding: 3px 9px; font-size: 10.5px; cursor: pointer;">Chưa đọc</button>
+            <button type="button" class="zalo-chat-folder-btn btn-refresh-loc" data-folder="ward" style="padding: 3px 9px; font-size: 10.5px; cursor: pointer;">Xã/Phường</button>
+            <button type="button" class="zalo-chat-folder-btn btn-refresh-loc" data-folder="province_specialist" style="padding: 3px 9px; font-size: 10.5px; cursor: pointer;">Tỉnh/Chuyên ngành</button>
+            <button type="button" class="zalo-chat-folder-btn btn-refresh-loc" data-folder="unbound" style="padding: 3px 9px; font-size: 10.5px; cursor: pointer;">Chưa gắn</button>
+          </div>
+
+          <!-- Conversation Rail Strip -->
+          <div id="zaloLiveConversationStrip" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; border-bottom: 1px solid rgba(148, 163, 184, 0.16);">
+            <div style="font-size: 10.5px; color: #64748b; font-style: italic;">Chọn nhóm Zalo để xem hội thoại trực tiếp...</div>
+          </div>
+
+          <!-- Active Chat Header -->
+          <div id="zaloLiveChatActiveBar" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: rgba(30, 41, 59, 0.72); border: 1px solid rgba(148, 163, 184, 0.2); margin-bottom: 8px;">
+            <div style="min-width: 0; flex: 1;">
+              <div id="zaloLiveChatActiveTitle" style="font-size: 12px; font-weight: 800; color: #38bdf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Tất cả luồng tin nhắn Zalo trực ban</div>
+              <div id="zaloLiveChatActiveMeta" style="font-size: 10px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Tự động cập nhật tức thì mọi tin nhắn đến &amp; đi từ nhóm Zalo</div>
+            </div>
+            <button type="button" id="btnMarkZaloConvRead" class="btn-refresh-loc" style="padding: 3px 8px; font-size: 10px; color: #6ee7b7; border-color: rgba(16, 185, 129, 0.4); cursor: pointer; white-space: nowrap;">✓ Đã đọc</button>
+          </div>
+
+          <!-- Real-Time Chat Messages Stream -->
+          <div id="zaloLiveChatMessagesList" style="flex: 1; min-height: 310px; max-height: 370px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: rgba(2, 6, 23, 0.78); border: 1px solid rgba(51, 65, 85, 0.65); margin-bottom: 8px;">
+            <div style="color: #64748b; font-size: 11.5px; text-align: center; margin: auto;">Chưa có tin nhắn Zalo nào. Khi cán bộ nhắn tin trong nhóm Zalo hoặc gửi <code>/kn</code>, <code>/tn</code>, tin nhắn sẽ hiện trực tiếp tại đây!</div>
+          </div>
+
+          <!-- Direct Web-to-Zalo Reply Composer -->
+          <div style="display: flex; gap: 7px; align-items: center;">
+            <input type="text" id="inputZaloLiveChatReply" class="input-field" placeholder="Nhập tin nhắn gửi thẳng vào nhóm Zalo đang chọn (Nhấn Enter để gửi)..." style="flex: 1; font-size: 12px; padding: 8px 11px; border-color: rgba(56, 189, 248, 0.4);" autocomplete="off" />
+            <button type="button" id="btnSendZaloLiveChatReply" class="btn-primary" style="padding: 8px 14px; font-size: 12px; font-weight: 800; background: linear-gradient(135deg, #059669, #10b981); border: none; border-radius: 8px; color: #ffffff; cursor: pointer; white-space: nowrap;">
+              📨 Gửi Zalo
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Preset Quick-Pair Cards (Ideal for immediate Tân An / CSGT / PCCC testing) -->
-      <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
-          <div style="font-size: 12px; font-weight: 800; color: #7dd3fc;">BỘ MÃ KẾT NỐI MẪU SẴN SÀNG TEST NGAY (CẦN THƠ &amp; TOÀN QUỐC)</div>
-          <div style="font-size: 10.5px; color: #94a3b8;">Bấm <b>Copy Lệnh</b> để dán vào Zalo thật, hoặc bấm <b>Gắn Giả Lập</b> để test ngay luồng định tuyến trên Web</div>
+      <!-- QUICK PRESET CARDS & CUSTOM UNIT GENERATOR -->
+      <div style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 12px; padding: 11px 13px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <div style="font-size: 11.5px; font-weight: 800; color: #7dd3fc;">⚡ BỘ MÃ NHANH MẪU &amp; TẠO ĐƠN VỊ TÙY CHỈNH</div>
+            <div style="font-size: 10px; color: #94a3b8;">Hỗ trợ cả lệnh ngắn <b>/kn ct.tanan Congan@113</b> lẫn lệnh đầy đủ <b>/ketnoi</b></div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+            <input type="text" id="inputZaloCustomProvince" class="input-field" placeholder="Tỉnh/TP (VD: Cần Thơ)" value="Cần Thơ" style="width: 135px; font-size: 11px; padding: 5px 8px;" />
+            <input type="text" id="inputZaloCustomWard" class="input-field" placeholder="Xã/Phường (VD: Phường Tân An)" value="Phường Tân An" style="width: 155px; font-size: 11px; padding: 5px 8px;" />
+            <select id="selectZaloCustomAgency" class="input-field" style="font-size: 11px; padding: 5px 8px;">
+              <option value="police">Công An Xã/Phường</option>
+              <option value="csgt">Đội CSGT Tỉnh/TP</option>
+              <option value="fire">Cảnh Sát PCCC &amp; CNCH</option>
+              <option value="all_province">Chỉ Huy Công An Tỉnh/TP</option>
+            </select>
+            <button type="button" id="btnGenerateCustomZaloUnit" class="btn-primary" style="padding: 5px 10px; font-size: 11px; font-weight: 800; background: #059669; border: none; border-radius: 6px; color: #fff; cursor: pointer; white-space: nowrap;">Tạo &amp; Copy Mã</button>
+          </div>
         </div>
-        <div id="zaloPresetCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 8px;">
+        <div id="zaloPresetCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 8px;">
           <!-- Populated dynamically by js/dispatcher.js -->
         </div>
       </div>
 
-      <!-- Step 3: Tactical Broadcast & Maintenance / Emergency System Notice Composer -->
-      <div id="zaloBroadcastComposerCard" style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(251, 191, 36, 0.42); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
-          <div style="font-size: 12.5px; font-weight: 800; color: #fbbf24; letter-spacing: 0.2px;">
-            📢 3. PHÁT THÔNG BÁO KHẨN CẤP / BẢO TRÌ &amp; CẬP NHẬT HỆ THỐNG (BẮN THẲNG TOÀN BỘ ZALO)
+      <!-- LOWER GRID: MASS BROADCAST COMPOSER + ALERT OUTBOX LOG -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px;">
+        <!-- Tactical Broadcast & Maintenance / Emergency System Notice Composer -->
+        <div id="zaloBroadcastComposerCard" style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(251, 191, 36, 0.42); border-radius: 12px; padding: 12px 14px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+            <div style="font-size: 12px; font-weight: 800; color: #fbbf24; letter-spacing: 0.2px;">
+              📢 PHÁT CÔNG ĐIỆN KHẨN / BẢO TRÌ TOÀN BỘ ZALO
+            </div>
+            <div style="font-size: 10.5px; color: #fde68a; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(251, 191, 36, 0.35); padding: 2px 8px; border-radius: 999px; font-weight: 700;">
+              Phạm vi khớp: <b id="zaloBroadcastTargetCountTop">0</b> nhóm Zalo
+            </div>
           </div>
-          <div style="font-size: 11px; color: #fde68a; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(251, 191, 36, 0.35); padding: 3px 9px; border-radius: 999px; font-weight: 700;">
-            Phạm vi khớp: <b id="zaloBroadcastTargetCountTop">0</b> nhóm/đơn vị Zalo
+
+          <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px;">
+            <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="maintenance" style="padding: 4px 8px; font-size: 10.5px; font-weight: 700; color: #fde047; border-color: rgba(250, 204, 21, 0.45); background: rgba(234, 179, 8, 0.14); cursor: pointer;">🔧 Mẫu Bảo Trì</button>
+            <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="emergency" style="padding: 4px 8px; font-size: 10.5px; font-weight: 700; color: #fca5a5; border-color: rgba(248, 113, 113, 0.5); background: rgba(239, 68, 68, 0.15); cursor: pointer;">🚨 Công Điện Khẩn</button>
+            <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="weather" style="padding: 4px 8px; font-size: 10.5px; font-weight: 700; color: #7dd3fc; border-color: rgba(56, 189, 248, 0.45); background: rgba(14, 165, 233, 0.14); cursor: pointer;">⛈️ Cảnh Báo Mưa Bão</button>
+            <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="recovery" style="padding: 4px 8px; font-size: 10.5px; font-weight: 700; color: #6ee7b7; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.14); cursor: pointer;">✅ Hoàn Tất Nâng Cấp</button>
           </div>
-        </div>
-        <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 9px; line-height: 1.45;">
-          Soạn công điện khẩn, thông báo <b>sắp bảo trì / cập nhật máy chủ</b>, cảnh báo mưa bão hoặc hoàn tất nâng cấp và <b>bắn thẳng đồng loạt</b> về tất cả nhóm Zalo Công an Xã/Phường, CSGT, PCCC, Y tế 115 đã liên kết.
-        </div>
 
-        <!-- 1-Click Quick Templates -->
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
-          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="maintenance" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #fde047; border-color: rgba(250, 204, 21, 0.45); background: rgba(234, 179, 8, 0.14); cursor: pointer;">🔧 Mẫu Sắp Bảo Trì / Cập Nhật</button>
-          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="emergency" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #fca5a5; border-color: rgba(248, 113, 113, 0.5); background: rgba(239, 68, 68, 0.15); cursor: pointer;">🚨 Mẫu Công Điện Trực Chiến Khẩn</button>
-          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="weather" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #7dd3fc; border-color: rgba(56, 189, 248, 0.45); background: rgba(14, 165, 233, 0.14); cursor: pointer;">⛈️ Mẫu Cảnh Báo Mưa Bão / Ngập</button>
-          <button type="button" class="btn-zalo-bcast-tpl btn-refresh-loc" data-tpl="recovery" style="padding: 5px 10px; font-size: 11px; font-weight: 700; color: #6ee7b7; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.14); cursor: pointer;">✅ Mẫu Hoàn Tất Nâng Cấp</button>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 8px;">
-          <select id="selectZaloBroadcastCategory" class="input-field" style="font-size: 11.5px; padding: 7px 9px;">
-            <option value="maintenance">🔧 Thông báo Bảo trì &amp; Cập nhật hệ thống</option>
-            <option value="emergency">🚨 Công điện &amp; Chỉ đạo khẩn cấp</option>
-            <option value="weather">⛈️ Cảnh báo Thiên tai / Mưa bão</option>
-            <option value="recovery">✅ Thông báo Hoàn tất nâng cấp</option>
-            <option value="general">📢 Thông báo Điều hành chung</option>
-          </select>
-          <select id="selectZaloBroadcastScope" class="input-field" style="font-size: 11.5px; padding: 7px 9px;">
-            <option value="all">🌐 Bắn thẳng cho TOÀN BỘ đơn vị đã liên kết</option>
-            <option value="police">👮 Chỉ Công An Xã/Phường</option>
-            <option value="csgt">🚓 Chỉ lực lượng CSGT</option>
-            <option value="fire">🚒 Chỉ lực lượng PCCC &amp; CNCH</option>
-            <option value="hospital">🚑 Chỉ Cấp Cứu Y Tế 115</option>
-            <option value="province_hq">🏛️ Chỉ Trung Tâm Chỉ Huy Cấp Tỉnh/QG</option>
-          </select>
-          <input type="text" id="inputZaloBroadcastProvince" class="input-field" placeholder="Tất cả Tỉnh/TP (Hoặc lọc VD: Cần Thơ)" style="font-size: 11.5px; padding: 7px 9px;" />
-        </div>
-
-        <input type="text" id="inputZaloBroadcastTitle" class="input-field" placeholder="Chủ đề thông báo (VD: Tạm bảo trì nâng cấp máy chủ SOS Việt Nam trong 15 phút)" style="width: 100%; font-size: 12px; font-weight: 700; padding: 8px 10px; margin-bottom: 8px;" />
-        <textarea id="textareaZaloBroadcastMessage" class="input-field" rows="3" placeholder="Nhập nội dung thông báo khẩn cấp, lịch bảo trì cập nhật hệ thống, hoặc chỉ đạo trực ban cần bắn thẳng về Zalo tất cả đơn vị..." style="width: 100%; font-size: 12px; line-height: 1.5; padding: 8px 10px; resize: vertical; min-height: 70px;"></textarea>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-          <label style="display: flex; align-items: center; gap: 7px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
-            <input type="checkbox" id="chkZaloBroadcastWebSync" checked style="accent-color: #f59e0b; width: 15px; height: 15px;" />
-            <span>Đồng thời hiện băng rôn thông báo khẩn trên tất cả màn hình Web Bàn Trực Ban đang mở</span>
-          </label>
-          <button type="button" id="btnSendZaloBroadcastAll" class="btn-primary" style="padding: 9px 18px; font-size: 12px; font-weight: 800; background: linear-gradient(135deg, #dc2626, #ea580c); border: 1px solid rgba(254, 202, 202, 0.35); border-radius: 9px; color: #ffffff; cursor: pointer; box-shadow: 0 6px 18px rgba(220, 38, 38, 0.35); white-space: nowrap;">
-            📢 BẮN THẲNG CHO TOÀN BỘ (<span id="zaloBroadcastTargetCount">0</span> NHÓM ZALO)
-          </button>
-        </div>
-      </div>
-
-      <!-- Connected Zalo Chats & Live Outbox Feed -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
-        <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 12px; padding: 12px 14px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <div style="font-size: 12px; font-weight: 800; color: #f8fafc;">NHÓM / CÁN BỘ ĐÃ LIÊN KẾT (<span id="zaloBoundCount">0</span>)</div>
-            <button type="button" id="btnSendZaloTestAll" class="btn-refresh-loc" style="padding: 4px 10px; font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); cursor: pointer;">Bắn Tin Test Tất Cả</button>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; margin-bottom: 7px;">
+            <select id="selectZaloBroadcastCategory" class="input-field" style="font-size: 11px; padding: 6px 8px;">
+              <option value="maintenance">🔧 Bảo trì &amp; Cập nhật</option>
+              <option value="emergency">🚨 Công điện khẩn cấp</option>
+              <option value="weather">⛈️ Thiên tai / Mưa bão</option>
+              <option value="recovery">✅ Hoàn tất nâng cấp</option>
+              <option value="general">📢 Điều hành chung</option>
+            </select>
+            <select id="selectZaloBroadcastScope" class="input-field" style="font-size: 11px; padding: 6px 8px;">
+              <option value="all">🌐 TOÀN BỘ đơn vị</option>
+              <option value="police">👮 Công An Xã/Phường</option>
+              <option value="csgt">🚓 Lực lượng CSGT</option>
+              <option value="fire">🚒 Lực lượng PCCC</option>
+              <option value="hospital">🚑 Cấp Cứu 115</option>
+              <option value="province_hq">🏛️ Chỉ Huy Tỉnh/QG</option>
+            </select>
+            <input type="text" id="inputZaloBroadcastProvince" class="input-field" placeholder="Lọc Tỉnh/TP (VD: Cần Thơ)" style="font-size: 11px; padding: 6px 8px;" />
           </div>
-          <div style="font-size: 10.5px; color: #94a3b8; margin-bottom: 8px; line-height: 1.4;">
-            💡 Zalo bảo mật ẩn tên nhóm riêng tư: bấm <b style="color: #fbbf24;">✏️ Sửa Đơn Vị</b> ngay trên nhóm bên dưới để chỉ định đúng <b>Công an Phường/Xã</b> &amp; <b>Tên nhóm</b> chỉ bằng 1 chạm!
-          </div>
-          <div id="zaloBindingsListContainer" style="max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 11.5px;">
-            <div style="color: #64748b; font-style: italic; padding: 10px 0;">Chưa có nhóm Zalo nào liên kết.</div>
+
+          <input type="text" id="inputZaloBroadcastTitle" class="input-field" placeholder="Chủ đề thông báo..." style="width: 100%; font-size: 11.5px; font-weight: 700; padding: 7px 9px; margin-bottom: 7px;" />
+          <textarea id="textareaZaloBroadcastMessage" class="input-field" rows="2" placeholder="Nhập nội dung công điện bắn thẳng về Zalo các đơn vị..." style="width: 100%; font-size: 11.5px; line-height: 1.45; padding: 7px 9px; resize: vertical; min-height: 56px;"></textarea>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #cbd5e1; cursor: pointer;">
+              <input type="checkbox" id="chkZaloBroadcastWebSync" checked style="accent-color: #f59e0b; width: 14px; height: 14px;" />
+              <span>Hiện băng rôn trên Web Bàn Trực Ban</span>
+            </label>
+            <button type="button" id="btnSendZaloBroadcastAll" class="btn-primary" style="padding: 7px 14px; font-size: 11.5px; font-weight: 800; background: linear-gradient(135deg, #dc2626, #ea580c); border: 1px solid rgba(254, 202, 202, 0.35); border-radius: 8px; color: #ffffff; cursor: pointer; white-space: nowrap;">
+              📢 BẮN TOÀN BỘ (<span id="zaloBroadcastTargetCount">0</span> NHÓM)
+            </button>
           </div>
         </div>
 
+        <!-- Outbox Log -->
         <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 12px; padding: 12px 14px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <div style="font-size: 12px; font-weight: 800; color: #fbbf24;">NHẬT KÝ TIN BÁO ĐỘNG ZALO GẦN NHẤT</div>
             <span style="font-size: 10px; color: #94a3b8;">Hỗ trợ test Link Tiếp Nhận 1 Chạm</span>
           </div>
-          <div id="zaloOutboxPreviewContainer" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+          <div id="zaloOutboxPreviewContainer" style="max-height: 235px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
             <div style="color: #64748b; font-style: italic; padding: 10px 0;">Chưa có tin báo động nào phát ra.</div>
           </div>
         </div>
@@ -3743,7 +3817,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261026_zalo_bot_v6"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261028_zalo_unified_v8"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {

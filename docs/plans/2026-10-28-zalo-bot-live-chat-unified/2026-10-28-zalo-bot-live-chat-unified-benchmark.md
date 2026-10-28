@@ -28,3 +28,4 @@ Benchmark records measured counts, sizes, latencies, and test coverage metrics o
 | P1 | Ward/commune + command units addressable via short `/kn` syntax | units | 9 | 3588 | - | >= 3500 | +3579 | `E1-P1A-API1` |
 | P1 | Persisted two-way live Zalo chat ring-buffer capacity | messages | 0 | 300 | - | 300 | +300 | `E1-P1A-API1` |
 | P1 | 34-Province directory cold / warm response latency | ms | - | 4.86 | - | <= 50 | 4.86ms warm (25.42ms cold) | `E1-P1A-API1` |
+| P2-A | Indexed semantic graph nodes (after FE + patch sync) | nodes | 73144 | 75493 | - | >= 73144 | +2349 | `E2-P2A-ANV1` |

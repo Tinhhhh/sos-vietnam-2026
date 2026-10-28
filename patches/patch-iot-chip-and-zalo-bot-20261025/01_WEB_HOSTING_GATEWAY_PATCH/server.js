@@ -739,12 +739,32 @@ function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, of
   return { ok: true, alreadyHandled: false, incident };
 }
 
+function broadcastZaloLiveEvent(eventType, payloadData = {}) {
+  const envelope = JSON.stringify({
+    eventType,
+    timestamp: new Date().toISOString(),
+    ...payloadData
+  });
+  const frame = `event: zalo_live_event\ndata: ${envelope}\n\n`;
+  for (const client of dispatcherSubscribers) {
+    if (!client.authenticatedUser || client.authenticatedUser === 'anonymous') continue;
+    try {
+      client.write(frame);
+      if (typeof client.flush === 'function') client.flush();
+    } catch (e) {
+      dispatcherSubscribers.delete(client);
+    }
+  }
+}
+
 const zaloBotService = createZaloBotService({
   getAgencyAccounts: () => AGENCY_ACCOUNTS,
   getStationsList: () => (Array.isArray(stationsDirectory?.stations) ? stationsDirectory.stations : (Array.isArray(stationsDirectory) ? stationsDirectory : [])),
+  getDiadanhIndex: () => diadanhIndex,
   getIncidentById: (id) => incidents.get(id),
   getActiveIncidents: () => Array.from(incidents.values()),
-  acceptIncidentFromZalo: performZaloIncidentAccept
+  acceptIncidentFromZalo: performZaloIncidentAccept,
+  onLiveEvent: (eventType, payloadData) => broadcastZaloLiveEvent(eventType, payloadData)
 });
 
 // History Trash & 24h Undo Policy (Hoàn tác có hiệu lực 24h từ khi xóa, sau 24h sẽ xóa vĩnh viễn)
@@ -2994,9 +3014,11 @@ const server = http.createServer(async (req, res) => {
         const unit = zaloBotService.registerCustomUnit(data);
         const snap = zaloBotService.getPublicStatus(viewerCtx);
         const unitPass = zaloBotService.resolveDefaultPasswordForUnit(unit);
+        const shortCode = zaloBotService.computeShortUnitCode(unit);
         const command = snap.requirePairingPassword ? `/ketnoi ${unit.unitCode} ${unitPass}` : `/ketnoi ${unit.unitCode}`;
+        const shortCommand = snap.requirePairingPassword ? `/kn ${shortCode} ${unitPass}` : `/kn ${shortCode}`;
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify({ ok: true, unit, command }));
+        return res.end(JSON.stringify({ ok: true, unit: { ...unit, shortCode }, command, shortCommand }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
@@ -3186,6 +3208,77 @@ const server = http.createServer(async (req, res) => {
       }
     });
     return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/messages' || urlPath === '/api/zalo/messages') && req.method === 'GET') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const chatId = urlObj.searchParams.get('chatId') || '';
+    const folder = urlObj.searchParams.get('folder') || 'all';
+    const limit = Number(urlObj.searchParams.get('limit') || 120);
+    const board = zaloBotService.getChatBoardState({ chatId, folder, limit });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify(board));
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/send-message' || urlPath === '/api/zalo/send-message') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
+    let body = '';
+    req.on('data', chunk => { if (body.length < 32768) body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { chatId, text, senderLabel } = JSON.parse(body || '{}');
+        const authUser = req.user || req.officer || null;
+        const resolvedSender = String(
+          senderLabel ||
+          authUser?.unitName ||
+          authUser?.agencyName ||
+          ''
+        ).trim() || 'Trực ban Trung tâm Chỉ huy';
+        const sent = await zaloBotService.sendDispatcherChatMessage({
+          chatId,
+          text,
+          senderLabel: resolvedSender
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          ...sent,
+          board: zaloBotService.getChatBoardState({ chatId }),
+          status: zaloBotService.getPublicStatus(viewerCtx)
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/mark-read' || urlPath === '/api/zalo/mark-read') && req.method === 'POST') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    let body = '';
+    req.on('data', chunk => { if (body.length < 8192) body += chunk; });
+    req.on('end', () => {
+      try {
+        const { chatId } = JSON.parse(body || '{}');
+        const out = zaloBotService.markConversationRead(chatId || '');
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify(out));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if ((urlPath === '/api/dispatcher/zalo/directory' || urlPath === '/api/zalo/directory') && req.method === 'GET') {
+    if (!urlPath.startsWith('/api/dispatcher/') && !securityFirewall.authenticate(req, res)) return;
+    const viewerCtx = getZaloViewerContext(req);
+    const query = urlObj.searchParams.get('q') || urlObj.searchParams.get('query') || '';
+    const dir = zaloBotService.getProvinceDirectory(viewerCtx, { query });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify(dir));
   }
 
   // -------------------------------------------------------------

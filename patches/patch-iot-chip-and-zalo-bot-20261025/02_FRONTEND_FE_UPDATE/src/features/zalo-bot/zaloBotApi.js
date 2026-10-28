@@ -1,5 +1,6 @@
 /**
- * Zalo Bot Hierarchical Dispatch & Mass Broadcast API Client for sos-vietnam-2026-FE (React 19 + Vite)
+ * Zalo Bot Unified Live Chat, Sticky Lifecycle & 34-Province Directory API Client
+ * for sos-vietnam-2026-FE (React 19 + Vite)
  */
 const API_BASE = import.meta.env?.VITE_API_BASE_URL || '';
 
@@ -25,6 +26,12 @@ export const saveZaloBotConfig = (payload) =>
   requestJson('/api/dispatcher/zalo/config', {
     method: 'POST',
     body: JSON.stringify(payload)
+  });
+
+export const deleteZaloBotExplicitly = () =>
+  requestJson('/api/dispatcher/zalo/config', {
+    method: 'POST',
+    body: JSON.stringify({ clearToken: true, explicitUserDelete: true })
   });
 
 export const registerCustomZaloUnit = (payload) =>
@@ -75,6 +82,27 @@ export const restoreZaloBotBackup = (payload) =>
     body: JSON.stringify(payload)
   });
 
+export const fetchZaloLiveMessages = ({ chatId = '', limit = 150, folder = 'all' } = {}) =>
+  requestJson(
+    `/api/dispatcher/zalo/messages?chatId=${encodeURIComponent(chatId)}&limit=${encodeURIComponent(limit)}&folder=${encodeURIComponent(folder)}`,
+    { method: 'GET' }
+  );
+
+export const sendZaloLiveMessage = ({ chatId, text }) =>
+  requestJson('/api/dispatcher/zalo/send-message', {
+    method: 'POST',
+    body: JSON.stringify({ chatId, text })
+  });
+
+export const markZaloConversationRead = (chatId = '__all__') =>
+  requestJson('/api/dispatcher/zalo/mark-read', {
+    method: 'POST',
+    body: JSON.stringify({ chatId })
+  });
+
+export const fetchZaloProvinceDirectory = (query = '') =>
+  requestJson(`/api/dispatcher/zalo/directory?q=${encodeURIComponent(query)}`, { method: 'GET' });
+
 export const uploadIncidentSceneMedia = (payload, citizenAccessToken = '') =>
   requestJson('/api/sos/media', {
     method: 'POST',
@@ -85,6 +113,7 @@ export const uploadIncidentSceneMedia = (payload, citizenAccessToken = '') =>
 export const zaloBotApi = {
   getStatus: fetchZaloBotStatus,
   saveConfig: saveZaloBotConfig,
+  deleteBotExplicitly: deleteZaloBotExplicitly,
   restoreBackup: restoreZaloBotBackup,
   registerCustomUnit: registerCustomZaloUnit,
   simulatePair: simulateZaloUnitPair,
@@ -92,5 +121,9 @@ export const zaloBotApi = {
   updateBinding: updateZaloBinding,
   unlinkUnit: unlinkZaloUnit,
   broadcastAnnouncement: broadcastZaloAnnouncement,
+  getLiveMessages: fetchZaloLiveMessages,
+  sendLiveMessage: sendZaloLiveMessage,
+  markConversationRead: markZaloConversationRead,
+  getProvinceDirectory: fetchZaloProvinceDirectory,
   uploadSceneMedia: uploadIncidentSceneMedia
 };

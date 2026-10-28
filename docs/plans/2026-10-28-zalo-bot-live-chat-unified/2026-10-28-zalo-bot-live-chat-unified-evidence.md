@@ -38,3 +38,15 @@ Matching plan item(s): `P1-A`
   - Short `/kn` pairing & two-way live chat ledger: `/kn ct.tanan Congan@113`, `/kn hcm.saigon Congan@113`, `/kn hn.badinh Congan@113` -> all `ketnoi_ok`; regular inbound officer chat persisted (`chatRecorded=true`); pairing password redaction verified (`leakedPass=false`); direct web-to-Zalo reply `sendDispatcherChatMessage` succeeded (`outOk=true`); emitted `11` `onLiveEvent` notifications.
   - Sticky bot lifecycle & explicit delete guard: `afterSet=true`, `afterEmptySave=true` (empty/unrelated saves preserve active token), `afterContainerResetRestore=true` (rehydrates from redundant encrypted `zalo-bot-sticky-vault.json`), `afterExplicitDeleteBlocked=true` (`explicitUserDelete: true` sets `botExplicitlyCleared=true` and blocks vault resurrection).
 - `E1-P1A-ANV1`: Executed `anvien analyze --force` (`files=455`, `parsed_code=151`, `failed=0`, `nodes=74281`, `relationships=79181`) and MCP `detect_changes` (`repo=sos-vietnam-2026`, `scope=all`, `target_type=files`, `total=13` including pre-existing worktree files; `risk_level=critical` due to backward-compatible extensions on `updateConfig`, `getPublicStatus`, and `handleIncomingMessage`).
+
+## E2 - P2 Evidence
+
+Matching plan item(s): `P2-A`
+
+- `E2-P2A-FD1`: Executed `anvien analyze --force`, `anvien file-detail` & `anvien impact` on `dispatcher.html`, `js/dispatcher.js`, `zaloBotApi.js`, and `ZaloBotConfigModal.jsx` prior to editing -> verified `risk=low` on `dispatcher.html` and `direct=0` upstream breakages on `ZaloBotConfigModal`.
+- `E2-P2A-UI1`: Upgraded `#zaloBotConfigModal` in `dispatcher.html` and `js/dispatcher.js` (plus synced `patches/patch-iot-chip-and-zalo-bot-20261025/`):
+  - Unified Compact Sticky Bot Bar (`#zaloUnifiedBotControlBar` + `#zaloStickyModeIndicator`) integrating status, token input, sticky lock indicator, explicit Delete (`explicitUserDelete: true` + `botExplicitlyCleared: true` in `sos_zalo_bot_vault_v1`), password lock toggle, and fast demo toggle into 1 compact section.
+  - Collapsible 34-Province/City Directory (`#zaloProvinceAccordionSection` + `<details class="zalo-prov-folder">`) with lazy-expanded Provincial Command/Specialized & Ward Police units, `/kn` short command badges, 1-click Copy `/kn`, and instant search.
+  - Live Two-Way Zalo Chat Board (`#zaloLiveChatBoardCard`) with tactical folders (`Tất cả`, `Chưa đọc`, `Xã/Phường`, `Tỉnh/Chuyên ngành`, `Chưa gắn`), real-time SSE `zalo_live_event` rendering, unread counters, and direct web-to-Zalo reply composer (`#inputZaloLiveChatReply` + `#btnSendZaloLiveChatReply`).
+  - Executed `node --check js/dispatcher.js` and `node --check patches/patch-iot-chip-and-zalo-bot-20261025/02_FRONTEND_FE_UPDATE/src/features/zalo-bot/zaloBotApi.js` -> exited `0`.
+- `E2-P2A-ANV1`: Executed `anvien analyze --force` (`files=455`, `nodes=75493`, `relationships=80615`) and `anvien detect-changes files --repo sos-vietnam-2026 --scope all` -> verified clean mirror sync and `degradedNodes=0`.

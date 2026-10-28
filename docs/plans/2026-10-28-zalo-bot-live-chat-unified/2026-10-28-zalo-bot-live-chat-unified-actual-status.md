@@ -2,7 +2,7 @@
 
 Title: Unified Live Zalo Chat Board, Compact Sticky Bot Lifecycle & 34-Province Group Directory
 Date: 2026-10-28
-Status: P1-A Complete — Proceeding to P2-A
+Status: P2-A Complete — Proceeding to P2-B (Docker Build & Playwright E2E)
 Companion plan: `docs/plans/2026-10-28-zalo-bot-live-chat-unified/2026-10-28-zalo-bot-live-chat-unified-plan.md`
 Companion evidence: `docs/plans/2026-10-28-zalo-bot-live-chat-unified/2026-10-28-zalo-bot-live-chat-unified-evidence.md`
 Companion benchmark: `docs/plans/2026-10-28-zalo-bot-live-chat-unified/2026-10-28-zalo-bot-live-chat-unified-benchmark.md`
@@ -51,6 +51,7 @@ Out of scope:
 |---------|------|------------|----------------|----------------|----------|-------------------|
 | R0 | 2026-10-28 | commit `b34774a` | Full Zalo Live Chat + Compact Sticky Bot + Short `/kn` + 34-Province Directory scope | Baseline established via Anvien + REA inspection | `E0-P0A-ANV1`, `E0-P0A-REA1`, `E0-P0A-FD1..FD5`, `E0-P0A-SRC1..2`, `E0-P0A-GEO1`, `E0-P0A-DKR1` | Proceed to `P1-A` |
 | R1 | 2026-10-28 | working tree (`P1-A`) | `Dockerfile`, `services/zalo-bot-service.js`, `server.js` | Backend sticky bot dual-vault + 45s watchdog, two-way `chatMessages` & `conversations` + SSE `zalo_live_event`, short `/kn` pairing, and 34-province directory implemented & verified (`correct` on backend) | `E1-P1A-CHK1`, `E1-P1A-API1`, `E1-P1A-ANV1` | Proceed to `P2-A` |
+| R2 | 2026-10-28 | commit `15286e7` + `P2-A` | `dispatcher.html`, `js/dispatcher.js`, `patches/patch-iot-chip-and-zalo-bot-20261025/*` | Unified Live Chat Board UI, Compact Sticky Bot Bar, Collapsible 34-Province Accordion, and FE/Gateway patch mirror completed (`correct` on code) | `E2-P2A-FD1`, `E2-P2A-UI1`, `E2-P2A-ANV1` | Proceed to `P2-B` |
 
 ## Phase Touch Map
 

@@ -10284,6 +10284,15 @@ class DispatcherApp {
       this.loadAdminStats();
     });
 
+    this.eventSource.addEventListener('zalo_live_event', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        this.handleZaloLiveSseEvent?.(payload);
+      } catch (err) {
+        console.warn('zalo_live_event parse warning:', err);
+      }
+    });
+
     const handleCallSignal = async (signal) => {
       if (!signal) return;
       // Do not process our own signals (prevent self-echo loop)
@@ -15950,6 +15959,13 @@ class DispatcherApp {
 
   initZaloBotModal() {
     this.zaloBotModal = document.getElementById('zaloBotConfigModal');
+    this._zaloLiveFolder = 'all';
+    this._selectedZaloChatId = '';
+    this._zaloConversations = [];
+    this._zaloLiveMessages = [];
+    this._zaloTotalUnread = 0;
+    this._zaloProvinceDirData = null;
+
     const btnHeader = document.getElementById('btnHeaderZaloBot');
     const btnPortal = document.getElementById('btnPortalZaloBot');
     const gearItem = document.getElementById('gearMenuItemZaloBot');
@@ -15958,8 +15974,13 @@ class DispatcherApp {
     const btnToggleToken = document.getElementById('btnToggleShowZaloToken');
     const btnSave = document.getElementById('btnSaveZaloBotConfig');
     const btnCopyCur = document.getElementById('btnCopyCurrentOfficerZaloCmd');
+    const btnCopyShortCur = document.getElementById('btnCopyCurrentOfficerShortCmd');
     const btnGenCustom = document.getElementById('btnGenerateCustomZaloUnit');
     const btnTestAll = document.getElementById('btnSendZaloTestAll');
+    const btnSendLiveReply = document.getElementById('btnSendZaloLiveChatReply');
+    const inpLiveReply = document.getElementById('inputZaloLiveChatReply');
+    const btnMarkRead = document.getElementById('btnMarkZaloConvRead');
+    const inpProvSearch = document.getElementById('inputZaloProvinceDirSearch');
 
     const openModal = () => {
       const gearMenu = document.getElementById('gearDropdownMenu');
@@ -15980,7 +16001,7 @@ class DispatcherApp {
         if (adminBubble) adminBubble.click();
         const subEl = document.getElementById('authHeaderSubtitle');
         if (subEl) {
-          subEl.innerHTML = '💬 Đăng nhập tài khoản trực ban (VD: <b>admin</b>) hoặc bấm Đổi đơn vị để mở ngay <b>Bảng Cấu Hình Bot Zalo 2 Chiều</b>!';
+          subEl.innerHTML = '💬 Đăng nhập tài khoản trực ban (VD: <b>admin</b>) hoặc bấm Đổi đơn vị để mở ngay <b>Bảng Chat &amp; Điều Phối Bot Zalo 2 Chiều</b>!';
         }
         setTimeout(() => document.getElementById('loginUsername')?.focus(), 120);
       });
@@ -15996,8 +16017,12 @@ class DispatcherApp {
       });
     }
     if (btnRefresh) {
-      btnRefresh.addEventListener('click', () => this.refreshZaloBotStatus(false));
+      btnRefresh.addEventListener('click', () => {
+        this.refreshZaloBotStatus(false);
+        this.loadZaloLiveChatBoard();
+      });
     }
+
     const inpTokenMain = document.getElementById('inputZaloBotToken');
     if (inpTokenMain) {
       inpTokenMain.addEventListener('focus', () => {
@@ -16025,33 +16050,39 @@ class DispatcherApp {
         btnToggleToken.textContent = isPwd ? 'Ẩn' : 'Hiện';
       });
     }
+
+    // Explicit User Delete Bot: permanently clears Bot from both Server Sticky Vault & Browser Vault
     const btnClearToken = document.getElementById('btnClearZaloBotToken');
     if (btnClearToken) {
       btnClearToken.addEventListener('click', async () => {
-        if (!confirm('Bạn có chắc chắn muốn xóa BOT_TOKEN đã lưu và chuyển về chế độ mô phỏng không?')) return;
+        if (!window.__SOS_SKIP_ZALO_DELETE_CONFIRM && !confirm('Bạn có chắc chắn muốn XÓA Bot Zalo hiện tại và chuyển về chế độ mô phỏng? (Bot sẽ bị gỡ dứt điểm cho tới khi bạn đặt lại Bot mới)')) {
+          return;
+        }
         try {
           const res = await fetch('/api/dispatcher/zalo/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ clearToken: true })
+            body: JSON.stringify({ clearToken: true, explicitUserDelete: true })
           });
           const data = await res.json();
           if (data.ok) {
-            this.writeZaloBotVault({ botToken: '' });
+            this.writeZaloBotVault({ botToken: '', botExplicitlyCleared: true });
             const inp = document.getElementById('inputZaloBotToken');
             if (inp) {
               inp.value = '';
               inp.dataset.isMasked = '0';
-              inp.placeholder = 'Dán BOT_TOKEN (VD: 123456789:abcXYZ...)';
+              inp.placeholder = 'Dán BOT_TOKEN để thêm / đặt lại Bot mới...';
             }
             if (data.status) this.renderZaloBotStatus(data.status);
-            this.showToast?.('Đã xóa BOT_TOKEN khỏi hệ thống.', 'info');
+            this.showToast?.('🗑️ Đã xóa dứt điểm Bot Zalo hiện tại theo yêu cầu.', 'info');
           }
         } catch (err) {
           this.showToast?.('Không thể xóa BOT_TOKEN', 'error');
         }
       });
     }
+
+    // Sticky Save / Reset New Bot
     if (btnSave) {
       btnSave.addEventListener('click', async () => {
         const inpToken = document.getElementById('inputZaloBotToken');
@@ -16070,7 +16101,7 @@ class DispatcherApp {
 
         btnSave.disabled = true;
         const origLabel = btnSave.textContent;
-        btnSave.textContent = 'Đang kết nối với Zalo Bot Platform...';
+        btnSave.textContent = 'Đang kết nối Zalo Bot...';
         try {
           const res = await fetch('/api/dispatcher/zalo/config', {
             method: 'POST',
@@ -16080,13 +16111,13 @@ class DispatcherApp {
           const data = await res.json();
           if (data.ok) {
             if (enteredNewRealToken) {
-              this.writeZaloBotVault({ botToken: rawVal });
+              this.writeZaloBotVault({ botToken: rawVal, botExplicitlyCleared: false });
             }
             if (data.status) this.renderZaloBotStatus(data.status);
             if (data.botCheck && !data.botCheck.ok && enteredNewRealToken) {
-              this.showToast?.(`Đã lưu cố định Token nhưng Zalo phản hồi: ${data.botCheck.error}`, 'warning');
+              this.showToast?.(`Đã khóa duy trì Token liên tục (lưu ý phản hồi Zalo: ${data.botCheck.error})`, 'warning');
             } else {
-              this.showToast?.('✅ Đã lưu cố định cấu hình & BOT_TOKEN cho các lần sau!', 'success');
+              this.showToast?.('✅ Đã lưu & khóa duy trì Bot Zalo liên tục 24/7!', 'success');
             }
           } else {
             this.showToast?.(data.error || 'Không thể lưu cấu hình Bot Zalo', 'error');
@@ -16099,6 +16130,15 @@ class DispatcherApp {
         }
       });
     }
+
+    if (btnCopyShortCur) {
+      btnCopyShortCur.addEventListener('click', () => {
+        const shortEl = document.getElementById('zaloCurrentOfficerShortCommand');
+        const cmd = shortEl ? shortEl.textContent.trim() : '/kn ct.tanan Congan@113';
+        this.copyZaloTextWithToast(cmd, `Đã sao chép lệnh ngắn: ${cmd}`);
+      });
+    }
+
     if (btnCopyCur) {
       btnCopyCur.addEventListener('click', () => {
         const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
@@ -16106,6 +16146,7 @@ class DispatcherApp {
         this.copyZaloTextWithToast(cmd, 'Đã sao chép lệnh liên kết của đơn vị đang trực!');
       });
     }
+
     if (btnGenCustom) {
       btnGenCustom.addEventListener('click', async () => {
         const prov = document.getElementById('inputZaloCustomProvince')?.value.trim() || 'Cần Thơ';
@@ -16123,15 +16164,19 @@ class DispatcherApp {
           });
           const data = await res.json();
           if (data.ok && data.command) {
+            const shortCmd = data.shortCommand || data.command;
             this._customZaloCmdOverride = {
               command: data.command,
+              shortCommand: shortCmd,
               label: data.unit?.unitName || 'Đơn vị vừa tạo'
             };
             const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
+            const shortEl = document.getElementById('zaloCurrentOfficerShortCommand');
             const lblEl = document.getElementById('zaloCurrentOfficerLabel');
             if (cmdEl) cmdEl.textContent = data.command;
+            if (shortEl) shortEl.textContent = shortCmd;
             if (lblEl) lblEl.textContent = data.unit?.unitName || 'Đơn vị vừa tạo';
-            this.copyZaloTextWithToast(data.command, `Đã tạo & sao chép: ${data.command}`);
+            this.copyZaloTextWithToast(shortCmd, `Đã tạo & sao chép lệnh ngắn: ${shortCmd}`);
           } else {
             this.showToast?.(data.error || 'Không thể tạo mã đơn vị', 'error');
           }
@@ -16140,6 +16185,7 @@ class DispatcherApp {
         }
       });
     }
+
     if (btnTestAll) {
       btnTestAll.addEventListener('click', async () => {
         try {
@@ -16158,6 +16204,50 @@ class DispatcherApp {
         } catch (err) {
           this.showToast?.('Lỗi gửi tin kiểm tra Zalo', 'error');
         }
+      });
+    }
+
+    // Live Two-Way Chat Folder Tabs
+    document.querySelectorAll('.zalo-chat-folder-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._zaloLiveFolder = btn.getAttribute('data-folder') || 'all';
+        document.querySelectorAll('.zalo-chat-folder-btn').forEach(b => {
+          const active = (b.getAttribute('data-folder') || 'all') === this._zaloLiveFolder;
+          b.style.background = active ? 'rgba(14, 165, 233, 0.24)' : '';
+          b.style.borderColor = active ? '#38bdf8' : '';
+          b.style.color = active ? '#e0f2fe' : '';
+          b.style.fontWeight = active ? '800' : '600';
+        });
+        this.renderZaloLiveChatBoard();
+      });
+    });
+
+    if (btnMarkRead) {
+      btnMarkRead.addEventListener('click', () => {
+        this.markZaloConversationRead(this._selectedZaloChatId || '__all__');
+      });
+    }
+
+    if (btnSendLiveReply) {
+      btnSendLiveReply.addEventListener('click', () => this.sendZaloLiveChatReply());
+    }
+    if (inpLiveReply) {
+      inpLiveReply.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.sendZaloLiveChatReply();
+        }
+      });
+    }
+
+    // 34-Province Directory Search (debounced)
+    if (inpProvSearch) {
+      let searchDebounce = null;
+      inpProvSearch.addEventListener('input', () => {
+        if (searchDebounce) clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+          this.loadZaloProvinceDirectory(inpProvSearch.value.trim());
+        }, 160);
       });
     }
 
@@ -16289,6 +16379,9 @@ class DispatcherApp {
       if (lblEl) lblEl.textContent = curOfficer.unitName || curOfficer.agencyName || curOfficer.username;
     }
     this.refreshZaloBotStatus(false);
+    this.loadZaloLiveChatBoard();
+    const q = document.getElementById('inputZaloProvinceDirSearch')?.value?.trim() || '';
+    this.loadZaloProvinceDirectory(q);
   }
 
   readZaloBotVault() {
@@ -16322,7 +16415,8 @@ class DispatcherApp {
       const data = await res.json();
       if (data && data.ok) {
         const vault = this.readZaloBotVault();
-        const needsTokenRestore = !data.hasToken && Boolean(vault.botToken && !String(vault.botToken).includes('••••'));
+        const explicitlyCleared = Boolean(data.botExplicitlyCleared || vault.botExplicitlyCleared);
+        const needsTokenRestore = !data.hasToken && !explicitlyCleared && Boolean(vault.botToken && !String(vault.botToken).includes('••••'));
         const needsBindingsRestore = Array.isArray(data.bindings) && data.bindings.length === 0
           && Array.isArray(vault.bindings) && vault.bindings.length > 0;
 
@@ -16344,7 +16438,7 @@ class DispatcherApp {
             if (restoreJson && restoreJson.ok && restoreJson.status) {
               this.renderZaloBotStatus(restoreJson.status);
               if (restoreJson.restoredToken || restoreJson.restoredBindingsCount > 0) {
-                this.showToast?.('🔄 Đã tự động khôi phục BOT_TOKEN & danh sách nhóm Zalo đã lưu!', 'success');
+                this.showToast?.('🔄 Đã tự động khôi phục BOT_TOKEN & danh sách nhóm Zalo duy trì liên tục!', 'success');
               }
               return;
             }
@@ -16357,6 +16451,404 @@ class DispatcherApp {
     } catch (err) {
       if (!silent) console.warn('refreshZaloBotStatus error:', err);
     }
+  }
+
+  handleZaloLiveSseEvent(ev = {}) {
+    if (!ev || !ev.eventType) return;
+    if (Array.isArray(ev.conversations)) {
+      this._zaloConversations = ev.conversations;
+    } else if (ev.conversation && ev.conversation.chatId) {
+      const idx = (this._zaloConversations || []).findIndex(c => c.chatId === ev.conversation.chatId);
+      if (idx >= 0) {
+        this._zaloConversations[idx] = ev.conversation;
+      } else {
+        this._zaloConversations = [ev.conversation, ...(this._zaloConversations || [])];
+      }
+    }
+    if (typeof ev.totalUnread === 'number') {
+      this._zaloTotalUnread = ev.totalUnread;
+    }
+
+    if ((ev.eventType === 'message_in' || ev.eventType === 'message_out') && ev.message) {
+      const msg = ev.message;
+      const exists = (this._zaloLiveMessages || []).some(m => m.id === msg.id);
+      if (!exists) {
+        this._zaloLiveMessages = [...(this._zaloLiveMessages || []), msg].slice(-300);
+      }
+      if (!this._selectedZaloChatId && msg.chatId) {
+        this._selectedZaloChatId = msg.chatId;
+      }
+      const isModalOpen = Boolean(this.zaloBotModal && this.zaloBotModal.style.display !== 'none');
+      if (ev.eventType === 'message_in' && !isModalOpen) {
+        const hdrSub = document.getElementById('headerZaloSubStatus');
+        if (hdrSub) {
+          hdrSub.textContent = `💬 Tin mới: ${msg.senderName || 'Zalo'}`;
+        }
+      }
+      if (isModalOpen) {
+        this.renderZaloLiveChatBoard(true);
+      }
+      this.updateZaloUnreadBadges();
+      return;
+    }
+
+    if (ev.eventType === 'conversation_read') {
+      this.updateZaloUnreadBadges();
+      if (this.zaloBotModal && this.zaloBotModal.style.display !== 'none') {
+        this.renderZaloLiveChatBoard(false);
+      }
+      return;
+    }
+
+    if (ev.eventType === 'binding_updated' || ev.eventType === 'bot_status_updated') {
+      this.refreshZaloBotStatus(true);
+    }
+  }
+
+  updateZaloUnreadBadges() {
+    const unreadEl = document.getElementById('zaloUnreadTotalBadge');
+    const total = Number(this._zaloTotalUnread || 0);
+    if (unreadEl) {
+      unreadEl.textContent = `${total} chưa đọc`;
+      unreadEl.style.background = total > 0 ? 'rgba(239, 68, 68, 0.28)' : 'rgba(30, 41, 59, 0.65)';
+      unreadEl.style.borderColor = total > 0 ? 'rgba(248, 113, 113, 0.6)' : 'rgba(148, 163, 184, 0.25)';
+      unreadEl.style.color = total > 0 ? '#fecaca' : '#94a3b8';
+    }
+  }
+
+  async loadZaloLiveChatBoard() {
+    try {
+      const q = this._selectedZaloChatId ? `?chatId=&limit=150` : '?limit=150';
+      const res = await fetch(`/api/dispatcher/zalo/messages${q}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.ok) {
+        this._zaloConversations = Array.isArray(data.conversations) ? data.conversations : [];
+        this._zaloLiveMessages = Array.isArray(data.messages) ? data.messages : [];
+        this._zaloTotalUnread = Number(data.totalUnread || 0);
+        if (!this._selectedZaloChatId && this._zaloConversations.length > 0) {
+          this._selectedZaloChatId = this._zaloConversations[0].chatId;
+        }
+        this.updateZaloUnreadBadges();
+        this.renderZaloLiveChatBoard(true);
+      }
+    } catch (err) {
+      console.warn('loadZaloLiveChatBoard warning:', err);
+    }
+  }
+
+  async markZaloConversationRead(chatId = '') {
+    try {
+      const res = await fetch('/api/dispatcher/zalo/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId })
+      });
+      const data = await res.json();
+      if (data && data.ok) {
+        if (Array.isArray(data.conversations)) this._zaloConversations = data.conversations;
+        this._zaloTotalUnread = Number(data.totalUnread || 0);
+        this.updateZaloUnreadBadges();
+        this.renderZaloLiveChatBoard(false);
+      }
+    } catch {}
+  }
+
+  selectZaloLiveConversation(chatId = '') {
+    this._selectedZaloChatId = String(chatId || '').trim();
+    if (this._selectedZaloChatId) {
+      this.markZaloConversationRead(this._selectedZaloChatId);
+    }
+    this.renderZaloLiveChatBoard(true);
+    document.getElementById('inputZaloLiveChatReply')?.focus();
+  }
+
+  renderZaloLiveChatBoard(scrollToBottom = false) {
+    const stripEl = document.getElementById('zaloLiveConversationStrip');
+    const msgListEl = document.getElementById('zaloLiveChatMessagesList');
+    const titleEl = document.getElementById('zaloLiveChatActiveTitle');
+    const metaEl = document.getElementById('zaloLiveChatActiveMeta');
+    if (!stripEl || !msgListEl) return;
+
+    const allConvs = Array.isArray(this._zaloConversations) ? this._zaloConversations : [];
+    const folder = this._zaloLiveFolder || 'all';
+    const filteredConvs = allConvs.filter(c => {
+      if (folder === 'unread') return Number(c.unreadCount || 0) > 0;
+      if (folder === 'ward') return c.folder === 'ward';
+      if (folder === 'province_specialist') return c.folder === 'province_specialist' || c.folder === 'national';
+      if (folder === 'unbound') return !c.isBound;
+      return true;
+    });
+
+    const allBtnActive = !this._selectedZaloChatId;
+    const convButtonsHtml = [
+      `<button type="button" class="zalo-conv-pill" data-chat="" style="flex-shrink:0; padding:5px 9px; border-radius:8px; border:1px solid ${allBtnActive ? '#38bdf8' : 'rgba(148,163,184,0.22)'}; background:${allBtnActive ? 'rgba(14,165,233,0.24)' : 'rgba(15,23,42,0.75)'}; color:#f8fafc; font-size:10.5px; font-weight:800; cursor:pointer;">🌐 Tất cả (${allConvs.length})</button>`,
+      ...filteredConvs.map(c => {
+        const isSel = this._selectedZaloChatId === c.chatId;
+        const unread = Number(c.unreadCount || 0);
+        const tag = c.shortCode ? `[${this.escapeZaloUiHtml(c.shortCode)}]` : (c.isBound ? '[Đã gắn]' : '[Chưa gắn]');
+        return `
+          <button type="button" class="zalo-conv-pill" data-chat="${this.escapeZaloUiHtml(c.chatId)}" style="flex-shrink:0; max-width:220px; display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border-radius:8px; border:1px solid ${isSel ? '#10b981' : 'rgba(148,163,184,0.22)'}; background:${isSel ? 'rgba(16,185,129,0.22)' : 'rgba(15,23,42,0.75)'}; color:#f8fafc; font-size:10.5px; cursor:pointer; text-align:left;">
+            <span style="color:#34d399; font-weight:800;">${tag}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700;">${this.escapeZaloUiHtml(c.title || c.unitName || c.chatId)}</span>
+            ${unread > 0 ? `<span style="background:#ef4444; color:#fff; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:999px;">${unread}</span>` : ''}
+          </button>
+        `;
+      })
+    ].join('');
+    stripEl.innerHTML = convButtonsHtml;
+
+    stripEl.querySelectorAll('.zalo-conv-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const cid = pill.getAttribute('data-chat') || '';
+        this.selectZaloLiveConversation(cid);
+      });
+    });
+
+    const activeConv = allConvs.find(c => c.chatId === this._selectedZaloChatId) || null;
+    if (titleEl && metaEl) {
+      if (activeConv) {
+        titleEl.textContent = `${activeConv.title || activeConv.unitName || activeConv.chatId}`;
+        metaEl.textContent = `Đơn vị: ${activeConv.unitName || 'Chưa gắn đơn vị'} · Mã ngắn: ${activeConv.shortCode ? '/kn ' + activeConv.shortCode : 'Chưa gắn'} · Chat ID: ${activeConv.chatId}`;
+      } else {
+        titleEl.textContent = '🌐 Luồng Trực Tiếp Tất Cả Nhóm Zalo';
+        metaEl.textContent = 'Chọn 1 nhóm ở thanh trên hoặc bấm "💬 Mở Chat" bên trái để nhắn trả lời riêng cho nhóm đó';
+      }
+    }
+
+    const allMsgs = Array.isArray(this._zaloLiveMessages) ? this._zaloLiveMessages : [];
+    const visibleMsgs = this._selectedZaloChatId
+      ? allMsgs.filter(m => m.chatId === this._selectedZaloChatId)
+      : allMsgs;
+
+    if (visibleMsgs.length === 0) {
+      msgListEl.innerHTML = '<div style="color:#64748b; font-size:11.5px; text-align:center; margin:auto; padding:16px;">Chưa có tin nhắn trong luồng này. Hãy nhắn từ nhóm Zalo hoặc gõ nội dung ở ô bên dưới để gửi thẳng vào Zalo!</div>';
+      return;
+    }
+
+    msgListEl.innerHTML = visibleMsgs.slice(-100).map(m => {
+      const isOut = m.direction === 'out';
+      const timeStr = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('vi-VN') : '';
+      const safeBody = this.escapeZaloUiHtml(m.text || '').replace(
+        /(https?:\/\/[^\s<]+)/g,
+        '<a href="$1" target="_blank" rel="noopener" style="color:#7dd3fc; word-break:break-all; font-weight:700; text-decoration:underline;">$1</a>'
+      );
+      const deliveryBadge = isOut
+        ? (m.delivered
+            ? '<span style="color:#34d399; font-weight:800;">[ZALO THẬT]</span>'
+            : '<span style="color:#fbbf24; font-weight:800;">[MÔ PHỎNG]</span>')
+        : '<span style="color:#38bdf8; font-weight:800;">[TỪ ZALO]</span>';
+      const groupBadge = !this._selectedZaloChatId
+        ? `<span style="color:#fde047; font-weight:700;">[${this.escapeZaloUiHtml(m.unitName || m.chatTitle || m.chatId)}]</span> `
+        : '';
+      const mediaHtml = m.mediaUrl
+        ? `<div style="margin-top:5px;"><a href="${this.escapeZaloUiHtml(m.mediaUrl)}" target="_blank" rel="noopener" style="font-size:10.5px; color:#38bdf8; font-weight:700;">📎 Xem tệp đính kèm (${this.escapeZaloUiHtml(m.mediaType || 'media')})</a></div>`
+        : '';
+
+      return `
+        <div class="zalo-live-msg-bubble" data-dir="${isOut ? 'out' : 'in'}" data-chat="${this.escapeZaloUiHtml(m.chatId)}" style="align-self:${isOut ? 'flex-end' : 'flex-start'}; max-width:86%; background:${isOut ? 'rgba(6, 78, 59, 0.58)' : 'rgba(30, 41, 59, 0.88)'}; border:1px solid ${isOut ? 'rgba(16, 185, 129, 0.45)' : 'rgba(56, 189, 248, 0.35)'}; border-radius:10px; padding:7px 10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:9.5px; color:#94a3b8; margin-bottom:3px;">
+            <span>${groupBadge}<b style="color:${isOut ? '#6ee7b7' : '#e0f2fe'};">${this.escapeZaloUiHtml(m.senderName || (isOut ? 'Bàn Trực Ban' : 'Cán bộ Zalo'))}</b> ${deliveryBadge}</span>
+            <span>${this.escapeZaloUiHtml(timeStr)}</span>
+          </div>
+          <div style="white-space:pre-wrap; word-break:break-word; font-size:11.5px; line-height:1.45; color:#f8fafc;">${safeBody}</div>
+          ${mediaHtml}
+        </div>
+      `;
+    }).join('');
+
+    if (scrollToBottom) {
+      msgListEl.scrollTop = msgListEl.scrollHeight;
+    }
+  }
+
+  async sendZaloLiveChatReply() {
+    const inp = document.getElementById('inputZaloLiveChatReply');
+    const btn = document.getElementById('btnSendZaloLiveChatReply');
+    if (!inp) return;
+    const text = inp.value.trim();
+    if (!text) {
+      this.showToast?.('Vui lòng nhập nội dung tin nhắn cần gửi tới Zalo!', 'warning');
+      inp.focus();
+      return;
+    }
+
+    let targetChatId = this._selectedZaloChatId;
+    if (!targetChatId) {
+      const firstBound = (this._lastZaloBindings || [])[0]?.chatId || (this._zaloConversations || [])[0]?.chatId || '';
+      if (!firstBound) {
+        this.showToast?.('Chưa có nhóm Zalo nào để gửi. Hãy chọn hoặc gắn 1 nhóm ở cột bên trái!', 'warning');
+        return;
+      }
+      targetChatId = firstBound;
+      this._selectedZaloChatId = targetChatId;
+    }
+
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/api/dispatcher/zalo/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: targetChatId, text })
+      });
+      const data = await res.json();
+      if (data && data.ok) {
+        inp.value = '';
+        if (data.chatMessage) {
+          const exists = (this._zaloLiveMessages || []).some(m => m.id === data.chatMessage.id);
+          if (!exists) {
+            this._zaloLiveMessages = [...(this._zaloLiveMessages || []), data.chatMessage].slice(-300);
+          }
+        }
+        if (Array.isArray(data.conversations)) {
+          this._zaloConversations = data.conversations;
+        }
+        this.renderZaloLiveChatBoard(true);
+        this.refreshZaloBotStatus(true);
+      } else {
+        this.showToast?.(data?.error || 'Không thể gửi tin nhắn tới Zalo', 'error');
+      }
+    } catch (err) {
+      this.showToast?.('Lỗi mạng khi gửi tin nhắn Zalo', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+      inp.focus();
+    }
+  }
+
+  async loadZaloProvinceDirectory(query = '') {
+    const listEl = document.getElementById('zaloProvinceAccordionList');
+    const badgeEl = document.getElementById('zaloProvinceTotalBadge');
+    if (!listEl) return;
+    try {
+      const res = await fetch(`/api/dispatcher/zalo/directory?q=${encodeURIComponent(query || '')}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.ok) return;
+      this._zaloProvinceDirData = data;
+      const provinces = Array.isArray(data.provinces) ? data.provinces : [];
+      if (badgeEl) {
+        badgeEl.textContent = `${provinces.length} Tỉnh/TP · ${data.totalUnits || 0} mục`;
+      }
+      this.renderZaloProvinceDirectory(provinces, Boolean(query && query.trim()));
+    } catch (err) {
+      console.warn('loadZaloProvinceDirectory error:', err);
+    }
+  }
+
+  renderZaloProvinceDirectory(provinces = [], autoOpenMatches = false) {
+    const listEl = document.getElementById('zaloProvinceAccordionList');
+    if (!listEl) return;
+    if (!provinces.length) {
+      listEl.innerHTML = '<div style="font-size:11px; color:#94a3b8; padding:8px;">Không tìm thấy Tỉnh/TP hoặc Xã/Phường phù hợp từ khóa.</div>';
+      return;
+    }
+
+    const boundCodes = new Set((this._lastZaloBindings || []).map(b => b.shortCode || b.unitCode));
+
+    const buildUnitsHtml = (prov) => {
+      const specUnits = Array.isArray(prov.provincialUnits) ? prov.provincialUnits : [];
+      const wardUnits = Array.isArray(prov.wards) ? prov.wards : [];
+
+      const renderUnitRow = (u, isSpec = false) => {
+        const isBound = boundCodes.has(u.shortCode) || boundCodes.has(u.unitCode);
+        const shortCmd = u.shortCommand || `/kn ${u.shortCode}`;
+        return `
+          <div class="zalo-dir-unit-row" data-short="${this.escapeZaloUiHtml(u.shortCode)}" style="display:flex; justify-content:space-between; align-items:center; gap:6px; padding:5px 7px; border-radius:6px; background:${isSpec ? 'rgba(14,165,233,0.1)' : 'rgba(2,6,23,0.62)'}; border:1px solid ${isBound ? 'rgba(16,185,129,0.5)' : 'rgba(148,163,184,0.14)'};">
+            <div style="min-width:0; flex:1;">
+              <div style="font-size:11px; font-weight:700; color:${isSpec ? '#7dd3fc' : '#f1f5f9'}; display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                <span>${this.escapeZaloUiHtml(u.unitName)}</span>
+                ${isBound ? '<span style="font-size:9px; font-weight:800; background:rgba(16,185,129,0.22); color:#34d399; padding:1px 5px; border-radius:4px;">ĐÃ GẮN</span>' : ''}
+              </div>
+              <code style="font-size:10.5px; color:#34d399; font-weight:800;">${this.escapeZaloUiHtml(shortCmd)}</code>
+            </div>
+            <div style="display:flex; gap:4px; flex-shrink:0;">
+              <button type="button" class="btn-zalo-dir-copy btn-refresh-loc" data-cmd="${this.escapeZaloUiHtml(shortCmd)}" style="padding:3px 7px; font-size:10px; font-weight:700; color:#fde047; border-color:rgba(250,204,21,0.45); cursor:pointer;">Copy /kn</button>
+              <button type="button" class="btn-zalo-dir-sim btn-refresh-loc" data-code="${this.escapeZaloUiHtml(u.shortCode || u.unitCode)}" data-title="Nhóm Zalo: ${this.escapeZaloUiHtml(u.unitName)}" style="padding:3px 7px; font-size:10px; color:#34d399; border-color:rgba(16,185,129,0.4); cursor:pointer;">Gắn</button>
+            </div>
+          </div>
+        `;
+      };
+
+      return `
+        <div style="padding:6px 8px; display:flex; flex-direction:column; gap:5px;">
+          ${specUnits.length ? `<div style="font-size:10px; font-weight:800; color:#38bdf8; margin-top:2px;">🏛️ Khối Chỉ Huy &amp; Chuyên Ngành Tỉnh/TP (${specUnits.length}):</div>` + specUnits.map(u => renderUnitRow(u, true)).join('') : ''}
+          ${wardUnits.length ? `<div style="font-size:10px; font-weight:800; color:#a7f3d0; margin-top:4px;">👮 Công An Phường / Xã / Đặc Khu (${wardUnits.length}):</div>` + wardUnits.map(u => renderUnitRow(u, false)).join('') : ''}
+        </div>
+      `;
+    };
+
+    const bindFolderButtons = (container) => {
+      container.querySelectorAll('.btn-zalo-dir-copy').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const cmd = btn.getAttribute('data-cmd') || '';
+          this.copyZaloTextWithToast(cmd, `Đã copy lệnh ngắn "${cmd}" — Dán vào nhóm Zalo để kết nối!`);
+        });
+      });
+      container.querySelectorAll('.btn-zalo-dir-sim').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const unitCode = btn.getAttribute('data-code') || '';
+          const chatTitle = btn.getAttribute('data-title') || '';
+          try {
+            const r = await fetch('/api/dispatcher/zalo/simulate-pair', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ unitCode, chatTitle })
+            });
+            const d = await r.json();
+            if (d.ok && d.status) {
+              this.renderZaloBotStatus(d.status);
+              this.showToast?.(`Đã gắn nhanh đơn vị (${unitCode})!`, 'success');
+            }
+          } catch {
+            this.showToast?.('Lỗi gắn nhanh đơn vị từ sổ Tỉnh/TP', 'error');
+          }
+        });
+      });
+    };
+
+    listEl.innerHTML = provinces.map((prov, idx) => {
+      const shouldOpen = autoOpenMatches && idx < 3;
+      const wardCount = Array.isArray(prov.wards) ? prov.wards.length : (prov.wardCount || 0);
+      const specCount = Array.isArray(prov.provincialUnits) ? prov.provincialUnits.length : 4;
+      const priorityBadge = prov.priority
+        ? '<span style="font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; background:rgba(245,158,11,0.2); color:#fde047;">TP Trực Thuộc TW</span>'
+        : '';
+      return `
+        <details class="zalo-prov-folder" data-prov-code="${this.escapeZaloUiHtml(prov.provCode)}" data-idx="${idx}" ${shouldOpen ? 'open' : ''} style="background:rgba(30,41,59,0.68); border:1px solid rgba(148,163,184,0.22); border-radius:8px; overflow:hidden;">
+          <summary style="padding:7px 10px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:6px; font-size:11.5px; font-weight:800; color:#f8fafc; user-select:none;">
+            <span style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span>📁 ${this.escapeZaloUiHtml(prov.displayTitle || prov.province)}</span>
+              ${priorityBadge}
+            </span>
+            <span style="font-size:10px; font-weight:700; color:#7dd3fc; white-space:nowrap;">/kn ${this.escapeZaloUiHtml(prov.provCode)}.* · ${specCount + wardCount} mục</span>
+          </summary>
+          <div class="zalo-prov-units-body" data-rendered="${shouldOpen ? '1' : '0'}" style="max-height:240px; overflow-y:auto; border-top:1px solid rgba(148,163,184,0.16); background:rgba(2,6,23,0.45);">
+            ${shouldOpen ? buildUnitsHtml(prov) : ''}
+          </div>
+        </details>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('details.zalo-prov-folder').forEach(det => {
+      const bodyEl = det.querySelector('.zalo-prov-units-body');
+      if (det.open && bodyEl) {
+        bindFolderButtons(bodyEl);
+      }
+      det.addEventListener('toggle', () => {
+        if (det.open && bodyEl && bodyEl.getAttribute('data-rendered') !== '1') {
+          const idx = Number(det.getAttribute('data-idx') || 0);
+          const prov = provinces[idx];
+          if (prov) {
+            bodyEl.innerHTML = buildUnitsHtml(prov);
+            bodyEl.setAttribute('data-rendered', '1');
+            bindFolderButtons(bodyEl);
+          }
+        }
+      });
+    });
   }
 
   escapeZaloUiHtml(str = '') {
@@ -16441,12 +16933,17 @@ class DispatcherApp {
     this._lastZaloStatus = status;
     const bindings = Array.isArray(status.bindings) ? status.bindings : [];
 
-    // Sync real bindings & settings into Browser Vault so Render container redeploys never lose configuration
+    // Sync real bindings & sticky settings into Browser Vault
     const realBindings = bindings.filter(b => b && b.chatId && !String(b.chatId).startsWith('zalo_sim_'));
     const vaultPatch = {
       demoFastMode: Boolean(status.demoFastMode),
       requirePairingPassword: status.requirePairingPassword !== false
     };
+    if (status.hasToken) {
+      vaultPatch.botExplicitlyCleared = false;
+    } else if (status.botExplicitlyCleared) {
+      vaultPatch.botExplicitlyCleared = true;
+    }
     if (realBindings.length > 0) {
       vaultPatch.bindings = realBindings;
     }
@@ -16456,6 +16953,22 @@ class DispatcherApp {
     this.writeZaloBotVault(vaultPatch);
     this._lastZaloBindings = bindings;
     this.updateZaloBroadcastTargetPreview();
+
+    if (Array.isArray(status.conversations)) {
+      this._zaloConversations = status.conversations;
+    }
+    if (Array.isArray(status.recentChatMessages) && status.recentChatMessages.length > 0) {
+      this._zaloLiveMessages = status.recentChatMessages;
+    }
+    if (typeof status.totalUnread === 'number') {
+      this._zaloTotalUnread = status.totalUnread;
+    }
+    if (!this._selectedZaloChatId && this._zaloConversations.length > 0) {
+      this._selectedZaloChatId = this._zaloConversations[0].chatId;
+    }
+    this.updateZaloUnreadBadges();
+    this.renderZaloLiveChatBoard(false);
+
     const presets = Array.isArray(status.presets) ? status.presets : [];
     const outbox = Array.isArray(status.recentOutbox) ? status.recentOutbox : [];
 
@@ -16473,24 +16986,47 @@ class DispatcherApp {
     }
     if (hdrSub) {
       hdrSub.textContent = status.hasToken
-        ? (status.botProfile?.name || 'Đã nối Bot Zalo')
-        : (bindings.length > 0 ? `${bindings.length} nhóm mô phỏng` : 'Định tuyến 2 chiều');
+        ? (status.botProfile?.name || 'Duy trì Bot Zalo 24/7')
+        : (bindings.length > 0 ? `${bindings.length} nhóm mô phỏng` : 'Chat & Định tuyến 2 chiều');
     }
 
-    // 2. Update Status Banner & Inputs
+    // 2. Update Compact Unified Bot Status & Sticky Indicator
     const statusText = document.getElementById('zaloBotConnectionStatusText');
     const statusBar = document.getElementById('zaloBotConnectionStatusBar');
+    const stickyInd = document.getElementById('zaloStickyModeIndicator');
     if (statusText && statusBar) {
       if (status.hasToken) {
         const botName = this.escapeZaloUiHtml(status.botProfile?.name || 'Zalo Bot Trực Ban');
-        const modeTxt = status.webhookActive ? `Webhook HTTPS Thời Gian Thực (${this.escapeZaloUiHtml(status.webhookUrl)})` : 'Long-Polling Tự Động (getUpdates)';
-        statusText.innerHTML = `✅ <b>ĐÃ KẾT NỐI ZALO BOT THẬT:</b> <span style="color:#34d399;">${botName}</span> · Chế độ: <b>${modeTxt}</b> · Nhắc khẩn: <b>${status.effectiveReminderSeconds}s</b> / Leo thang Tỉnh: <b>${status.effectiveEscalationSeconds}s</b>`;
+        const modeTxt = status.webhookActive ? `Webhook HTTPS (${this.escapeZaloUiHtml(status.webhookUrl)})` : 'Long-Polling Tự Động';
+        statusText.innerHTML = `✅ <b>BOT ZALO ĐANG HOẠT ĐỘNG LIÊN TỤC:</b> <span style="color:#34d399;">${botName}</span> · <b>${modeTxt}</b> · Nhắc: <b>${status.effectiveReminderSeconds}s</b> / Leo thang: <b>${status.effectiveEscalationSeconds}s</b>`;
         statusBar.style.borderColor = 'rgba(16, 185, 129, 0.5)';
         statusBar.style.background = 'rgba(16, 185, 129, 0.14)';
+        if (stickyInd) {
+          stickyInd.textContent = '🔒 Khóa Duy Trì Liên Tục (Chỉ đổi khi Xóa / Đặt lại)';
+          stickyInd.style.background = 'rgba(16, 185, 129, 0.2)';
+          stickyInd.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+          stickyInd.style.color = '#6ee7b7';
+        }
+      } else if (status.botExplicitlyCleared) {
+        statusText.innerHTML = `🗑️ <b>ĐÃ XÓA BOT ZALO THEO YÊU CẦU:</b> Hệ thống đang ở chế độ mô phỏng và không tự khôi phục Bot cũ cho tới khi bạn dán <b>BOT_TOKEN</b> mới.`;
+        statusBar.style.borderColor = 'rgba(248, 113, 113, 0.45)';
+        statusBar.style.background = 'rgba(239, 68, 68, 0.12)';
+        if (stickyInd) {
+          stickyInd.textContent = '🗑️ Đã Xóa Bot — Chờ Đặt Lại Mới';
+          stickyInd.style.background = 'rgba(239, 68, 68, 0.18)';
+          stickyInd.style.borderColor = 'rgba(248, 113, 113, 0.45)';
+          stickyInd.style.color = '#fca5a5';
+        }
       } else {
-        statusText.innerHTML = `🧪 <b>CHẾ ĐỘ MÔ PHỎNG SẴN SÀNG:</b> Chưa nhập BOT_TOKEN thực (vẫn có thể bấm <b>Gắn Giả Lập</b> bên dưới để test luồng định tuyến Xã/Phường &amp; Link Tiếp Nhận 1 Chạm!). Nhắc khẩn: <b>${status.effectiveReminderSeconds}s</b> / Leo thang: <b>${status.effectiveEscalationSeconds}s</b>`;
+        statusText.innerHTML = `🧪 <b>CHẾ ĐỘ MÔ PHỎNG SẴN SÀNG:</b> Dán <b>BOT_TOKEN</b> 1 lần ở thanh dưới để duy trì liên tục, hoặc test ngay <b>Sổ 34 Tỉnh/TP</b> &amp; <b>Bảng Chat</b>! (Nhắc: <b>${status.effectiveReminderSeconds}s</b> / Leo thang: <b>${status.effectiveEscalationSeconds}s</b>)`;
         statusBar.style.borderColor = 'rgba(245, 158, 11, 0.45)';
         statusBar.style.background = 'rgba(245, 158, 11, 0.12)';
+        if (stickyInd) {
+          stickyInd.textContent = '⚡ Sẵn sàng Lưu Duy Trì Liên Tục';
+          stickyInd.style.background = 'rgba(245, 158, 11, 0.16)';
+          stickyInd.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+          stickyInd.style.color = '#fde047';
+        }
       }
     }
 
@@ -16498,20 +17034,20 @@ class DispatcherApp {
     const savedBadgeRow = document.getElementById('zaloSavedTokenBadgeRow');
     const savedMaskText = document.getElementById('zaloSavedTokenMaskText');
     if (savedBadgeRow) {
-      savedBadgeRow.style.display = status.hasToken ? 'flex' : 'none';
+      savedBadgeRow.style.display = status.hasToken ? 'inline-flex' : 'none';
     }
     if (savedMaskText) {
       savedMaskText.textContent = status.maskedToken || '';
     }
     if (inpToken) {
       if (status.hasToken && status.maskedToken) {
-        inpToken.placeholder = `Đã lưu cố định: ${status.maskedToken} (Bấm vào để đổi mới nếu cần)`;
+        inpToken.placeholder = `Đang duy trì: ${status.maskedToken} (Nhập mới nếu muốn đặt lại Bot)`;
         if (document.activeElement !== inpToken) {
           inpToken.value = status.maskedToken;
           inpToken.dataset.isMasked = '1';
         }
       } else {
-        inpToken.placeholder = 'Dán BOT_TOKEN (VD: 123456789:abcXYZ...)';
+        inpToken.placeholder = 'Dán BOT_TOKEN để thêm / đặt lại Bot mới...';
         if (inpToken.dataset.isMasked === '1') {
           inpToken.value = '';
           inpToken.dataset.isMasked = '0';
@@ -16529,51 +17065,65 @@ class DispatcherApp {
 
     if (!this._customZaloCmdOverride) {
       const cmdEl = document.getElementById('zaloCurrentOfficerCommand');
+      const shortEl = document.getElementById('zaloCurrentOfficerShortCommand');
       const lblEl = document.getElementById('zaloCurrentOfficerLabel');
       const curOfficer = this.currentOfficer;
       if (cmdEl && status.viewerPairingCommand) {
         cmdEl.textContent = status.viewerPairingCommand;
       }
+      if (shortEl) {
+        shortEl.textContent = status.viewerShortCommand || '/kn ct.tanan Congan@113';
+      }
       if (lblEl) {
         if (!curOfficer || curOfficer.username === 'admin' || status.viewerIsAdmin) {
-          lblEl.textContent = `Mẫu CA Phường Tân An — Giám sát Toàn Quốc dùng: ${status.nationalPairingCommand || '/ketnoi tongtrucban Admin'}`;
+          lblEl.textContent = `Mẫu CA Phường Tân An · Toàn Quốc: ${status.nationalShortCommand || '/kn ttb Admin'}`;
         } else {
           lblEl.textContent = curOfficer.unitName || curOfficer.agencyName || curOfficer.username;
         }
       }
     }
 
-    // 3. Render Preset Unit Cards
+    // 3. Render Preset Unit Cards (showing both short /kn and legacy /ketnoi)
     const presetGrid = document.getElementById('zaloPresetCardsGrid');
     if (presetGrid) {
       presetGrid.innerHTML = presets.map(p => {
-        const isBound = bindings.some(b => b.unitCode === p.unitCode);
+        const isBound = bindings.some(b => b.unitCode === p.unitCode || (p.shortCode && b.shortCode === p.shortCode));
         const cmd = p.pairingCommand || `/ketnoi ${p.unitCode}`;
+        const shortCmd = p.shortCommand || `/kn ${p.shortCode || p.unitCode}`;
         const simLocked = Boolean(p.requiresAdminAuth && !status.viewerIsAdmin);
         const passBadge = status.requirePairingPassword !== false
           ? (p.pairingPasswordMasked
-              ? '<span style="font-size:9px; font-weight:700; color:#fca5a5;">🔒 Cần Pass Đơn Vị</span>'
-              : '<span style="font-size:9px; font-weight:700; color:#86efac;">🔐 Có Mật Khẩu</span>')
+              ? '<span style="font-size:9px; font-weight:700; color:#fca5a5;">🔒 Cần Pass</span>'
+              : '<span style="font-size:9px; font-weight:700; color:#86efac;">🔐 Kèm MK</span>')
           : '';
         return `
-          <div style="background: rgba(30, 41, 59, 0.72); border: 1px solid ${isBound ? 'rgba(16,185,129,0.5)' : 'rgba(148,163,184,0.2)'}; border-radius: 9px; padding: 9px 10px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px;">
+          <div style="background: rgba(30, 41, 59, 0.72); border: 1px solid ${isBound ? 'rgba(16,185,129,0.5)' : 'rgba(148,163,184,0.2)'}; border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; gap: 5px;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; flex-wrap: wrap;">
-                <span style="font-size: 11.5px; font-weight: 800; color: #f8fafc;">${this.escapeZaloUiHtml(p.unitName)}</span>
+                <span style="font-size: 11px; font-weight: 800; color: #f8fafc;">${this.escapeZaloUiHtml(p.unitName)}</span>
                 <span style="display: inline-flex; gap: 4px; align-items: center;">
                   ${passBadge}
                   ${isBound ? '<span style="font-size:9px; font-weight:800; background:rgba(16,185,129,0.22); color:#34d399; padding:1px 5px; border-radius:4px;">ĐÃ GẮN</span>' : ''}
                 </span>
               </div>
-              <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">${this.escapeZaloUiHtml(p.agencyLabel)} · Lệnh: <code style="color:#38bdf8;">${this.escapeZaloUiHtml(cmd)}</code></div>
+              <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">Ngắn: <code style="color:#34d399; font-weight:800;">${this.escapeZaloUiHtml(shortCmd)}</code></div>
+              <div style="font-size: 9.5px; color: #64748b; margin-top: 1px;">Đầy đủ: <code>${this.escapeZaloUiHtml(cmd)}</code></div>
             </div>
-            <div style="display: flex; gap: 5px;">
-              <button type="button" class="btn-zalo-copy-preset btn-refresh-loc" data-cmd="${this.escapeZaloUiHtml(cmd)}" style="flex: 1; padding: 4px 6px; font-size: 10.5px; cursor: pointer; color: #7dd3fc;">Copy Lệnh</button>
-              <button type="button" class="btn-zalo-sim-preset btn-refresh-loc" data-code="${this.escapeZaloUiHtml(p.unitCode)}" data-title="Nhóm Zalo: ${this.escapeZaloUiHtml(p.unitName)}" ${simLocked ? 'disabled title="Chỉ Tổng Trực Ban Quốc Gia (Admin) mới được gắn kênh Toàn Quốc"' : ''} style="flex: 1; padding: 4px 6px; font-size: 10.5px; cursor: ${simLocked ? 'not-allowed' : 'pointer'}; opacity: ${simLocked ? '0.45' : '1'}; color: #34d399; border-color: rgba(16,185,129,0.4);">Gắn Giả Lập</button>
+            <div style="display: flex; gap: 4px;">
+              <button type="button" class="btn-zalo-copy-short btn-refresh-loc" data-short-cmd="${this.escapeZaloUiHtml(shortCmd)}" style="flex: 1; padding: 4px 5px; font-size: 10px; font-weight: 800; cursor: pointer; color: #fde047; border-color: rgba(250,204,21,0.45);">Copy /kn</button>
+              <button type="button" class="btn-zalo-copy-preset btn-refresh-loc" data-cmd="${this.escapeZaloUiHtml(cmd)}" style="padding: 4px 6px; font-size: 10px; cursor: pointer; color: #7dd3fc;">Copy Đủ</button>
+              <button type="button" class="btn-zalo-sim-preset btn-refresh-loc" data-code="${this.escapeZaloUiHtml(p.unitCode)}" data-title="Nhóm Zalo: ${this.escapeZaloUiHtml(p.unitName)}" ${simLocked ? 'disabled title="Chỉ Tổng Trực Ban Quốc Gia (Admin) mới được gắn kênh Toàn Quốc"' : ''} style="padding: 4px 6px; font-size: 10px; cursor: ${simLocked ? 'not-allowed' : 'pointer'}; opacity: ${simLocked ? '0.45' : '1'}; color: #34d399; border-color: rgba(16,185,129,0.4);">Gắn Giả Lập</button>
             </div>
           </div>
         `;
       }).join('');
+
+      presetGrid.querySelectorAll('.btn-zalo-copy-short').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.getAttribute('data-short-cmd') || '';
+          this.copyZaloTextWithToast(cmd, `Đã copy lệnh ngắn "${cmd}" — Dán vào nhóm Zalo để kết nối!`);
+        });
+      });
 
       presetGrid.querySelectorAll('.btn-zalo-copy-preset').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -16604,17 +17154,17 @@ class DispatcherApp {
       });
     }
 
-    // 4. Render Bound Chats List (with 1-Click Inline Ward/Unit Editor!)
+    // 4. Render Bound Chats List (with 💬 Mở Chat + 1-Click Inline Ward/Unit Editor!)
     const countEl = document.getElementById('zaloBoundCount');
     if (countEl) countEl.textContent = String(bindings.length);
     const listEl = document.getElementById('zaloBindingsListContainer');
     if (listEl) {
       if (bindings.length === 0) {
-        listEl.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 8px 0;">Chưa có nhóm Zalo nào liên kết. Hãy gõ <b>/ketnoi cap_tanan</b> (hoặc <b>/ketnoi Phường Tân An, Cần Thơ</b>) trên Zalo hoặc bấm <b>Gắn Giả Lập</b> ở trên!</div>';
+        listEl.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 8px 0;">Chưa có nhóm Zalo nào liên kết. Hãy gõ <b>/kn ct.tanan Congan@113</b> trên Zalo hoặc mở Sổ 34 Tỉnh/TP ở trên!</div>';
       } else {
         const presetOptionsHtml = [
           '<option value="">-- Hoặc chọn nhanh đơn vị mẫu có sẵn --</option>',
-          ...presets.map(p => `<option value="${this.escapeZaloUiHtml(p.unitCode)}" data-prov="${this.escapeZaloUiHtml(p.province || '')}" data-ward="${this.escapeZaloUiHtml(p.ward || '')}" data-agency="${this.escapeZaloUiHtml(p.agency || 'police')}" data-level="${this.escapeZaloUiHtml(p.level || 'ward')}" data-name="${this.escapeZaloUiHtml(p.unitName || '')}">${this.escapeZaloUiHtml(p.unitName)} (${this.escapeZaloUiHtml(p.unitCode)})</option>`)
+          ...presets.map(p => `<option value="${this.escapeZaloUiHtml(p.unitCode)}" data-prov="${this.escapeZaloUiHtml(p.province || '')}" data-ward="${this.escapeZaloUiHtml(p.ward || '')}" data-agency="${this.escapeZaloUiHtml(p.agency || 'police')}" data-level="${this.escapeZaloUiHtml(p.level || 'ward')}" data-name="${this.escapeZaloUiHtml(p.unitName || '')}">${this.escapeZaloUiHtml(p.unitName)} (${this.escapeZaloUiHtml(p.shortCode || p.unitCode)})</option>`)
         ].join('');
 
         listEl.innerHTML = bindings.map((b, idx) => {
@@ -16628,28 +17178,30 @@ class DispatcherApp {
                 ? 'all_province'
                 : `${b.agency || 'police'}_${b.level || 'ward'}`);
           const defaultProv = (!b.province || b.province === 'Toàn Quốc') ? 'Cần Thơ' : b.province;
+          const shortTag = b.shortCode ? `/kn ${b.shortCode}` : b.unitCode;
 
           return `
-          <div class="zalo-bound-item-card" data-chat="${this.escapeZaloUiHtml(b.chatId)}" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 9px; padding: 9px 11px;">
+          <div class="zalo-bound-item-card" data-chat="${this.escapeZaloUiHtml(b.chatId)}" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 9px; padding: 8px 10px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
               <div style="min-width: 0; flex: 1;">
-                <div style="font-weight: 800; color: #e0f2fe; font-size: 12px;">${this.escapeZaloUiHtml(b.chatTitle || b.unitName)}</div>
-                <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 2px;">
-                  🏢 Đơn vị: <b style="color:#34d399;">${this.escapeZaloUiHtml(b.unitName)}</b> · 📍 Địa bàn: <b style="color:#fde047;">${this.escapeZaloUiHtml(scopeLabel)}</b>
+                <div style="font-weight: 800; color: #e0f2fe; font-size: 11.5px;">${this.escapeZaloUiHtml(b.chatTitle || b.unitName)}</div>
+                <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">
+                  🏢 <b style="color:#34d399;">${this.escapeZaloUiHtml(b.unitName)}</b> · 📍 <b style="color:#fde047;">${this.escapeZaloUiHtml(scopeLabel)}</b>
                 </div>
-                <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">
-                  👮 Cán bộ Zalo: <b style="color:#7dd3fc;">${this.escapeZaloUiHtml(officerLabel)}</b> · ID: <code>${this.escapeZaloUiHtml(b.chatId)}</code>
+                <div style="font-size: 9.5px; color: #94a3b8; margin-top: 2px;">
+                  👮 <b style="color:#7dd3fc;">${this.escapeZaloUiHtml(officerLabel)}</b> · Mã: <code style="color:#34d399;">${this.escapeZaloUiHtml(shortTag)}</code> · ID: <code>${this.escapeZaloUiHtml(b.chatId)}</code>
                 </div>
               </div>
               <div style="display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end;">
-                <button type="button" class="btn-zalo-edit-one btn-refresh-loc" data-idx="${idx}" style="padding: 4px 8px; font-size: 10.5px; font-weight: 700; color: #fde047; border-color: rgba(250,204,21,0.5); background: rgba(234,179,8,0.14); cursor: pointer;">✏️ Sửa Đơn Vị</button>
-                <button type="button" class="btn-zalo-test-one btn-refresh-loc" data-chat="${this.escapeZaloUiHtml(b.chatId)}" style="padding: 4px 8px; font-size: 10px; color: #38bdf8; cursor: pointer;">Test</button>
-                <button type="button" class="btn-zalo-unlink-one btn-refresh-loc" data-chat="${this.escapeZaloUiHtml(b.chatId)}" data-code="${this.escapeZaloUiHtml(b.unitCode)}" style="padding: 4px 8px; font-size: 10px; color: #fca5a5; border-color: rgba(239,68,68,0.4); cursor: pointer;">Gỡ</button>
+                <button type="button" class="btn-zalo-open-chat btn-refresh-loc" data-chat="${this.escapeZaloUiHtml(b.chatId)}" style="padding: 3px 7px; font-size: 10px; font-weight: 800; color: #6ee7b7; border-color: rgba(16,185,129,0.5); background: rgba(16,185,129,0.16); cursor: pointer;">💬 Mở Chat</button>
+                <button type="button" class="btn-zalo-edit-one btn-refresh-loc" data-idx="${idx}" style="padding: 3px 7px; font-size: 10px; font-weight: 700; color: #fde047; border-color: rgba(250,204,21,0.5); background: rgba(234,179,8,0.14); cursor: pointer;">✏️ Sửa Đơn Vị</button>
+                <button type="button" class="btn-zalo-test-one btn-refresh-loc" data-chat="${this.escapeZaloUiHtml(b.chatId)}" style="padding: 3px 7px; font-size: 10px; color: #38bdf8; cursor: pointer;">Test</button>
+                <button type="button" class="btn-zalo-unlink-one btn-refresh-loc" data-chat="${this.escapeZaloUiHtml(b.chatId)}" data-code="${this.escapeZaloUiHtml(b.unitCode)}" style="padding: 3px 7px; font-size: 10px; color: #fca5a5; border-color: rgba(239,68,68,0.4); cursor: pointer;">Gỡ</button>
               </div>
             </div>
 
             <!-- Inline Ward / Station Assignment Form -->
-            <div class="zalo-inline-edit-panel" data-panel-idx="${idx}" style="display: none; margin-top: 9px; padding-top: 9px; border-top: 1px dashed rgba(148, 163, 184, 0.28);">
+            <div class="zalo-inline-edit-panel" data-panel-idx="${idx}" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(148, 163, 184, 0.28);">
               <div style="font-size: 10.5px; font-weight: 800; color: #fde047; margin-bottom: 6px;">CHỈ ĐỊNH ĐÚNG CÔNG AN XÃ/PHƯỜNG &amp; TÊN NHÓM CHO KHUNG CHAT NÀY:</div>
               <select class="input-field inp-zalo-edit-preset" style="width: 100%; font-size: 11px; padding: 5px 8px; margin-bottom: 6px;">
                 ${presetOptionsHtml}
@@ -16676,7 +17228,7 @@ class DispatcherApp {
               </div>
               ${status.viewerIsAdmin ? `
               <div style="margin-top: 6px;">
-                <input type="text" class="input-field inp-zalo-edit-custompass" value="" placeholder="🔐 Đổi mật khẩu /ketnoi riêng cho đơn vị này (Bỏ trống = giữ mặc định${b.hasCustomPassword ? '; gõ __CLEAR__ để xóa pass riêng' : ''})" style="width: 100%; font-size: 10.5px; padding: 5px 8px;" />
+                <input type="text" class="input-field inp-zalo-edit-custompass" value="" placeholder="🔐 Đổi mật khẩu /kn riêng cho đơn vị này (Bỏ trống = giữ mặc định${b.hasCustomPassword ? '; gõ __CLEAR__ để xóa pass riêng' : ''})" style="width: 100%; font-size: 10.5px; padding: 5px 8px;" />
               </div>
               ` : ''}
             </div>
@@ -16684,7 +17236,13 @@ class DispatcherApp {
           `;
         }).join('');
 
-        // Toggle inline edit form
+        listEl.querySelectorAll('.btn-zalo-open-chat').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const chatId = btn.getAttribute('data-chat') || '';
+            this.selectZaloLiveConversation(chatId);
+          });
+        });
+
         listEl.querySelectorAll('.btn-zalo-edit-one').forEach(btn => {
           btn.addEventListener('click', () => {
             const idx = btn.getAttribute('data-idx');
@@ -16703,7 +17261,6 @@ class DispatcherApp {
           });
         });
 
-        // Auto-fill fields when picking a preset from dropdown
         listEl.querySelectorAll('.inp-zalo-edit-preset').forEach(sel => {
           sel.addEventListener('change', () => {
             const opt = sel.options[sel.selectedIndex];
@@ -16731,7 +17288,6 @@ class DispatcherApp {
           });
         });
 
-        // Clear preset dropdown if user manually modifies ward/province/role
         listEl.querySelectorAll('.inp-zalo-edit-prov, .inp-zalo-edit-ward, .inp-zalo-edit-role').forEach(inp => {
           const resetPreset = () => {
             const card = inp.closest('.zalo-bound-item-card');
@@ -16742,7 +17298,6 @@ class DispatcherApp {
           inp.addEventListener('change', resetPreset);
         });
 
-        // Save updated Ward / Unit binding
         listEl.querySelectorAll('.btn-zalo-save-edit').forEach(btn => {
           btn.addEventListener('click', async () => {
             const chatId = btn.getAttribute('data-chat') || '';
