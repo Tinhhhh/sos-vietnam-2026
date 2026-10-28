@@ -192,9 +192,49 @@ async function extractVideoPosterViaFfmpeg(videoBuffer, ext = 'mp4') {
 }
 
 const CONFIG_FILENAME = 'zalo-bot-config.json';
+const STICKY_VAULT_FILENAME = 'zalo-bot-sticky-vault.json';
 const DEFAULT_ZALO_API_BASE = 'https://bot-api.zaloplatforms.com';
 const KETNOI_MAX_FAILED_ATTEMPTS = 5;
 const KETNOI_LOCKOUT_MS = 10 * 60 * 1000; // 10 minutes brute-force cooldown per Zalo chatId
+const MAX_LIVE_CHAT_MESSAGES = 300;
+const BOT_KEEPALIVE_INTERVAL_MS = 45 * 1000;
+
+export const VIETNAM_34_PROVINCES = [
+  { name: 'Cần Thơ', displayTitle: 'TP. Cần Thơ', shortCode: 'ct', priority: true, aliases: ['cantho', 'tpcantho'] },
+  { name: 'TP. Hồ Chí Minh', displayTitle: 'TP.HCM (TP. Hồ Chí Minh)', shortCode: 'hcm', priority: true, aliases: ['tphcm', 'sg', 'saigon', 'hochiminh', 'tphochiminh'] },
+  { name: 'Hà Nội', displayTitle: 'Thành phố Hà Nội', shortCode: 'hn', priority: true, aliases: ['hanoi', 'tphanoi', 'thudo'] },
+  { name: 'Đà Nẵng', displayTitle: 'TP. Đà Nẵng', shortCode: 'dn', priority: true, aliases: ['danang', 'tpdanang'] },
+  { name: 'Hải Phòng', displayTitle: 'TP. Hải Phòng', shortCode: 'hp', priority: true, aliases: ['haiphong', 'tphaiphong'] },
+  { name: 'Huế', displayTitle: 'TP. Huế', shortCode: 'hue', priority: true, aliases: ['tphue', 'thuathienhue'] },
+  { name: 'An Giang', displayTitle: 'Tỉnh An Giang', shortCode: 'ag', priority: false, aliases: ['angiang'] },
+  { name: 'Bắc Ninh', displayTitle: 'Tỉnh Bắc Ninh', shortCode: 'bn', priority: false, aliases: ['bacninh'] },
+  { name: 'Cà Mau', displayTitle: 'Tỉnh Cà Mau', shortCode: 'cm', priority: false, aliases: ['camau'] },
+  { name: 'Cao Bằng', displayTitle: 'Tỉnh Cao Bằng', shortCode: 'cb', priority: false, aliases: ['caobang'] },
+  { name: 'Đắk Lắk', displayTitle: 'Tỉnh Đắk Lắk', shortCode: 'dl', priority: false, aliases: ['daklak', 'daclak'] },
+  { name: 'Điện Biên', displayTitle: 'Tỉnh Điện Biên', shortCode: 'db', priority: false, aliases: ['dienbien'] },
+  { name: 'Đồng Nai', displayTitle: 'Tỉnh Đồng Nai', shortCode: 'dna', priority: false, aliases: ['dongnai'] },
+  { name: 'Đồng Tháp', displayTitle: 'Tỉnh Đồng Tháp', shortCode: 'dt', priority: false, aliases: ['dongthap'] },
+  { name: 'Gia Lai', displayTitle: 'Tỉnh Gia Lai', shortCode: 'gl', priority: false, aliases: ['gialai'] },
+  { name: 'Hà Tĩnh', displayTitle: 'Tỉnh Hà Tĩnh', shortCode: 'ht', priority: false, aliases: ['hatinh'] },
+  { name: 'Hưng Yên', displayTitle: 'Tỉnh Hưng Yên', shortCode: 'hy', priority: false, aliases: ['hungyen'] },
+  { name: 'Khánh Hòa', displayTitle: 'Tỉnh Khánh Hòa', shortCode: 'kh', priority: false, aliases: ['khanhhoa'] },
+  { name: 'Lai Châu', displayTitle: 'Tỉnh Lai Châu', shortCode: 'lch', priority: false, aliases: ['laichau'] },
+  { name: 'Lâm Đồng', displayTitle: 'Tỉnh Lâm Đồng', shortCode: 'ld', priority: false, aliases: ['lamdong'] },
+  { name: 'Lạng Sơn', displayTitle: 'Tỉnh Lạng Sơn', shortCode: 'ls', priority: false, aliases: ['langson'] },
+  { name: 'Lào Cai', displayTitle: 'Tỉnh Lào Cai', shortCode: 'lc', priority: false, aliases: ['laocai'] },
+  { name: 'Nghệ An', displayTitle: 'Tỉnh Nghệ An', shortCode: 'na', priority: false, aliases: ['nghean'] },
+  { name: 'Ninh Bình', displayTitle: 'Tỉnh Ninh Bình', shortCode: 'nb', priority: false, aliases: ['ninhbinh'] },
+  { name: 'Phú Thọ', displayTitle: 'Tỉnh Phú Thọ', shortCode: 'pt', priority: false, aliases: ['phutho'] },
+  { name: 'Quảng Ngãi', displayTitle: 'Tỉnh Quảng Ngãi', shortCode: 'qng', priority: false, aliases: ['quangngai'] },
+  { name: 'Quảng Ninh', displayTitle: 'Tỉnh Quảng Ninh', shortCode: 'qn', priority: false, aliases: ['quangninh'] },
+  { name: 'Quảng Trị', displayTitle: 'Tỉnh Quảng Trị', shortCode: 'qt', priority: false, aliases: ['quangtri'] },
+  { name: 'Sơn La', displayTitle: 'Tỉnh Sơn La', shortCode: 'sl', priority: false, aliases: ['sonla'] },
+  { name: 'Tây Ninh', displayTitle: 'Tỉnh Tây Ninh', shortCode: 'tni', priority: false, aliases: ['tayninh', 'tn'] },
+  { name: 'Thái Nguyên', displayTitle: 'Tỉnh Thái Nguyên', shortCode: 'tng', priority: false, aliases: ['thainguyen'] },
+  { name: 'Thanh Hóa', displayTitle: 'Tỉnh Thanh Hóa', shortCode: 'th', priority: false, aliases: ['thanhhoa'] },
+  { name: 'Tuyên Quang', displayTitle: 'Tỉnh Tuyên Quang', shortCode: 'tq', priority: false, aliases: ['tuyenquang'] },
+  { name: 'Vĩnh Long', displayTitle: 'Tỉnh Vĩnh Long', shortCode: 'vl', priority: false, aliases: ['vinhlong'] }
+];
 
 export function stripVietnameseTones(str = '') {
   return String(str || '')
@@ -252,7 +292,7 @@ export function stripBotMentions(rawText = '', botDisplayName = '') {
   if (text.startsWith('@')) {
     const asciiFull = stripVietnameseTones(text);
     const tailCmdMatch = asciiFull.match(
-      /^@[^\n]{1,65}?\s+(\/(?:ketnoi|ket_noi|lienket|pair|huyketnoi|unlink|ngatketnoi|danhsach|trangthai|status|start|help|huongdan|batdau|tn|tiepnhan|nhanca)\b[\s\S]*|(?:ketnoi|ket_noi|lienket|pair)\s+[\s\S]+|(?:huyketnoi|unlink|ngatketnoi|danhsach|trangthai|status|start|help|huongdan|batdau)\b|(?:tn|tiep\s*nhan|nhan\s*ca)(?:\s+#?[a-zA-Z0-9-]+)?)\s*$/i
+      /^@[^\n]{1,65}?\s+(\/(?:ketnoi|ket_noi|lienket|pair|kn|ghep|huyketnoi|unlink|ngatketnoi|danhsach|trangthai|status|start|help|huongdan|batdau|tn|tiepnhan|nhanca)\b[\s\S]*|(?:ketnoi|ket_noi|lienket|pair|kn|ghep)\s+[\s\S]+|(?:huyketnoi|unlink|ngatketnoi|danhsach|trangthai|status|start|help|huongdan|batdau)\b|(?:tn|tiep\s*nhan|nhan\s*ca)(?:\s+#?[a-zA-Z0-9-]+)?)\s*$/i
     );
     if (tailCmdMatch) {
       const suffixLen = tailCmdMatch[1].length;
@@ -287,6 +327,63 @@ function isGenericPlaceholderName(name = '') {
 function extractIncidentIdFromText(text = '') {
   const m = String(text || '').match(/#?((?:SOS|IOT)-[A-Z0-9]{4,}-[A-Z0-9]+)/i);
   return m ? m[1].toUpperCase() : '';
+}
+
+export function findProvinceMeta(rawProvOrCode = '') {
+  const clean = stripVietnameseTones(String(rawProvOrCode || ''))
+    .toLowerCase()
+    .replace(/^(?:tinh|thanh\s*pho|tp\.?)\s+/i, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+  if (!clean) return null;
+  for (const p of VIETNAM_34_PROVINCES) {
+    const pSlug = normalizeGeoSlug(p.name).replace(/\s+/g, '');
+    if (p.shortCode === clean || pSlug === clean || (Array.isArray(p.aliases) && p.aliases.includes(clean))) {
+      return p;
+    }
+  }
+  return null;
+}
+
+export function computeShortUnitCode(unitDef = {}) {
+  const code = normalizeUnitCode(unitDef.unitCode || '');
+  if (unitDef.level === 'national' || code === 'tongtrucban' || code === 'admin') {
+    return 'ttb';
+  }
+  const provMeta = findProvinceMeta(unitDef.province || '') || VIETNAM_34_PROVINCES[0];
+  const pCode = provMeta?.shortCode || 'ct';
+  const agency = String(unitDef.agency || 'police').toLowerCase();
+  if (unitDef.level === 'province' || !unitDef.ward) {
+    if (agency === 'csgt') return `${pCode}.csgt`;
+    if (agency === 'fire') return `${pCode}.pccc`;
+    if (agency === 'hospital') return `${pCode}.115`;
+    if (agency === 'all' || code.startsWith('chihuy')) return `${pCode}.chihuy`;
+  }
+  const wardSlug = normalizeGeoSlug(unitDef.ward || '').replace(/\s+/g, '');
+  if (wardSlug) {
+    return `${pCode}.${wardSlug}`;
+  }
+  return code || `${pCode}.trucban`;
+}
+
+function redactPairingPasswordInChatText(rawText = '') {
+  const text = String(rawText || '');
+  return text.replace(
+    /^(\s*(?:@[^\n]{1,50}?\s+)?\/?(?:ketnoi|ket_noi|lienket|pair|kn|ghep)\s+)([\s\S]+)$/i,
+    (full, prefix, rest) => {
+      const pipeParts = rest.split('|');
+      const seg0 = pipeParts[0].trim();
+      const tokens = seg0.split(/\s+/).filter(Boolean);
+      if (tokens.length >= 2) {
+        const maskedSeg0 = `${tokens.slice(0, -1).join(' ')} ••••••••`;
+        return `${prefix}${[maskedSeg0, ...pipeParts.slice(1)].join(' | ')}`;
+      }
+      if (pipeParts.length >= 2) {
+        return `${prefix}${[pipeParts[0].trim(), '••••••••', ...pipeParts.slice(2)].join(' | ')}`;
+      }
+      return full;
+    }
+  );
 }
 
 /**
@@ -416,10 +513,12 @@ function escapeHtml(raw = '') {
 export function createZaloBotService({
   getAgencyAccounts = () => ({}),
   getStationsList = () => [],
+  getDiadanhIndex = () => ({ tinh: [], xa: [] }),
   getIncidentById = () => null,
   getActiveIncidents = () => [],
   acceptIncidentFromZalo = () => ({ ok: false, error: 'Not wired' }),
-  escalateIncidentFromTimer = null
+  escalateIncidentFromTimer = null,
+  onLiveEvent = null
 } = {}) {
   const secretSeed = String(
     process.env.SOS_TOKEN_SECRET ||
@@ -440,6 +539,9 @@ export function createZaloBotService({
   const defaultConfig = {
     enabled: true,
     botToken: process.env.ZALO_BOT_TOKEN || '',
+    botExplicitlyCleared: false,
+    botConfiguredAt: null,
+    botClearedAt: null,
     apiBaseUrl: process.env.ZALO_BOT_API_BASE || DEFAULT_ZALO_API_BASE,
     publicBaseUrl: process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL || '',
     webhookSecret: deterministicWebhookSecret,
@@ -457,23 +559,55 @@ export function createZaloBotService({
     unitPasswords: {},        // Optional custom per-unit pairing password override: { "cap_tanan": "..." }
     customUnits: {},          // Dynamically generated unit codes from UI
     bindings: [],             // [{ chatId, chatTitle, chatType, senderName, officerName, unitCode, unitName, agency, level, province, ward, linkedAt, enabled }]
-    outboxLog: []             // Last 60 outbound / simulated messages for audit & live UI preview
+    outboxLog: [],            // Last 60 outbound / simulated messages for audit & live UI preview
+    chatMessages: [],         // Last 300 two-way (inbound + outbound) Zalo chat messages for Live Chat Board
+    conversations: {}         // { [chatId]: { chatId, title, chatType, unitCode, unitName, province, ward, agency, level, isBound, lastSnippet, lastDirection, lastTimestamp, unreadCount } }
   };
 
   const loaded = readRuntimeData(CONFIG_FILENAME, defaultConfig);
+  const stickyBackup = readRuntimeData(STICKY_VAULT_FILENAME, null);
+  const wasExplicitlyCleared = Boolean(
+    loaded?.botExplicitlyCleared ?? stickyBackup?.botExplicitlyCleared ?? false
+  );
+  const recoveredStickyToken = (!wasExplicitlyCleared && !loaded?.botToken && stickyBackup?.botToken)
+    ? String(stickyBackup.botToken).trim()
+    : '';
+
   const state = {
     ...defaultConfig,
     ...(loaded && typeof loaded === 'object' ? loaded : {}),
+    botExplicitlyCleared: wasExplicitlyCleared,
+    botConfiguredAt: loaded?.botConfiguredAt || stickyBackup?.botConfiguredAt || null,
+    botClearedAt: loaded?.botClearedAt || stickyBackup?.botClearedAt || null,
     requirePairingPassword: loaded?.requirePairingPassword !== false,
     provinceBotTokens: (loaded && typeof loaded.provinceBotTokens === 'object' && loaded.provinceBotTokens) ? loaded.provinceBotTokens : {},
-    unitPasswords: (loaded && typeof loaded.unitPasswords === 'object' && loaded.unitPasswords) ? loaded.unitPasswords : {},
-    customUnits: (loaded && typeof loaded.customUnits === 'object' && loaded.customUnits) ? loaded.customUnits : {},
-    bindings: Array.isArray(loaded?.bindings) ? loaded.bindings : [],
-    outboxLog: Array.isArray(loaded?.outboxLog) ? loaded.outboxLog.slice(-60) : []
+    unitPasswords: (loaded && typeof loaded.unitPasswords === 'object' && loaded.unitPasswords)
+      ? loaded.unitPasswords
+      : ((stickyBackup && typeof stickyBackup.unitPasswords === 'object' && stickyBackup.unitPasswords) ? stickyBackup.unitPasswords : {}),
+    customUnits: (loaded && typeof loaded.customUnits === 'object' && loaded.customUnits)
+      ? loaded.customUnits
+      : ((stickyBackup && typeof stickyBackup.customUnits === 'object' && stickyBackup.customUnits) ? stickyBackup.customUnits : {}),
+    bindings: Array.isArray(loaded?.bindings) && loaded.bindings.length > 0
+      ? loaded.bindings
+      : (Array.isArray(stickyBackup?.bindings) ? stickyBackup.bindings : []),
+    outboxLog: Array.isArray(loaded?.outboxLog) ? loaded.outboxLog.slice(-60) : [],
+    chatMessages: Array.isArray(loaded?.chatMessages) ? loaded.chatMessages.slice(-MAX_LIVE_CHAT_MESSAGES) : [],
+    conversations: (loaded && typeof loaded.conversations === 'object' && loaded.conversations && !Array.isArray(loaded.conversations))
+      ? loaded.conversations
+      : {}
   };
 
-  if (process.env.ZALO_BOT_TOKEN && !state.botToken) {
+  if (!state.botToken && recoveredStickyToken) {
+    state.botToken = recoveredStickyToken;
+    if (!state.botProfile && stickyBackup?.botProfile) {
+      state.botProfile = stickyBackup.botProfile;
+    }
+  }
+  if (process.env.ZALO_BOT_TOKEN && !state.botToken && !state.botExplicitlyCleared) {
     state.botToken = process.env.ZALO_BOT_TOKEN.trim();
+  }
+  if (state.botToken && !state.botConfiguredAt) {
+    state.botConfiguredAt = new Date().toISOString();
   }
   if (!state.webhookSecret || state.webhookSecret.length < 16) {
     state.webhookSecret = deterministicWebhookSecret;
@@ -491,25 +625,240 @@ export function createZaloBotService({
   let pollingActive = false;
   let pollingAbortController = null;
   let pollingTimer = null;
+  let keepAliveTimer = null;
+  let lastKeepAliveAt = null;
+  let cachedStaticProvinceSkeleton = null;
+
+  function emitLiveEvent(eventType, payload = {}) {
+    if (typeof onLiveEvent !== 'function') return;
+    try {
+      onLiveEvent(eventType, {
+        eventType,
+        timestamp: new Date().toISOString(),
+        ...payload
+      });
+    } catch (err) {
+      console.warn('[ZALO-BOT] Lỗi phát sự kiện trực tiếp:', err.message);
+    }
+  }
+
+  function classifyConversationFolder(bindingOrMeta = {}) {
+    if (!bindingOrMeta || !bindingOrMeta.isBound) return 'unbound';
+    const lvl = String(bindingOrMeta.level || '').toLowerCase();
+    const ag = String(bindingOrMeta.agency || '').toLowerCase();
+    if (lvl === 'national') return 'national';
+    if (lvl === 'ward' && ag === 'police') return 'ward';
+    return 'province';
+  }
+
+  function upsertConversationFromBinding(binding, patch = {}) {
+    if (!binding || !binding.chatId) return null;
+    const key = String(binding.chatId);
+    const prev = state.conversations[key] || {};
+    const shortCode = computeShortUnitCode(binding);
+    const updated = {
+      chatId: key,
+      title: binding.chatTitle || prev.title || `Nhóm Zalo — ${binding.unitName || key}`,
+      chatType: binding.chatType || prev.chatType || 'GROUP',
+      unitCode: binding.unitCode || '',
+      shortCode,
+      unitName: binding.unitName || '',
+      province: binding.province || '',
+      ward: binding.ward || '',
+      agency: binding.agency || 'police',
+      agencyLabel: binding.agencyLabel || '',
+      level: binding.level || 'ward',
+      officerName: binding.officerName || binding.senderName || prev.officerName || '',
+      isBound: true,
+      folder: classifyConversationFolder({ ...binding, isBound: true }),
+      lastSnippet: patch.lastSnippet !== undefined ? patch.lastSnippet : (prev.lastSnippet || `Đã kết nối: ${binding.unitName}`),
+      lastDirection: patch.lastDirection || prev.lastDirection || 'system',
+      lastTimestamp: patch.lastTimestamp || prev.lastTimestamp || binding.updatedAt || binding.linkedAt || new Date().toISOString(),
+      unreadCount: typeof patch.unreadCount === 'number' ? patch.unreadCount : (Number(prev.unreadCount) || 0)
+    };
+    state.conversations[key] = updated;
+    return updated;
+  }
+
+  // Seed conversation entries for any existing bound chats + legacy outbox log on boot
+  for (const b of state.bindings) {
+    upsertConversationFromBinding(b);
+  }
+  if (state.chatMessages.length === 0 && state.outboxLog.length > 0) {
+    for (const item of state.outboxLog) {
+      if (!item || !item.chatId) continue;
+      const b = state.bindings.find(x => String(x.chatId) === String(item.chatId));
+      state.chatMessages.push({
+        id: item.id || ('zchat_seed_' + Math.random().toString(36).slice(2, 8)),
+        direction: 'out',
+        chatId: String(item.chatId),
+        chatTitle: b?.chatTitle || `Zalo ${item.chatId}`,
+        chatType: b?.chatType || 'GROUP',
+        senderName: item.senderName || 'Bot Trực Ban SOS',
+        unitCode: b?.unitCode || item.unitCode || '',
+        unitName: b?.unitName || item.unitName || '',
+        province: b?.province || item.province || '',
+        ward: b?.ward || item.ward || '',
+        agency: b?.agency || item.agency || '',
+        text: String(item.text || ''),
+        mediaType: item.mediaType || '',
+        mediaUrl: item.mediaUrl || '',
+        posterUrl: item.posterUrl || '',
+        viewerUrl: item.viewerUrl || '',
+        stage: item.stage || 'outbox',
+        incidentId: item.incidentId || '',
+        delivered: Boolean(item.delivered),
+        simulated: Boolean(item.simulated),
+        timestamp: item.timestamp || new Date().toISOString()
+      });
+    }
+  }
 
   function persistState() {
     try {
       state.outboxLog = state.outboxLog.slice(-60);
+      state.chatMessages = state.chatMessages.slice(-MAX_LIVE_CHAT_MESSAGES);
       writeRuntimeData(CONFIG_FILENAME, state);
+      writeRuntimeData(STICKY_VAULT_FILENAME, {
+        botToken: state.botToken || '',
+        botProfile: state.botProfile || null,
+        botExplicitlyCleared: Boolean(state.botExplicitlyCleared),
+        botConfiguredAt: state.botConfiguredAt || null,
+        botClearedAt: state.botClearedAt || null,
+        requirePairingPassword: state.requirePairingPassword !== false,
+        demoFastMode: Boolean(state.demoFastMode),
+        bindings: state.bindings || [],
+        customUnits: state.customUnits || {},
+        unitPasswords: state.unitPasswords || {},
+        savedAt: new Date().toISOString()
+      });
     } catch (err) {
       console.warn('[ZALO-BOT] Không thể lưu cấu hình:', err.message);
     }
   }
 
+  function recordChatMessage(rawEntry = {}, { shouldPersist = true, emit = true } = {}) {
+    const chatId = String(rawEntry.chatId || '').trim();
+    if (!chatId) return null;
+    const binding = state.bindings.find(b => String(b.chatId) === chatId) || null;
+    const prevConv = state.conversations[chatId] || {};
+    const nowIso = rawEntry.timestamp || new Date().toISOString();
+    const direction = rawEntry.direction === 'in' ? 'in' : 'out';
+    const safeText = direction === 'in'
+      ? redactPairingPasswordInChatText(rawEntry.text || '')
+      : String(rawEntry.text || '');
+
+    const msgEntry = {
+      id: rawEntry.id || ('zchat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)),
+      messageId: String(rawEntry.messageId || ''),
+      direction,
+      chatId,
+      chatTitle: binding?.chatTitle || rawEntry.chatTitle || prevConv.title || (rawEntry.chatType === 'GROUP' ? `Nhóm Zalo (${chatId.slice(0, 10)})` : `${rawEntry.senderName || 'Zalo'} (${chatId.slice(0, 8)})`),
+      chatType: rawEntry.chatType || binding?.chatType || prevConv.chatType || 'GROUP',
+      senderId: String(rawEntry.senderId || ''),
+      senderName: rawEntry.senderName || (direction === 'out' ? (state.botProfile?.name || 'Bot Trực Ban SOS') : 'Cán bộ Zalo'),
+      unitCode: binding?.unitCode || rawEntry.unitCode || '',
+      shortCode: binding ? computeShortUnitCode(binding) : (rawEntry.shortCode || ''),
+      unitName: binding?.unitName || rawEntry.unitName || '',
+      province: binding?.province || rawEntry.province || '',
+      ward: binding?.ward || rawEntry.ward || '',
+      agency: binding?.agency || rawEntry.agency || '',
+      text: safeText,
+      quotedText: String(rawEntry.quotedText || ''),
+      mediaType: rawEntry.mediaType || '',
+      mediaUrl: rawEntry.mediaUrl || '',
+      posterUrl: rawEntry.posterUrl || '',
+      viewerUrl: rawEntry.viewerUrl || '',
+      stage: rawEntry.stage || (direction === 'in' ? 'zalo_incoming' : 'zalo_outgoing'),
+      incidentId: rawEntry.incidentId || '',
+      delivered: rawEntry.delivered !== undefined ? Boolean(rawEntry.delivered) : (direction === 'in'),
+      simulated: Boolean(rawEntry.simulated),
+      error: rawEntry.error || null,
+      timestamp: nowIso
+    };
+
+    state.chatMessages.push(msgEntry);
+    if (state.chatMessages.length > MAX_LIVE_CHAT_MESSAGES) {
+      state.chatMessages = state.chatMessages.slice(-MAX_LIVE_CHAT_MESSAGES);
+    }
+
+    const snippetPrefix = direction === 'in' ? `${msgEntry.senderName}: ` : 'Bot: ';
+    const snippetBody = safeText.replace(/\s+/g, ' ').trim().slice(0, 95) || (msgEntry.mediaType ? '[Đính kèm hình ảnh/video]' : '');
+    const nextUnread = direction === 'in' ? ((Number(prevConv.unreadCount) || 0) + 1) : (Number(prevConv.unreadCount) || 0);
+
+    if (binding) {
+      upsertConversationFromBinding(binding, {
+        lastSnippet: `${snippetPrefix}${snippetBody}`,
+        lastDirection: direction,
+        lastTimestamp: nowIso,
+        unreadCount: nextUnread
+      });
+    } else {
+      state.conversations[chatId] = {
+        chatId,
+        title: msgEntry.chatTitle,
+        chatType: msgEntry.chatType,
+        unitCode: '',
+        shortCode: '',
+        unitName: 'Chưa gắn đơn vị trực ban',
+        province: '',
+        ward: '',
+        agency: '',
+        agencyLabel: 'Chưa định danh',
+        level: '',
+        officerName: direction === 'in' ? msgEntry.senderName : (prevConv.officerName || ''),
+        isBound: false,
+        folder: 'unbound',
+        lastSnippet: `${snippetPrefix}${snippetBody}`,
+        lastDirection: direction,
+        lastTimestamp: nowIso,
+        unreadCount: nextUnread
+      };
+    }
+
+    if (shouldPersist) {
+      persistState();
+    }
+    if (emit) {
+      emitLiveEvent(direction === 'in' ? 'message_in' : 'message_out', {
+        message: msgEntry,
+        conversation: state.conversations[chatId]
+      });
+    }
+    return msgEntry;
+  }
+
   function recordOutboxEntry(entry) {
-    state.outboxLog.push({
-      id: 'zmsg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-      timestamp: new Date().toISOString(),
+    const id = 'zmsg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const timestamp = new Date().toISOString();
+    const fullEntry = {
+      id,
+      timestamp,
       ...entry
-    });
+    };
+    state.outboxLog.push(fullEntry);
     if (state.outboxLog.length > 60) {
       state.outboxLog = state.outboxLog.slice(-60);
     }
+    recordChatMessage({
+      id,
+      direction: 'out',
+      chatId: entry?.chatId,
+      senderName: entry?.senderName || (entry?.stage === 'web_live_chat' ? 'Trực ban Web' : (state.botProfile?.name || 'Bot Trực Ban SOS')),
+      text: entry?.text || '',
+      mediaType: entry?.mediaType || '',
+      mediaUrl: entry?.mediaUrl || '',
+      posterUrl: entry?.posterUrl || '',
+      viewerUrl: entry?.viewerUrl || '',
+      stage: entry?.stage || 'outbox',
+      incidentId: entry?.incidentId || '',
+      unitCode: entry?.unitCode || '',
+      unitName: entry?.unitName || '',
+      delivered: Boolean(entry?.delivered),
+      simulated: Boolean(entry?.simulated),
+      error: entry?.error || null,
+      timestamp
+    }, { shouldPersist: false, emit: true });
     persistState();
   }
 
@@ -850,15 +1199,236 @@ export function createZaloBotService({
    * 3. Dispatcher accounts (`AGENCY_ACCOUNTS`)
    * 4. Nationwide 3,717 stations directory (`STATIONS_DB`)
    */
+  function resolveShortUnitAlias(rawInput = '') {
+    const rawAscii = stripVietnameseTones(String(rawInput || '')).toLowerCase().trim();
+    if (!rawAscii) return null;
+
+    if (rawAscii === 'ttb' || rawAscii === 'qg' || rawAscii === 'toanquoc') {
+      const nat = PRESET_ZALO_UNITS[PRESET_ZALO_UNITS.length - 1];
+      return { ...nat, shortCode: 'ttb' };
+    }
+
+    const quickPresetMap = {
+      tanan: 'cap_tanan',
+      ninhkieu: 'cap_ninhkieu',
+      longtuyen: 'cap_longtuyen',
+      cairang: 'cap_cairang'
+    };
+    if (quickPresetMap[rawAscii]) {
+      const p = PRESET_ZALO_UNITS.find(u => u.unitCode === quickPresetMap[rawAscii]);
+      if (p) return { ...p, shortCode: computeShortUnitCode(p) };
+    }
+
+    const dotMatch = rawAscii.match(/^([a-z]{2,10})[.:\/-]([a-z0-9_-]{2,45})$/);
+    if (!dotMatch) return null;
+
+    const provMeta = findProvinceMeta(dotMatch[1]);
+    if (!provMeta) return null;
+
+    const provName = provMeta.name;
+    const pCode = provMeta.shortCode;
+    const provSlug = normalizeGeoSlug(provName).replace(/\s+/g, '');
+    const sub = dotMatch[2].replace(/[^a-z0-9]/g, '');
+    if (!sub) return null;
+
+    // 1. Provincial Specialized / Command Units (`<prov>.csgt`, `<prov>.pccc`, `<prov>.115`, `<prov>.chihuy`)
+    if (sub === 'csgt' || sub === 'pc08') {
+      if (pCode === 'ct') {
+        const p = PRESET_ZALO_UNITS.find(u => u.unitCode === 'csgt_cantho');
+        if (p) return { ...p, shortCode: 'ct.csgt' };
+      }
+      return {
+        unitCode: normalizeUnitCode(`csgt_${provSlug}`),
+        shortCode: `${pCode}.csgt`,
+        unitName: `Phòng Cảnh Sát Giao Thông (PC08) - Công An ${provMeta.displayTitle}`,
+        agency: 'csgt',
+        agencyLabel: 'Cảnh Sát Giao Thông (CSGT)',
+        level: 'province',
+        province: provName,
+        ward: '',
+        defaultOfficerName: `Trực ban CSGT ${provName}`,
+        defaultOfficerRank: 'Thiếu tá',
+        defaultPhone: '113'
+      };
+    }
+
+    if (sub === 'pccc' || sub === 'cnch' || sub === '114' || sub === 'pc07') {
+      if (pCode === 'ct') {
+        const p = PRESET_ZALO_UNITS.find(u => u.unitCode === 'pccc_cantho');
+        if (p) return { ...p, shortCode: 'ct.pccc' };
+      }
+      return {
+        unitCode: normalizeUnitCode(`pccc_${provSlug}`),
+        shortCode: `${pCode}.pccc`,
+        unitName: `Phòng Cảnh Sát PCCC & CNCH (PC07) - Công An ${provMeta.displayTitle}`,
+        agency: 'fire',
+        agencyLabel: 'Cảnh Sát PCCC & CNCH',
+        level: 'province',
+        province: provName,
+        ward: '',
+        defaultOfficerName: `Trực ban PCCC & CNCH ${provName}`,
+        defaultOfficerRank: 'Đại úy',
+        defaultPhone: '114'
+      };
+    }
+
+    if (sub === '115' || sub === 'capcuu' || sub === 'yte') {
+      if (pCode === 'ct') {
+        const p = PRESET_ZALO_UNITS.find(u => u.unitCode === 'capcuu_cantho');
+        if (p) return { ...p, shortCode: 'ct.115' };
+      }
+      return {
+        unitCode: normalizeUnitCode(`capcuu_${provSlug}`),
+        shortCode: `${pCode}.115`,
+        unitName: `Trung Tâm Cấp Cứu Y Tế 115 ${provMeta.displayTitle}`,
+        agency: 'hospital',
+        agencyLabel: 'Cấp Cứu Y Tế 115',
+        level: 'province',
+        province: provName,
+        ward: '',
+        defaultOfficerName: `Bác sĩ trực 115 ${provName}`,
+        defaultOfficerRank: 'Bác sĩ',
+        defaultPhone: '115'
+      };
+    }
+
+    if (sub === 'chihuy' || sub === 'ca' || sub === 'congan' || sub === '113') {
+      if (pCode === 'ct') {
+        const p = PRESET_ZALO_UNITS.find(u => u.unitCode === 'chihuy_cantho');
+        if (p) return { ...p, shortCode: 'ct.chihuy' };
+      }
+      return {
+        unitCode: normalizeUnitCode(`chihuy_${provSlug}`),
+        shortCode: `${pCode}.chihuy`,
+        unitName: `Trung Tâm Chỉ Huy Công An ${provMeta.displayTitle}`,
+        agency: 'all',
+        agencyLabel: 'Chỉ Huy Cấp Tỉnh/Thành Phố (Nhận Leo Thang)',
+        level: 'province',
+        province: provName,
+        ward: '',
+        defaultOfficerName: `Trực ban Chỉ huy Công an ${provName}`,
+        defaultOfficerRank: 'Thượng tá',
+        defaultPhone: '113'
+      };
+    }
+
+    // 2. Check built-in presets in that province first (`ct.tanan`, `ct.ninhkieu`, ...)
+    const presetWard = PRESET_ZALO_UNITS.find(u =>
+      u.level === 'ward' &&
+      normalizeGeoSlug(u.province) === normalizeGeoSlug(provName) &&
+      normalizeGeoSlug(u.ward).replace(/\s+/g, '') === sub
+    );
+    if (presetWard) {
+      return { ...presetWard, shortCode: `${pCode}.${sub}` };
+    }
+
+    // 3. Check 34-province `diadanhIndex` communes/wards
+    const dd = getDiadanhIndex() || {};
+    const tinhList = Array.isArray(dd.tinh) ? dd.tinh : [];
+    const xaList = Array.isArray(dd.xa) ? dd.xa : [];
+    const provIdx = tinhList.findIndex(t => normalizeGeoSlug(t) === normalizeGeoSlug(provName));
+
+    let matchedWardName = '';
+    if (provIdx >= 0) {
+      for (const pair of xaList) {
+        if (!Array.isArray(pair) || pair[1] !== provIdx) continue;
+        const wSlug = normalizeGeoSlug(pair[0]).replace(/\s+/g, '');
+        if (wSlug === sub) {
+          matchedWardName = String(pair[0]).trim();
+          break;
+        }
+      }
+    }
+
+    // 4. Check registered `AGENCY_ACCOUNTS` & `STATIONS_DB` in that province
+    const accounts = getAgencyAccounts() || {};
+    for (const acc of Object.values(accounts)) {
+      if (!acc || !acc.ward) continue;
+      if (normalizeGeoSlug(acc.province || '') !== normalizeGeoSlug(provName)) continue;
+      if ((acc.agency || 'police') !== 'police') continue;
+      const wSlug = normalizeGeoSlug(acc.ward).replace(/\s+/g, '');
+      if (wSlug === sub) {
+        return {
+          unitCode: normalizeUnitCode(acc.username || `cap_${sub}_${pCode}`),
+          shortCode: `${pCode}.${sub}`,
+          unitName: acc.unitName || `Công An ${acc.ward}, ${provMeta.displayTitle}`,
+          agency: 'police',
+          agencyLabel: 'Công An Cấp Xã/Phường',
+          level: 'ward',
+          province: provName,
+          ward: matchedWardName || acc.ward,
+          defaultOfficerName: (acc.officerName && !isGenericPlaceholderName(acc.officerName)) ? acc.officerName : '',
+          defaultOfficerRank: (acc.officerRank && acc.officerRank !== 'Đang cập nhật') ? acc.officerRank : 'Cán bộ',
+          defaultPhone: (acc.officerPhone && acc.officerPhone !== 'Đang cập nhật') ? acc.officerPhone : '113'
+        };
+      }
+    }
+
+    const stations = getStationsList() || [];
+    for (const st of stations) {
+      if (!st || !st.ward) continue;
+      if (normalizeGeoSlug(st.province || '') !== normalizeGeoSlug(provName)) continue;
+      const stAgency = st.type || st.agency || 'police';
+      if (stAgency !== 'police') continue;
+      const wSlug = normalizeGeoSlug(st.ward).replace(/\s+/g, '');
+      if (wSlug === sub) {
+        return {
+          unitCode: normalizeUnitCode(st.id || `cap_${sub}_${pCode}`),
+          shortCode: `${pCode}.${sub}`,
+          unitName: st.name || `Công An ${matchedWardName || st.ward}, ${provMeta.displayTitle}`,
+          agency: 'police',
+          agencyLabel: 'Công An Cấp Xã/Phường',
+          level: 'ward',
+          province: provName,
+          ward: matchedWardName || st.ward,
+          defaultOfficerName: (st.officerName && !isGenericPlaceholderName(st.officerName)) ? st.officerName : '',
+          defaultOfficerRank: st.officerRank || 'Cán bộ',
+          defaultPhone: st.phone || '113'
+        };
+      }
+    }
+
+    if (matchedWardName) {
+      return {
+        unitCode: normalizeUnitCode(`cap_${sub}_${pCode}`),
+        shortCode: `${pCode}.${sub}`,
+        unitName: `Công An ${matchedWardName}, ${provMeta.displayTitle}`,
+        agency: 'police',
+        agencyLabel: 'Công An Cấp Xã/Phường',
+        level: 'ward',
+        province: provName,
+        ward: matchedWardName,
+        defaultOfficerName: `Trực ban CA ${matchedWardName}`,
+        defaultOfficerRank: 'Cán bộ',
+        defaultPhone: '113'
+      };
+    }
+
+    return null;
+  }
+
   function resolveUnitByCode(rawCode = '') {
-    const code = normalizeUnitCode(rawCode);
+    const rawTrimmed = String(rawCode || '').trim();
+    if (!rawTrimmed) return null;
+
+    // Support dot/short aliases first when containing `.`, `:`, `/` or exact short alias (`ttb`, `tanan`, `ct.tanan`, `hcm.saigon`, `hn.badinh`)
+    if (/[.:\/]/.test(rawTrimmed)) {
+      const shortResolved = resolveShortUnitAlias(rawTrimmed);
+      if (shortResolved) return shortResolved;
+    }
+
+    const code = normalizeUnitCode(rawTrimmed);
     if (!code) return null;
 
     const preset = PRESET_ZALO_UNITS.find(u => normalizeUnitCode(u.unitCode) === code);
-    if (preset) return { ...preset };
+    if (preset) return { ...preset, shortCode: computeShortUnitCode(preset) };
+
+    const shortNoDot = resolveShortUnitAlias(rawTrimmed);
+    if (shortNoDot) return shortNoDot;
 
     if (state.customUnits && state.customUnits[code]) {
-      return { ...state.customUnits[code], unitCode: code };
+      const cu = state.customUnits[code];
+      return { ...cu, unitCode: code, shortCode: computeShortUnitCode(cu) };
     }
 
     const accounts = getAgencyAccounts() || {};
@@ -866,7 +1436,7 @@ export function createZaloBotService({
       if (!acc || !acc.username) continue;
       if (normalizeUnitCode(acc.username) === code) {
         const effectiveLevel = acc.level || ((acc.agency === 'csgt' || acc.agency === 'fire' || acc.agency === 'hospital') ? 'province' : (acc.ward ? 'ward' : 'province'));
-        return {
+        const built = {
           unitCode: code,
           unitName: acc.unitName || acc.agencyName || `Đơn vị ${acc.username}`,
           agency: acc.agency || 'police',
@@ -878,6 +1448,8 @@ export function createZaloBotService({
           defaultOfficerRank: (acc.officerRank && acc.officerRank !== 'Đang cập nhật') ? acc.officerRank : 'Cán bộ',
           defaultPhone: (acc.officerPhone && acc.officerPhone !== 'Đang cập nhật') ? acc.officerPhone : '113'
         };
+        built.shortCode = computeShortUnitCode(built);
+        return built;
       }
     }
 
@@ -886,7 +1458,7 @@ export function createZaloBotService({
       if (!st) continue;
       const stCode = normalizeUnitCode(st.id || '');
       if (stCode && stCode === code) {
-        return {
+        const built = {
           unitCode: code,
           unitName: st.name || 'Đơn vị Trực ban',
           agency: st.type || st.agency || 'police',
@@ -898,6 +1470,25 @@ export function createZaloBotService({
           defaultOfficerRank: st.officerRank || 'Cán bộ',
           defaultPhone: st.phone || '113'
         };
+        built.shortCode = computeShortUnitCode(built);
+        return built;
+      }
+    }
+
+    // Round-trip synthetic directory unitCode (`cap_<ward>_<pCode>` or `<agency>_<provSlug>`)
+    const capSynthetic = code.match(/^cap_([a-z0-9]+)_([a-z0-9]+)$/);
+    if (capSynthetic) {
+      const fromShort = resolveShortUnitAlias(`${capSynthetic[2]}.${capSynthetic[1]}`) ||
+                        resolveShortUnitAlias(`${capSynthetic[1]}.${capSynthetic[2]}`);
+      if (fromShort) return fromShort;
+    }
+    const provSpecSynthetic = code.match(/^(csgt|pccc|capcuu|chihuy)_([a-z0-9_]+)$/);
+    if (provSpecSynthetic) {
+      const pm = findProvinceMeta(provSpecSynthetic[2].replace(/_/g, ' '));
+      if (pm) {
+        const subKey = provSpecSynthetic[1] === 'capcuu' ? '115' : provSpecSynthetic[1];
+        const fromSpec = resolveShortUnitAlias(`${pm.shortCode}.${subKey}`);
+        if (fromSpec) return fromSpec;
       }
     }
 
@@ -2266,7 +2857,7 @@ export function createZaloBotService({
 
   /**
    * Normalize all possible Zalo Bot Platform webhook & `getUpdates` JSON envelopes
-   * into a uniform array of `{ messageId, chatId, chatType, rawChatTitle, senderId, senderName, text, quotedText }`.
+   * into a uniform array of `{ messageId, chatId, chatType, rawChatTitle, senderId, senderName, text, quotedText, mediaType, mediaUrl }`.
    */
   function extractIncomingZaloMessages(payload) {
     if (!payload || typeof payload !== 'object') return [];
@@ -2283,13 +2874,33 @@ export function createZaloBotService({
     const normalized = [];
     for (const item of rawItems) {
       if (!item || typeof item !== 'object') continue;
-      const msg = item.message || item.data?.message || (item.chat && (item.text || item.command) ? item : null);
+      const msg = item.message || item.data?.message || (item.chat && (item.text || item.command || item.caption || item.photo || item.photo_url || item.sticker || item.sticker_url) ? item : null);
       if (!msg || typeof msg !== 'object') continue;
 
       const chat = msg.chat || {};
       const from = msg.from || msg.sender || {};
       const chatId = String(chat.id || msg.chat_id || from.id || '').trim();
-      const text = String(msg.text || msg.content || msg.command || '').trim();
+
+      let mediaType = '';
+      let mediaUrl = '';
+      const photoCandidate =
+        msg.photo_url ||
+        (typeof msg.photo === 'string' ? msg.photo : (Array.isArray(msg.photo) ? msg.photo[msg.photo.length - 1]?.url : msg.photo?.url)) ||
+        (typeof msg.image === 'string' ? msg.image : msg.image?.url) ||
+        (Array.isArray(msg.attachments) ? msg.attachments.find(a => a?.payload?.url || a?.url)?.payload?.url || msg.attachments.find(a => a?.url)?.url : '');
+      const stickerCandidate = msg.sticker_url || (typeof msg.sticker === 'string' ? msg.sticker : msg.sticker?.url) || '';
+
+      if (photoCandidate) {
+        mediaType = 'image';
+        mediaUrl = String(photoCandidate).trim();
+      } else if (stickerCandidate) {
+        mediaType = 'sticker';
+        mediaUrl = String(stickerCandidate).trim();
+      }
+
+      let text = String(msg.text || msg.content || msg.command || msg.caption || msg.photo_caption || '').trim();
+      if (!text && mediaType === 'image') text = '[Hình ảnh hiện trường gửi từ Zalo]';
+      if (!text && mediaType === 'sticker') text = '[Nhãn dán Sticker Zalo]';
       if (!chatId || !text) continue;
 
       const messageId = String(msg.message_id || item.update_id || `${chatId}_${msg.date || Date.now()}_${text.slice(0, 24)}`);
@@ -2308,7 +2919,9 @@ export function createZaloBotService({
         senderName: senderName || 'Cán bộ Zalo',
         hasRealSenderName: Boolean(senderName && !isGenericPlaceholderName(senderName)),
         text,
-        quotedText
+        quotedText,
+        mediaType,
+        mediaUrl
       });
     }
     return normalized;
@@ -2328,6 +2941,7 @@ export function createZaloBotService({
       ? chatTitle.trim()
       : (existing?.customTitle ? existing.chatTitle : (chatType === 'GROUP' ? `Nhóm Zalo — ${unitDef.unitName}` : `${realOfficer || 'Cán bộ'} — ${unitDef.unitName}`));
 
+    const shortCode = unitDef.shortCode || computeShortUnitCode(unitDef);
     const record = {
       chatId: cleanChatId,
       chatTitle: resolvedDisplayTitle,
@@ -2336,6 +2950,7 @@ export function createZaloBotService({
       senderName: realOfficer || senderName || existing?.senderName || 'Cán bộ trực ban',
       officerName: realOfficer || unitDef.defaultOfficerName || 'Cán bộ trực ban',
       unitCode: unitDef.unitCode,
+      shortCode,
       unitName: unitDef.unitName,
       agency: unitDef.agency || 'police',
       agencyLabel: unitDef.agencyLabel || 'Đơn vị Trực ban',
@@ -2354,7 +2969,12 @@ export function createZaloBotService({
     } else {
       state.bindings.push(record);
     }
+    upsertConversationFromBinding(record);
     persistState();
+    emitLiveEvent('binding_updated', {
+      chatId: cleanChatId,
+      binding: record
+    });
     return record;
   }
 
@@ -2417,6 +3037,7 @@ export function createZaloBotService({
     if (!targetUnit) {
       targetUnit = {
         unitCode: current.unitCode,
+        shortCode: current.shortCode,
         unitName: current.unitName,
         agency: current.agency,
         agencyLabel: current.agencyLabel,
@@ -2442,6 +3063,7 @@ export function createZaloBotService({
       chatTitle: updatedTitle,
       customTitle: Boolean(chatTitle && String(chatTitle).trim()),
       unitCode: targetUnit.unitCode,
+      shortCode: targetUnit.shortCode || computeShortUnitCode(targetUnit),
       unitName: targetUnit.unitName,
       agency: targetUnit.agency || 'police',
       agencyLabel: targetUnit.agencyLabel || 'Đơn vị Trực ban',
@@ -2469,7 +3091,12 @@ export function createZaloBotService({
     }
 
     state.bindings[idx] = updated;
+    upsertConversationFromBinding(updated);
     persistState();
+    emitLiveEvent('binding_updated', {
+      chatId: cleanChatId,
+      binding: updated
+    });
 
     if (notifyChat) {
       await ensureBotProfile();
@@ -2494,7 +3121,7 @@ export function createZaloBotService({
   }
 
   /**
-   * Process an incoming Zalo message (`/start`, `/ketnoi <code|tên phường> <mật_khẩu>`, `/huyketnoi`, `/danhsach`, `/tn`, `@Bot Vĩnh Nam TN`)
+   * Process an incoming Zalo message (`/start`, `/kn <mã ngắn> <mật_khẩu>`, `/ketnoi <code|tên phường> <mật_khẩu>`, `/huyketnoi`, `/danhsach`, `/tn`, `@Bot Vĩnh Nam TN`, and regular live group/private messages)
    */
   async function handleIncomingMessage(msg, { origin = '', skipPasswordCheck = false } = {}) {
     if (!msg || !msg.chatId || !msg.text) return { handled: false };
@@ -2526,9 +3153,33 @@ export function createZaloBotService({
     const cleanedText = stripBotMentions(msg.text, state.botProfile?.name || '');
     const lowerAscii = stripVietnameseTones(cleanedText).toLowerCase().trim();
 
-    // 1. Check `/ketnoi <mã hoặc tên Công an Phường/Xã> <Mật_khẩu_trực_ban> [| Tên nhóm tùy chọn]`
-    const ketnoiMatch = cleanedText.match(/^\/?(?:ketnoi|ket_noi|lienket|pair)\s+([\s\S]+)$/i) ||
-                        cleanedText.match(/\/(?:ketnoi|ket_noi|lienket|pair)\s+([\s\S]+)$/i);
+    const isKnownCommand =
+      /^\/?(?:ketnoi|ket_noi|lienket|pair|kn|ghep)(?:\s+|$)/i.test(cleanedText) ||
+      /\/(?:ketnoi|ket_noi|lienket|pair|kn|ghep)\s+/i.test(cleanedText) ||
+      /^\/?(?:huyketnoi|unlink|ngatketnoi|danhsach|trangthai|status|tn|tiep\s*nhan|nhan\s*ca|start|help|huongdan|batdau)\b/i.test(lowerAscii);
+
+    // Record EVERY inbound Zalo message into the Live Chat Board (passwords in `/kn` or `/ketnoi` are masked automatically)
+    recordChatMessage({
+      id: msg.messageId ? `in_${msg.messageId}` : '',
+      chatId: msg.chatId,
+      direction: 'in',
+      senderName: msg.senderName || 'Cán bộ Zalo',
+      senderRole: 'zalo_user',
+      text: msg.text,
+      mediaType: msg.mediaType || '',
+      mediaUrl: msg.mediaUrl || '',
+      chatTitle: existingBinding?.chatTitle || msg.rawChatTitle || '',
+      chatType: msg.chatType || 'GROUP',
+      isCommand: isKnownCommand,
+      meta: {
+        quotedText: msg.quotedText || '',
+        senderId: msg.senderId || ''
+      }
+    });
+
+    // 1. Check `/kn <mã ngắn> <Mật_khẩu>` OR `/ketnoi <mã hoặc tên Công an Phường/Xã> <Mật_khẩu_trực_ban> [| Tên nhóm tùy chọn]`
+    const ketnoiMatch = cleanedText.match(/^\/?(?:ketnoi|ket_noi|lienket|pair|kn|ghep)\s+([\s\S]+)$/i) ||
+                        cleanedText.match(/\/(?:ketnoi|ket_noi|lienket|pair|kn|ghep)\s+([\s\S]+)$/i);
     if (ketnoiMatch) {
       const fullArg = ketnoiMatch[1].trim();
       const chatKey = String(msg.chatId);
@@ -2539,7 +3190,7 @@ export function createZaloBotService({
         if (lockRec && lockRec.lockedUntil && Date.now() < lockRec.lockedUntil) {
           const remainMin = Math.max(1, Math.ceil((lockRec.lockedUntil - Date.now()) / 60000));
           const lockReply = [
-            `🚫 TẠM KHÓA LỆNH /KETNOI DO NHẬP SAI MẬT KHẨU QUÁ ${KETNOI_MAX_FAILED_ATTEMPTS} LẦN!`,
+            `🚫 TẠM KHÓA LỆNH KẾT NỐI DO NHẬP SAI MẬT KHẨU QUÁ ${KETNOI_MAX_FAILED_ATTEMPTS} LẦN!`,
             `⏳ Khung chat này đang tạm khóa xác thực trong ${remainMin} phút nữa để chống dò mật khẩu trái phép.`,
             `👉 Vui lòng kiểm tra lại đúng Mật khẩu Trực ban Web của đơn vị trước khi thử lại.`
           ].join('\n');
@@ -2555,15 +3206,15 @@ export function createZaloBotService({
       let unitDef = parsedKetnoi.unitDef;
 
       if (!unitDef) {
-        const passSyntaxHint = state.requirePairingPassword !== false ? ' <Mật_khẩu_trực_ban>' : '';
+        const passSyntaxHint = state.requirePairingPassword !== false ? ' <Mật_khẩu>' : '';
         const reply = [
           `❌ Không nhận diện được đơn vị "${unitArgRaw || fullArg}".`,
-          `👉 Đồng chí gõ MÃ ĐƠN VỊ hoặc TÊN PHƯỜNG/XÃ kèm MẬT KHẨU TRỰC BAN của đơn vị:`,
-          `• /ketnoi cap_tanan${passSyntaxHint}`,
-          `• /ketnoi Phường Tân An, Cần Thơ${passSyntaxHint}`,
-          `• /ketnoi csgt_cantho${passSyntaxHint} (Đội CSGT Cần Thơ)`,
-          `• /ketnoi pccc_cantho${passSyntaxHint} (Đội PCCC & CNCH Cần Thơ)`,
-          `• /ketnoi chihuy_cantho${passSyntaxHint} (Chỉ Huy CA TP. Cần Thơ)`
+          `👉 Đồng chí gõ lệnh ngắn /kn <Mã_Tỉnh.Phường> kèm MẬT KHẨU TRỰC BAN:`,
+          `• /kn ct.tanan${passSyntaxHint} (CA Phường Tân An, TP. Cần Thơ)`,
+          `• /kn hcm.saigon${passSyntaxHint} (CA Phường Sài Gòn, TP.HCM)`,
+          `• /kn hn.badinh${passSyntaxHint} (CA Phường Ba Đình, Hà Nội)`,
+          `• /kn ct.csgt${passSyntaxHint} (Đội CSGT TP. Cần Thơ)`,
+          `• /kn ct.pccc${passSyntaxHint} (Cảnh sát PCCC TP. Cần Thơ)`
         ].join('\n');
         await sendZaloMessage(msg.chatId, reply, { meta: { stage: 'cmd_ketnoi_invalid' } });
         return { handled: true, action: 'ketnoi_invalid', code: unitArgRaw };
@@ -2574,16 +3225,17 @@ export function createZaloBotService({
         const authCheck = verifyUnitPairingPassword(unitDef, password);
         if (!authCheck.ok && authCheck.reason === 'missing') {
           const isNationalTarget = unitDef.level === 'national' || unitDef.unitCode === 'tongtrucban';
+          const shortAlias = unitDef.shortCode || computeShortUnitCode(unitDef);
           const syntaxSample = unitDef._ephemeralDraft
-            ? `/ketnoi ${unitArgRaw} <Mật_khẩu_trực_ban>`
-            : `/ketnoi ${unitDef.unitCode} <Mật_khẩu_trực_ban>`;
+            ? `/kn ${unitArgRaw} <Mật_khẩu_trực_ban>`
+            : `/kn ${shortAlias} <Mật_khẩu_trực_ban>`;
           const missingReply = [
             `🔒 YÊU CẦU MẬT KHẨU TRỰC BAN ĐỂ KẾT NỐI ĐƠN VỊ!`,
             `🏢 Đơn vị yêu cầu: ${unitDef.unitName}`,
-            `🛡️ Để ngăn đơn vị khác hoặc người lạ kết nối trái phép, đồng chí vui lòng nhập kèm Mật khẩu Trực ban Web của đơn vị theo cú pháp:`,
+            `🛡️ Để ngăn đơn vị khác hoặc người lạ kết nối trái phép, đồng chí vui lòng nhập kèm Mật khẩu Trực ban Web của đơn vị theo cú pháp ngắn:`,
             `👉 ${syntaxSample}`,
             isNationalTarget
-              ? `⚠️ Lưu ý: Kênh Giám sát Toàn Quốc (tongtrucban) chỉ dành cho Tổng Trực Ban Quốc Gia — yêu cầu mật khẩu Quản trị Trung ương.`
+              ? `⚠️ Lưu ý: Kênh Giám sát Toàn Quốc (ttb / tongtrucban) chỉ dành cho Tổng Trực Ban Quốc Gia — yêu cầu mật khẩu Quản trị Trung ương.`
               : `💡 Mật khẩu mặc định trùng với mật khẩu đăng nhập Bàn Chỉ Huy Trực Ban Web của lực lượng đồng chí.`
           ].join('\n');
           await sendZaloMessage(msg.chatId, missingReply, {
@@ -2609,10 +3261,10 @@ export function createZaloBotService({
           const attemptsLeft = Math.max(0, KETNOI_MAX_FAILED_ATTEMPTS - count);
           const wrongReply = [
             `⛔ SAI MẬT KHẨU TRỰC BAN — TỪ CHỐI KẾT NỐI!`,
-            `🏢 Đơn vị: ${unitDef.unitName} (${unitDef.unitCode})`,
+            `🏢 Đơn vị: ${unitDef.unitName} (${unitDef.shortCode || unitDef.unitCode})`,
             `👮 Người gửi lệnh: ${msg.senderName}`,
             lockedUntil
-              ? `🚫 Đã nhập sai ${count}/${KETNOI_MAX_FAILED_ATTEMPTS} lần — Khung chat này bị tạm khóa lệnh /ketnoi trong 10 phút!`
+              ? `🚫 Đã nhập sai ${count}/${KETNOI_MAX_FAILED_ATTEMPTS} lần — Khung chat này bị tạm khóa lệnh kết nối trong 10 phút!`
               : `⚠️ Mật khẩu không khớp với mật khẩu Trực ban của đơn vị (còn ${attemptsLeft}/${KETNOI_MAX_FAILED_ATTEMPTS} lần thử).`
           ].join('\n');
           await sendZaloMessage(msg.chatId, wrongReply, {
@@ -2659,7 +3311,7 @@ export function createZaloBotService({
 
       const confirmText = [
         `✅ LIÊN KẾT BOT TRỰC BAN THÀNH CÔNG!`,
-        `🏢 Đơn vị: ${binding.unitName}`,
+        `🏢 Đơn vị: ${binding.unitName} (${binding.shortCode || binding.unitCode})`,
         `🛡️ Lực lượng: ${binding.agencyLabel}`,
         `📍 Địa bàn nhận báo động: ${scopeDesc}`,
         `🔐 Xác thực mật khẩu trực ban: HỢP LỆ`,
@@ -2680,7 +3332,15 @@ export function createZaloBotService({
     if (/^\/?(?:huyketnoi|unlink|ngatketnoi)\b/i.test(lowerAscii)) {
       const before = state.bindings.length;
       state.bindings = state.bindings.filter(b => String(b.chatId) !== String(msg.chatId));
+      const conv = state.conversations?.[String(msg.chatId)];
+      if (conv) {
+        conv.isBound = false;
+        conv.folder = 'unbound';
+        conv.unitCode = '';
+        conv.shortCode = '';
+      }
       persistState();
+      emitLiveEvent('binding_updated', { chatId: String(msg.chatId), binding: null });
       const removed = before - state.bindings.length;
       await sendZaloMessage(
         msg.chatId,
@@ -2697,11 +3357,11 @@ export function createZaloBotService({
       const myBindings = state.bindings.filter(b => String(b.chatId) === String(msg.chatId));
       const passHint = state.requirePairingPassword !== false ? ' <Mật_khẩu_trực_ban>' : '';
       const reply = myBindings.length === 0
-        ? `ℹ️ Khung chat này chưa gắn với đơn vị nào.\nHãy gõ: /ketnoi cap_tanan${passHint} (hoặc /ketnoi Phường Tân An, Cần Thơ${passHint}) để nhận báo động SOS!`
+        ? `ℹ️ Khung chat này chưa gắn với đơn vị nào.\nHãy gõ lệnh ngắn: /kn ct.tanan${passHint} (hoặc /kn hcm.saigon${passHint}, /kn hn.badinh${passHint}) để nhận báo động SOS!`
         : [
             `📋 ĐƠN VỊ ĐANG TRỰC TRÊN KHUNG CHAT NÀY:`,
-            ...myBindings.map((b, i) => `${i + 1}. ${b.unitName}\n   📍 Địa bàn: ${b.ward ? `${b.ward}, ${b.province}` : b.province}\n   👮 Cán bộ trực Zalo: ${b.officerName || b.senderName}`),
-            `\n💬 Đổi địa bàn: gõ /ketnoi <Mã_đơn_vị>${passHint}\n💬 Nhận ca khi có SOS: ${getBotMentionHint(msg.chatType)}`
+            ...myBindings.map((b, i) => `${i + 1}. ${b.unitName} (${b.shortCode || b.unitCode})\n   📍 Địa bàn: ${b.ward ? `${b.ward}, ${b.province}` : b.province}\n   👮 Cán bộ trực Zalo: ${b.officerName || b.senderName}`),
+            `\n💬 Đổi địa bàn nhanh: gõ /kn <Mã_Tỉnh.Phường>${passHint}\n💬 Nhận ca khi có SOS: ${getBotMentionHint(msg.chatType)}`
           ].join('\n');
       await sendZaloMessage(msg.chatId, reply, { meta: { stage: 'cmd_status' } });
       return { handled: true, action: 'status', bindings: myBindings };
@@ -2781,18 +3441,21 @@ export function createZaloBotService({
       const helpText = [
         `🛡️ HỆ THỐNG BOT TRỰC BAN KHẨN CẤP — SOS VIỆT NAM 2026`,
         `━━━━━━━━━━━━━━━━━━━━`,
-        `1️⃣ Liên kết Nhóm Zalo với đúng Đơn vị (kèm Mật khẩu Trực ban):`,
-        `• /ketnoi cap_tanan${passHint}`,
-        `• /ketnoi Phường Tân An, Cần Thơ${passHint}`,
-        `• /ketnoi csgt_cantho${passHint} (Đội CSGT Cần Thơ)`,
-        `• /ketnoi pccc_cantho${passHint} (Đội PCCC & CNCH Cần Thơ)`,
-        `• /ketnoi chihuy_cantho${passHint} (Chỉ Huy Công An TP. Cần Thơ)`,
+        `1️⃣ Liên kết Nhóm Zalo NGẮN GỌN theo Tỉnh/Thành (kèm Mật khẩu Trực ban):`,
+        `• /kn ct.tanan${passHint} (CA Phường Tân An — TP. Cần Thơ)`,
+        `• /kn hcm.saigon${passHint} (CA Phường Sài Gòn — TP.HCM)`,
+        `• /kn hn.badinh${passHint} (CA Phường Ba Đình — TP. Hà Nội)`,
+        `• /kn ct.csgt${passHint} (Đội CSGT TP. Cần Thơ)`,
+        `• /kn ct.pccc${passHint} (Đội PCCC & CNCH TP. Cần Thơ)`,
+        `• /kn ct.chihuy${passHint} (Chỉ Huy Công An TP. Cần Thơ)`,
+        `(Vẫn hỗ trợ lệnh đầy đủ /ketnoi cap_tanan${passHint})`,
         ``,
         `2️⃣ Tiếp nhận sự cố 2 chiều ngay khi đi ăn cơm / tuần tra:`,
         `• Cách 1: Bấm vào Link Tiếp Nhận 1 Chạm trong tin báo động`,
         `• Cách 2: Gõ lệnh ngắn /tn  (hoặc ${botTag} TN) — Tự động ghi nhận tên Zalo của đồng chí!`,
         ``,
-        `3️⃣ Lệnh tra cứu khác:`,
+        `3️⃣ Lệnh tra cứu & Trò chuyện Trực tiếp:`,
+        `• Mọi tin nhắn trao đổi tại nhóm đều hiển thị trực tiếp trên Bảng Chat Zalo Web Trung tâm Chỉ huy.`,
         `• /danhsach — Xem đơn vị & cán bộ đang gắn với nhóm này`,
         `• /huyketnoi — Ngắt nhận thông báo tại nhóm này`
       ].join('\n');
@@ -2800,7 +3463,7 @@ export function createZaloBotService({
       return { handled: true, action: 'help' };
     }
 
-    return { handled: false };
+    return { handled: false, action: 'chat_logged', chatRecorded: true };
   }
 
   async function handleWebhookPayload(payload, { secretHeader = '', origin = '', skipSecretCheck = false, skipPasswordCheck = false } = {}) {
@@ -2840,10 +3503,11 @@ export function createZaloBotService({
         await handleWebhookPayload(apiRes.data, { skipSecretCheck: true });
       }
     } catch {
-      // Ignore transient network hiccups
+      // Ignore transient network hiccups — never drop sticky botToken
     } finally {
       if (pollingActive && state.botToken && !state.webhookActive) {
         pollingTimer = setTimeout(pollOnce, 2500);
+        if (pollingTimer && typeof pollingTimer.unref === 'function') pollingTimer.unref();
       }
     }
   }
@@ -2853,11 +3517,43 @@ export function createZaloBotService({
     if (!state.botToken || state.webhookActive) return;
     pollingActive = true;
     pollingTimer = setTimeout(pollOnce, 800);
+    if (pollingTimer && typeof pollingTimer.unref === 'function') pollingTimer.unref();
+  }
+
+  /**
+   * Background sticky keep-alive watchdog (inspired by CompanyDesktop persistent Zalo runtime):
+   * Ensures an active configured bot stays continuously online across network hiccups,
+   * changing ONLY when a user explicitly deletes (`explicitUserDelete`) or replaces the bot token.
+   */
+  async function runBotKeepAliveCheck() {
+    lastKeepAliveAt = new Date().toISOString();
+    if (!state.botToken || state.botExplicitlyCleared) return;
+    try {
+      if (!state.botProfile) {
+        await ensureBotProfile();
+      }
+      if (!state.webhookActive && !pollingActive) {
+        startPollingIfNeeded();
+      }
+    } catch {
+      // Never clear state.botToken on transient errors
+    }
+  }
+
+  function startBotKeepAliveWatchdog() {
+    if (keepAliveTimer) clearInterval(keepAliveTimer);
+    keepAliveTimer = setInterval(() => {
+      runBotKeepAliveCheck().catch(() => {});
+    }, BOT_KEEPALIVE_INTERVAL_MS);
+    if (keepAliveTimer && typeof keepAliveTimer.unref === 'function') {
+      keepAliveTimer.unref();
+    }
   }
 
   async function updateConfig({
     botToken,
     clearToken = false,
+    explicitUserDelete = false,
     enabled,
     demoFastMode,
     requirePairingPassword,
@@ -2886,12 +3582,19 @@ export function createZaloBotService({
     if (clearToken === true) {
       tokenChanged = Boolean(state.botToken);
       state.botToken = '';
+      if (explicitUserDelete === true) {
+        state.botExplicitlyCleared = true;
+        state.botClearedAt = new Date().toISOString();
+      }
     } else if (typeof botToken === 'string') {
       const trimmed = botToken.trim();
       // NEVER wipe saved `state.botToken` on empty input (`""`) or masked placeholder (`••••`)!
       if (trimmed.length > 0 && !trimmed.includes('••••') && trimmed !== maskToken(state.botToken)) {
         tokenChanged = trimmed !== state.botToken;
         state.botToken = trimmed;
+        state.botExplicitlyCleared = false;
+        state.botClearedAt = null;
+        state.botConfiguredAt = new Date().toISOString();
       }
     }
 
@@ -2899,6 +3602,7 @@ export function createZaloBotService({
     let webhookSetup = null;
 
     if (state.botToken) {
+      lastKeepAliveAt = new Date().toISOString();
       if (tokenChanged || !state.botProfile || forceWebhookSync) {
         botCheck = await callZaloApi('getMe', {});
         if (botCheck.ok) {
@@ -2947,17 +3651,26 @@ export function createZaloBotService({
     }
 
     persistState();
+    const pubStatus = getPublicStatus(viewerCtx);
+    emitLiveEvent('bot_status_updated', {
+      hasToken: pubStatus.hasToken,
+      stickyLocked: pubStatus.stickyLocked,
+      botExplicitlyCleared: pubStatus.botExplicitlyCleared,
+      mode: pubStatus.mode,
+      botProfile: pubStatus.botProfile
+    });
     return {
       ok: true,
       botCheck,
       webhookSetup,
-      status: getPublicStatus(viewerCtx)
+      status: pubStatus
     };
   }
 
   /**
    * Auto-restore `botToken`, `bindings`, `customUnits`, and `unitPasswords` from the Dispatcher's
    * Browser Vault (`localStorage`) whenever an ephemeral cloud container (e.g. Render redeploy) restarts!
+   * Respects `state.botExplicitlyCleared` so an explicitly deleted bot is NEVER resurrected against user intent.
    */
   async function restoreBackup({
     botToken = '',
@@ -3009,19 +3722,22 @@ export function createZaloBotService({
         if (!viewerIsAdmin && (String(b.level || '').toLowerCase() === 'national' || normCode === 'tongtrucban')) continue;
         const exists = state.bindings.some(x => String(x.chatId) === String(b.chatId));
         if (!exists) {
-          state.bindings.push({
+          const hydrated = {
             ...b,
             chatId: String(b.chatId),
+            shortCode: b.shortCode || computeShortUnitCode(b),
             enabled: b.enabled !== false,
             restoredAt: new Date().toISOString()
-          });
+          };
+          state.bindings.push(hydrated);
+          upsertConversationFromBinding(hydrated);
           restoredBindingsCount += 1;
         }
       }
     }
 
     const candidateToken = typeof botToken === 'string' ? botToken.trim() : '';
-    if (!state.botToken && candidateToken.length > 0 && !candidateToken.includes('••••')) {
+    if (!state.botToken && !state.botExplicitlyCleared && candidateToken.length > 0 && !candidateToken.includes('••••')) {
       restoredToken = true;
       await updateConfig({
         botToken: candidateToken,
@@ -3043,16 +3759,362 @@ export function createZaloBotService({
 
   function unlinkBinding({ chatId, unitCode } = {}) {
     const before = state.bindings.length;
+    const removedChatIds = [];
     state.bindings = state.bindings.filter(b => {
+      let keep = true;
       if (chatId && unitCode) {
-        return !(String(b.chatId) === String(chatId) && normalizeUnitCode(b.unitCode) === normalizeUnitCode(unitCode));
+        keep = !(String(b.chatId) === String(chatId) && normalizeUnitCode(b.unitCode) === normalizeUnitCode(unitCode));
+      } else if (chatId) {
+        keep = String(b.chatId) !== String(chatId);
+      } else if (unitCode) {
+        keep = normalizeUnitCode(b.unitCode) !== normalizeUnitCode(unitCode);
       }
-      if (chatId) return String(b.chatId) !== String(chatId);
-      if (unitCode) return normalizeUnitCode(b.unitCode) !== normalizeUnitCode(unitCode);
-      return true;
+      if (!keep) removedChatIds.push(String(b.chatId));
+      return keep;
     });
+    for (const cid of removedChatIds) {
+      const conv = state.conversations?.[cid];
+      if (conv) {
+        conv.isBound = false;
+        conv.folder = 'unbound';
+        conv.unitCode = '';
+        conv.shortCode = '';
+      }
+    }
     persistState();
+    emitLiveEvent('binding_updated', { removedChatIds });
     return { ok: true, removed: before - state.bindings.length, bindings: state.bindings };
+  }
+
+  /**
+   * Build sorted `ZaloConvEntry` list for the Live Zalo Chat Board.
+   */
+  function getConversationsList() {
+    if (!state.conversations || typeof state.conversations !== 'object') {
+      state.conversations = {};
+    }
+    for (const b of state.bindings) {
+      if (b && b.chatId) {
+        upsertConversationFromBinding(b);
+      }
+    }
+    const items = Object.values(state.conversations).filter(c => c && c.chatId);
+    items.sort((a, b) => {
+      const ta = a.lastTimestamp ? Date.parse(a.lastTimestamp) || 0 : 0;
+      const tb = b.lastTimestamp ? Date.parse(b.lastTimestamp) || 0 : 0;
+      if (tb !== ta) return tb - ta;
+      if (Boolean(b.isBound) !== Boolean(a.isBound)) return b.isBound ? 1 : -1;
+      return String(a.title || '').localeCompare(String(b.title || ''), 'vi');
+    });
+    return items;
+  }
+
+  function getChatBoardState({ chatId = '', folder = 'all', limit = 120 } = {}) {
+    const allConvs = getConversationsList();
+    const normFolder = String(folder || 'all').trim().toLowerCase();
+    const filteredConvs = allConvs.filter(c => {
+      if (normFolder === 'all') return true;
+      if (normFolder === 'unread') return (Number(c.unreadCount) || 0) > 0;
+      return String(c.folder || '').toLowerCase() === normFolder;
+    });
+
+    const requestedChatId = String(chatId || '').trim();
+    const resolvedChatId = requestedChatId ||
+      (filteredConvs[0]?.chatId || allConvs[0]?.chatId || '');
+
+    const safeLimit = Math.min(MAX_LIVE_CHAT_MESSAGES, Math.max(10, Number(limit) || 120));
+    const allMsgs = Array.isArray(state.chatMessages) ? state.chatMessages : [];
+    const messages = resolvedChatId
+      ? allMsgs.filter(m => String(m.chatId) === resolvedChatId).slice(-safeLimit)
+      : allMsgs.slice(-safeLimit);
+
+    const totalUnread = allConvs.reduce((acc, c) => acc + (Number(c.unreadCount) || 0), 0);
+
+    return {
+      ok: true,
+      conversations: filteredConvs,
+      allConversations: allConvs,
+      totalConversations: allConvs.length,
+      totalUnread,
+      activeChatId: resolvedChatId,
+      messages
+    };
+  }
+
+  function markConversationRead(chatId = '') {
+    const cleanId = String(chatId || '').trim();
+    if (!state.conversations || typeof state.conversations !== 'object') {
+      return { ok: true, totalUnread: 0 };
+    }
+    if (cleanId === '__ALL__') {
+      for (const c of Object.values(state.conversations)) {
+        if (c) c.unreadCount = 0;
+      }
+    } else if (cleanId && state.conversations[cleanId]) {
+      state.conversations[cleanId].unreadCount = 0;
+    }
+    persistState();
+    const totalUnread = Object.values(state.conversations).reduce((acc, c) => acc + (Number(c?.unreadCount) || 0), 0);
+    emitLiveEvent('conversation_read', { chatId: cleanId, totalUnread });
+    return { ok: true, chatId: cleanId, totalUnread };
+  }
+
+  /**
+   * Send a direct live chat message from Web Command Center to a Zalo Group / Officer chat.
+   */
+  async function sendDispatcherChatMessage({
+    chatId = '',
+    text = '',
+    senderLabel = 'Trực ban Trung tâm Chỉ huy'
+  } = {}) {
+    const cleanChatId = String(chatId || '').trim();
+    const cleanText = String(text || '').trim();
+    if (!cleanChatId) {
+      throw new Error('Vui lòng chọn một Nhóm / Hội thoại Zalo để gửi tin nhắn.');
+    }
+    if (!cleanText) {
+      throw new Error('Nội dung tin nhắn không được để trống.');
+    }
+
+    const binding = state.bindings.find(b => String(b.chatId) === cleanChatId) || null;
+    const conv = state.conversations?.[cleanChatId] || null;
+    const label = String(senderLabel || 'Trực ban Trung tâm Chỉ huy').trim();
+    const outboundBody = /^(\[|🚨|📢|💬|🔔)/.test(cleanText)
+      ? cleanText
+      : `💬 [${label}]\n${cleanText}`;
+
+    if (conv) {
+      conv.unreadCount = 0;
+    }
+
+    const delivery = await sendZaloMessage(cleanChatId, outboundBody, {
+      province: binding?.province || conv?.province || '',
+      meta: {
+        stage: 'dispatcher_live_chat',
+        unitCode: binding?.unitCode || conv?.unitCode || '',
+        unitName: binding?.unitName || conv?.title || '',
+        senderLabel: label,
+        rawReplyText: cleanText
+      }
+    });
+
+    const latestMsgs = (state.chatMessages || []).filter(m => String(m.chatId) === cleanChatId);
+    return {
+      ok: true,
+      chatId: cleanChatId,
+      delivery,
+      message: latestMsgs[latestMsgs.length - 1] || null,
+      conversation: state.conversations?.[cleanChatId] || null
+    };
+  }
+
+  // Cached 34-Province skeleton so collapsible accordion renders in <5ms
+  let cachedProvinceSkeleton = null;
+  let cachedSkeletonXaCount = -1;
+
+  function ensureProvinceSkeleton() {
+    const dd = getDiadanhIndex() || {};
+    const tinhList = Array.isArray(dd.tinh) ? dd.tinh : [];
+    const xaList = Array.isArray(dd.xa) ? dd.xa : [];
+    if (cachedProvinceSkeleton && cachedSkeletonXaCount === xaList.length) {
+      return cachedProvinceSkeleton;
+    }
+
+    const sortedMeta = [
+      ...VIETNAM_34_PROVINCES.filter(x => x.priority),
+      ...VIETNAM_34_PROVINCES.filter(x => !x.priority).sort((a, b) => a.displayTitle.localeCompare(b.displayTitle, 'vi'))
+    ];
+
+    cachedProvinceSkeleton = sortedMeta.map(pm => {
+      const provName = pm.name || pm.province || '';
+      const pCode = pm.shortCode;
+      const provSlug = normalizeGeoSlug(provName).replace(/\s+/g, '_');
+      const isCanTho = pCode === 'ct';
+
+      const specializedUnits = [
+        {
+          unitCode: isCanTho ? 'chihuy_cantho' : `chihuy_${provSlug}`,
+          shortCode: `${pCode}.chihuy`,
+          unitName: `Chỉ Huy Công An ${pm.displayTitle}`,
+          agency: 'all',
+          agencyBadge: 'CHỈ HUY TỈNH/TP',
+          level: 'province',
+          province: provName,
+          ward: ''
+        },
+        {
+          unitCode: isCanTho ? 'csgt_cantho' : `csgt_${provSlug}`,
+          shortCode: `${pCode}.csgt`,
+          unitName: `Đội CSGT ${pm.displayTitle}`,
+          agency: 'csgt',
+          agencyBadge: 'CSGT',
+          level: 'province',
+          province: provName,
+          ward: ''
+        },
+        {
+          unitCode: isCanTho ? 'pccc_cantho' : `pccc_${provSlug}`,
+          shortCode: `${pCode}.pccc`,
+          unitName: `Cảnh Sát PCCC & CNCH ${pm.displayTitle}`,
+          agency: 'fire',
+          agencyBadge: 'PCCC 114',
+          level: 'province',
+          province: provName,
+          ward: ''
+        },
+        {
+          unitCode: isCanTho ? 'capcuu_cantho' : `capcuu_${provSlug}`,
+          shortCode: `${pCode}.115`,
+          unitName: `Trung Tâm Cấp Cứu 115 ${pm.displayTitle}`,
+          agency: 'hospital',
+          agencyBadge: 'CẤP CỨU 115',
+          level: 'province',
+          province: provName,
+          ward: ''
+        }
+      ];
+
+      const provIdx = tinhList.findIndex(t => normalizeGeoSlug(t) === normalizeGeoSlug(provName));
+      const rawWards = [];
+      if (provIdx >= 0) {
+        for (const pair of xaList) {
+          if (Array.isArray(pair) && pair[1] === provIdx && pair[0]) {
+            rawWards.push(String(pair[0]).trim());
+          }
+        }
+      }
+
+      const seenWardSlugs = new Set();
+      const wardUnits = [];
+      for (const wardName of rawWards) {
+        const wSlug = normalizeGeoSlug(wardName).replace(/\s+/g, '');
+        if (!wSlug || seenWardSlugs.has(wSlug)) continue;
+        seenWardSlugs.add(wSlug);
+        const presetMatch = isCanTho
+          ? PRESET_ZALO_UNITS.find(u => u.level === 'ward' && normalizeGeoSlug(u.ward).replace(/\s+/g, '') === wSlug)
+          : null;
+        wardUnits.push({
+          unitCode: presetMatch ? presetMatch.unitCode : `cap_${wSlug}_${pCode}`,
+          shortCode: `${pCode}.${wSlug}`,
+          unitName: `Công An ${wardName}`,
+          ward: wardName,
+          province: provName,
+          agency: 'police',
+          level: 'ward'
+        });
+      }
+
+      return {
+        code: pm.shortCode,
+        province: provName,
+        displayTitle: pm.displayTitle,
+        shortCode: pCode,
+        priority: Boolean(pm.priority),
+        specializedUnits,
+        wardUnits
+      };
+    });
+
+    cachedSkeletonXaCount = xaList.length;
+    return cachedProvinceSkeleton;
+  }
+
+  function getProvinceDirectory(viewerCtx = {}, { query = '' } = {}) {
+    const skeleton = ensureProvinceSkeleton();
+    const requirePairingPassword = state.requirePairingPassword !== false;
+    const viewerIsAdmin = Boolean(viewerCtx?.viewerIsAdmin);
+    const viewerAgency = String(viewerCtx?.viewerAgency || '').trim().toLowerCase();
+    const qAscii = stripVietnameseTones(String(query || '')).toLowerCase().trim();
+
+    const boundByShort = new Map();
+    const boundByCode = new Map();
+    const boundCountByProv = new Map();
+
+    for (const b of state.bindings) {
+      if (!b) continue;
+      const sc = String(b.shortCode || computeShortUnitCode(b)).toLowerCase();
+      const uc = normalizeUnitCode(b.unitCode);
+      if (sc) boundByShort.set(sc, b);
+      if (uc) boundByCode.set(uc, b);
+      const pm = findProvinceMeta(b.province);
+      if (pm) {
+        boundCountByProv.set(pm.shortCode, (boundCountByProv.get(pm.shortCode) || 0) + 1);
+      }
+    }
+
+    const formatUnitItem = (u) => {
+      const canSeePass = viewerIsAdmin || !viewerAgency || viewerAgency === 'all' || u.agency === viewerAgency || u.agency === 'all';
+      const pass = resolveDefaultPasswordForUnit(u);
+      const shortCommand = !requirePairingPassword
+        ? `/kn ${u.shortCode}`
+        : (canSeePass ? `/kn ${u.shortCode} ${pass}` : `/kn ${u.shortCode} <Mật_khẩu>`);
+      const bound = boundByShort.get(String(u.shortCode).toLowerCase()) || boundByCode.get(normalizeUnitCode(u.unitCode)) || null;
+      return {
+        ...u,
+        shortCommand,
+        isBound: Boolean(bound),
+        boundChatId: bound?.chatId || '',
+        boundChatTitle: bound?.chatTitle || ''
+      };
+    };
+
+    const nationalUnit = PRESET_ZALO_UNITS.find(u => u.unitCode === 'tongtrucban');
+    const nationalPass = resolveDefaultPasswordForUnit(nationalUnit || { unitCode: 'tongtrucban', level: 'national', agency: 'all' });
+    const nationalShortCommand = !requirePairingPassword
+      ? '/kn ttb'
+      : (viewerIsAdmin ? `/kn ttb ${nationalPass}` : '/kn ttb <Mật_khẩu_Tổng_Trực_Ban>');
+
+    const provinces = [];
+    for (const p of skeleton) {
+      const provMatchesQuery = !qAscii ||
+        stripVietnameseTones(p.displayTitle).toLowerCase().includes(qAscii) ||
+        stripVietnameseTones(p.province).toLowerCase().includes(qAscii) ||
+        p.shortCode.includes(qAscii);
+
+      let specList = p.specializedUnits;
+      let wardList = p.wardUnits;
+
+      if (qAscii && !provMatchesQuery) {
+        specList = specList.filter(u =>
+          stripVietnameseTones(u.unitName).toLowerCase().includes(qAscii) ||
+          u.shortCode.toLowerCase().includes(qAscii)
+        );
+        wardList = wardList.filter(u =>
+          stripVietnameseTones(u.ward).toLowerCase().includes(qAscii) ||
+          stripVietnameseTones(u.unitName).toLowerCase().includes(qAscii) ||
+          u.shortCode.toLowerCase().includes(qAscii)
+        );
+        if (specList.length === 0 && wardList.length === 0) continue;
+      }
+
+      provinces.push({
+        code: p.code,
+        province: p.province,
+        displayTitle: p.displayTitle,
+        shortCode: p.shortCode,
+        priority: p.priority,
+        totalWards: p.wardUnits.length,
+        boundCount: boundCountByProv.get(p.shortCode) || 0,
+        specializedUnits: specList.map(formatUnitItem),
+        wardUnits: wardList.map(formatUnitItem)
+      });
+    }
+
+    return {
+      ok: true,
+      totalProvinces: skeleton.length,
+      matchedProvinces: provinces.length,
+      requirePairingPassword,
+      nationalCommand: {
+        unitCode: 'tongtrucban',
+        shortCode: 'ttb',
+        unitName: 'Trung Tâm Chỉ Huy Quốc Gia (Giám sát Toàn Quốc)',
+        shortCommand: nationalShortCommand,
+        requiresAdminAuth: true,
+        isBound: Boolean(boundByCode.get('tongtrucban') || boundByShort.get('ttb'))
+      },
+      provinces
+    };
   }
 
   function getPublicStatus(viewerCtx = {}) {
@@ -3062,26 +4124,36 @@ export function createZaloBotService({
     const viewerAgency = String(viewerCtx?.viewerAgency || '').trim().toLowerCase();
 
     let viewerPairingCommand = '';
+    let viewerShortCommand = '';
     if (viewerIsAdmin || !viewerUsername || viewerUsername === 'admin') {
       const samplePass = resolveDefaultPasswordForUnit({ unitCode: 'cap_tanan', agency: 'police', level: 'ward' });
       viewerPairingCommand = requirePairingPassword ? `/ketnoi cap_tanan ${samplePass}` : `/ketnoi cap_tanan`;
+      viewerShortCommand = requirePairingPassword ? `/kn ct.tanan ${samplePass}` : `/kn ct.tanan`;
     } else {
       const myUnit = resolveUnitByCode(viewerUsername) || {
         unitCode: viewerUsername,
         agency: viewerAgency || 'police',
-        level: viewerCtx?.viewerLevel || 'ward'
+        level: viewerCtx?.viewerLevel || 'ward',
+        province: viewerCtx?.viewerProvince || 'Cần Thơ',
+        ward: viewerCtx?.viewerWard || ''
       };
+      const myShort = myUnit.shortCode || computeShortUnitCode(myUnit);
       const myPass = resolveDefaultPasswordForUnit(myUnit);
       viewerPairingCommand = requirePairingPassword ? `/ketnoi ${myUnit.unitCode} ${myPass}` : `/ketnoi ${myUnit.unitCode}`;
+      viewerShortCommand = requirePairingPassword ? `/kn ${myShort} ${myPass}` : `/kn ${myShort}`;
     }
 
     const nationalPass = resolveDefaultPasswordForUnit({ unitCode: 'tongtrucban', agency: 'all', level: 'national' });
     const nationalPairingCommand = !requirePairingPassword
       ? '/ketnoi tongtrucban'
       : (viewerIsAdmin ? `/ketnoi tongtrucban ${nationalPass}` : '/ketnoi tongtrucban <Mật_khẩu_Tổng_Trực_Ban>');
+    const nationalShortCommand = !requirePairingPassword
+      ? '/kn ttb'
+      : (viewerIsAdmin ? `/kn ttb ${nationalPass}` : '/kn ttb <Mật_khẩu_Tổng_Trực_Ban>');
 
     const enrichedPresets = PRESET_ZALO_UNITS.map(p => {
       const normCode = normalizeUnitCode(p.unitCode);
+      const shortCode = computeShortUnitCode(p);
       const isNational = p.level === 'national' || normCode === 'tongtrucban';
       const canSeePass = isNational
         ? viewerIsAdmin
@@ -3090,8 +4162,13 @@ export function createZaloBotService({
       const pairingCommand = !requirePairingPassword
         ? `/ketnoi ${p.unitCode}`
         : (canSeePass ? `/ketnoi ${p.unitCode} ${unitPass}` : `/ketnoi ${p.unitCode} <Mật_khẩu_trực_ban>`);
+      const shortCommand = !requirePairingPassword
+        ? `/kn ${shortCode}`
+        : (canSeePass ? `/kn ${shortCode} ${unitPass}` : `/kn ${shortCode} <Mật_khẩu_trực_ban>`);
       return {
         ...p,
+        shortCode,
+        shortCommand,
         pairingCommand,
         pairingPasswordMasked: requirePairingPassword && !canSeePass,
         requiresAdminAuth: isNational,
@@ -3101,16 +4178,25 @@ export function createZaloBotService({
 
     const enrichedBindings = state.bindings.map(b => {
       const normCode = normalizeUnitCode(b.unitCode);
+      const shortCode = b.shortCode || computeShortUnitCode(b);
       return {
         ...b,
+        shortCode,
         hasCustomPassword: Boolean(state.unitPasswords && state.unitPasswords[normCode])
       };
     });
+
+    const convList = getConversationsList();
+    const totalUnread = convList.reduce((acc, c) => acc + (Number(c.unreadCount) || 0), 0);
 
     return {
       ok: true,
       enabled: state.enabled,
       hasToken: Boolean(state.botToken),
+      stickyLocked: Boolean(state.botToken),
+      botExplicitlyCleared: Boolean(state.botExplicitlyCleared),
+      botConfiguredAt: state.botConfiguredAt || null,
+      lastKeepAliveAt,
       maskedToken: maskToken(state.botToken),
       botProfile: state.botProfile,
       mode: state.botToken ? (state.webhookActive ? 'WEBHOOK_REALTIME' : 'LONG_POLLING') : 'SIMULATION_READY',
@@ -3121,7 +4207,9 @@ export function createZaloBotService({
       requirePairingPassword,
       viewerIsAdmin,
       viewerPairingCommand,
+      viewerShortCommand,
       nationalPairingCommand,
+      nationalShortCommand,
       reminderSeconds: state.reminderSeconds,
       escalationSeconds: state.escalationSeconds,
       effectiveReminderSeconds: Math.round(getEffectiveReminderMs() / 1000),
@@ -3129,6 +4217,9 @@ export function createZaloBotService({
       customUnits: state.customUnits || {},
       presets: enrichedPresets,
       bindings: enrichedBindings,
+      conversations: convList,
+      totalUnread,
+      recentChatMessages: (state.chatMessages || []).slice(-80),
       recentOutbox: state.outboxLog.slice(-30).reverse()
     };
   }
@@ -3404,16 +4495,27 @@ export function createZaloBotService({
 </html>`;
   }
 
-  // Auto-populate bot profile & start background polling if needed on boot
-  if (state.botToken) {
+  // Auto-populate bot profile, start background polling if needed, & arm continuous sticky keep-alive watchdog
+  if (state.botToken && !state.botExplicitlyCleared) {
+    lastKeepAliveAt = new Date().toISOString();
     ensureBotProfile().catch(() => {});
     if (!state.webhookActive) {
       startPollingIfNeeded();
     }
   }
+  for (const b of state.bindings) {
+    if (b && b.chatId) upsertConversationFromBinding(b);
+  }
+  startBotKeepAliveWatchdog();
 
   return {
     getPublicStatus,
+    getConversationsList,
+    getChatBoardState,
+    markConversationRead,
+    sendDispatcherChatMessage,
+    getProvinceDirectory,
+    computeShortUnitCode,
     updateConfig,
     restoreBackup,
     resolveUnitByCode,

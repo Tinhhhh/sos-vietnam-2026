@@ -2,6 +2,7 @@ FROM node:22-bookworm-slim
 
 ENV NODE_ENV=production \
     PORT=3000 \
+    SOS_RUNTIME_DATA_DIR=/var/lib/sos-data \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
