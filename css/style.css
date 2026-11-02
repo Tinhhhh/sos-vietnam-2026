@@ -8993,3 +8993,388 @@ video::-webkit-media-controls-mute-button { display: none !important; }
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* =========================================================================
+   WEB3 BLOCKCHAIN LEDGER & DEPIN SECURITY PANEL (TACTICAL E10 DESIGN SYSTEM)
+   ========================================================================= */
+.bc-security-panel {
+  background: linear-gradient(180deg, #041B3B 0%, #020D1C 100%);
+  border: 1.5px solid #1E3F66;
+  border-radius: 10px;
+  padding: 10px 11px;
+  margin-bottom: 10px;
+  color: #F1ECCB;
+  box-shadow: 0 6px 20px rgba(2, 13, 28, 0.72), inset 0 1px 0 rgba(0, 236, 243, 0.14);
+}
+.bc-security-panel .bc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  margin-bottom: 7px;
+  border-bottom: 1px solid rgba(30, 63, 102, 0.85);
+}
+.bc-security-panel .bc-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+  color: #DFB077;
+  text-transform: uppercase;
+}
+.bc-security-panel .pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22C55E;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.75);
+  animation: bcPulseDot 1.8s infinite;
+  flex-shrink: 0;
+}
+@keyframes bcPulseDot {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.75); }
+  70% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.bc-security-panel .bc-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bc-security-panel .bc-portal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(223, 176, 119, 0.14);
+  border: 1px solid rgba(223, 176, 119, 0.55);
+  color: #DFB077;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.bc-security-panel .bc-portal-btn:hover {
+  background: rgba(223, 176, 119, 0.26);
+  border-color: #00ECF3;
+  color: #F1ECCB;
+}
+.bc-security-panel .bc-network-badge {
+  background: #020F20;
+  border: 1px solid #00ECF3;
+  color: #00ECF3;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  outline: none;
+  max-width: 100%;
+}
+.bc-security-panel .bc-network-badge option {
+  background: #020D1C;
+  color: #F1ECCB;
+}
+.bc-security-panel .bc-env-banner {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #91ACCD;
+  background: rgba(6, 29, 58, 0.72);
+  border: 1px dashed rgba(30, 63, 102, 0.9);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+.bc-security-panel .bc-section {
+  margin-bottom: 8px;
+}
+.bc-security-panel .bc-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #DFB077;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+.bc-security-panel .bc-hardware-box,
+.bc-security-panel .bc-hash-box {
+  background: #061D3A;
+  border: 1px solid #1E3F66;
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+.bc-security-panel .hw-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 2px 0;
+  color: #91ACCD;
+  flex-wrap: wrap;
+}
+.bc-security-panel .hw-row strong {
+  color: #F1ECCB;
+  font-weight: 700;
+}
+.bc-security-panel .text-cyan {
+  color: #00ECF3 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+}
+.bc-security-panel .text-depin-gold {
+  color: #DFB077 !important;
+  font-size: 10.5px;
+}
+.bc-security-panel .verified-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  color: #4ade80;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+.bc-security-panel .verified-tag.spoof-tag {
+  background: linear-gradient(135deg, rgba(201, 24, 43, 0.32), rgba(122, 0, 13, 0.52));
+  border-color: #ef4444;
+  color: #fecaca;
+}
+.bc-security-panel .verified-tag.legacy-tag {
+  background: rgba(223, 176, 119, 0.16);
+  border-color: rgba(223, 176, 119, 0.55);
+  color: #DFB077;
+}
+.bc-security-panel .verified-tag.web-tag {
+  background: rgba(0, 236, 243, 0.13);
+  border-color: rgba(0, 236, 243, 0.5);
+  color: #00ECF3;
+}
+.bc-security-panel .hash-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 10.5px;
+  color: #91ACCD;
+}
+.bc-security-panel .hash-meta strong {
+  color: #F1ECCB;
+}
+.bc-security-panel .bc-storage-meta {
+  margin-top: 3px;
+  margin-bottom: 5px;
+  font-size: 10px;
+}
+.bc-security-panel .seal-badge {
+  background: rgba(0, 236, 243, 0.14);
+  border: 1px solid rgba(0, 236, 243, 0.48);
+  color: #00ECF3;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.bc-security-panel .hash-code {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: #020F20;
+  border: 1px solid #18365C;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #00ECF3;
+  word-break: break-all;
+  user-select: all !important;
+  -webkit-user-select: all !important;
+}
+.bc-security-panel .tx-link {
+  color: #DFB077;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  text-decoration: none;
+}
+.bc-security-panel .tx-link:hover {
+  color: #00ECF3;
+  text-decoration: underline;
+}
+.bc-security-panel .bc-stealth-evidence-box {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(30, 63, 102, 0.85);
+}
+.bc-security-panel .bc-stealth-evidence-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #DFB077;
+  margin-bottom: 5px;
+}
+.bc-security-panel .bc-stealth-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 185px;
+  overflow-y: auto;
+}
+.bc-security-panel .bc-stealth-item {
+  background: #020F20;
+  border: 1px solid #18365C;
+  border-radius: 6px;
+  padding: 5px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bc-security-panel .bc-stealth-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 9.5px;
+  color: #91ACCD;
+  flex-wrap: wrap;
+}
+.bc-security-panel .bc-stealth-audio {
+  width: 100%;
+  height: 30px;
+  pointer-events: auto !important;
+}
+.bc-security-panel .bc-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 7px 9px;
+  background: #061D3A;
+  border: 1px solid #1E3F66;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 165px;
+  overflow-y: auto;
+}
+.bc-security-panel .bc-timeline li {
+  font-size: 10.5px;
+  line-height: 1.42;
+  color: #F1ECCB;
+  padding-left: 8px;
+  border-left: 2px solid #00ECF3;
+}
+.bc-security-panel .bc-timeline li .time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #DFB077;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.bc-security-panel .bc-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.bc-security-panel .btn-verify {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #00ECF3;
+  background: linear-gradient(135deg, rgba(0, 236, 243, 0.2), rgba(6, 29, 58, 0.95));
+  color: #F1ECCB;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.25px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 12px rgba(0, 236, 243, 0.16);
+}
+.bc-security-panel .btn-verify:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(0, 236, 243, 0.34), rgba(30, 63, 102, 0.95));
+  transform: translateY(-1px);
+}
+.bc-security-panel .btn-verify:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.bc-security-panel .verify-result {
+  background: #020F20;
+  border: 1.5px solid #22C55E;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: #F1ECCB;
+}
+.bc-security-panel .verify-result.is-error {
+  border-color: #ef4444;
+  background: rgba(122, 0, 13, 0.32);
+}
+.bc-security-panel .verify-conclusion {
+  font-weight: 800;
+  color: #4ade80;
+  margin-bottom: 6px;
+}
+.bc-security-panel .verify-result.is-error .verify-conclusion {
+  color: #fca5a5;
+}
+.bc-security-panel .verify-qr-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(30, 63, 102, 0.8);
+  flex-wrap: wrap;
+}
+.bc-security-panel .verify-qr-box {
+  width: 96px;
+  height: 96px;
+  background: #ffffff;
+  padding: 4px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bc-security-panel .verify-qr-box svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.bc-security-panel .verify-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 150px;
+}
+.bc-security-panel .verify-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid #1E3F66;
+  background: #061D3A;
+  color: #00ECF3;
+}
+.bc-security-panel .verify-action-link.gold {
+  border-color: rgba(223, 176, 119, 0.65);
+  color: #DFB077;
+}

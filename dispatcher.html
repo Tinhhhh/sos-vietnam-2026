@@ -26,7 +26,7 @@
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-Bold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/css/style.css?v=20261013_mobile_v3">
+  <link rel="stylesheet" href="/css/style.css?v=20261102_web3_depin_v1">
   <link rel="stylesheet" href="/css/map.css?v=20261013_mobile_v3">
   <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261013_mobile_v3">
   <link rel="stylesheet" href="/css/portal-cinematic.css?v=20261013_mobile_v3">
@@ -2336,6 +2336,95 @@
             <div id="drawerWardFacilitiesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 210px; overflow-y: auto;"></div>
           </div>
 
+          <!-- BẢNG NIÊM PHONG CHỨNG CỨ SỐ & ĐỊNH DANH BLOCKCHAIN -->
+          <div class="bc-security-panel" id="bcSecurityPanel">
+            <div class="bc-header">
+              <div class="bc-title">
+                <span class="pulse-dot"></span>
+                BẢO CHỨNG CHUỖI KHỐI (WEB3 / BLOCKCHAIN LEDGER)
+              </div>
+              <div class="bc-header-controls">
+                <a href="/cap-phat-the.html" target="_blank" rel="noopener" class="bc-portal-btn" id="btnOpenDePinCardPortal" title="Mở Cổng Cấp Phát & Xác Minh Thẻ SOS DePIN (Web Serial)">
+                  🪪 Cổng Thẻ DePIN ↗
+                </a>
+                <select id="bcNetworkSwitch" class="bc-network-badge" aria-label="Chọn mạng lưới chuỗi khối">
+                  <option value="842026">SOS VIETNAM CHAIN (ID: 842026)</option>
+                  <option value="NDA">NDA CHAIN QUỐC GIA</option>
+                  <option value="POLYGON">POLYGON AMOY TESTNET</option>
+                </select>
+              </div>
+            </div>
+            <div class="bc-env-banner" id="uiBcEnvBanner">
+              MÔI TRƯỜNG THỬ NGHIỆM (TEST SANDBOX) · CHAIN ID: 84202600 · SOS_RENDER_SANDBOX
+            </div>
+
+            <!-- 1. Xác thực phần cứng ESP32-C3 -->
+            <div class="bc-section">
+              <div class="bc-section-label">1. ĐỊNH DANH THIẾT BỊ PHẦN CỨNG (HARDWARE ID)</div>
+              <div class="bc-hardware-box">
+                <div class="hw-row">
+                  <span>Chip Vi điều khiển:</span>
+                  <strong class="text-cyan" id="uiHwMac">ESP32-C3 (eFuse MAC: --)</strong>
+                </div>
+                <div class="hw-row">
+                  <span>Kênh truyền dữ liệu:</span>
+                  <strong id="uiHwChannel">4G LTE Cat-1 (EG800K - MobiFone)</strong>
+                </div>
+                <div class="hw-row" id="uiCardBlockRow">
+                  <span>Khối định danh thẻ:</span>
+                  <strong class="text-depin-gold" id="uiCardBlockInfo">Chưa gắn thẻ vật lý</strong>
+                </div>
+                <div class="hw-row">
+                  <span>Trạng thái cấp phát:</span>
+                  <span class="verified-tag" id="uiAuthBadge">✔ ĐÃ XÁC THỰC TRÊN SỔ CÁI (DePIN VERIFIED)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Niêm phong chứng cứ hiện trường (SHA-256) -->
+            <div class="bc-section">
+              <div class="bc-section-label">2. VÂN TAY SỐ CHỨNG CỨ HIỆN TRƯỜNG (SHA-256 HASH)</div>
+              <div class="bc-hash-box">
+                <div class="hash-meta">
+                  <span>Chứng cứ: <strong id="uiEvidenceType">Tọa độ GPS + Âm thanh hiện trường</strong></span>
+                  <span class="seal-badge" id="uiSealBadge">🔒 ĐÃ NIÊM PHONG</span>
+                </div>
+                <div class="hash-meta bc-storage-meta">
+                  <span id="uiStorageBadge">Kho lưu trữ: Đang đồng bộ...</span>
+                </div>
+                <div class="hash-code" id="uiEvidenceHash">
+                  0x0000000000000000000000000000000000000000000000000000000000000000
+                </div>
+                <div class="hash-meta" style="margin-top: 6px;">
+                  <span>TxHash: <a href="#" id="uiTxLink" target="_blank" rel="noopener" class="tx-link">-- ↗</a></span>
+                  <span>Block: <strong id="uiBlockNum">#--</strong></span>
+                </div>
+                <div id="uiStealthEvidenceBox" class="bc-stealth-evidence-box" style="display: none;">
+                  <div class="bc-stealth-evidence-title">
+                    🎙️ Chứng cứ âm thanh/hiện trường niêm phong (<span id="uiStealthEvidenceCount">0</span> phân đoạn 5s)
+                  </div>
+                  <div id="uiStealthEvidenceList" class="bc-stealth-evidence-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Nhật ký thời gian bất biến -->
+            <div class="bc-section">
+              <div class="bc-section-label">3. NHẬT KÝ ĐIỀU PHỐI BẤT BIẾN (IMMUTABLE AUDIT TRAIL)</div>
+              <ul class="bc-timeline" id="uiAuditTimeline">
+                <li><span class="time">--:--:--</span> Chưa có sự kiện niêm phong trên chuỗi khối.</li>
+              </ul>
+            </div>
+
+            <!-- 4. Nút kiểm tra tính toàn vẹn trực tiếp & Xuất biên bản pháp lý -->
+            <div class="bc-actions">
+              <button type="button" class="btn-verify" id="btnRunIntegrityCheck" onclick="runIntegrityCheck()">
+                🛡️ KIỂM TRA TÍNH TOÀN VẸN CHỨNG CỨ (LIVE AUDIT)
+              </button>
+              <div id="verifyResult" class="verify-result" style="display: none;"></div>
+            </div>
+          </div>
+
           <!-- Multi-Channel Dispatch Info Card -->
           <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;" id="drawerChannelInfo">
             <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Kênh Cảnh Báo Tự Động</div>
@@ -3817,7 +3906,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261028_zalo_unified_v8"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261102_web3_depin_v1"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {
@@ -3833,7 +3922,7 @@
       }, true);
       // Prevent long-press save on iOS/Android
       document.addEventListener('touchstart', function(e) {
-        if (e.target && e.target.tagName === 'VIDEO' && !e.target.hasAttribute('data-scene-media') && !e.target.closest('#drawerMediaGrid') && !e.target.closest('.chat-bubble')) {
+        if (e.target && e.target.tagName === 'VIDEO' && !e.target.hasAttribute('data-scene-media') && !e.target.closest('#drawerMediaGrid') && !e.target.closest('.bc-security-panel') && !e.target.closest('.chat-bubble')) {
           e.target.style.pointerEvents = 'none';
         }
       }, {passive: true});
@@ -3850,7 +3939,7 @@
       function lockVideos() {
         var videos = document.querySelectorAll('video');
         videos.forEach(function(v) {
-          if (v.hasAttribute('data-scene-media') || v.closest('#drawerMediaGrid') || v.closest('.chat-bubble')) {
+          if (v.hasAttribute('data-scene-media') || v.closest('#drawerMediaGrid') || v.closest('.bc-security-panel') || v.closest('.chat-bubble')) {
             return;
           }
           v.removeAttribute('controls');
