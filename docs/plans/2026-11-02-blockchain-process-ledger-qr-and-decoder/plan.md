@@ -338,7 +338,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - `P3-A`: Build `sos-vietnam:local` Docker Image & Run End-to-End Playwright + OpenCV QR Scan + Dossier Tamper Verification
   - `P3-B`: Push to Render Staging (`https://sos-vietnam-2026.onrender.com/`) & Run Live Staging Playwright + OpenCV QR Verification
 
-- [ ] P3-A: Build `sos-vietnam:local` Docker Image & Run End-to-End Playwright + OpenCV QR Scan + Dossier Tamper Verification
+- [x] P3-A: Build `sos-vietnam:local` Docker Image & Run End-to-End Playwright + OpenCV QR Scan + Dossier Tamper Verification
   - Goal: Build the production Docker image locally, start container `sos-vietnam-bc-qa`, and execute a comprehensive Playwright + OpenCV E2E suite proving every user requirement.
   - Scope Boundary:
     - Editable: `playwright/verify-blockchain-process-qr-decoder.mjs`, `Reports/qa/playwright/blockchain-process-qr-decoder-local.{json,md}`

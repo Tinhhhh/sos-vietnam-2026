@@ -43,5 +43,5 @@
 
 | Phase | Metric | Unit | Baseline | Latest | Final | Target | Delta | Evidence |
 |-------|--------|------|----------|--------|-------|--------|-------|----------|
-| P3 | Local Docker E2E + QR decode + tamper-detection checks passed | pass_count | 0 | - | - | 100% | - | Pending `P3-A` |
+| P3 | Local Docker E2E + QR decode + tamper-detection checks passed | pass_count | 0 | 12/12 (100%) | - | 100% | +12/12 | `E3-P3A-DOCKER1` |
 | P3 | Live Render Staging (`sos-vietnam-2026.onrender.com`) E2E + QR decode checks passed | pass_count | 0 | - | - | 100% | - | Pending `P3-B` |

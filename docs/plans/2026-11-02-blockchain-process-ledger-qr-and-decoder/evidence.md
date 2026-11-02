@@ -67,7 +67,9 @@ Matching plan item(s): `P2-A`, `P2-B`
 
 Matching plan item(s): `P3-A`, `P3-B`
 
-*(To be recorded as P3 validation slices complete)*
+- `E3-P3A-SCRIPT1`: Created reusable E2E verification suite `playwright/verify-blockchain-process-qr-decoder.mjs` (`--base-url`, `--report-prefix`) and polished covert incident tag/note text in `js/stealth-sos.js:425-450` when `audioRecordingEnabled === false`. Passed `node --check playwright/verify-blockchain-process-qr-decoder.mjs` and `node --check js/stealth-sos.js` (exit `0`).
+- `E3-P3A-DOCKER1`: Built real production Docker image `docker build -t sos-vietnam:local .`, launched container `sos-vietnam-bc-qa` (`NODE_ENV=production`, port `3410:3000`), and executed `node playwright/verify-blockchain-process-qr-decoder.mjs --base-url http://127.0.0.1:3410 --report-prefix local`: **12/12 PASS (`100%`)**, Live Audit UI latency `609.89 ms`, exported 5-block dossier `33,313 bytes`, OpenCV `cv2.QRCodeDetector().detectAndDecode()` decoded both `#verifyQrCodeBox` and `#bcvQrSvgBox` screenshots `100%` (`http://127.0.0.1:3410/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528`), intact `.JSON` passed dual WebCrypto SHA-256 + Server Ledger verification, and 1-field mutated `.JSON` triggered red tamper alert naming exact Block `#105`. Official QA artifacts saved to `Reports/qa/playwright/blockchain-process-qr-decoder-local.{json,md}` and `Reports/qa/playwright/screenshots/bc-decoder-local-01..06.png`. Container `sos-vietnam-bc-qa` stopped & removed cleanly.
+- `E3-P3A-DETECT1`: Ran `anvien analyze --force` (`files: scanned=512 parsed_code=164 failed=0`, `graph: nodes=86619 relationships=92399`) and `anvien detect-changes --repo sos-vietnam-2026 --scope all` (`risk_level: "low"`, `degradedNodes: 0`, `totalResolutionGapCount: 0`).
 
 ## Closure Evidence
 

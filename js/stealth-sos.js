@@ -422,6 +422,13 @@ export function initStealthSOS(app, options = {}) {
         ? '📞 Ngụy trang Cuộc gọi đến iOS'
         : '🌑 Ngụy trang Tắt màn hình (Blackout)';
 
+      const audioOptIn = isAudioRecordingEnabled();
+      const stealthSealLabel = audioOptIn
+        ? 'Không thể nói chuyện — Thu âm chứng cứ 5s/lần (SHA-256)'
+        : 'Không thể nói chuyện — Khóa GPS & Sổ cái Chuỗi khối SHA-256';
+      const stealthSealSentence = audioOptIn
+        ? 'Hệ thống tự động thu âm hiện trường 5 giây/lần niêm phong SHA-256.'
+        : 'Hệ thống âm thầm bám sát GPS thời gian thực và niêm phong giao dịch quy trình cứu hộ SHA-256 (siêu nhẹ, không cần tệp âm thanh nặng).';
       const payload = {
         agency: 'police',
         subType: 'stealth_emergency',
@@ -434,11 +441,11 @@ export function initStealthSOS(app, options = {}) {
         cannotSpeak: true,
         incidentTags: [
           modeTag,
-          'Không thể nói chuyện — Thu âm chứng cứ 5s/lần (SHA-256)'
+          stealthSealLabel
         ],
         note: stealthMode === 'FAKE_IOS_CALL'
-          ? `[NGỤY TRANG CUỘC GỌI ĐẾN iOS - "${state.callerName}"] Nạn nhân đang đối mặt trực tiếp mối đe dọa, không thể nói chuyện công khai. Hệ thống tự động thu âm hiện trường 5 giây/lần niêm phong SHA-256.`
-          : '[NGỤY TRANG TẮT MÀN HÌNH BLACKOUT] Nạn nhân kích hoạt màn hình đen ngụy trang khẩn cấp. Hệ thống tự động thu âm hiện trường 5 giây/lần niêm phong SHA-256 và bám sát GPS.'
+          ? `[NGỤY TRANG CUỘC GỌI ĐẾN iOS - "${state.callerName}"] Nạn nhân đang đối mặt trực tiếp mối đe dọa, không thể nói chuyện công khai. ${stealthSealSentence}`
+          : `[NGỤY TRANG TẮT MÀN HÌNH BLACKOUT] Nạn nhân kích hoạt màn hình đen ngụy trang khẩn cấp. ${stealthSealSentence}`
       };
 
       const res = await fetch('/api/sos/create', {
