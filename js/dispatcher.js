@@ -10264,7 +10264,8 @@ class DispatcherApp {
       // is closed.  Clearing this binding while the modal is visible would
       // stop both SSE rendering and the authoritative document readback
       // before the counterpart has signed.
-      if (!this.isIncidentActive(inc) && this.selectedIncidentId === inc.id && !isVisibleDossier) {
+      const isExplicitHistoryInspect = Boolean(this._explicitHistorySelectedId && this._explicitHistorySelectedId === inc.id);
+      if (!this.isIncidentActive(inc) && this.selectedIncidentId === inc.id && !isVisibleDossier && !isExplicitHistoryInspect) {
         this.selectedIncidentId = null;
         if (this.activeIncidentDrawer) {
           this.activeIncidentDrawer.style.display = 'none';
@@ -10651,9 +10652,12 @@ class DispatcherApp {
       // Khi không còn ca nào đang hoạt động: đóng drawer và xóa marker trên map
       const dossier = document.getElementById('incidentReportDocxModal');
       const isVisibleDossier = Boolean(dossier && dossier.style.display !== 'none');
+      const isExplicitHistoryInspect = Boolean(
+        this._explicitHistorySelectedId && this._explicitHistorySelectedId === this.selectedIncidentId
+      );
       if (this.selectedIncidentId) {
         const selInc = this.incidents.get(this.selectedIncidentId);
-        if (!this.isIncidentActive(selInc) && !isVisibleDossier) {
+        if (!this.isIncidentActive(selInc) && !isVisibleDossier && !isExplicitHistoryInspect) {
           this.selectedIncidentId = null;
         }
       }
@@ -11600,11 +11604,15 @@ class DispatcherApp {
 
   
   showIncidentDrawer(inc) {
-    if (this.panelHistoryView) this.panelHistoryView.style.display = 'none';
-    this.tabBtnHistory?.classList.remove('is-active');
-    this.tabBtnIncidents?.classList.add('is-active');
-    const incidentsPanel = document.getElementById('panelIncidentsView');
-    if (incidentsPanel) incidentsPanel.style.display = 'flex';
+    const isThreeZoneDesktop = window.innerWidth >= 1280;
+    const isResolvedHistoryItem = Boolean(inc && !this.isIncidentActive(inc));
+    if (!(isThreeZoneDesktop && isResolvedHistoryItem)) {
+      if (this.panelHistoryView) this.panelHistoryView.style.display = 'none';
+      this.tabBtnHistory?.classList.remove('is-active');
+      this.tabBtnIncidents?.classList.add('is-active');
+      const incidentsPanel = document.getElementById('panelIncidentsView');
+      if (incidentsPanel) incidentsPanel.style.display = 'flex';
+    }
     const queueList = this.incidentQueueList || document.getElementById('incidentQueueList');
     const emptyState = this.queueEmptyCosmicState || document.getElementById('queueEmptyCosmicState');
     const drawer = this.activeIncidentDrawer || document.getElementById('activeIncidentDrawer');
@@ -11612,15 +11620,17 @@ class DispatcherApp {
     if (headerTitle && inc) {
       headerTitle.textContent = `Hồ Sơ #${inc.id}`;
     }
-    if (queueList) queueList.style.display = 'none';
-    if (emptyState) {
-      emptyState.style.display = 'none';
-      emptyState.style.setProperty('display', 'none', 'important');
+    if (!(isThreeZoneDesktop && isResolvedHistoryItem)) {
+      if (queueList) queueList.style.display = 'none';
+      if (emptyState) {
+        emptyState.style.display = 'none';
+        emptyState.style.setProperty('display', 'none', 'important');
+      }
     }
     if (drawer) {
       drawer.classList.remove('is-hidden');
-      drawer.style.display = 'flex';
       drawer.style.removeProperty('display');
+      drawer.style.display = 'flex';
       drawer.scrollTop = 0;
       document.body.classList.add('tac-incident-selected');
       if (this.map && typeof this.map.resize === 'function') {
@@ -11654,6 +11664,7 @@ class DispatcherApp {
     }
 
     // 3. Clear selected incident
+    this._explicitHistorySelectedId = null;
     this.selectedIncidentId = null;
 
     // 4. Force restore incident queue list display
@@ -11697,6 +11708,7 @@ class DispatcherApp {
     this.selectedIncidentId = id;
     const inc = this.incidents.get(id);
     if (!inc) return;
+    this._explicitHistorySelectedId = !this.isIncidentActive(inc) ? id : null;
 
     this.updateDrawer(inc);
     this.showIncidentDrawer(inc);
@@ -11758,8 +11770,8 @@ class DispatcherApp {
     if (emptyState) emptyState.style.display = 'none';
     if (drawer) {
       drawer.classList.remove('is-hidden');
-      drawer.style.display = 'flex';
       drawer.style.removeProperty('display');
+      drawer.style.display = 'flex';
     }
 
     // Auto-Routing to Nearest Unit Notice for Unmapped Wards

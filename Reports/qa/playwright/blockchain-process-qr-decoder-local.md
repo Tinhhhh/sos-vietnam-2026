@@ -1,13 +1,13 @@
 # Báo Cáo QA Tự Động Playwright + OpenCV — Chuỗi Khối Quy Trình Giao Dịch, Quét QR & Phần Mềm Giải Mã (.JSON)
 
 - **Môi trường kiểm thử:** `local`
-- **URL mục tiêu:** `http://127.0.0.1:3410`
-- **Thời điểm xác thực:** `2026-11-02T10:34:37.055Z`
+- **URL mục tiêu:** `http://127.0.0.1:3412`
+- **Thời điểm xác thực:** `2026-11-02T13:01:56.552Z`
 - **Kết quả tổng thể:** **12 / 12 PASS** (`failed: 0`)
-- **Độ trễ Live Audit SHA-256 trên Bàn Điều Phối:** `609.89 ms`
-- **Dung lượng tệp Hồ sơ Pháp lý 5 Block (0 media nặng):** `33313 bytes`
-- **Kết quả OpenCV `QRCodeDetector` trên Bàn Điều Phối:** `http://127.0.0.1:3410/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528`
-- **Kết quả OpenCV `QRCodeDetector` trên Cổng Đối Chứng:** `http://127.0.0.1:3410/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528`
+- **Độ trễ Live Audit SHA-256 trên Bàn Điều Phối:** `402.01 ms`
+- **Dung lượng tệp Hồ sơ Pháp lý 5 Block (0 media nặng):** `58698 bytes`
+- **Kết quả OpenCV `QRCodeDetector` trên Bàn Điều Phối:** `http://127.0.0.1:3412/tra-cuu-blockchain.html?tx=0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d&case=SOS-MVZ9QGEO-592&network=842026`
+- **Kết quả OpenCV `QRCodeDetector` trên Cổng Đối Chứng:** `http://127.0.0.1:3412/tra-cuu-blockchain.html?tx=0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d&case=SOS-MVZ9QGEO-592&network=842026`
 
 ## Bảng Kết Quả Kiểm Định Chi Tiết
 

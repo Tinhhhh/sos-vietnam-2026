@@ -2292,10 +2292,21 @@ function renderBlockchainExplorerCertificateHtml(
   const otsDownloadUrl = viewOptions.otsDownloadUrl || `/api/blockchain/ots/${encodeURIComponent(String(block.blockNumber))}`;
 
   const payloadData = zeroPii ? {} : (block?.payload?.data || {});
-  const rawPhone = payloadData.reporterPhone || payloadData.userPhone || payloadData.phone || '';
-  const rawCccd = payloadData.userCCCD || payloadData.cccd || '';
-  const displayPhone = zeroPii ? '' : (isOfficer ? rawPhone : (rawPhone ? maskExplorerPii(rawPhone, 3, 3) : ''));
-  const displayCccd = zeroPii ? '' : (isOfficer ? rawCccd : (rawCccd ? maskExplorerPii(rawCccd, 4, 3) : ''));
+  const payloadPhone = payloadData.reporterPhone || payloadData.userPhone || payloadData.phone || '';
+  const summaryPhone = (processSummary?.reporter?.phone && processSummary.reporter.phone !== 'Chưa cung cấp')
+    ? processSummary.reporter.phone
+    : '';
+  const payloadCccd = payloadData.userCCCD || payloadData.cccd || '';
+  const summaryCccd = processSummary?.reporter?.userCCCD || '';
+  const displayPhone = zeroPii
+    ? ''
+    : (payloadPhone ? (isOfficer ? payloadPhone : maskExplorerPii(payloadPhone, 3, 3)) : summaryPhone);
+  const displayCccd = zeroPii
+    ? ''
+    : (payloadCccd ? (isOfficer ? payloadCccd : maskExplorerPii(payloadCccd, 4, 3)) : summaryCccd);
+  const effLat = zeroPii ? null : (payloadData.lat ?? processSummary?.reporter?.lat ?? null);
+  const effLng = zeroPii ? null : (payloadData.lng ?? processSummary?.reporter?.lng ?? null);
+  const hasEffCoords = effLat !== null && effLng !== null && Number.isFinite(Number(effLat)) && Number.isFinite(Number(effLng));
   const intactBadge = chainCheck?.allBlocksIntact
     ? '✔ CHUỖI KHỐI NGUYÊN VẸN 100% (IMMUTABLE VERIFIED)'
     : '⚠ CẢNH BÁO SAI LỆCH SỔ CÁI';
@@ -2363,8 +2374,8 @@ function renderBlockchainExplorerCertificateHtml(
         <div>Số Khối (Block):</div><div class="mono" style="color:#38bdf8;font-weight:700;">#${block.blockNumber}</div>
         <div>Bước Quy Trình:</div><div>${escapeHtmlSafe(describeLifecycleActionVi(block.action))}</div>
         <div>Người Báo Tin:</div><div>${escapeHtmlSafe(processSummary?.reporter?.name || payloadData.reporterName || 'Người dân khẩn cấp')}${displayPhone ? ` (${escapeHtmlSafe(displayPhone)})` : ''}</div>
-        ${isOfficer && (processSummary?.reporter?.address || payloadData.address || (payloadData.lat && payloadData.lng))
-          ? `<div>Vị Trí Hiện Trường (Nội bộ):</div><div>${escapeHtmlSafe(processSummary?.reporter?.address || payloadData.address || '')}${payloadData.lat && payloadData.lng ? ` <span class="mono" style="color:#38bdf8;">[${Number(payloadData.lat).toFixed(5)}, ${Number(payloadData.lng).toFixed(5)}]</span>` : ''}</div>`
+        ${isOfficer && (processSummary?.reporter?.address || payloadData.address || hasEffCoords)
+          ? `<div>Vị Trí Hiện Trường (Nội bộ):</div><div>${escapeHtmlSafe(processSummary?.reporter?.address || payloadData.address || '')}${hasEffCoords ? ` <span class="mono" style="color:#38bdf8;">[${Number(effLat).toFixed(5)}, ${Number(effLng).toFixed(5)}]</span>` : ''}</div>`
           : ''}
         <div>Cán Bộ &amp; Đơn Vị Nhận Ca:</div><div>${escapeHtmlSafe(processSummary?.officer?.fullTitle || payloadData.officerFullTitle || payloadData.officerName || 'Đang điều phối')} — ${escapeHtmlSafe(processSummary?.officer?.unitName || payloadData.unitName || '')}</div>
         <div>Thời Gian Tiếp Nhận:</div><div class="mono" style="color:#10b981;font-weight:700;">${escapeHtmlSafe(dur.responseTimeTextVi || 'Chưa ghi nhận')}</div>
@@ -6022,7 +6033,7 @@ const server = http.createServer(async (req, res) => {
           }
         }
 
-        const resolvedCustomNotes = data.customNotes || (isHardwareSos
+        const resolvedCustomNotes = data.customNotes || data.note || data.notes || (isHardwareSos
           ? `${hardwareTargetLabel || 'Tín hiệu phần cứng IoT'} - Đơn vị nhận: ${localUnit.name} (Mạch ESP32-C3 SuperMini: ${deviceId || 'WEARABLE-SOS-MINI-01'})`
           : '');
 
@@ -6053,7 +6064,8 @@ const server = http.createServer(async (req, res) => {
           media: Array.isArray(data.media) ? data.media : (data.media ? [data.media] : []),
           reporterName: data.user_name || data.name || data.fullName || data.victim_name || data.citizen_name || data.reporterName || (isHardwareSos ? 'Thẻ SOS chưa cấp phát (THE_CHUA_CAP_PHAT)' : 'Người dân cần cứu hộ'),
           reporterPhone: data.user_phone || data.phone || data.reporterPhone || (isHardwareSos ? '' : '0988113115'),
-          reporterCCCD: String(data.user_cccd || data.cccd || '').trim() || null,
+          reporterCCCD: String(data.user_cccd || data.userCCCD || data.reporterCCCD || data.cccd || '').trim().slice(0, 24) || null,
+          userCCCD: String(data.user_cccd || data.userCCCD || data.reporterCCCD || data.cccd || '').trim().slice(0, 24) || null,
           clientIp: rawClientIp,
           deviceTelemetry: {
             ip: rawClientIp,

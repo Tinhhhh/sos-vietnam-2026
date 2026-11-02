@@ -82,7 +82,11 @@ Matching plan item(s): `P2-A`, `P2-B`
 
 Matching plan item(s): `P3-A`, `P3-B`
 
-*(To be recorded upon completion of `P3-A` and `P3-B`.)*
+- **`E3-P3A-DOCKER1`**: Fixed two internal `842026` officer-view edge cases uncovered during real Docker QA (`server.js`: camelCase `userCCCD` forwarding in `/api/sos/create` + `processSummary.reporter` fallback for `phone`/`userCCCD`/`lat`/`lng` on closing blocks in `renderBlockchainExplorerCertificateHtml`; `js/dispatcher.js`: `_explicitHistorySelectedId` drawer retention when `activeList.length === 0`, cache bumped to `v4` in `dispatcher.html` and `sw.js`). Built real production Docker image `docker build -t sos-vietnam:local .` (`sha256:cb0bb259876b530ded604e6ea2bbe6c33ff2c32f9fd4f72da61328009cf09b68`) and started container `sos-vietnam-multinet-qa` (`ef80b066cd69...`) exposed at `http://127.0.0.1:3412`.
+- **`E3-P3A-PW1`**: Executed `node playwright/verify-multi-network-zero-pii-blockchain.mjs --base-url http://127.0.0.1:3412 --report-prefix local` -> **`10/10` assertions `PASS`, `0` failed, `totalZeroPiiLeakCount: 0`** across 19 distinct sensitive tokens on `NDA`, `OTS`, and `POLYGON` across all 3 surfaces (`dispatcher.html` `#bcSecurityPanel`, `/tra-cuu-blockchain.html`, `/api/blockchain/explorer/:ref`), `qrDecodePassCount: 4/4` via OpenCV `QRCodeDetector`, live detached `.ots` v1 proof verified (`SOSVN_Block_105_PublicAnchor.json` `514B` + `.ots` `307B` -> `https://alice.btc.calendar.opentimestamps.org`, plus on-demand Block `#101` `.ots` `272B`), and `consoleErrorsCount: 0`. Reports saved at `Reports/qa/playwright/multi-network-zero-pii-blockchain-local.{json,md}`; visually inspected all screenshots `Reports/qa/playwright/screenshots/multinet-local-01..06*.png` via `read_file`.
+- **`E3-P3A-REGR1`**: Executed regression suite `node playwright/verify-blockchain-process-qr-decoder.mjs --base-url http://127.0.0.1:3412 --report-prefix local` against the same `sos-vietnam-multinet-qa` container -> **`12/12` assertions `PASS`, `0` failed** (`Reports/qa/playwright/blockchain-process-qr-decoder-local.{json,md}`). Removed container via `docker rm -f sos-vietnam-multinet-qa` (`0` remaining QA containers).
+- **`E3-P3A-DETECT1`**: Refreshed Anvien graph (`anvien analyze --force`) and ran `anvien detect-changes --repo sos-vietnam-2026 --scope all` prior to committing `P3-A`.
+- **`E3-P3A-COMMIT1`**: Committed implementation refinements + `P3-A` E2E suite, QA reports, screenshots, and plan ledgers cleanly on `main`.
 
 ## Closure Evidence
 

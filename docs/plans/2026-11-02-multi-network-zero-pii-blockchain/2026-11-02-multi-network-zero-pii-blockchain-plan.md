@@ -322,7 +322,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - P3-A: Reusable Playwright + OpenCV + Zero-PII Audit E2E verification against real built Docker container (`sos-vietnam:local`)
   - P3-B: Push to Staging (`https://sos-vietnam-2026.onrender.com/`) and execute live Staging Playwright + OpenTimestamps E2E verification
 
-- [ ] P3-A: Reusable Playwright + OpenCV + Zero-PII Audit E2E verification against real built Docker container (`sos-vietnam:local`)
+- [x] P3-A: Reusable Playwright + OpenCV + Zero-PII Audit E2E verification against real built Docker container (`sos-vietnam:local`)
   - Goal: Viết bộ kiểm thử tái sử dụng `playwright/verify-multi-network-zero-pii-blockchain.mjs`, build image Docker thật `docker build -t sos-vietnam:local .`, khởi chạy container, và chứng minh toàn bộ 5 tiêu chí nghiệm thu (Full Nội bộ `842026`, Zero-PII tuyệt đối trên `NDA`/`OTS`/`POLYGON`, bộ chuyển đổi 4 mạng trên cả 3 bề mặt UI, tải & giải mã chứng chỉ `.ots` thật, và quét QR OpenCV 100%) cùng với việc chạy lại `playwright/verify-blockchain-process-qr-decoder.mjs` đảm bảo không hồi quy.
   - Scope Boundary:
     - Editable: `playwright/verify-multi-network-zero-pii-blockchain.mjs`, `Reports/qa/playwright/multi-network-zero-pii-blockchain-local.{json,md}`, `Reports/qa/playwright/screenshots/*`

@@ -1,26 +1,26 @@
 {
   "suite": "SOS Vietnam 2026 — Blockchain Process Ledger, Scannable QR & .JSON Dossier Decoder E2E",
   "reportPrefix": "local",
-  "targetUrl": "http://127.0.0.1:3410",
-  "verifiedAt": "2026-11-02T10:34:37.055Z",
+  "targetUrl": "http://127.0.0.1:3412",
+  "verifiedAt": "2026-11-02T13:01:56.552Z",
   "summary": {
     "total": 12,
     "passed": 12,
     "failed": 0
   },
   "metrics": {
-    "dispatcherLiveAuditMs": 609.89,
-    "exportedDossierBytes": 33313
+    "dispatcherLiveAuditMs": 402.01,
+    "exportedDossierBytes": 58698
   },
   "qrDecodes": {
     "dispatcherVerifyQr": {
       "ok": true,
-      "decoded": "http://127.0.0.1:3410/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528",
+      "decoded": "http://127.0.0.1:3412/tra-cuu-blockchain.html?tx=0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d&case=SOS-MVZ9QGEO-592&network=842026",
       "hasPoints": true
     },
     "portalLookupQr": {
       "ok": true,
-      "decoded": "http://127.0.0.1:3410/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528",
+      "decoded": "http://127.0.0.1:3412/tra-cuu-blockchain.html?tx=0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d&case=SOS-MVZ9QGEO-592&network=842026",
       "hasPoints": true
     }
   },
@@ -46,7 +46,7 @@
       "name": "1B. Stealth Fake Incoming Call creates covert SOS transaction silently while keeping audioRecordingEnabled === false and chunksUploaded === 0",
       "passed": true,
       "details": {
-        "stealthIncidentId": "SOS-MVZ4GUNN-888",
+        "stealthIncidentId": "SOS-MVZ9QAIP-504",
         "audioRecordingEnabled": false,
         "chunksUploaded": 0
       }
@@ -55,9 +55,9 @@
       "name": "2A. Citizen SOS creation seals Block #1 (1_SOS_TRIGGER) with valid 66-char TxHash and 0 media files",
       "passed": true,
       "details": {
-        "mainCaseId": "SOS-MVZ4H0JG-528",
-        "triggerBlockNumber": 102,
-        "triggerTxHash": "0x49445e5f33fc7934cafa7dc4856834972ceea5ed455ff7bf4ab65203eaa18cab"
+        "mainCaseId": "SOS-MVZ9QGEO-592",
+        "triggerBlockNumber": 107,
+        "triggerTxHash": "0xf3fab9c7b2ae91183a9102aeebad35320fe9512cd401d43c84149030fe1e8704"
       }
     },
     {
@@ -85,15 +85,15 @@
       "name": "3A. Dispatcher #bcSecurityPanel displays complete Transaction Process Summary (Reporter, Officer, Timestamps, 4 Duration Metrics & 5 Timeline Steps)",
       "passed": true,
       "details": {
-        "reporter": "Nguyễn Minh Khôi (4GPRZ) (0918246810)",
+        "reporter": "Nguyễn Minh Khôi (9Q6DK) (0918246810)",
         "officer": "Đại úy Lê Minh Tuấn · Công an Phường Tân An",
-        "timestamps": "17:34:51 → 17:34:54 → Tới: 17:34:57",
+        "timestamps": "20:02:09 → 20:02:13 → Tới: 20:02:15",
         "durResponse": "4s",
         "durTravel": "2s",
         "durScene": "1s",
         "durTotal": "7s",
         "evidenceType": "Giao dịch Quy trình Cứu hộ + Tọa độ GPS (Không cần tệp âm thanh nặng)",
-        "headerPortalHref": "/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528",
+        "headerPortalHref": "/tra-cuu-blockchain.html?tx=0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d&case=SOS-MVZ9QGEO-592&network=842026",
         "timelineCount": 5
       }
     },
@@ -101,16 +101,16 @@
       "name": "3B. 0-media Live Audit populates matching 66-char 0x... TxHashes and renders 100% OpenCV-scannable QR resolving to /tra-cuu-blockchain.html",
       "passed": true,
       "details": {
-        "origHash": "0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00",
-        "qrDecoded": "http://127.0.0.1:3410/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528"
+        "origHash": "0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d",
+        "qrDecoded": "http://127.0.0.1:3412/tra-cuu-blockchain.html?tx=0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d&case=SOS-MVZ9QGEO-592&network=842026"
       }
     },
     {
       "name": "3C. Clicking #btnExportLegalDossierJson downloads complete HoSo_PhapLy_ChuoiKhoi_<id>.json (schemaVersion 2.1-PROCESS-DOSSIER, 5 lifecycleBlocks with payload)",
       "passed": true,
       "details": {
-        "downloadedFileName": "HoSo_PhapLy_ChuoiKhoi_SOS-MVZ4H0JG-528.json",
-        "bytes": 33313,
+        "downloadedFileName": "HoSo_PhapLy_ChuoiKhoi_SOS-MVZ9QGEO-592.json",
+        "bytes": 58698,
         "blockCount": 5
       }
     },
@@ -121,14 +121,14 @@
         "verdictTitle": "✔ DỮ LIỆU THẬT ĐANG LƯU TRÊN SỔ CÁI HỆ THỐNG — CHUỖI KHỐI NGUYÊN VẸN 100%",
         "summaryCardsCount": 6,
         "stepCardsCount": 5,
-        "portalQrDecoded": "http://127.0.0.1:3410/tra-cuu-blockchain.html?tx=0x1d4fea03c1790784af9acddcd6e24c594e2203867367e53307a116827d39ce00&case=SOS-MVZ4H0JG-528"
+        "portalQrDecoded": "http://127.0.0.1:3412/tra-cuu-blockchain.html?tx=0xefb32eef9c7ad6b4d39e2d6244a6ed1050e04665ae1caa666cb497adc5aafa5d&case=SOS-MVZ9QGEO-592&network=842026"
       }
     },
     {
       "name": "4B. Authenticated Officer session opening /tra-cuu-blockchain.html automatically sees unmasked citizen phone (👮 Chế độ Cán bộ Trực ban)",
       "passed": true,
       "details": {
-        "roleBadge": "👮 Chế độ Cán bộ Trực ban (Hiển thị đầy đủ dữ liệu nghiệp vụ)",
+        "roleBadge": "👮 Chế độ Cán bộ Trực ban (Hiển thị Full 100% dữ liệu nghiệp vụ nội bộ)",
         "hasFullPhone": true
       }
     },
@@ -138,7 +138,7 @@
       "details": {
         "bannerClass": "bcv-verdict-banner",
         "verdictTitle": "✔ XÁC THỰC THÀNH CÔNG 100% — DỮ LIỆU NGUYÊN VẸN & KHỚP SỔ CÁI GỐC",
-        "offlineBadge": "✔ Băm lại SHA-256 Trình duyệt (WebCrypto): Khớp 5/5 Block (0.5 ms)",
+        "offlineBadge": "✔ Băm lại SHA-256 Trình duyệt (WebCrypto): Khớp 5/5 Block (0.7 ms)",
         "offlineOk": true,
         "onlineBadge": "✔ Đối chứng Sổ cái Máy chủ: Tồn tại & Trùng khớp 100%",
         "onlineOk": true,
@@ -149,13 +149,13 @@
       "name": "6. Uploading 1-field edited .JSON dossier triggers red tamper alert (is-tampered), fails both Offline WebCrypto & Online Server badges, and names exact tampered Block #",
       "passed": true,
       "details": {
-        "tamperedBlockNum": 105,
+        "tamperedBlockNum": 110,
         "bannerClass": "bcv-verdict-banner is-tampered",
-        "verdictTitle": "❌ CẢNH BÁO GIẢ MẠO / CHỈNH SỬA TRÁI PHÉP TẠI BLOCK #105",
+        "verdictTitle": "❌ CẢNH BÁO GIẢ MẠO / CHỈNH SỬA TRÁI PHÉP TẠI BLOCK #110",
         "verdictDetail": "Nội dung tệp JSON hoặc mã băm đã bị thay đổi dù chỉ 1 ký tự so với bản ghi đã niêm phong trên chuỗi khối. Hồ sơ này KHÔNG còn giá trị chứng cứ nguyên bản.",
         "offlineFail": true,
         "onlineFail": true,
-        "offlineBadge": "❌ Băm lại SHA-256 Trình duyệt: Sai lệch 1 Block (0.3 ms)",
+        "offlineBadge": "❌ Băm lại SHA-256 Trình duyệt: Sai lệch 1 Block (0.7 ms)",
         "onlineBadge": "❌ Đối chứng Sổ cái Máy chủ: KHÔNG KHỚP BẢN GỐC"
       }
     },
