@@ -4,6 +4,7 @@
  * in production; legacy assets are read only as a one-time development bridge.
  */
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { securityCryptoService } from './security-crypto-service.js';
@@ -17,9 +18,46 @@ if (process.env.NODE_ENV === 'production' && !configuredDir) {
   throw new Error('SOS_RUNTIME_DATA_DIR must be configured in production.');
 }
 
-const RUNTIME_DATA_DIR = configuredDir
-  ? path.resolve(configuredDir)
-  : path.join(PROJECT_ROOT, '.runtime-data');
+function resolveWritableRuntimeDir() {
+  if (!configuredDir) {
+    return {
+      dir: path.join(PROJECT_ROOT, '.runtime-data'),
+      mode: 'dev-local-runtime-dir'
+    };
+  }
+  const preferred = path.resolve(configuredDir);
+  const probeFile = path.join(preferred, `.sos-write-probe-${process.pid}-${Date.now()}.tmp`);
+  try {
+    fs.mkdirSync(preferred, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(probeFile, 'ok', { encoding: 'utf8', mode: 0o600 });
+    fs.rmSync(probeFile, { force: true });
+    return {
+      dir: preferred,
+      mode: 'configured-persistent-encrypted-vault'
+    };
+  } catch (error) {
+    try {
+      if (fs.existsSync(probeFile)) fs.rmSync(probeFile, { force: true });
+    } catch (_) {}
+    const code = error && error.code ? String(error.code) : '';
+    if (code === 'EACCES' || code === 'EPERM' || code === 'EROFS') {
+      const fallbackDir = path.join(os.tmpdir(), 'sos-vietnam-runtime-data');
+      fs.mkdirSync(fallbackDir, { recursive: true, mode: 0o700 });
+      console.warn(
+        `[runtime-data-store] Configured SOS_RUNTIME_DATA_DIR (${preferred}) is not writable (${code}); using encrypted cloud-sandbox runtime directory (${fallbackDir}).`
+      );
+      return {
+        dir: fallbackDir,
+        mode: 'cloud-ephemeral-tmpdir-encrypted-vault'
+      };
+    }
+    throw error;
+  }
+}
+
+const resolvedRuntimeStore = resolveWritableRuntimeDir();
+const RUNTIME_DATA_DIR = resolvedRuntimeStore.dir;
+const RUNTIME_STORAGE_MODE = resolvedRuntimeStore.mode;
 
 function assertSafeName(name) {
   if (!/^[a-z0-9][a-z0-9-]*\.json$/i.test(name)) {
@@ -80,4 +118,4 @@ export function writeRuntimeData(name, value) {
   }
 }
 
-export { RUNTIME_DATA_DIR };
+export { RUNTIME_DATA_DIR, RUNTIME_STORAGE_MODE };

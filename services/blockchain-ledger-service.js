@@ -12,7 +12,7 @@
 import crypto from 'crypto';
 import https from 'https';
 import http from 'http';
-import { readRuntimeData, writeRuntimeData } from './runtime-data-store.js';
+import { readRuntimeData, writeRuntimeData, RUNTIME_STORAGE_MODE } from './runtime-data-store.js';
 
 export const COMMAND_SECRET_KEY = process.env.COMMAND_SECRET_KEY || 'BTL_CSCD_E10_D1_SOS_VIETNAM_2026';
 export const DAC_TA_SECRET_KEY = process.env.DAC_TA_SECRET_KEY || 'SOS_VIETNAM_TACTICAL_ESC_2026_DEPIN_SECURE_KEY';
@@ -796,6 +796,7 @@ class BlockchainLedgerService {
       chainId: sysCfg.chainId,
       canonicalChainId: 842026,
       storageFolder: sysCfg.storageFolder,
+      ledgerStorageMode: RUNTIME_STORAGE_MODE,
       genesisHash: this.state.genesisHash,
       nextBlockNumber: this.state.nextBlockNumber,
       lastBlockHash: this.state.lastBlockHash,
