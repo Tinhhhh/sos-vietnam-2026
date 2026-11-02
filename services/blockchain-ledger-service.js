@@ -233,10 +233,11 @@ export function computeHardwareLiveEvidenceHash({ cardID, hwMacID, unitCode, cur
 
 function buildCoordVariants(rawVal, rawJsonCoordText = '') {
   const set = new Set();
-  if (rawJsonCoordText) set.add(String(rawJsonCoordText).trim());
-  if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
-    set.add(String(rawVal).trim());
-    const num = Number(rawVal);
+  for (const candidate of [rawJsonCoordText, rawVal]) {
+    if (candidate === undefined || candidate === null || String(candidate).trim() === '') continue;
+    const text = String(candidate).trim();
+    set.add(text);
+    const num = Number(candidate);
     if (Number.isFinite(num)) {
       set.add(String(num));
       for (const digits of [6, 5, 7, 4, 2]) {
@@ -288,7 +289,7 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
   // Legacy IoT button compatibility (no bc_seal field sent yet)
   if (!suppliedBcSeal) {
     const syntheticHash = sha256Prefixed(
-      Buffer.from(`${cardID || 'LEGACY_IOT'}|${displayHwMac}|${data.lat ?? data.latitude ?? ''},${data.lng ?? data.longitude ?? ''}`, 'utf8')
+      Buffer.from(`${cardID || 'LEGACY_IOT'}|${displayHwMac}|${data.lat ?? data.latitude ?? ''},${data.lng ?? data.lon ?? data.longitude ?? ''}`, 'utf8')
     );
     return {
       hasSeal: false,
@@ -442,7 +443,7 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
     liveHashVerified = false;
     const { rawLat, rawLng } = extractRawJsonCoordTokens(rawJsonBody);
     const latVariants = buildCoordVariants(data.lat ?? data.latitude, rawLat);
-    const lngVariants = buildCoordVariants(data.lng ?? data.longitude, rawLng);
+    const lngVariants = buildCoordVariants(data.lng ?? data.lon ?? data.longitude, rawLng);
     const unitVariants = Array.from(new Set([
       data.target_unit,
       data.type,
@@ -489,7 +490,7 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
       hwMacID: displayHwMac,
       unitCode: String(data.target_unit || data.type || 'CONG_AN_DIA_PHUONG'),
       currentLat: Number(data.lat ?? data.latitude ?? 10.0452).toFixed(6),
-      currentLon: Number(data.lng ?? data.longitude ?? 105.7469).toFixed(6),
+      currentLon: Number(data.lng ?? data.lon ?? data.longitude ?? 105.7469).toFixed(6),
       bcSeal: '0x' + normalizedSeal
     });
   }

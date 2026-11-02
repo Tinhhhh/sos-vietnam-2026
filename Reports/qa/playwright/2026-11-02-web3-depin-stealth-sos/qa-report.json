@@ -1,0 +1,345 @@
+{
+  "suite": "SOS Vietnam 2026 — Web3 DePIN Blockchain, Hardware Anti-Spoofing, DePIN Portal v2.1 & Stealth SOS E2E",
+  "mode": "docker-local",
+  "targetUrl": "http://127.0.0.1:3106",
+  "dockerContainer": "sos-vietnam-web3-qa",
+  "verifiedAt": "2026-11-02T08:29:02.782Z",
+  "summary": {
+    "total": 22,
+    "passed": 22,
+    "failed": 0
+  },
+  "metrics": {
+    "hardwareSosDePinLatencyMs": 70.96,
+    "liveIntegrityAuditUiMs": 444.16
+  },
+  "screenshots": [
+    "01-cap-phat-the-e10-v21.png",
+    "02-citizen-stealth-bar.png",
+    "03-ios-fake-incoming-call.png",
+    "04-ios-fake-active-call.png",
+    "05-dispatcher-hardware-depin-verified.png",
+    "06-dispatcher-stealth-live-audit-qr.png",
+    "07-blockchain-explorer-certificate.png"
+  ],
+  "assertions": [
+    {
+      "name": "A1. /api/blockchain/status returns Sandbox Chain ID 84202600, SOS_RENDER_SANDBOX & Multi-Chain networks (842026, NDA, POLYGON)",
+      "passed": true,
+      "details": {
+        "status": 200,
+        "chainId": 84202600,
+        "storageFolder": "SOS_RENDER_SANDBOX",
+        "networks": [
+          "842026",
+          "NDA",
+          "POLYGON"
+        ]
+      }
+    },
+    {
+      "name": "A2. POST /api/hardware-sos verifies DAC_TA v2.1 Section 5.5 vector (SOS_CSCD10_09, bc_seal & live_evidence_hash) and seals 1_SOS_TRIGGER block",
+      "passed": true,
+      "details": {
+        "incidentId": "IOT-MVYZZ8ST-339",
+        "blockNumber": 101,
+        "txHash": "0xe9d9767a266caaccd3b14a3b67d3dd3b1858507df9fc11c7f35ac315e89b81c1",
+        "hardwareAuth": {
+          "hasSeal": true,
+          "verified": true,
+          "status": "DEPIN_VERIFIED",
+          "sealScheme": "CHAINED_BLOCK_V2_REAL_CPP_CMD_E10",
+          "badgeText": "✔ ĐÃ XÁC THỰC TRÊN SỔ CÁI (DePIN VERIFIED) [THẺ THẬT · BLOCK #1]",
+          "cardID": "SOS_CSCD10_09",
+          "hwMac": "A4CF128E3B09",
+          "userCCCD": "079200012345",
+          "cardMode": "REAL",
+          "cardBlockIndex": 1,
+          "cardOfficer": "Đại úy Trần Văn Nam - E10 Đ1",
+          "bcSeal": "0x3c729fdfa29010da748df56a951a60896155a5fd749497928427bd308684c032",
+          "sealUppercase": "3C729FDFA29010DA748DF56A951A60896155A5FD749497928427BD308684C032",
+          "liveEvidenceHash": "0x11c59e69ae2e1865d21f82bb59c8785a1f07299be5be8d82e08d3e9d4bfa8585",
+          "liveHashVerified": true,
+          "reportedChainId": 842026
+        }
+      }
+    },
+    {
+      "name": "A3. POST /api/hardware-sos verifies ESP32-C3 chip formula & routes CUU_NAN_CUU_HO (Button 3) to Fire/Rescue",
+      "passed": true,
+      "details": {
+        "hardwareAuth": {
+          "hasSeal": true,
+          "verified": true,
+          "status": "DEPIN_VERIFIED",
+          "sealScheme": "ESP32_C3_CHIP",
+          "badgeText": "✔ ĐÃ XÁC THỰC TRÊN SỔ CÁI (DePIN VERIFIED)",
+          "cardID": "SOS_ESP32_YZZ8AM",
+          "hwMac": "B8F009AC4412",
+          "userCCCD": "092099004455",
+          "cardMode": null,
+          "cardBlockIndex": null,
+          "cardOfficer": null,
+          "bcSeal": "0x8a38c55d11f2c46f42a83030fd59f85f667fc24dbac6bb914664a8bc31c5bc4b",
+          "sealUppercase": "8A38C55D11F2C46F42A83030FD59F85F667FC24DBAC6BB914664A8BC31C5BC4B",
+          "liveEvidenceHash": "0x755b90f71a38001035082b09e1fac1cb44146decef66e137a17d87018c820f7d",
+          "liveHashVerified": true,
+          "reportedChainId": 842026
+        },
+        "agency": "fire"
+      }
+    },
+    {
+      "name": "A4. POST /api/hardware-sos flags tampered bc_seal as SPOOF_SUSPECTED (verified: false)",
+      "passed": true,
+      "details": {
+        "hardwareAuth": {
+          "hasSeal": true,
+          "verified": false,
+          "status": "SPOOF_SUSPECTED",
+          "sealScheme": "SIGNATURE_MISMATCH",
+          "badgeText": "⚠ CẢNH BÁO GIẢ MẠO CHỮ KÝ PHẦN CỨNG (SPOOF SUSPECTED)",
+          "cardID": "SOS_SPOOF_99",
+          "hwMac": "DEADBEEF0001",
+          "userCCCD": "001099000111",
+          "cardMode": null,
+          "cardBlockIndex": null,
+          "cardOfficer": null,
+          "bcSeal": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+          "liveEvidenceHash": null,
+          "liveHashVerified": false,
+          "reportedChainId": null
+        }
+      }
+    },
+    {
+      "name": "A5. Blank unprovisioned card (THE_CHUA_CAP_PHAT) stays backward-compatible (UNSEALED_LEGACY_IOT) with zero hardcoded sample names (Rule 3)",
+      "passed": true,
+      "details": {
+        "reporterName": "Thẻ SOS chưa cấp phát (THE_CHUA_CAP_PHAT)",
+        "hardwareAuth": {
+          "hasSeal": false,
+          "verified": false,
+          "status": "UNSEALED_LEGACY_IOT",
+          "sealScheme": "NONE",
+          "badgeText": "ℹ THIẾT BỊ IOT ĐỜI CŨ (CHƯA CẤP CHỮ KÝ DePIN)",
+          "cardID": "THE_CHUA_CAP_PHAT",
+          "hwMac": "A4CF12000001",
+          "userCCCD": null,
+          "cardMode": null,
+          "cardBlockIndex": null,
+          "cardOfficer": null,
+          "bcSeal": null,
+          "liveEvidenceHash": "0x87f343e0b7b5e538cd3319417af0626ccbd9f062b50af45688c965704a77606e",
+          "liveHashVerified": null,
+          "reportedChainId": null
+        }
+      }
+    },
+    {
+      "name": "B1. /cap-phat-the.html obeys DAC_TA v2.1 Rule 3 (empty initial inputs, cue placeholders only, zero hardcoded personal names)",
+      "passed": true,
+      "details": {
+        "values": {
+          "cardIdInput": "",
+          "cardNameInput": "",
+          "cardPhoneInput": "",
+          "cardCccdInput": "",
+          "cardOfficerInput": "",
+          "cardSealOutput": ""
+        },
+        "allEmpty": true,
+        "hasSampleNhat": false,
+        "hasSampleCuA": false
+      }
+    },
+    {
+      "name": "B2. /cap-phat-the.html computes exact DAC_TA v2.1 Section 5.5 Genesis SEAL (0x3c729fdfa29010da...)",
+      "passed": true,
+      "details": {
+        "vectorSeal": "0x3c729fdfa29010da748df56a951a60896155a5fd749497928427bd308684c032"
+      }
+    },
+    {
+      "name": "B3. /cap-phat-the.html TEST Mode allows provisioning and clean WIPE_CARD reset",
+      "passed": true,
+      "details": {
+        "provisionedMode": "TEST",
+        "afterWipeStatus": 404
+      }
+    },
+    {
+      "name": "B4. /cap-phat-the.html REAL Mode seals Genesis Block #1 and strictly blocks wiping (UI lock + HTTP 403 REAL_MODE_WIPE_FORBIDDEN)",
+      "passed": true,
+      "details": {
+        "realCardId": "SOS_QA_REAL_YZZ8AM",
+        "genesisSeal": "A6FE31350233291A1AA5055FE52E54162F137A1EEB3CFAE82191F391B633C2E7",
+        "wipeBtnLockUi": {
+          "text": "🔒 BẢO VỆ DỮ LIỆU THẬT: CHỈ CẤP 1 LẦN (KHÔNG ĐƯỢC XÓA TRẮNG)",
+          "hasLockedClass": true,
+          "ariaDisabled": "true"
+        },
+        "directWipeStatus": 403,
+        "directWipeError": "🔒 BẢO VỆ DỮ LIỆU THẬT: CHỈ CẤP 1 LẦN (KHÔNG ĐƯỢC XÓA TRẮNG). Nghiêm cấm xóa trắng thẻ chính thức! Vui lòng dùng tính năng Cập nhật thông tin & nối chuỗi Blockchain (Update Block #N)."
+      }
+    },
+    {
+      "name": "B5. /cap-phat-the.html chains REAL Block #2 (PrevSeal === Block #1 SEAL) and passes READ_DATA SHA-256 verification",
+      "passed": true,
+      "details": {
+        "preparedBlock2": {
+          "blockIndex": "2",
+          "prevSeal": "A6FE31350233291A1AA5055FE52E54162F137A1EEB3CFAE82191F391B633C2E7"
+        },
+        "currentBlockIndex": 2,
+        "verifyTextSample": "✔ XÁC THỰC HỢP LỆ (100% NGUYÊN VẸN) — Chuẩn: CHAINED_BLOCK_V2_REAL_CPP_CMD_E10 • Đồng bộ Sổ cái: ĐÃ ĐỒNG BỘ"
+      }
+    },
+    {
+      "name": "C1. Citizen Fake Incoming Call triggers 3s countdown -> fullscreen iOS Incoming Call UI (\"Ba\")",
+      "passed": true,
+      "details": {
+        "countdownPhase": "countdown",
+        "incomingUi": {
+          "overlayVisible": true,
+          "incomingVisible": true,
+          "caller": "Ba"
+        },
+        "mode": "FAKE_IOS_CALL"
+      }
+    },
+    {
+      "name": "C2. Answering Fake Call displays 6-button iOS keypad + live 00:01+ timer and silently creates covert SOS with zero visible SOS modal",
+      "passed": true,
+      "details": {
+        "activeVisible": true,
+        "keypadButtons": 6,
+        "timerText": "00:02",
+        "incidentId": "SOS-MVYZZHWC-658"
+      }
+    },
+    {
+      "name": "C3. Tapping \"Danh bạ\" activates #000000 proximity blackout and double-tapping wakes active iOS call UI",
+      "passed": true,
+      "details": {
+        "proxOn": {
+          "visible": true,
+          "bg": "rgb(0, 0, 0)"
+        },
+        "proxOff": true
+      }
+    },
+    {
+      "name": "C4. Covert 5000ms MediaRecorder hashes audio in browser (WebCrypto SHA-256) and seals 2_EVIDENCE_SEAL block with clientHashMatched === true",
+      "passed": true,
+      "details": {
+        "stealthIncidentId": "SOS-MVYZZHWC-658",
+        "chunksUploaded": 1,
+        "receipt": {
+          "evidenceId": "EV_1793608160255_AB74A73B",
+          "sha256Hash": "0x633052bd649ea3992757bda426163c1099d62b6d43d6bcea89db7e5b1f408b72",
+          "clientSha256": "0x633052bd649ea3992757bda426163c1099d62b6d43d6bcea89db7e5b1f408b72",
+          "clientHashMatched": true,
+          "blockNumber": 109,
+          "txHash": "0xe2945279ba0437915224f1b89ca67c511623619e37d52252520c8d31712456e7",
+          "storageProvider": "local-encrypted-vault",
+          "storageFolder": "SOS_RENDER_SANDBOX",
+          "mediaUrl": "/api/sos/evidence-file/SOS-MVYZZHWC-658/EV_1793608160255_AB74A73B?dlToken=eyJwdXJwb3NlIjoic29zX2V2aWRlbmNlX2FjY2VzcyIsImluY2lkZW50SWQiOiJTT1MtTVZZWlpIV0MtNjU4IiwiZXZpZGVuY2VJZCI6IkVWXzE3OTM2MDgxNjAyNTVfQUI3NEE3M0IiLCJleHAiOjE3OTQyMTI5NjAyNzUsImlhdCI6MTc5MzYwODE2MDI3NSwibm9uY2UiOiIxMmYzNzYzOGVlODAwMzYxIn0.6hjYHKUjb24295zrsVYYp5sL_hI8EoruO_KjjIPKNps"
+        }
+      }
+    },
+    {
+      "name": "C5. Red Hangup button strictly enforces 3-consecutive-tap anti-attacker exit guard (1x & 2x stay locked; 3x exits cleanly)",
+      "passed": true,
+      "details": {
+        "afterTap1": true,
+        "afterTap2": true,
+        "afterTap3": {
+          "active": false,
+          "overlayHidden": true
+        }
+      }
+    },
+    {
+      "name": "C6. Blackout Stealth Mode renders pitch-black #000000 (100vw x 100vh, z-index 999999) and enforces 4-consecutive-tap unlock guard",
+      "passed": true,
+      "details": {
+        "blackoutStyle": {
+          "visible": true,
+          "bg": "rgb(0, 0, 0)",
+          "zIndex": "999999",
+          "width": 1440,
+          "height": 920,
+          "vw": 1440,
+          "vh": 920
+        },
+        "boTap1": true,
+        "boTap2": true,
+        "boTap3": true,
+        "boTap4": {
+          "active": false,
+          "hidden": true
+        }
+      }
+    },
+    {
+      "name": "D1. Dispatcher .bc-security-panel displays ESP32-C3 eFuse MAC (A4CF128E3B09), DePIN VERIFIED badge, and switches Multi-Chain networks (842026 / NDA / POLYGON)",
+      "passed": true,
+      "details": {
+        "hwPanelState": {
+          "hwMac": "ESP32-C3 (eFuse MAC: A4CF128E3B09)",
+          "authBadge": "✔ ĐÃ XÁC THỰC TRÊN SỔ CÁI (DePIN VERIFIED)",
+          "blockNum": "#101",
+          "txHref": "/api/blockchain/explorer/0xe9d9767a266caaccd3b14a3b67d3dd3b1858507df9fc11c7f35ac315e89b81c1?network=842026"
+        },
+        "polyHref": "/api/blockchain/explorer/0xe9d9767a266caaccd3b14a3b67d3dd3b1858507df9fc11c7f35ac315e89b81c1?network=POLYGON"
+      }
+    },
+    {
+      "name": "D2. Officer Dispatch & Case Resolution seal 3_OFFICER_DISPATCH (with responseTimeSeconds) and 4_CASE_RESOLVED in #uiAuditTimeline",
+      "passed": true,
+      "details": {
+        "responseTimeSeconds": 24,
+        "hwTimelineText": "15:29:03 [Block #101] Tín hiệu SOS kích hoạt (Khởi tạo hồ sơ #IOT-MVYZZ8ST-339 (DEPIN_VERIFIED)).15:29:27 [Block #112] Trực ban tiếp nhận (Phản ứng: 24 giây).15:29:27 [Block #113] Hoàn tất ứng cứu & đóng hồ sơ bất biến."
+      }
+    },
+    {
+      "name": "D3. Dispatcher drawer renders 5-second Citizen Stealth audio evidence with valid playable WebM stream (readyState >= 1, hasError === false)",
+      "passed": true,
+      "details": {
+        "exists": true,
+        "src": "http://127.0.0.1:3106/api/sos/evidence-file/SOS-MVYZZHWC-658/EV_1793608160255_AB74A73B?dlToken=eyJwdXJwb3NlIjoic29zX2V2aWRlbmNlX2FjY2VzcyIsImluY2lkZW50SWQiOiJTT1MtTVZZWlpIV0MtNjU4IiwiZXZpZGVuY2VJZCI6IkVWXzE3OTM2MDgxNjAyNTVfQUI3NEE3M0IiLCJleHAiOjE3OTQyMTI5NjAyNzUsImlhdCI6MTc5MzYwODE2MDI3NSwibm9uY2UiOiIxMmYzNzYzOGVlODAwMzYxIn0.6hjYHKUjb24295zrsVYYp5sL_hI8EoruO_KjjIPKNps",
+        "readyState": 4,
+        "hasError": false
+      }
+    },
+    {
+      "name": "D4. runIntegrityCheck() re-hashes raw server evidence bytes, renders exact legal conclusion, renders SVG QR, and downloads byte-exact original audio matching SHA-256",
+      "passed": true,
+      "details": {
+        "downloadStatus": 200,
+        "downloadedSha256": "0x93c456a98cb8f95d333c75e3ce0de8c7ee71f4f83b9597478170f40e8f34069e",
+        "firstChunkSha256": "0x633052bd649ea3992757bda426163c1099d62b6d43d6bcea89db7e5b1f408b72",
+        "allSealedHashesCount": 3,
+        "hasSvgQr": true
+      }
+    },
+    {
+      "name": "D5. Block Explorer Certificate (/api/blockchain/explorer/:txHash) renders HTTP 200 immutable block proof",
+      "passed": true,
+      "details": {
+        "status": 200,
+        "explorerTarget": "http://127.0.0.1:3106/api/blockchain/explorer/0x366dffcdca3843534c527debb9389b214286cb711b44940ac24beadb9d6b163d?network=842026"
+      }
+    },
+    {
+      "name": "E1. Encrypted Blockchain Ledger, REAL DePIN Card Chain (Block #1->#2) & Encrypted Audio Vault survive docker restart with 100% SHA-256 match",
+      "passed": true,
+      "details": {
+        "postRestartVerified": true,
+        "auditedEvidenceCount": 3,
+        "persistedCardBlockIndex": 2
+      }
+    }
+  ]
+}

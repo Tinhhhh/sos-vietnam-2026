@@ -621,7 +621,11 @@ function initDepinCardPortal() {
         return;
       }
 
-      const blk = json.latestBlock || {};
+      const blk =
+        json.block ||
+        json.latestBlock ||
+        (Array.isArray(json.card?.blocks) ? json.card.blocks[json.card.blocks.length - 1] : null) ||
+        {};
       const receipt = json.ledgerReceipt || {};
       showAlert(
         depinSecurityAlert,

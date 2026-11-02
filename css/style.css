@@ -9066,17 +9066,23 @@ video::-webkit-media-controls-mute-button { display: none !important; }
   border-color: #00ECF3;
   color: #F1ECCB;
 }
-.bc-security-panel .bc-network-badge {
-  background: #020F20;
-  border: 1px solid #00ECF3;
-  color: #00ECF3;
-  border-radius: 6px;
-  padding: 3px 7px;
-  font-size: 10px;
-  font-weight: 800;
+.bc-security-panel .bc-network-badge,
+#bcSecurityPanel select#bcNetworkSwitch.bc-network-badge {
+  background: #020F20 !important;
+  border: 1px solid #00ECF3 !important;
+  color: #00ECF3 !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-size: 10.5px !important;
+  line-height: 1.35 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  font-weight: 800 !important;
   cursor: pointer;
   outline: none;
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 .bc-security-panel .bc-network-badge option {
   background: #020D1C;
