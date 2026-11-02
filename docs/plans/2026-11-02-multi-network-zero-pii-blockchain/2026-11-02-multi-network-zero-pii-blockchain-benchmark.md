@@ -16,18 +16,18 @@ Benchmark records measured numbers only (inventory counts, payload/proof byte si
 
 | Phase | Metric | Unit | Baseline | Latest | Final | Target | Delta | Evidence |
 |-------|--------|------|----------|--------|-------|--------|-------|----------|
-| P0 | Anvien semantic graph nodes | nodes | 86649 | 86649 | - | >= 86649 | 0 | `E0-P0A-GRAPH1` |
-| P0 | Anvien semantic graph relationships | edges | 92429 | 92429 | - | >= 92429 | 0 | `E0-P0A-GRAPH1` |
-| P0 | Surfaces with working multi-network view switcher (`dispatcher.html`, `/tra-cuu-blockchain.html`, `/api/blockchain/explorer/:ref`) | surfaces | 0 | 0 | - | 3 | 0 | `E0-P0A-SRC2`, `E0-P0A-SRC3`, `E0-P0A-SRC4` |
-| P0 | Supported selectable blockchain network views | networks | 1 (effective internal view) | 1 | - | 4 (`842026`, `NDA`, `OTS`, `POLYGON`) | 0 | `E0-P0A-SRC1`, `E0-P0A-SRC4` |
-| P0 | Live OpenTimestamps `.ots` binary proof size per block | bytes | 237 (prototype probe) | 237 | - | <= 1024 | 0 | `E0-P0A-OTS1` |
+| P0 | Anvien semantic graph nodes | nodes | 86649 | 88975 | 88975 | >= 86649 | +2326 | `E0-P0A-GRAPH1`, `E3-P3B-DETECT1` |
+| P0 | Anvien semantic graph relationships | edges | 92429 | 94849 | 94849 | >= 92429 | +2420 | `E0-P0A-GRAPH1`, `E3-P3B-DETECT1` |
+| P0 | Surfaces with working multi-network view switcher (`dispatcher.html`, `/tra-cuu-blockchain.html`, `/api/blockchain/explorer/:ref`) | surfaces | 0 | 3 | 3 | 3 | +3 | `E0-P0A-SRC2`..`E0-P0A-SRC4`, `E3-P3B-PW1` |
+| P0 | Supported selectable blockchain network views | networks | 1 (effective internal view) | 4 | 4 | 4 (`842026`, `NDA`, `OTS`, `POLYGON`) | +3 | `E0-P0A-SRC1`, `E3-P3B-PW1` |
+| P0 | Live OpenTimestamps `.ots` binary proof size per block | bytes | 237 (prototype probe) | 307 | 307 | <= 1024 | +70 | `E0-P0A-OTS1`, `E3-P3B-PW1` |
 
 ## B1 - P1 Benchmarks
 
 | Phase | Metric | Unit | Baseline | Latest | Final | Target | Delta | Evidence |
 |-------|--------|------|----------|--------|-------|--------|-------|----------|
-| P1-A | PII substring leaks in `NDA` / `OTS` / `POLYGON` projected JSON (`19` sensitive tokens tested) | count | - | 0 | 0 | 0 | 0 | `E1-P1A-TEST1` |
-| P1-A | Live OpenTimestamps `.ots` detached binary proof size (`anchorBlockToOpenTimestamps`) | bytes | 237 | 307 | - | <= 1024 | +70 | `E1-P1A-TEST2` |
+| P1-A | PII substring leaks in `NDA` / `OTS` / `POLYGON` projected JSON (`19` sensitive tokens tested) | count | - | 0 | 0 | 0 | 0 | `E1-P1A-TEST1`, `E3-P3B-PW1` |
+| P1-A | Live OpenTimestamps `.ots` detached binary proof size (`anchorBlockToOpenTimestamps`) | bytes | 237 | 307 | 307 | <= 1024 | +70 | `E1-P1A-TEST2`, `E3-P3B-PW1` |
 | P1-B | Synchronous `/api/sos` block-seal blocking overhead from global `.ots` anchoring | ms | 0 | 0 (`27ms` total `/api/sos/create`) | 0 | <= 5 (async non-blocking) | 0 | `E1-P1B-ROUTE1` |
 
 ## B2 - P2 Benchmarks

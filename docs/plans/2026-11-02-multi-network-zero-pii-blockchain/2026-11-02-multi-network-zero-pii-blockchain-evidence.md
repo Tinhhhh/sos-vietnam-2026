@@ -94,4 +94,6 @@ Matching plan item(s): `P3-A`, `P3-B`
 
 ## Closure Evidence
 
-*(To be recorded upon completion of `Pn-A`, `Pn-B`, and `Pn-C`.)*
+- **`E4-PNA-SUP1`**: Completed independent Zero-Trust Supervisor acceptance review across commit window `44b69e0..b617730` (`P1-A` through `P3-B`), source files, fresh Anvien graph (`nodes=88975`, `relationships=94849`), Docker local QA (`10/10 PASS` + `12/12 PASS` regression), and live Render Staging QA (`10/10 PASS`, `zeroPiiLeaks=0`). Durable report written at `Reports/qa/rp_supervisor_261102_201500_by_antigravity_multi_network_zero_pii_blockchain.md` with `Verdict: PASS` and `residual unverified same-invariant surfaces: none`.
+- **`E4-PNB-CLEAN1`**: Removed all plan-created scratch files/folders inside `.tmp/` (`.tmp/p0-multi-net`, `.tmp/detect-changes-p3a.json`, `.tmp/file-detail-server.json`, `.tmp/patch-server.cjs`; verified `Test-Path` = `False` for all 4), preserved all pre-existing user files untouched, and verified `git diff --name-only 9cd242b..HEAD` contains strictly in-scope plan/implementation/QA files with zero dead code or debug leftovers.
+- **`E4-PNC-CLOSE1`**: Finalized `plan.md`, `actual-status.md`, `evidence.md`, and `benchmark.md` (`Status: completed`), committed closure artifacts + Supervisor report, and pushed `main` to `origin/main`.

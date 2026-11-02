@@ -3,7 +3,7 @@
 ## Metadata
 
 - Date: `2026-11-02`
-- Status: `in_progress`
+- Status: `completed`
 - Plan: `docs/plans/2026-11-02-multi-network-zero-pii-blockchain/2026-11-02-multi-network-zero-pii-blockchain-plan.md`
 - Evidence: `docs/plans/2026-11-02-multi-network-zero-pii-blockchain/2026-11-02-multi-network-zero-pii-blockchain-evidence.md`
 - Benchmark: `docs/plans/2026-11-02-multi-network-zero-pii-blockchain/2026-11-02-multi-network-zero-pii-blockchain-benchmark.md`
@@ -418,7 +418,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - Actual-status Update: Cập nhật dòng `Render Staging Runtime` trong `actual-status.md`, ghi `R6`.
   - Commit Boundary: commit các báo cáo QA Staging sau khi kiểm chứng hoàn tất.
 
-- [ ] Pn-A: Call supervisor for the implemented-plan acceptance loop.
+- [x] Pn-A: Call supervisor for the implemented-plan acceptance loop.
   - Goal: thực hiện rà soát độc lập Zero-Trust theo `.agents/skills/supervisor/SKILL.md` đối với toàn bộ kế hoạch, `actual-status.md`, `evidence.md`, `benchmark.md`, mã nguồn thay đổi, ảnh chụp màn hình và báo cáo QA trên cả Docker local lẫn Render Staging.
   - Work Steps:
     1. Đọc và áp dụng quy trình kiểm toán `.agents/skills/supervisor/SKILL.md` trên toàn bộ các tệp đã sửa và bằng chứng đã ghi.
@@ -427,7 +427,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - Implementation Gate: tất cả các slice `P1-A`..`P3-B` đã hoàn tất.
   - Acceptance: Supervisor xác nhận `PASS` với đầy đủ bằng chứng thực thi.
 
-- [ ] Pn-B: Remove dead work created during this plan.
+- [x] Pn-B: Remove dead work created during this plan.
   - Goal: đảm bảo worktree và diff cuối cùng không còn tệp tạm hay mã thừa phát sinh từ kế hoạch này.
   - Work Steps:
     1. Kiểm tra `.tmp/` (xóa các thư mục nháp của kế hoạch này như `.tmp/p0-multi-net`, `.tmp/bc-multinet-qa-*`), kiểm tra `git status` đảm bảo không chạm vào các tệp có sẵn ngoài phạm vi của người dùng.
@@ -436,7 +436,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - Implementation Gate: chỉ xóa các tệp tạm do chính kế hoạch này tạo ra.
   - Acceptance: `git diff` sạch tuyệt đối, chỉ chứa đúng các tệp thuộc phạm vi kế hoạch; `.tmp/` của kế hoạch đã được dọn gọn.
 
-- [ ] Pn-C: Close the plan.
+- [x] Pn-C: Close the plan.
   - Goal: hoàn thiện sổ cái bằng chứng, benchmark, trạng thái kế hoạch `completed`, commit đóng kế hoạch và đồng bộ lên `origin/main`.
   - Work Steps:
     1. Kiểm tra lại toàn bộ mã bằng chứng trong `evidence.md`, số liệu đo lường trong `benchmark.md`, và trạng thái cuối trong `actual-status.md`.
