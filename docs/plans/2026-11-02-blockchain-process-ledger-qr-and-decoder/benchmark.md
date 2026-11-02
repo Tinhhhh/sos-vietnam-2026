@@ -29,8 +29,8 @@
 | P1 | OpenCV `QRCodeDetector` decode success across URL lengths (49..161 bytes, Versions 3..8) | % | 0 | 100 | - | 100 | +100% | `E1-P1A-QR1` |
 | P1 | QR Matrix + SVG generation latency (3 QR codes across V3, V6, V8) | ms | - | 4.418 | - | < 25 | - | `E1-P1A-QR1` |
 | P1 | `verifyExportedDossier` SHA-256 + ledger cross-check latency (5-block dossier) | ms | - | 0.983 | - | < 20 | - | `E1-P1A-VERIFY1` |
-| P1 | Sealed SOS case lifecycle action types | count | 4 | - | - | 8 | - | Pending `P1-B` |
-| P1 | Lightweight 4-step SOS case total ledger JSON footprint (0 media blobs) | bytes | - | - | - | < 8192 | - | Pending `P1-B` |
+| P1 | Sealed SOS case lifecycle action types | count | 4 | 8 | - | 8 | +4 | `E1-P1B-LIFE1` |
+| P1 | Lightweight SOS case ledger JSON footprint (0 media blobs: 4-step ~5.5 KB, 6-step w/ escalation 8,309 B) | bytes | - | 5540 (4-step) / 8309 (6-step) | - | < 10240 | - | `E1-P1B-AUDIT1` |
 
 ## B2 - P2 Benchmarks
 

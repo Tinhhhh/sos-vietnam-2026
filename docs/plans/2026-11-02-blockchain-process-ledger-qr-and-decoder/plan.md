@@ -153,7 +153,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - Actual-status Update: Update QR & Ledger Service rows to `correct` (`R1`).
   - Commit Boundary: Commit `services/blockchain-ledger-service.js` + ledger updates after slice acceptance.
 
-- [ ] P1-B: Seal Transaction-Grade Process Lifecycle Blocks & Expose Lookup/Verify-Dossier/Recent Endpoints in `server.js`
+- [x] P1-B: Seal Transaction-Grade Process Lifecycle Blocks & Expose Lookup/Verify-Dossier/Recent Endpoints in `server.js`
   - Goal: Seal rich actor + duration transaction blocks at every SOS lifecycle transition in `server.js`, fix 0-media Live Audit & `.json` dossier export in `POST /api/dispatcher/blockchain/verify`, update `/api/blockchain/explorer/:ref`, and add `GET /api/blockchain/lookup`, `POST /api/blockchain/verify-dossier`, and `GET /api/blockchain/recent`.
   - Scope Boundary:
     - Editable: `server.js`

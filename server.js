@@ -16,6 +16,8 @@ import { createZaloBotService } from './services/zalo-bot-service.js';
 import {
   LIFECYCLE_ACTIONS,
   blockchainLedgerService,
+  describeBlockchainActionVi,
+  formatDurationSecondsVi,
   generateQrCodeSvg,
   computeChainedCardSeal,
   resolveSystemBlockchainConfig,
@@ -743,12 +745,19 @@ function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, of
     timestamp: new Date().toISOString()
   });
 
+  incident.dispatchedAt = incident.dispatchUnit.dispatchedAt;
   recordIncidentBlockchainEvent(incident, LIFECYCLE_ACTIONS.OFFICER_DISPATCH, {
+    channel: 'zalo_bot',
     via: via || 'zalo',
     unitName: respondingName,
-    officerName: incident.dispatchUnit.officerFullTitle,
+    stationAddress: assignedAddr,
+    officerRank: resolvedRank,
+    officerName: resolvedOfficer,
+    officerFullTitle: incident.dispatchUnit.officerFullTitle,
+    officerAccount: chatId ? `zalo:${chatId}` : 'zalo_bot',
     officerPhone: resolvedPhone,
-    etaMinutes: eta
+    etaMinutes: eta,
+    dispatchedAt: incident.dispatchUnit.dispatchedAt
   });
 
   saveIncidentHistory();
@@ -1995,19 +2004,14 @@ function escapeHtmlSafe(str) {
     .replace(/'/g, '&#39;');
 }
 
+function resolveOptionalOfficerSession(req) {
+  const token = securityFirewall.extractToken(req);
+  if (!token || securityFirewall.isTokenRevoked(token)) return null;
+  return securityCryptoService.verifySessionToken(token);
+}
+
 function describeLifecycleActionVi(actionType) {
-  switch (actionType) {
-    case LIFECYCLE_ACTIONS.SOS_TRIGGER:
-      return '1. Kích hoạt SOS & Khóa tọa độ DePIN';
-    case LIFECYCLE_ACTIONS.EVIDENCE_SEAL:
-      return '2. Niêm phong chứng cứ hiện trường (SHA-256)';
-    case LIFECYCLE_ACTIONS.OFFICER_DISPATCH:
-      return '3. Cán bộ trực ban tiếp nhận & xuất phát';
-    case LIFECYCLE_ACTIONS.CASE_RESOLVED:
-      return '4. Hoàn tất cứu hộ & Đóng hồ sơ vụ việc';
-    default:
-      return actionType;
-  }
+  return describeBlockchainActionVi(actionType);
 }
 
 function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, options = {}) {
@@ -2028,19 +2032,85 @@ function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, o
       latestTxHash: null,
       latestEvidenceHash: null,
       responseTimeSeconds: null,
+      approachingTimeSeconds: null,
+      travelTimeSeconds: null,
+      totalToSceneSeconds: null,
+      onSceneHandlingSeconds: null,
+      totalCaseDurationSeconds: null,
+      processSummary: null,
       auditTrail: []
     };
   }
 
+  const triggerIso = incident.blockchain.triggerTimestamp || incident.createdAt || nowIso;
+  const triggerMs = Date.parse(triggerIso);
+  const calcSec = (startMs, endMs) => (
+    Number.isFinite(startMs) && Number.isFinite(endMs)
+      ? Math.max(0, Math.round((endMs - startMs) / 1000))
+      : null
+  );
+
   const enrichedPayload = { ...payloadData };
-  if (actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH) {
-    const t1 = Date.parse(incident.blockchain.triggerTimestamp || incident.createdAt || nowIso);
-    const t3 = Date.parse(nowIso);
-    const responseSec = Number.isFinite(t1) && Number.isFinite(t3)
-      ? Math.max(0, Math.round((t3 - t1) / 1000))
-      : 0;
+  if (actionType === LIFECYCLE_ACTIONS.SOS_TRIGGER) {
+    enrichedPayload.triggeredAt = enrichedPayload.triggeredAt || incident.createdAt || nowIso;
+  } else if (actionType === LIFECYCLE_ACTIONS.CASE_ESCALATED) {
+    enrichedPayload.escalatedAt = enrichedPayload.escalatedAt || nowIso;
+    const waitSec = calcSec(triggerMs, Date.parse(enrichedPayload.escalatedAt));
+    if (waitSec !== null && enrichedPayload.waitBeforeEscalationSeconds === undefined) {
+      enrichedPayload.waitBeforeEscalationSeconds = waitSec;
+    }
+  } else if (actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH) {
+    const dispIso = enrichedPayload.dispatchedAt || incident.dispatchUnit?.dispatchedAt || nowIso;
+    incident.dispatchedAt = dispIso;
+    enrichedPayload.dispatchedAt = dispIso;
+    const responseSec = calcSec(triggerMs, Date.parse(dispIso)) ?? 0;
     enrichedPayload.responseTimeSeconds = responseSec;
     incident.blockchain.responseTimeSeconds = responseSec;
+  } else if (actionType === LIFECYCLE_ACTIONS.OFFICER_APPROACHING) {
+    const apprIso = enrichedPayload.approachingAt || nowIso;
+    incident.approachingAt = apprIso;
+    enrichedPayload.approachingAt = apprIso;
+    const dispMs = Date.parse(incident.dispatchedAt || incident.dispatchUnit?.dispatchedAt || triggerIso);
+    const apprSec = calcSec(dispMs, Date.parse(apprIso)) ?? 0;
+    enrichedPayload.approachingTimeSeconds = apprSec;
+    incident.blockchain.approachingTimeSeconds = apprSec;
+  } else if (actionType === LIFECYCLE_ACTIONS.OFFICER_ARRIVED) {
+    const arrIso = enrichedPayload.arrivedAt || nowIso;
+    incident.arrivedAt = arrIso;
+    enrichedPayload.arrivedAt = arrIso;
+    const dispMs = Date.parse(incident.dispatchedAt || incident.dispatchUnit?.dispatchedAt || triggerIso);
+    const travelSec = calcSec(dispMs, Date.parse(arrIso)) ?? 0;
+    const totalSceneSec = calcSec(triggerMs, Date.parse(arrIso)) ?? travelSec;
+    enrichedPayload.travelTimeSeconds = travelSec;
+    enrichedPayload.totalToSceneSeconds = totalSceneSec;
+    incident.blockchain.travelTimeSeconds = travelSec;
+    incident.blockchain.totalToSceneSeconds = totalSceneSec;
+  } else if (actionType === LIFECYCLE_ACTIONS.CASE_RESOLVED || actionType === LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED) {
+    const endIso = enrichedPayload.resolvedAt || enrichedPayload.flaggedAt || nowIso;
+    incident.resolvedAt = endIso;
+    if (actionType === LIFECYCLE_ACTIONS.CASE_RESOLVED) {
+      enrichedPayload.resolvedAt = endIso;
+    } else {
+      enrichedPayload.flaggedAt = endIso;
+    }
+    const endMs = Date.parse(endIso);
+    const totalSec = calcSec(triggerMs, endMs) ?? 0;
+    enrichedPayload.totalCaseDurationSeconds = totalSec;
+    incident.blockchain.totalCaseDurationSeconds = totalSec;
+    if (incident.blockchain.responseTimeSeconds !== null && incident.blockchain.responseTimeSeconds !== undefined) {
+      enrichedPayload.responseTimeSeconds = incident.blockchain.responseTimeSeconds;
+    }
+    if (incident.blockchain.travelTimeSeconds !== null && incident.blockchain.travelTimeSeconds !== undefined) {
+      enrichedPayload.travelTimeSeconds = incident.blockchain.travelTimeSeconds;
+      enrichedPayload.totalToSceneSeconds = incident.blockchain.totalToSceneSeconds;
+    }
+    if (incident.arrivedAt) {
+      const onSceneSec = calcSec(Date.parse(incident.arrivedAt), endMs);
+      if (onSceneSec !== null) {
+        enrichedPayload.onSceneHandlingSeconds = onSceneSec;
+        incident.blockchain.onSceneHandlingSeconds = onSceneSec;
+      }
+    }
   }
 
   const { receipt } = blockchainLedgerService.sealBlockSync(actionType, incident.id, enrichedPayload, {
@@ -2065,13 +2135,29 @@ function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, o
 
   let summaryText = describeLifecycleActionVi(actionType);
   if (actionType === LIFECYCLE_ACTIONS.SOS_TRIGGER) {
-    summaryText = `Khởi tạo hồ sơ #${incident.id} (${incident.isHardwareSos ? (incident.hardwareSecurity?.status || 'IOT_DEPIN') : (incident.isStealthSos ? 'WEB_STEALTH' : 'WEB_SOS')})`;
+    const reporter = enrichedPayload.reporterName || incident.reporterName || 'Người dân';
+    const chan = incident.isHardwareSos ? (incident.hardwareSecurity?.status || 'IOT_DEPIN') : (incident.isStealthSos ? 'WEB_STEALTH' : 'WEB_SOS');
+    summaryText = `${reporter} báo SOS (${chan}) → Định tuyến ${enrichedPayload.routedUnitName || incident.assignedUnit?.name || 'Trạm gần nhất'}`;
   } else if (actionType === LIFECYCLE_ACTIONS.EVIDENCE_SEAL) {
-    summaryText = `Niêm phong chứng cứ ${enrichedPayload.evidenceId || ''} (${enrichedPayload.mimeType || 'audio/webm'})`;
+    summaryText = `Niêm phong chứng cứ ${enrichedPayload.evidenceId || ''} (${enrichedPayload.mimeType || 'dữ liệu hiện trường'})`;
+  } else if (actionType === LIFECYCLE_ACTIONS.CASE_ESCALATED) {
+    summaryText = `Chuyển vượt cấp lên ${enrichedPayload.targetUnitName || 'Chỉ huy Tỉnh/TP'} (Chờ: ${formatDurationSecondsVi(enrichedPayload.waitBeforeEscalationSeconds)})`;
   } else if (actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH) {
-    summaryText = `${enrichedPayload.officerName || 'Cán bộ trực ban'} tiếp nhận (Phản ứng: ${incident.blockchain.responseTimeSeconds ?? 0}s)`;
+    const who = enrichedPayload.officerFullTitle || enrichedPayload.officerName || 'Cán bộ trực ban';
+    summaryText = `${who} (${enrichedPayload.unitName || 'Đơn vị'}) nhận ca — Phản ứng: ${formatDurationSecondsVi(incident.blockchain.responseTimeSeconds)}`;
+  } else if (actionType === LIFECYCLE_ACTIONS.OFFICER_APPROACHING) {
+    const who = enrichedPayload.officerFullTitle || enrichedPayload.officerName || 'Tổ công tác';
+    summaryText = `${who} áp sát hiện trường < 300m (${formatDurationSecondsVi(incident.blockchain.approachingTimeSeconds)})`;
+  } else if (actionType === LIFECYCLE_ACTIONS.OFFICER_ARRIVED) {
+    const who = enrichedPayload.officerFullTitle || enrichedPayload.officerName || 'Tổ công tác';
+    summaryText = `${who} đã tới hiện trường — Di chuyển: ${formatDurationSecondsVi(incident.blockchain.travelTimeSeconds)}`;
   } else if (actionType === LIFECYCLE_ACTIONS.CASE_RESOLVED) {
-    summaryText = `Đóng hồ sơ an toàn (${enrichedPayload.closedBy === 'citizen' ? 'Công dân xác nhận' : 'Trực ban xác nhận'})`;
+    const actor = enrichedPayload.closedBy === 'citizen'
+      ? 'Công dân báo an toàn'
+      : (enrichedPayload.officerFullTitle || enrichedPayload.officerName || 'Trực ban');
+    summaryText = `${actor} đóng hồ sơ hoàn tất — Tổng quy trình: ${formatDurationSecondsVi(incident.blockchain.totalCaseDurationSeconds)}`;
+  } else if (actionType === LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED) {
+    summaryText = `${enrichedPayload.officerFullTitle || 'Cán bộ'} lập biên bản báo tin giả NĐ 144 (${formatDurationSecondsVi(incident.blockchain.totalCaseDurationSeconds)})`;
   }
 
   incident.blockchain.auditTrail.push({
@@ -2082,15 +2168,30 @@ function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, o
     blockNumber: receipt.blockNumber,
     txHash: receipt.txHash,
     prevHash: receipt.prevHash,
+    payloadDigest: receipt.payloadDigest,
     evidenceHash: receipt.evidenceHash,
+    officerFullTitle: enrichedPayload.officerFullTitle || enrichedPayload.officerName || undefined,
+    unitName: enrichedPayload.unitName || enrichedPayload.targetUnitName || enrichedPayload.routedUnitName || undefined,
     responseTimeSeconds: actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH ? incident.blockchain.responseTimeSeconds : undefined,
+    travelTimeSeconds: actionType === LIFECYCLE_ACTIONS.OFFICER_ARRIVED ? incident.blockchain.travelTimeSeconds : undefined,
+    onSceneHandlingSeconds: actionType === LIFECYCLE_ACTIONS.CASE_RESOLVED ? incident.blockchain.onSceneHandlingSeconds : undefined,
+    totalCaseDurationSeconds: (actionType === LIFECYCLE_ACTIONS.CASE_RESOLVED || actionType === LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED)
+      ? incident.blockchain.totalCaseDurationSeconds
+      : undefined,
     timestamp: receipt.timestamp
   });
+
+  const caseBlocks = blockchainLedgerService.getCaseBlocks(incident.id);
+  incident.blockchain.processSummary = blockchainLedgerService.buildCaseProcessSummary(
+    caseBlocks,
+    incident,
+    { includeRawPii: true }
+  );
 
   return receipt;
 }
 
-function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl) {
+function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl, portalUrl = '', processSummary = null) {
   const payloadData = block?.payload?.data || {};
   const maskedPhone = payloadData.reporterPhone ? maskExplorerPii(payloadData.reporterPhone, 3, 3) : null;
   const maskedCccd = payloadData.userCCCD ? maskExplorerPii(payloadData.userCCCD, 4, 3) : null;
@@ -2098,6 +2199,7 @@ function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explo
     ? '✔ CHUỖI KHỐI NGUYÊN VẸN 100% (IMMUTABLE VERIFIED)'
     : '⚠ CẢNH BÁO SAI LỆCH SỔ CÁI';
   const badgeColor = chainCheck?.allBlocksIntact ? '#10b981' : '#ef4444';
+  const dur = processSummary?.durations || {};
   const trailRows = (chainCheck?.blocks || []).map((b) => `
     <tr>
       <td style="padding:8px 10px;border-bottom:1px solid #1e293b;color:#38bdf8;font-family:monospace;">#${b.blockNumber}</td>
@@ -2114,17 +2216,18 @@ function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explo
   <title>Chứng Thực Chuỗi Khối Block #${block.blockNumber} — SOS Vietnam Chain</title>
   <style>
     body { margin:0; background:#060c18; color:#e2e8f0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding:24px; }
-    .wrap { max-width:880px; margin:0 auto; background:#0f172a; border:1px solid #1e293b; border-radius:14px; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,0.55); }
+    .wrap { max-width:920px; margin:0 auto; background:#0f172a; border:1px solid #1e293b; border-radius:14px; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,0.55); }
     .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:1px solid #1e293b; padding-bottom:16px; flex-wrap:wrap; }
     .title { font-size:18px; font-weight:800; color:#38bdf8; letter-spacing:0.4px; margin:0 0 6px 0; }
     .sub { font-size:13px; color:#94a3b8; margin:0; }
     .badge { display:inline-block; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; background:rgba(16,185,129,0.12); color:${badgeColor}; border:1px solid ${badgeColor}; }
     .grid { display:grid; grid-template-columns: 1fr auto; gap:20px; margin-top:20px; align-items:start; }
     @media (max-width:680px) { .grid { grid-template-columns: 1fr; } }
-    .kv { display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size:13px; }
+    .kv { display:grid; grid-template-columns: 195px 1fr; gap:8px 12px; font-size:13px; }
     .kv div:nth-child(odd) { color:#94a3b8; font-weight:600; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break:break-all; color:#f8fafc; }
     .qr-box { background:#ffffff; padding:10px; border-radius:10px; text-align:center; color:#0f172a; font-size:11px; font-weight:700; }
+    .cta-btn { display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:10px 16px; border-radius:10px; background:linear-gradient(135deg,#0284c7,#0ea5e9); color:#ffffff; text-decoration:none; font-weight:700; font-size:13px; }
     table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
     th { text-align:left; padding:8px 10px; background:#1e293b; color:#cbd5e1; font-size:12px; }
   </style>
@@ -2133,7 +2236,7 @@ function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explo
   <div class="wrap">
     <div class="hdr">
       <div>
-        <h1 class="title">⛓️ VI BẰNG BẢO CHỨNG SỐ — SOS VIETNAM BLOCKCHAIN EXPLORER</h1>
+        <h1 class="title">⛓️ VI BẰNG BẢO CHỨNG GIAO DỊCH QUY TRÌNH — SOS VIETNAM BLOCKCHAIN</h1>
         <p class="sub">${escapeHtmlSafe(block.envName)} · Chain ID: <strong>${block.chainId}</strong> (Canonical: 842026)</p>
       </div>
       <span class="badge">${intactBadge}</span>
@@ -2142,27 +2245,30 @@ function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explo
       <div class="kv">
         <div>Mã Hồ Sơ Sự Cố:</div><div class="mono">${escapeHtmlSafe(block.caseId)}</div>
         <div>Số Khối (Block):</div><div class="mono" style="color:#38bdf8;font-weight:700;">#${block.blockNumber}</div>
-        <div>Hành Động Nghiệp Vụ:</div><div>${escapeHtmlSafe(describeLifecycleActionVi(block.action))}</div>
+        <div>Bước Quy Trình:</div><div>${escapeHtmlSafe(describeLifecycleActionVi(block.action))}</div>
+        <div>Người Báo Tin:</div><div>${escapeHtmlSafe(processSummary?.reporter?.name || payloadData.reporterName || 'Người dân khẩn cấp')}${maskedPhone ? ` (${escapeHtmlSafe(maskedPhone)})` : ''}</div>
+        <div>Cán Bộ &amp; Đơn Vị Nhận Ca:</div><div>${escapeHtmlSafe(processSummary?.officer?.fullTitle || payloadData.officerFullTitle || payloadData.officerName || 'Đang điều phối')} — ${escapeHtmlSafe(processSummary?.officer?.unitName || payloadData.unitName || '')}</div>
+        <div>Thời Gian Tiếp Nhận:</div><div class="mono" style="color:#10b981;font-weight:700;">${escapeHtmlSafe(dur.responseTimeTextVi || 'Chưa ghi nhận')}</div>
+        <div>Thời Gian Di Chuyển Tới Nơi:</div><div class="mono" style="color:#38bdf8;font-weight:700;">${escapeHtmlSafe(dur.travelTimeTextVi || 'Chưa ghi nhận')}</div>
+        <div>Tổng Thời Gian Toàn Trình:</div><div class="mono" style="color:#fbbf24;font-weight:700;">${escapeHtmlSafe(dur.totalCaseDurationTextVi || 'Đang xử lý')}</div>
         <div>Mã Giao Dịch (TxHash):</div><div class="mono">${escapeHtmlSafe(block.txHash)}</div>
         <div>Khối Liên Kết Trước (PrevHash):</div><div class="mono">${escapeHtmlSafe(block.prevHash)}</div>
-        <div>Mã Băm Chứng Cứ (SHA-256):</div><div class="mono" style="color:#fbbf24;">${escapeHtmlSafe(block.evidenceHash)}</div>
+        <div>Mã Băm Dữ Liệu (SHA-256):</div><div class="mono" style="color:#fbbf24;">${escapeHtmlSafe(block.payloadDigest || block.evidenceHash)}</div>
         <div>Thời Gian Niêm Phong:</div><div class="mono">${escapeHtmlSafe(block.timestamp)}</div>
-        ${payloadData.hwMac ? `<div>Định Danh Chip Phần Cứng:</div><div class="mono">${escapeHtmlSafe(payloadData.hwMac)} (${escapeHtmlSafe(payloadData.hardwareStatus || 'DePIN')})</div>` : ''}
-        ${maskedPhone ? `<div>SĐT Công Dân (Đã che PII):</div><div class="mono">${escapeHtmlSafe(maskedPhone)}</div>` : ''}
         ${maskedCccd ? `<div>CCCD Định Danh (Đã che PII):</div><div class="mono">${escapeHtmlSafe(maskedCccd)}</div>` : ''}
-        ${payloadData.responseTimeSeconds !== undefined ? `<div>Thời Gian Phản Ứng Cứu Hộ:</div><div class="mono" style="color:#10b981;font-weight:700;">${Number(payloadData.responseTimeSeconds)} giây</div>` : ''}
       </div>
       <div class="qr-box">
         ${qrSvg}
-        <div style="margin-top:6px;">QUÉT XÁC THỰC BLOCK</div>
+        <div style="margin-top:6px;">QUÉT ĐỐI CHỨNG HỒ SƠ</div>
       </div>
     </div>
-    <h2 style="font-size:14px;color:#94a3b8;margin-top:24px;">LỊCH SỬ CHUỖI KHỐI CỦA HỒ SƠ (${(chainCheck?.blocks || []).length} BLOCK)</h2>
+    ${portalUrl ? `<a class="cta-btn" href="${escapeHtmlSafe(portalUrl)}">🔍 Mở Cổng Đối Chứng Xác Thực &amp; Phần Mềm Giải Mã Hồ Sơ (.JSON) ↗</a>` : ''}
+    <h2 style="font-size:14px;color:#94a3b8;margin-top:24px;">LỊCH SỬ GIAO DỊCH CHUỖI KHỐI CỦA HỒ SƠ (${(chainCheck?.blocks || []).length} BLOCK)</h2>
     <table>
-      <thead><tr><th>Block</th><th>Sự kiện vòng đời</th><th>TxHash</th><th>Toàn vẹn</th></tr></thead>
+      <thead><tr><th>Block</th><th>Sự kiện quy trình</th><th>TxHash</th><th>Toàn vẹn SHA-256</th></tr></thead>
       <tbody>${trailRows}</tbody>
     </table>
-    <p style="font-size:12px;color:#64748b;margin-top:18px;">URL Tra cứu công khai: <span class="mono">${escapeHtmlSafe(explorerUrl)}</span></p>
+    <p style="font-size:12px;color:#64748b;margin-top:18px;">URL Chứng thực: <span class="mono">${escapeHtmlSafe(portalUrl || explorerUrl)}</span></p>
   </div>
 </body>
 </html>`;
@@ -3154,6 +3260,119 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify(blockchainLedgerService.getLedgerStats(resolveEffectiveRequestHost(req))));
   }
 
+  if (urlPath === '/api/blockchain/recent' && req.method === 'GET') {
+    const officerSession = resolveOptionalOfficerSession(req);
+    const limit = Number(urlObj.searchParams.get('limit') || 20);
+    const result = blockchainLedgerService.getRecentBlocks(limit, {
+      includeRawPii: Boolean(officerSession),
+      host: resolveEffectiveRequestHost(req)
+    });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({
+      ...result,
+      viewerRole: officerSession ? 'officer' : 'public'
+    }));
+  }
+
+  if (urlPath === '/api/blockchain/lookup' && req.method === 'GET') {
+    const q = String(
+      urlObj.searchParams.get('q')
+      || urlObj.searchParams.get('tx')
+      || urlObj.searchParams.get('case')
+      || urlObj.searchParams.get('block')
+      || ''
+    ).trim();
+    if (!q) {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify({ ok: false, found: false, error: 'Vui lòng nhập Mã TxHash (0x...), Số Block (#101) hoặc Mã ca sự cố (SOS-...)' }));
+    }
+    const officerSession = resolveOptionalOfficerSession(req);
+    const includeRawPii = Boolean(officerSession);
+    const effectiveHost = resolveEffectiveRequestHost(req);
+    const directIncident = incidents.get(q) || Array.from(incidents.values()).find((it) => String(it?.id || '').toUpperCase() === q.toUpperCase()) || null;
+    let lookup = blockchainLedgerService.lookupLedger(q, {
+      includeRawPii,
+      incidentMeta: directIncident,
+      host: effectiveHost
+    });
+    if (lookup.found && lookup.caseId && !directIncident && incidents.has(lookup.caseId)) {
+      lookup = blockchainLedgerService.lookupLedger(q, {
+        includeRawPii,
+        incidentMeta: incidents.get(lookup.caseId),
+        host: effectiveHost
+      });
+    }
+    if (!lookup.found) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify({
+        ...lookup,
+        viewerRole: officerSession ? 'officer' : 'public',
+        error: 'Không tìm thấy mã giao dịch, số Block hoặc mã ca này trên Sổ cái hệ thống.'
+      }));
+    }
+    const origin = detectRequestOrigin(req);
+    const verificationPortalUrl = `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(lookup.matchedTxHash)}&case=${encodeURIComponent(lookup.caseId || '')}`;
+    const explorerCertificateUrl = `${origin}/api/blockchain/explorer/${encodeURIComponent(lookup.matchedTxHash)}`;
+    const qrSvg = generateQrCodeSvg(verificationPortalUrl);
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({
+      ...lookup,
+      viewerRole: officerSession ? 'officer' : 'public',
+      verificationPortalUrl,
+      explorerCertificateUrl,
+      qrSvg
+    }));
+  }
+
+  if (urlPath === '/api/blockchain/verify-dossier' && req.method === 'POST') {
+    let body = '';
+    let bodyTooLarge = false;
+    req.on('data', (chunk) => {
+      if (body.length + chunk.length > 2 * 1024 * 1024) {
+        bodyTooLarge = true;
+      } else {
+        body += chunk;
+      }
+    });
+    req.on('end', () => {
+      if (bodyTooLarge) {
+        res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: 'Tệp hồ sơ JSON vượt quá giới hạn 2MB.' }));
+      }
+      try {
+        const parsed = JSON.parse(body || '{}');
+        const targetPayload = parsed && typeof parsed === 'object' && parsed.dossier !== undefined
+          ? parsed.dossier
+          : parsed;
+        const result = blockchainLedgerService.verifyExportedDossier(targetPayload, {
+          host: resolveEffectiveRequestHost(req)
+        });
+        const origin = detectRequestOrigin(req);
+        const latestTx = result.processSummary?.latestTxHash || '';
+        const caseId = result.processSummary?.caseId || '';
+        const verificationPortalUrl = latestTx
+          ? `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(latestTx)}&case=${encodeURIComponent(caseId)}`
+          : `${origin}/tra-cuu-blockchain.html`;
+        const qrSvg = latestTx ? generateQrCodeSvg(verificationPortalUrl) : null;
+        res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(JSON.stringify({
+          ...result,
+          verificationPortalUrl,
+          qrSvg
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          ok: false,
+          verified: false,
+          verdictCode: 'INVALID_JSON',
+          error: 'Nội dung tải lên không phải định dạng JSON hợp lệ: ' + err.message
+        }));
+      }
+    });
+    return;
+  }
+
   if (urlPath.startsWith('/api/blockchain/explorer/') && req.method === 'GET') {
     const ref = decodeURIComponent(urlPath.replace('/api/blockchain/explorer/', '').trim());
     let block = blockchainLedgerService.findBlockByTxOrNumber(ref);
@@ -3166,16 +3385,26 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy Block hoặc mã giao dịch TxHash trên sổ cái' }));
     }
     const chainCheck = blockchainLedgerService.verifyCaseChainIntegrity(block.caseId);
+    const caseBlocks = block.caseId ? blockchainLedgerService.getCaseBlocks(block.caseId) : [block];
+    const officerSession = resolveOptionalOfficerSession(req);
+    const processSummary = blockchainLedgerService.buildCaseProcessSummary(
+      caseBlocks,
+      block.caseId ? incidents.get(block.caseId) : null,
+      { includeRawPii: Boolean(officerSession) }
+    );
     const origin = detectRequestOrigin(req);
     const explorerUrl = `${origin}/api/blockchain/explorer/${block.txHash}`;
-    const qrSvg = generateQrCodeSvg(explorerUrl);
+    const portalUrl = `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(block.txHash)}&case=${encodeURIComponent(block.caseId || '')}`;
+    const qrSvg = generateQrCodeSvg(portalUrl);
     const wantsJson = urlObj.searchParams.get('format') === 'json' ||
       (String(req.headers.accept || '').includes('application/json') && !String(req.headers.accept || '').includes('text/html'));
 
     if (wantsJson) {
       const safePayload = { ...(block.payload?.data || {}) };
-      if (safePayload.reporterPhone) safePayload.reporterPhone = maskExplorerPii(safePayload.reporterPhone, 3, 3);
-      if (safePayload.userCCCD) safePayload.userCCCD = maskExplorerPii(safePayload.userCCCD, 4, 3);
+      if (!officerSession) {
+        if (safePayload.reporterPhone) safePayload.reporterPhone = maskExplorerPii(safePayload.reporterPhone, 3, 3);
+        if (safePayload.userCCCD) safePayload.userCCCD = maskExplorerPii(safePayload.userCCCD, 4, 3);
+      }
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify({
         ok: true,
@@ -3183,13 +3412,15 @@ const server = http.createServer(async (req, res) => {
           ...block,
           payload: { ...block.payload, data: safePayload }
         },
+        processSummary,
         chainIntegrity: chainCheck,
         explorerUrl,
+        verificationPortalUrl: portalUrl,
         qrSvg
       }));
     }
 
-    const html = renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl);
+    const html = renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl, portalUrl, processSummary);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(html);
   }
@@ -5518,14 +5749,36 @@ const server = http.createServer(async (req, res) => {
         normalizeHardwareIncidentForDisplay(incident);
 
         // Seal 1_SOS_TRIGGER onto Blockchain Ledger before persisting & broadcasting
+        const triggerChannel = incident.isHardwareSos
+          ? 'IOT_4G'
+          : (incident.isStealthSos ? `WEB_STEALTH_${String(incident.stealthModeType || 'SILENT').toUpperCase()}` : 'WEB_SOS');
+        const triggerChannelLabelVi = incident.isHardwareSos
+          ? 'Thiết bị Thẻ / Vòng SOS Phần cứng 4G DePIN'
+          : (incident.isStealthSos
+            ? (incident.stealthModeType === 'fake_call_ios' ? 'Ngụy trang Giả Cuộc Gọi Đến (Web Stealth)' : 'Ngụy trang Màn Hình Tắt Đen (Web Stealth)')
+            : 'Cổng Web Khẩn Cấp SOSVie');
         const triggerReceipt = recordIncidentBlockchainEvent(
           incident,
           LIFECYCLE_ACTIONS.SOS_TRIGGER,
           {
+            reporterName: incident.reporterName,
+            reporterPhone: incident.reporterPhone,
+            userCCCD: incident.reporterCCCD,
+            clientIp: incident.clientIp,
+            channel: triggerChannel,
+            channelLabelVi: triggerChannelLabelVi,
             agency: incident.agency,
+            agencyName: incident.agencyName,
             lat: incident.lat,
             lng: incident.lng,
+            accuracy: incident.accuracy,
             address: incident.address,
+            incidentTags: incident.incidentTags || [],
+            customNotes: incident.customNotes || incident.notes || '',
+            routedUnitName: localUnit.name,
+            routedUnitAddress: localUnit.address,
+            routedUnitPhone: localUnit.phone,
+            initialLevel,
             isHardwareSos: incident.isHardwareSos,
             isStealthSos: incident.isStealthSos,
             stealthModeType: incident.stealthModeType,
@@ -5535,8 +5788,7 @@ const server = http.createServer(async (req, res) => {
             hardwareVerified: Boolean(incident.hardwareSecurity?.verified),
             bcSeal: incident.hardwareSecurity?.bcSeal || null,
             liveEvidenceHash: incident.hardwareSecurity?.liveEvidenceHash || null,
-            reporterPhone: incident.reporterPhone,
-            userCCCD: incident.reporterCCCD
+            triggeredAt: incident.createdAt
           },
           { host: resolveEffectiveRequestHost(req) }
         );
@@ -5597,6 +5849,20 @@ const server = http.createServer(async (req, res) => {
                 text: `Hệ thống đã chuyển thẳng quyền xử lý ca này lên Trụ sở chính cấp Tỉnh/TP: ${provinceUnit.name} (Địa chỉ: ${provinceUnit.address} - SĐT: ${provinceUnit.phone}).`,
                 timestamp: new Date().toISOString()
               });
+
+              recordIncidentBlockchainEvent(
+                inc,
+                LIFECYCLE_ACTIONS.CASE_ESCALATED,
+                {
+                  previousUnitName: inc.previousAssignedUnit?.name || localUnit.name,
+                  targetUnitName: provinceUnit.name,
+                  targetUnitAddress: provinceUnit.address,
+                  escalatedByOfficer: 'Hệ thống Tự động Vượt cấp',
+                  reason: `Quá hạn tiếp nhận tại cấp cơ sở (${escMinutesLabel})`,
+                  escalatedAt: inc.escalatedAt
+                },
+                { host: resolveEffectiveRequestHost(req) }
+              );
 
               saveIncidentHistory();
               notifyCitizen(id, 'sos_update', inc);
@@ -6041,7 +6307,8 @@ const server = http.createServer(async (req, res) => {
         for (const rec of evidenceList) {
           if (requestedEvidenceId && rec.evidenceId !== requestedEvidenceId) continue;
           const sealedBlock = caseBlocks.find(
-            (b) => b.payload?.actionType === LIFECYCLE_ACTIONS.EVIDENCE_SEAL && b.payload?.data?.evidenceId === rec.evidenceId
+            (b) => (b.action === LIFECYCLE_ACTIONS.EVIDENCE_SEAL || b.payload?.action === LIFECYCLE_ACTIONS.EVIDENCE_SEAL)
+              && b.payload?.data?.evidenceId === rec.evidenceId
           );
           const originalBlockchainHash = normalizeSha256Hex(
             sealedBlock?.payload?.data?.sha256Hash || rec.sha256Hash || ''
@@ -6090,42 +6357,59 @@ const server = http.createServer(async (req, res) => {
           : null;
 
         const latestBlock = caseBlocks.length > 0 ? caseBlocks[caseBlocks.length - 1] : null;
+        const latestChainAudit = Array.isArray(chainCheck.blocks) && chainCheck.blocks.length > 0
+          ? chainCheck.blocks[chainCheck.blocks.length - 1]
+          : null;
         const hwSpoofed = incident.hardwareSecurity?.status === 'SPOOF_SUSPECTED';
         const allEvidenceIntact = auditedEvidence.every((item) => item.matched === true);
         const verified = Boolean(chainCheck.ok && !hwSpoofed && allEvidenceIntact);
 
-        const originalBlockchainHash = primaryEvidence
-          ? primaryEvidence.originalBlockchainHash
-          : (incident.hardwareSecurity?.liveEvidenceHash || incident.blockchain?.latestHash || latestBlock?.hash || '');
-        const currentServerFileHash = primaryEvidence
-          ? primaryEvidence.currentServerFileHash
-          : (chainCheck.ok && !hwSpoofed ? originalBlockchainHash : '0xTAMPERED_OR_SPOOFED_SIGNATURE');
-
         const txHash = primaryEvidence?.txHash || incident.blockchain?.latestTxHash || latestBlock?.txHash || '';
         const blockNumber = primaryEvidence?.blockNumber || incident.blockchain?.latestBlockNumber || latestBlock?.blockNumber || null;
+
+        const originalBlockchainHash = primaryEvidence
+          ? primaryEvidence.originalBlockchainHash
+          : (incident.hardwareSecurity?.liveEvidenceHash || latestBlock?.txHash || incident.blockchain?.latestTxHash || '');
+        const currentServerFileHash = primaryEvidence
+          ? primaryEvidence.currentServerFileHash
+          : (!hwSpoofed ? (latestChainAudit?.recomputedTxHash || originalBlockchainHash) : '0x0000000000000000000000000000000000000000000000000000000000000000');
+
+        const verificationPortalUrl = txHash
+          ? `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(txHash)}&case=${encodeURIComponent(incidentId)}`
+          : `${origin}/tra-cuu-blockchain.html?case=${encodeURIComponent(incidentId)}`;
         const explorerUrl = txHash ? `${origin}/api/blockchain/explorer/${encodeURIComponent(txHash)}` : `${origin}/api/blockchain/status`;
-        const qrSvg = generateQrCodeSvg(explorerUrl);
+        const qrSvg = generateQrCodeSvg(verificationPortalUrl);
+        const processSummary = blockchainLedgerService.buildCaseProcessSummary(caseBlocks, incident, { includeRawPii: true });
+        const resolvedChainName = sysConfig.networks?.[selectedNetwork]?.label
+          || sysConfig.networks?.SOS_CHAIN?.label
+          || 'SOS Chain (Chain ID: 842026)';
 
         const conclusion = verified
-          ? '✔ XÁC THỰC THÀNH CÔNG (100% NGUYÊN VẸN) - ĐỦ TIÊU CHUẨN TRÍCH XUẤT LÀM CHỨNG CỨ PHÁP LÝ'
+          ? '✔ XÁC THỰC THÀNH CÔNG (100% NGUYÊN VẸN) - ĐỦ TIÊU CHUẨN ĐỐI CHỨNG & TRÍCH XUẤT BIÊN BẢN PHÁP LÝ'
           : '❌ CẢNH BÁO VI PHẠM TOÀN VẸN DỮ LIỆU - PHÁT HIỆN DẤU HIỆU GIẢ MẠO HOẶC CHỈNH SỬA TRÁI PHÉP';
 
         const auditedAtIso = new Date().toISOString();
         const auditorOfficer = req.user?.username || req.headers['x-officer-username'] || 'admin';
         const legalDossier = {
+          schemaVersion: '2.1-PROCESS-DOSSIER',
           dossierId: `LEGAL-BC-${incidentId}-${Date.now()}`,
           auditedAt: auditedAtIso,
           auditorOfficer,
           selectedNetwork,
-          environmentLabel: sysConfig.envLabel,
+          environmentLabel: sysConfig.envName,
           chainId: sysConfig.chainId,
-          chainName: sysConfig.chainName,
+          canonicalChainId: 842026,
+          chainName: resolvedChainName,
           incidentId,
           agency: incident.agencyName || incident.agency,
           address: incident.address,
           coordinates: { lat: incident.lat, lng: incident.lng },
           hardwareSecurity: incident.hardwareSecurity || null,
-          responseTimeSeconds: incident.blockchain?.responseTimeSeconds ?? null,
+          responseTimeSeconds: processSummary.durations.responseTimeSeconds,
+          travelTimeSeconds: processSummary.durations.travelTimeSeconds,
+          onSceneHandlingSeconds: processSummary.durations.onSceneHandlingSeconds,
+          totalCaseDurationSeconds: processSummary.durations.totalCaseDurationSeconds,
+          processSummary,
           chainIntegrity: chainCheck,
           verified,
           conclusion,
@@ -6133,18 +6417,27 @@ const server = http.createServer(async (req, res) => {
           currentServerFileHash,
           blockNumber,
           txHash,
+          verificationPortalUrl,
           explorerUrl,
           downloadUrl: primaryEvidence?.downloadUrl || null,
           auditedEvidenceCount: auditedEvidence.length,
           auditedEvidence,
           lifecycleBlocks: caseBlocks.map((b) => ({
             blockNumber: b.blockNumber,
-            actionType: b.payload?.actionType,
-            txHash: b.txHash,
-            hash: b.hash,
+            action: b.action,
+            actionType: b.action,
+            actionLabelVi: describeLifecycleActionVi(b.action),
+            caseId: b.caseId,
+            timestamp: b.timestamp,
+            isoTime: b.timestamp,
             prevHash: b.prevHash,
-            isoTime: b.isoTime,
-            responseTimeSeconds: b.payload?.data?.responseTimeSeconds ?? null
+            txHash: b.txHash,
+            payloadDigest: b.payloadDigest,
+            evidenceHash: b.evidenceHash,
+            responseTimeSeconds: b.payload?.data?.responseTimeSeconds ?? null,
+            travelTimeSeconds: b.payload?.data?.travelTimeSeconds ?? null,
+            totalCaseDurationSeconds: b.payload?.data?.totalCaseDurationSeconds ?? null,
+            payload: b.payload
           }))
         };
 
@@ -6156,19 +6449,24 @@ const server = http.createServer(async (req, res) => {
           incidentId,
           selectedNetwork,
           chainId: sysConfig.chainId,
-          chainName: sysConfig.chainName,
-          environmentLabel: sysConfig.envLabel,
+          chainName: resolvedChainName,
+          environmentLabel: sysConfig.envName,
           blockNumber,
           txHash,
           originalBlockchainHash,
           currentServerFileHash,
           chainIntegrity: chainCheck,
           hardwareSecurity: incident.hardwareSecurity || null,
-          responseTimeSeconds: incident.blockchain?.responseTimeSeconds ?? null,
+          responseTimeSeconds: processSummary.durations.responseTimeSeconds,
+          travelTimeSeconds: processSummary.durations.travelTimeSeconds,
+          onSceneHandlingSeconds: processSummary.durations.onSceneHandlingSeconds,
+          totalCaseDurationSeconds: processSummary.durations.totalCaseDurationSeconds,
+          processSummary,
           auditedEvidenceCount: auditedEvidence.length,
           auditedEvidence,
           downloadUrl: primaryEvidence?.downloadUrl || null,
           primaryFileName: primaryEvidence?.fileName || null,
+          verificationPortalUrl,
           explorerUrl,
           qrSvg,
           legalDossier
@@ -6766,15 +7064,22 @@ const server = http.createServer(async (req, res) => {
 
         console.log(`🚓 [DISPATCH ACCEPT] #${id} by ${incident.dispatchUnit.officerFullTitle} (${incident.dispatchUnit.unitName})`);
 
+        incident.dispatchedAt = incident.dispatchUnit.dispatchedAt;
         recordIncidentBlockchainEvent(
           incident,
           LIFECYCLE_ACTIONS.OFFICER_DISPATCH,
           {
+            channel: 'web_dispatcher',
             via: 'web_dispatcher',
             unitName: respondingName,
-            officerName: incident.dispatchUnit.officerFullTitle,
+            stationAddress: incident.assignedUnit.address,
+            officerRank: rank,
+            officerName: officer,
+            officerFullTitle: incident.dispatchUnit.officerFullTitle,
+            officerAccount: req.user?.username || 'dispatcher',
             officerPhone: phone,
-            etaMinutes: eta
+            etaMinutes: eta,
+            dispatchedAt: incident.dispatchUnit.dispatchedAt
           },
           { host: resolveEffectiveRequestHost(req) }
         );
@@ -6852,6 +7157,20 @@ const server = http.createServer(async (req, res) => {
           text: `⚡ [CHUYỂN CẤP THÀNH PHỐ] Ca sự cố #${id} đã được chuyển từ ${previousUnitName} lên ${targetCityHq.name} (Địa chỉ: ${targetCityHq.address} - SĐT: ${targetCityHq.phone}) để điều phối toàn địa bàn thành phố.`,
           timestamp: new Date().toISOString()
         });
+
+        recordIncidentBlockchainEvent(
+          incident,
+          LIFECYCLE_ACTIONS.CASE_ESCALATED,
+          {
+            previousUnitName,
+            targetUnitName: targetCityHq.name,
+            targetUnitAddress: targetCityHq.address,
+            escalatedByOfficer: [officerRank, officerName].filter(Boolean).join(' ').trim() || req.user?.username || 'Cán bộ trực ban',
+            reason: reason || 'Chuyển vượt cấp lên Chỉ huy Tỉnh/Thành phố',
+            escalatedAt: incident.escalatedAt
+          },
+          { host: resolveEffectiveRequestHost(req) }
+        );
 
         saveIncidentHistory();
         notifyCitizen(id, 'sos_update', incident);
@@ -6973,9 +7292,23 @@ const server = http.createServer(async (req, res) => {
             step: 4,
             title: 'Đang tiếp cận hiện trường',
             desc: 'Đội cứu hộ đã đến gần khu vực của bạn, hãy quan sát đèn còi ưu tiên',
-            time: new Date().toISOString(),
+            time: incident.updatedAt,
             done: true
           });
+          recordIncidentBlockchainEvent(
+            incident,
+            LIFECYCLE_ACTIONS.OFFICER_APPROACHING,
+            {
+              officerRank: incident.dispatchUnit?.officerRank || null,
+              officerName: incident.dispatchUnit?.officerName || null,
+              officerFullTitle: incident.dispatchUnit?.officerFullTitle || req.user?.officerName || 'Tổ công tác hiện trường',
+              officerAccount: req.user?.username || null,
+              unitName: incident.dispatchUnit?.unitName || incident.assignedUnit?.name || '',
+              approachingAt: incident.updatedAt,
+              note: message || incident.statusText
+            },
+            { host: resolveEffectiveRequestHost(req), timestamp: incident.updatedAt }
+          );
         } else if (status === 'arrived') {
           incident.stepIndex = 4;
           incident.statusText = 'Đội cứu hộ đã có mặt tại hiện trường!';
@@ -6983,9 +7316,24 @@ const server = http.createServer(async (req, res) => {
             step: 4,
             title: 'Đã có mặt tại hiện trường',
             desc: 'Lực lượng cứu hộ đang trực tiếp hỗ trợ bạn',
-            time: new Date().toISOString(),
+            time: incident.updatedAt,
             done: true
           });
+          recordIncidentBlockchainEvent(
+            incident,
+            LIFECYCLE_ACTIONS.OFFICER_ARRIVED,
+            {
+              officerRank: incident.dispatchUnit?.officerRank || null,
+              officerName: incident.dispatchUnit?.officerName || null,
+              officerFullTitle: incident.dispatchUnit?.officerFullTitle || req.user?.officerName || 'Tổ công tác hiện trường',
+              officerAccount: req.user?.username || null,
+              unitName: incident.dispatchUnit?.unitName || incident.assignedUnit?.name || '',
+              etaMinutes: incident.dispatchUnit?.etaMinutes || incident.etaMinutes || 5,
+              arrivedAt: incident.updatedAt,
+              note: message || incident.statusText
+            },
+            { host: resolveEffectiveRequestHost(req), timestamp: incident.updatedAt }
+          );
         } else if (status === 'resolved') {
           zaloBotService.clearIncidentZaloTimer(id);
           incident.stepIndex = 5;
@@ -6994,7 +7342,7 @@ const server = http.createServer(async (req, res) => {
             step: 5,
             title: 'Hoàn tất hỗ trợ',
             desc: 'Ca cứu hộ đã hoàn thành tốt đẹp. Cảm ơn bạn đã tin tưởng hệ thống!',
-            time: new Date().toISOString(),
+            time: incident.updatedAt,
             done: true
           });
           recordIncidentBlockchainEvent(
@@ -7003,10 +7351,14 @@ const server = http.createServer(async (req, res) => {
             {
               closedBy: 'dispatcher',
               unitName: incident.dispatchUnit?.unitName || incident.assignedUnit?.name || '',
-              officerName: req.user?.officerName || incident.dispatchUnit?.officerFullTitle || 'Trực ban',
+              officerRank: incident.dispatchUnit?.officerRank || null,
+              officerName: incident.dispatchUnit?.officerName || null,
+              officerFullTitle: incident.dispatchUnit?.officerFullTitle || req.user?.officerName || 'Trực ban',
+              officerAccount: req.user?.username || null,
+              resolvedAt: incident.updatedAt,
               resolutionNote: message || incident.statusText
             },
-            { host: resolveEffectiveRequestHost(req) }
+            { host: resolveEffectiveRequestHost(req), timestamp: incident.updatedAt }
           );
         }
 
@@ -7122,6 +7474,24 @@ const server = http.createServer(async (req, res) => {
           time: flaggedAt,
           done: true
         });
+
+        recordIncidentBlockchainEvent(
+          incident,
+          LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED,
+          {
+            closedBy: 'dispatcher',
+            officerFullTitle: osintTrace.flaggedBy,
+            officerAccount: req.user?.username || null,
+            unitName: osintTrace.unitName,
+            reason: osintTrace.flaggedReason,
+            notes: osintTrace.officerNotes,
+            clientIp,
+            lat: incident.lat,
+            lng: incident.lng,
+            flaggedAt
+          },
+          { host: resolveEffectiveRequestHost(req), timestamp: flaggedAt }
+        );
 
         // Add to fake archive (prevent duplicates by ID)
         const existingIdx = fakeIncidentsArchive.findIndex(f => f.id === id);
@@ -7948,14 +8318,20 @@ const server = http.createServer(async (req, res) => {
         incident.messages = Array.isArray(incident.messages) ? incident.messages : [];
         incident.messages.push(systemMsg);
 
+        incident.resolvedAt = now;
         recordIncidentBlockchainEvent(
           incident,
           LIFECYCLE_ACTIONS.CASE_RESOLVED,
           {
             closedBy: 'citizen',
+            reporterName: incident.reporterName,
+            unitName: incident.dispatchUnit?.unitName || incident.assignedUnit?.name || '',
+            officerFullTitle: incident.dispatchUnit?.officerFullTitle || null,
+            resolvedAt: now,
+            resolutionNote: reason,
             reason
           },
-          { host: resolveEffectiveRequestHost(req) }
+          { host: resolveEffectiveRequestHost(req), timestamp: now }
         );
         saveIncidentHistory();
 
