@@ -13,10 +13,11 @@
  *      * Pitch-black (#000000, 100vw x 100vh, z-index: 999999) screen-off illusion + WakeLock
  *      * 4-consecutive-tap anti-attacker unlock guard.
  *  - Covert Forensics Pipeline (active in BOTH modes):
- *      * Silent SOS creation (or attachment to active SOS) with zero visible alerts/popups
- *      * Standalone 5000ms MediaRecorder segments -> Browser WebCrypto SHA-256 digest ->
- *        multipart upload to POST /api/sos/upload-evidence (sealing 2_EVIDENCE_SEAL blocks)
+ *      * Silent SOS creation (or attachment to active SOS) with zero visible alerts/popups,
+ *        sealing lightweight transaction-grade process blocks on the SHA-256 ledger
  *      * Continuous GPS telemetry via navigator.geolocation.watchPosition -> POST /api/sos/stealth-gps
+ *      * Optional 5000ms MediaRecorder audio segments (disabled by default to keep Stealth SOS
+ *        instant & lightweight; opt-in via options.enableAudioRecording or window.__SOS_ENABLE_STEALTH_AUDIO)
  */
 
 const IS_PRODUCTION = typeof window !== 'undefined' &&
@@ -77,9 +78,13 @@ function negotiateAudioMimeType() {
   return { mimeType: '', ext: 'webm' };
 }
 
-export function initStealthSOS(app) {
+export function initStealthSOS(app, options = {}) {
   if (!app || typeof document === 'undefined') return null;
   if (window.__sosStealthController) return window.__sosStealthController;
+
+  const isAudioRecordingEnabled = () => Boolean(
+    options?.enableAudioRecording ?? (window.__SOS_ENABLE_STEALTH_AUDIO === true)
+  );
 
   const state = {
     active: false,
@@ -123,6 +128,7 @@ export function initStealthSOS(app) {
       proximityBlackout: state.proximityBlackout,
       callerName: state.callerName,
       incidentId: app.activeIncident?.id || null,
+      audioRecordingEnabled: isAudioRecordingEnabled(),
       chunkIndex: state.chunkIndex,
       chunksUploaded: state.chunksUploaded,
       redTapCount: state.redTapCount,
@@ -632,9 +638,10 @@ export function initStealthSOS(app) {
     return null;
   };
 
-  // Standalone 5000ms segment recorder so EVERY 5s clip has complete WebM/MP4 headers & standalone SHA-256
+  // Standalone 5000ms segment recorder (opt-in only; disabled by default for lightweight transaction blocks)
   const startStealthEvidenceLoop = async (stealthMode) => {
-    if ( typeof window.MediaRecorder === 'undefined') return;
+    if (!isAudioRecordingEnabled()) return;
+    if (typeof window.MediaRecorder === 'undefined') return;
     const stream = await acquireAudioStream();
     if (!stream || !state.active) return;
 
@@ -967,6 +974,18 @@ export function initStealthSOS(app) {
   }
   if (btnTrackingBlackout) {
     btnTrackingBlackout.addEventListener('click', () => launchBlackoutStealthMode());
+  }
+
+  const btnCitizenVerifyBc = document.getElementById('btnCitizenVerifyBlockchain');
+  if (btnCitizenVerifyBc) {
+    btnCitizenVerifyBc.addEventListener('click', () => {
+      const rawTrackText = (document.getElementById('trackSosId')?.textContent || '').replace(/^#/, '').trim();
+      const activeId = (app.activeIncident?.id || (rawTrackText !== 'SOS-XXXX' ? rawTrackText : '') || '').trim();
+      const targetUrl = activeId
+        ? `/tra-cuu-blockchain.html?case=${encodeURIComponent(activeId)}`
+        : '/tra-cuu-blockchain.html';
+      window.open(targetUrl, '_blank', 'noopener');
+    });
   }
 
   if (btnIosAnswer) {

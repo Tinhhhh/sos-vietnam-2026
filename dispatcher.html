@@ -26,7 +26,7 @@
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-Bold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/css/style.css?v=20261102_web3_depin_v1">
+  <link rel="stylesheet" href="/css/style.css?v=20261102_bc_decoder_v2">
   <link rel="stylesheet" href="/css/map.css?v=20261013_mobile_v3">
   <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261013_mobile_v3">
   <link rel="stylesheet" href="/css/portal-cinematic.css?v=20261013_mobile_v3">
@@ -2344,6 +2344,9 @@
                 BẢO CHỨNG CHUỖI KHỐI (WEB3 / BLOCKCHAIN LEDGER)
               </div>
               <div class="bc-header-controls">
+                <a href="/tra-cuu-blockchain.html" target="_blank" rel="noopener" class="bc-portal-btn" id="btnOpenBcVerifierPortal" title="Mở Cổng Đối Chứng Xác Thực & Phần Mềm Giải Mã Hồ Sơ Chuỗi Khối (.JSON)">
+                  🔍 Đối Chứng &amp; Giải Mã ↗
+                </a>
                 <a href="/cap-phat-the.html" target="_blank" rel="noopener" class="bc-portal-btn" id="btnOpenDePinCardPortal" title="Mở Cổng Cấp Phát & Xác Minh Thẻ SOS DePIN (Web Serial)">
                   🪪 Cổng Thẻ DePIN ↗
                 </a>
@@ -2356,6 +2359,43 @@
             </div>
             <div class="bc-env-banner" id="uiBcEnvBanner">
               MÔI TRƯỜNG THỬ NGHIỆM (TEST SANDBOX) · CHAIN ID: 84202600 · SOS_RENDER_SANDBOX
+            </div>
+
+            <!-- 0. Giao dịch Quy trình Cứu hộ bất biến (Ai báo, Ai nhận, Thời lượng từng khâu) -->
+            <div class="bc-section" id="uiProcessSummarySection">
+              <div class="bc-section-label">GIAO DỊCH QUY TRÌNH CA TRỰC (AI BÁO · AI NHẬN · THỜI LƯỢNG)</div>
+              <div class="bc-process-box" id="uiProcessSummaryBox">
+                <div class="bc-process-row">
+                  <span>Người báo tin:</span>
+                  <strong id="uiProcReporter">--</strong>
+                </div>
+                <div class="bc-process-row">
+                  <span>Cán bộ &amp; Đơn vị nhận ca:</span>
+                  <strong id="uiProcOfficer" style="color:#00ECF3;">Đang chờ tiếp nhận...</strong>
+                </div>
+                <div class="bc-process-row">
+                  <span>Mốc giờ báo → Nhận ca:</span>
+                  <strong id="uiProcTimestamps">--</strong>
+                </div>
+                <div class="bc-process-durations">
+                  <div class="bc-dur-chip">
+                    <small>⏱ Tiếp nhận (Phản ứng)</small>
+                    <strong id="uiProcDurResponse">Chưa ghi nhận</strong>
+                  </div>
+                  <div class="bc-dur-chip">
+                    <small>🚓 Di chuyển tới nơi</small>
+                    <strong id="uiProcDurTravel">Chưa ghi nhận</strong>
+                  </div>
+                  <div class="bc-dur-chip">
+                    <small>🛠️ Xử lý hiện trường</small>
+                    <strong id="uiProcDurScene">Chưa ghi nhận</strong>
+                  </div>
+                  <div class="bc-dur-chip">
+                    <small>🏁 Tổng quy trình ca</small>
+                    <strong id="uiProcDurTotal" style="color:#FBBF24;">Đang xử lý...</strong>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- 1. Xác thực phần cứng ESP32-C3 -->
@@ -2419,7 +2459,7 @@
             <!-- 4. Nút kiểm tra tính toàn vẹn trực tiếp & Xuất biên bản pháp lý -->
             <div class="bc-actions">
               <button type="button" class="btn-verify" id="btnRunIntegrityCheck" onclick="runIntegrityCheck()">
-                🛡️ KIỂM TRA TÍNH TOÀN VẸN CHỨNG CỨ (LIVE AUDIT)
+                🛡️ KIỂM TRA TOÀN VẸN &amp; XUẤT HỒ SƠ CHUỖI KHỐI (LIVE AUDIT)
               </button>
               <div id="verifyResult" class="verify-result" style="display: none;"></div>
             </div>
@@ -3906,7 +3946,7 @@
     });
   </script>
   <script src="/js/tactical-layout.js?v=20260918_rootfix_v5"></script>
-  <script type="module" src="/js/dispatcher.js?v=20261102_web3_depin_v1"></script>
+  <script type="module" src="/js/dispatcher.js?v=20261102_bc_decoder_v2"></script>
   <!-- Anti-Download Video Protection -->
   <script>
     (function() {

@@ -17476,6 +17476,22 @@ class DispatcherApp {
     }
   }
 
+  formatBcDurationVi(seconds) {
+    if (seconds === null || seconds === undefined || !Number.isFinite(Number(seconds))) {
+      return 'Chưa ghi nhận';
+    }
+    const sec = Math.max(0, Math.round(Number(seconds)));
+    if (sec === 0) return '0 giây (< 1s)';
+    const hrs = Math.floor(sec / 3600);
+    const mins = Math.floor((sec % 3600) / 60);
+    const rem = sec % 60;
+    const parts = [];
+    if (hrs > 0) parts.push(`${hrs}g`);
+    if (mins > 0) parts.push(`${mins}p`);
+    if (rem > 0 || parts.length === 0) parts.push(`${rem}s`);
+    return parts.join(' ');
+  }
+
   renderBlockchainPanel(inc) {
     if (!inc) return;
     const panel = document.getElementById('bcSecurityPanel');
@@ -17539,16 +17555,17 @@ class DispatcherApp {
         }
       }
     } else {
-      const isStealth = Boolean(inc.isStealthSos || inc.stealthMode || (Array.isArray(inc.evidenceRecords) && inc.evidenceRecords.some(r => r && r.stealthMode && r.stealthMode !== 'DIRECT_EVIDENCE' && r.stealthMode !== 'CITIZEN_CHAT_MEDIA')));
+      const hasMediaClips = Array.isArray(inc.evidenceRecords) && inc.evidenceRecords.length > 0;
+      const isStealth = Boolean(inc.isStealthSos || inc.stealthMode || (hasMediaClips && inc.evidenceRecords.some(r => r && r.stealthMode && r.stealthMode !== 'DIRECT_EVIDENCE' && r.stealthMode !== 'CITIZEN_CHAT_MEDIA')));
       const stealthLabel = inc.stealthMode || inc.stealthModeType || 'STEALTH_CAMOUFLAGE';
       if (uiHwMac) {
         uiHwMac.textContent = isStealth
-          ? 'WebCrypto SHA-256 + MediaRecorder (Stealth SOS)'
+          ? (hasMediaClips ? 'WebCrypto SHA-256 + MediaRecorder (Stealth SOS)' : 'WebCrypto SHA-256 + Live GPS (Stealth Siêu Nhẹ)')
           : 'Web Citizen TLS 1.3 + W3C WebCrypto';
       }
       if (uiHwChannel) {
         uiHwChannel.textContent = isStealth
-          ? 'Luồng Ngụy Trang Khẩn Cấp (5s Audio + Live GPS)'
+          ? (hasMediaClips ? 'Luồng Ngụy Trang (Audio + Live GPS)' : 'Luồng Ngụy Trang Siêu Nhẹ (Giao dịch + Live GPS)')
           : 'HTTPS / SSE Trực Tuyến Quốc Gia';
       }
       if (uiCardBlockInfo) {
@@ -17586,7 +17603,7 @@ class DispatcherApp {
       } else if (inc.isHardwareSos) {
         uiEvidenceType.textContent = 'Tọa độ GPS Vệ tinh + Vân tay phần cứng mạch 4G';
       } else {
-        uiEvidenceType.textContent = 'Tọa độ GPS + Hồ sơ kích hoạt SOS ban đầu';
+        uiEvidenceType.textContent = 'Giao dịch Quy trình Cứu hộ + Tọa độ GPS (Không cần tệp âm thanh nặng)';
       }
     }
 
@@ -17621,8 +17638,87 @@ class DispatcherApp {
       uiEvidenceHash.textContent = displayHash;
     }
 
-    const txHash = latestEv?.txHash || bc.latestTxHash || bc.triggerTxHash || '';
-    const blockNum = latestEv?.blockNumber || bc.latestBlockNumber || bc.triggerBlockNumber || null;
+    const txHash = bc.latestTxHash || latestEv?.txHash || bc.triggerTxHash || '';
+    const blockNum = bc.latestBlockNumber || latestEv?.blockNumber || bc.triggerBlockNumber || null;
+    const portalLookupUrl = txHash
+      ? `/tra-cuu-blockchain.html?tx=${encodeURIComponent(txHash)}&case=${encodeURIComponent(inc.id || '')}`
+      : `/tra-cuu-blockchain.html?case=${encodeURIComponent(inc.id || '')}`;
+
+    const headerPortalBtn = document.getElementById('btnOpenBcVerifierPortal');
+    if (headerPortalBtn) {
+      headerPortalBtn.href = portalLookupUrl;
+    }
+
+    // 0. Populate Transaction Process Summary Box (Ai báo, Ai nhận, Thời lượng từng bước)
+    const ps = bc.processSummary || {};
+    const psDur = ps.durations || {};
+    const psTs = ps.timestamps || {};
+    const toDiffSec = (sIso, eIso) => {
+      if (!sIso || !eIso) return null;
+      const a = new Date(sIso).getTime();
+      const b = new Date(eIso).getTime();
+      return Number.isFinite(a) && Number.isFinite(b) ? Math.max(0, Math.round((b - a) / 1000)) : null;
+    };
+    const trigIso = psTs.triggeredAt || inc.createdAt || null;
+    const dispIso = psTs.dispatchedAt || inc.dispatchedAt || inc.acceptedAt || null;
+    const arrIso = psTs.arrivedAt || inc.arrivedAt || null;
+    const resIso = psTs.resolvedAt || inc.resolvedAt || null;
+
+    const respSecVal = psDur.responseTimeSeconds ?? bc.responseTimeSeconds ?? toDiffSec(trigIso, dispIso);
+    const travelSecVal = psDur.travelTimeSeconds ?? toDiffSec(dispIso, arrIso);
+    const sceneSecVal = psDur.onSceneHandlingSeconds ?? (arrIso && resIso ? toDiffSec(arrIso, resIso) : null);
+    const totalSecVal = psDur.totalCaseDurationSeconds ?? toDiffSec(trigIso, resIso);
+
+    const uiProcReporter = document.getElementById('uiProcReporter');
+    const uiProcOfficer = document.getElementById('uiProcOfficer');
+    const uiProcTimestamps = document.getElementById('uiProcTimestamps');
+    const uiProcDurResponse = document.getElementById('uiProcDurResponse');
+    const uiProcDurTravel = document.getElementById('uiProcDurTravel');
+    const uiProcDurScene = document.getElementById('uiProcDurScene');
+    const uiProcDurTotal = document.getElementById('uiProcDurTotal');
+
+    if (uiProcReporter) {
+      const rName = ps.reporter?.name || inc.reporterName || inc.userName || 'Người dân khẩn cấp';
+      const rPhone = inc.phone || inc.reporterPhone || ps.reporter?.phone || '';
+      uiProcReporter.textContent = rPhone ? `${rName} (${rPhone})` : rName;
+    }
+    if (uiProcOfficer) {
+      const offObj = inc.acceptedByOfficer || {};
+      const offTitle = (ps.officer?.accepted && ps.officer?.fullTitle)
+        || [offObj.rank, offObj.name].filter(Boolean).join(' ').trim()
+        || inc.acceptedByName
+        || '';
+      const unitTxt = ps.officer?.unitName || inc.assignedUnit?.name || '';
+      uiProcOfficer.textContent = offTitle
+        ? (unitTxt ? `${offTitle} · ${unitTxt}` : offTitle)
+        : (unitTxt ? `Đang điều phối (${unitTxt})` : 'Đang chờ cán bộ tiếp nhận...');
+    }
+    if (uiProcTimestamps) {
+      const fmtClock = (iso) => iso ? new Date(iso).toLocaleTimeString('vi-VN', { hour12: false }) : '--:--:--';
+      uiProcTimestamps.textContent = dispIso
+        ? `${fmtClock(trigIso)} → ${fmtClock(dispIso)}${arrIso ? ` → Tới: ${fmtClock(arrIso)}` : ''}`
+        : `Báo lúc ${fmtClock(trigIso)} (chờ nhận ca)`;
+    }
+    if (uiProcDurResponse) {
+      uiProcDurResponse.textContent = respSecVal !== null && respSecVal !== undefined
+        ? this.formatBcDurationVi(respSecVal)
+        : 'Chưa nhận ca';
+    }
+    if (uiProcDurTravel) {
+      uiProcDurTravel.textContent = travelSecVal !== null && travelSecVal !== undefined
+        ? this.formatBcDurationVi(travelSecVal)
+        : (dispIso ? 'Đang di chuyển...' : 'Chưa xuất quân');
+    }
+    if (uiProcDurScene) {
+      uiProcDurScene.textContent = sceneSecVal !== null && sceneSecVal !== undefined
+        ? this.formatBcDurationVi(sceneSecVal)
+        : (arrIso ? 'Đang xử lý...' : 'Chưa tới nơi');
+    }
+    if (uiProcDurTotal) {
+      uiProcDurTotal.textContent = totalSecVal !== null && totalSecVal !== undefined
+        ? this.formatBcDurationVi(totalSecVal)
+        : (inc.status === 'fake_alarm' ? 'Đã khóa (Báo giả NĐ 144)' : 'Đang trong quy trình...');
+    }
 
     if (uiBlockNum) {
       uiBlockNum.textContent = blockNum ? `#${blockNum}` : '#--';
@@ -17631,10 +17727,11 @@ class DispatcherApp {
       if (txHash) {
         const shortTx = txHash.length > 16 ? `${txHash.slice(0, 8)}...${txHash.slice(-6)} ↗` : `${txHash} ↗`;
         uiTxLink.textContent = shortTx;
-        uiTxLink.href = `/api/blockchain/explorer/${encodeURIComponent(txHash)}?network=${encodeURIComponent(selectedNet)}`;
+        uiTxLink.href = portalLookupUrl;
+        uiTxLink.title = 'Bấm để mở Cổng Đối Chứng Xác Thực & Giải Mã Hồ Sơ Chuỗi Khối';
       } else {
         uiTxLink.textContent = 'Đang tạo giao dịch...';
-        uiTxLink.href = '/api/blockchain/status';
+        uiTxLink.href = '/tra-cuu-blockchain.html';
       }
     }
 
@@ -17703,18 +17800,37 @@ class DispatcherApp {
             ? new Date(entry.timestamp).toLocaleTimeString('vi-VN', { hour12: false })
             : '--:--:--';
           const blkLabel = entry.blockNumber ? `[Block #${this.escapeBcHtml(entry.blockNumber)}]` : '[Block]';
-          if (entry.action === '3_OFFICER_DISPATCH') {
-            const respSec = entry.responseTimeSeconds ?? bc.responseTimeSeconds ?? 0;
-            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong>Trực ban tiếp nhận (Phản ứng: ${this.escapeBcHtml(respSec)} giây).</strong></li>`;
-          }
           if (entry.action === '1_SOS_TRIGGER') {
-            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} Tín hiệu SOS kích hoạt (${this.escapeBcHtml(entry.summary || 'Đã niêm phong khởi tạo')}).</li>`;
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong>Khởi tạo ca SOS:</strong> ${this.escapeBcHtml(entry.summary || 'Đã khóa tọa độ GPS & người báo tin')}</li>`;
           }
-          if (entry.action === '2_EVIDENCE_SEAL') {
-            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} Đã khóa tọa độ GPS &amp; niêm phong SHA-256 (${this.escapeBcHtml(entry.summary || 'Chứng cứ hiện trường')}).</li>`;
+          if (entry.action === '2B_CASE_ESCALATED') {
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#fbbf24;">Chuyển vượt cấp:</strong> ${this.escapeBcHtml(entry.summary || 'Điều phối lên Chỉ huy cấp trên')}</li>`;
+          }
+          if (entry.action === '3_OFFICER_DISPATCH') {
+            const respSec = entry.responseTimeSeconds ?? bc.responseTimeSeconds;
+            const respBadge = respSec !== null && respSec !== undefined ? ` (Phản ứng: ${this.escapeBcHtml(this.formatBcDurationVi(respSec))})` : '';
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#00ECF3;">Nhận ca &amp; xuất quân${respBadge}:</strong> ${this.escapeBcHtml(entry.summary || 'Trực ban đã tiếp nhận')}</li>`;
+          }
+          if (entry.action === '3A_OFFICER_APPROACHING') {
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#38bdf8;">Áp sát hiện trường (&lt;300m):</strong> ${this.escapeBcHtml(entry.summary || 'Đội cứu hộ đang tiếp cận')}</li>`;
+          }
+          if (entry.action === '3B_OFFICER_ARRIVED') {
+            const trv = entry.travelTimeSeconds !== undefined && entry.travelTimeSeconds !== null
+              ? ` (Di chuyển: ${this.escapeBcHtml(this.formatBcDurationVi(entry.travelTimeSeconds))})`
+              : '';
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#22d3ee;">Có mặt tại hiện trường${trv}:</strong> ${this.escapeBcHtml(entry.summary || 'Lực lượng đã tới nơi')}</li>`;
           }
           if (entry.action === '4_CASE_RESOLVED') {
-            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#4ade80;">Hoàn tất ứng cứu &amp; đóng hồ sơ bất biến.</strong></li>`;
+            const tot = entry.totalCaseDurationSeconds !== undefined && entry.totalCaseDurationSeconds !== null
+              ? ` · Tổng quy trình: ${this.escapeBcHtml(this.formatBcDurationVi(entry.totalCaseDurationSeconds))}`
+              : '';
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#4ade80;">Hoàn tất ứng cứu &amp; đóng hồ sơ${tot}.</strong> ${this.escapeBcHtml(entry.summary || '')}</li>`;
+          }
+          if (entry.action === '4B_FAKE_ALARM') {
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#f87171;">Khóa ca báo giả (NĐ 144/2021):</strong> ${this.escapeBcHtml(entry.summary || 'Đã lưu vết IP/GPS xử lý vi phạm')}</li>`;
+          }
+          if (entry.action === '2_EVIDENCE_SEAL') {
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} Đã niêm phong SHA-256 tệp hiện trường (${this.escapeBcHtml(entry.summary || 'Chứng cứ số')}).</li>`;
           }
           return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} ${this.escapeBcHtml(entry.summary || entry.label || entry.action)}</li>`;
         }).join('');
@@ -17736,12 +17852,12 @@ class DispatcherApp {
 
     if (btn) {
       btn.disabled = true;
-      btn.textContent = '⏳ ĐANG BĂM LẠI FILE GỐC & ĐỐI SOÁT SỔ CÁI (SHA-256)...';
+      btn.textContent = '⏳ ĐANG BĂM LẠI CHUỖI KHỐI QUY TRÌNH & ĐỐI SOÁT SỔ CÁI...';
     }
     if (resultEl) {
       resultEl.style.display = 'block';
       resultEl.classList.remove('is-error');
-      resultEl.innerHTML = '<div style="color:#00ECF3;font-weight:700;">Đang tải tệp chứng cứ gốc từ kho lưu trữ và tính toán lại mã băm SHA-256 trực tiếp trên máy chủ...</div>';
+      resultEl.innerHTML = '<div style="color:#00ECF3;font-weight:700;">Đang băm lại toàn bộ các Block giao dịch quy trình cứu hộ bằng SHA-256 và tạo mã QR đối chứng...</div>';
     }
 
     try {
@@ -17768,6 +17884,14 @@ class DispatcherApp {
       if (data.legalDossier) {
         this._lastLegalDossierByIncident.set(targetId, data.legalDossier);
       }
+      if (data.processSummary && this.incidents && typeof this.incidents.get === 'function') {
+        const liveInc = this.incidents.get(targetId);
+        if (liveInc) {
+          liveInc.blockchain = liveInc.blockchain || {};
+          liveInc.blockchain.processSummary = data.processSummary;
+          this.renderBlockchainPanel(liveInc);
+        }
+      }
 
       if (resultEl) {
         resultEl.style.display = 'block';
@@ -17778,35 +17902,52 @@ class DispatcherApp {
         const currHash = this.escapeBcHtml(data.currentServerFileHash || '--');
         const blockNum = this.escapeBcHtml(data.blockNumber || '--');
         const evCount = Number(data.auditedEvidenceCount || 0);
-        const respSec = data.legalDossier?.responseTimeSeconds;
+        const totalBlocks = Number(data.chainIntegrity?.blockCount || data.legalDossier?.lifecycleBlocks?.length || 1);
+        const dur = data.processSummary?.durations || data.legalDossier?.processSummary?.durations || {};
+        const respSec = dur.responseTimeSeconds ?? data.legalDossier?.responseTimeSeconds;
+        const travelSec = dur.travelTimeSeconds;
+        const totalSec = dur.totalCaseDurationSeconds;
         const safeQrSvg = (typeof data.qrSvg === 'string' && data.qrSvg.trim().startsWith('<svg') && !/<script/i.test(data.qrSvg))
           ? data.qrSvg
           : '';
 
+        const portalUrl = data.verificationPortalUrl
+          || `/tra-cuu-blockchain.html?tx=${encodeURIComponent(data.txHash || '')}&case=${encodeURIComponent(targetId)}`;
+        const portalBtnHtml = `<a href="${this.escapeBcHtml(portalUrl)}" target="_blank" rel="noopener" class="verify-action-link" id="btnOpenVerifierPortal" style="border-color:#00ECF3;background:rgba(0,236,243,0.14);">🔍 Đối Chứng &amp; Giải Mã Hồ Sơ ↗</a>`;
         const downloadBtnHtml = data.downloadUrl
           ? `<a href="${this.escapeBcHtml(data.downloadUrl)}" download class="verify-action-link" id="btnDownloadOriginalEvidence">⬇️ Tải File Chứng Cứ Gốc (${evCount} tệp)</a>`
           : '';
         const explorerBtnHtml = data.explorerUrl
-          ? `<a href="${this.escapeBcHtml(data.explorerUrl)}" target="_blank" rel="noopener" class="verify-action-link" id="btnOpenBlockCertificate">🔗 Mở Chứng Thực Block #${blockNum} ↗</a>`
+          ? `<a href="${this.escapeBcHtml(data.explorerUrl)}" target="_blank" rel="noopener" class="verify-action-link" id="btnOpenBlockCertificate">🔗 Vi Bằng Raw Block #${blockNum} ↗</a>`
           : '';
+
+        const origLabel = evCount > 0
+          ? `• Hash tệp chứng cứ khắc trên Block (#${blockNum}):`
+          : `• Mã TxHash giao dịch trên Sổ cái (Block #${blockNum}):`;
+        const currLabel = evCount > 0
+          ? '• Hash SHA-256 băm lại từ File gốc hiện tại:'
+          : '• Mã TxHash tính toán lại trực tiếp từ dữ liệu Block:';
 
         resultEl.innerHTML = `
           <div class="verify-conclusion">${safeConclusion}</div>
-          <div style="font-size:10px;color:#91ACCD;margin-bottom:4px;">
-            Đối soát trực tiếp: <strong style="color:#F1ECCB;">${evCount > 0 ? `${evCount} tệp âm thanh/hình ảnh hiện trường` : 'Chữ ký phần cứng & Chuỗi khối vòng đời'}</strong>
-            ${respSec !== null && respSec !== undefined ? ` · Phản ứng: <strong style="color:#00ECF3;">${this.escapeBcHtml(respSec)} giây</strong>` : ''}
+          <div style="font-size:10px;color:#91ACCD;margin-bottom:4px;line-height:1.45;">
+            Đối soát trực tiếp: <strong style="color:#F1ECCB;">${evCount > 0 ? `${totalBlocks} Block quy trình + ${evCount} tệp hiện trường` : `Chuỗi ${totalBlocks} Block giao dịch quy trình cứu hộ`}</strong>
+            ${respSec !== null && respSec !== undefined ? ` · Phản ứng: <strong style="color:#00ECF3;">${this.escapeBcHtml(this.formatBcDurationVi(respSec))}</strong>` : ''}
+            ${travelSec !== null && travelSec !== undefined ? ` · Di chuyển: <strong style="color:#38bdf8;">${this.escapeBcHtml(this.formatBcDurationVi(travelSec))}</strong>` : ''}
+            ${totalSec !== null && totalSec !== undefined ? ` · Tổng ca: <strong style="color:#fbbf24;">${this.escapeBcHtml(this.formatBcDurationVi(totalSec))}</strong>` : ''}
           </div>
           <div style="background:#061D3A;border:1px solid #1E3F66;border-radius:6px;padding:6px 8px;font-family:monospace;font-size:9.5px;word-break:break-all;line-height:1.45;">
-            <div style="color:#DFB077;">• Hash khắc trên Block (#${blockNum}):</div>
-            <div style="color:#00ECF3;margin-bottom:4px;">${origHash}</div>
-            <div style="color:#DFB077;">• Hash băm lại từ File gốc hiện tại:</div>
-            <div style="color:${data.verified ? '#4ade80' : '#f87171'};">${currHash}</div>
+            <div style="color:#DFB077;">${origLabel}</div>
+            <div style="color:#00ECF3;margin-bottom:4px;" id="verifyOrigHashText">${origHash}</div>
+            <div style="color:#DFB077;">${currLabel}</div>
+            <div style="color:${data.verified ? '#4ade80' : '#f87171'};" id="verifyRecomputedHashText">${currHash}</div>
           </div>
           <div class="verify-qr-row">
-            ${safeQrSvg ? `<div class="verify-qr-box" id="verifyQrCodeBox" title="Quét mã QR để tra cứu Chứng thực Block">${safeQrSvg}</div>` : ''}
+            ${safeQrSvg ? `<div class="verify-qr-box" id="verifyQrCodeBox" title="Quét mã QR bằng điện thoại để mở trực tiếp Cổng Đối Chứng & Giải Mã Hồ Sơ">${safeQrSvg}</div>` : ''}
             <div class="verify-btn-group">
-              ${downloadBtnHtml}
+              ${portalBtnHtml}
               ${explorerBtnHtml}
+              ${downloadBtnHtml}
               <button type="button" class="verify-action-link gold" id="btnExportLegalDossierJson">📄 Trích Xuất Biên Bản Pháp Lý (.JSON)</button>
             </div>
           </div>
@@ -17838,7 +17979,7 @@ class DispatcherApp {
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = '🛡️ KIỂM TRA TÍNH TOÀN VẸN CHỨNG CỨ (LIVE AUDIT)';
+        btn.textContent = '🛡️ KIỂM TRA TOÀN VẸN & XUẤT HỒ SƠ CHUỖI KHỐI (LIVE AUDIT)';
       }
     }
   }

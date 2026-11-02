@@ -274,7 +274,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - Actual-status Update: Update Portal row from `missing` -> `correct` (`R3`).
   - Commit Boundary: Commit `tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, `css/style.css` + ledger updates.
 
-- [ ] P2-B: Update `js/stealth-sos.js`, `dispatcher.html`, `js/dispatcher.js`, `index.html`, `cap-phat-the.html`, and `sw.js`
+- [x] P2-B: Update `js/stealth-sos.js`, `dispatcher.html`, `js/dispatcher.js`, `index.html`, `cap-phat-the.html`, and `sw.js`
   - Goal: Make Stealth SOS lightweight transaction-only by default (no automatic 5s audio file spam), upgrade Dispatcher `.bc-security-panel` to display the full **Giao Dịch Quy Trình Cứu Hộ** (Ai báo, Ai nhận, Phản ứng, Di chuyển, Xử lý tại chỗ, Tổng thời gian) + working QR + direct Decoder Portal button, and add `/tra-cuu-blockchain.html` navigation across `index.html`, `dispatcher.html`, `cap-phat-the.html`, and `sw.js`.
   - Scope Boundary:
     - Editable: `js/stealth-sos.js`, `dispatcher.html`, `js/dispatcher.js`, `index.html`, `cap-phat-the.html`, `sw.js`

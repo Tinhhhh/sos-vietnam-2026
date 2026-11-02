@@ -27,7 +27,7 @@
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-Bold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/css/style.css?v=20261102_web3_depin_v1">
+  <link rel="stylesheet" href="/css/style.css?v=20261102_bc_decoder_v2">
   <link rel="stylesheet" href="/css/map.css?v=20261013_mobile_v3">
   <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261013_mobile_v3">
 </head>
@@ -54,7 +54,10 @@
       <button type="button" class="nav-pill-item" id="btnOpenSurvivalGuide">
         <svg class="svg-ico ico-md ico-amber" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> Cẩm Nang
       </button>
-      <a href="/cap-phat-the.html" class="nav-pill-item" target="_blank">
+      <a href="/tra-cuu-blockchain.html" class="nav-pill-item" id="btnNavBlockchainVerifier" target="_blank" rel="noopener">
+        <svg class="svg-ico ico-md ico-blue" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg> Đối Chứng Blockchain
+      </a>
+      <a href="/cap-phat-the.html" class="nav-pill-item" target="_blank" rel="noopener">
         <svg class="svg-ico ico-md ico-emerald" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"></rect><line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" stroke-width="2"></line></svg> Thẻ SOS DePIN
       </a>
       <a href="/dispatcher.html" class="nav-pill-item btn-pill-dispatcher-link" target="_blank">
@@ -178,10 +181,13 @@
             <span class="stealth-shield-dot"></span>
             <strong>NGỤY TRANG KHẨN CẤP (KHI ĐỐI MẶT KẺ ĐE DỌA • KHÔNG THỂ NÓI CHUYỆN)</strong>
           </div>
-          <a href="/cap-phat-the.html" class="stealth-depin-link" target="_blank">💳 Cổng Thẻ SOS DePIN</a>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <a href="/tra-cuu-blockchain.html" class="stealth-depin-link" id="btnStealthBlockchainVerifier" target="_blank" rel="noopener">🔍 Đối Chứng &amp; Giải Mã Block</a>
+            <a href="/cap-phat-the.html" class="stealth-depin-link" target="_blank" rel="noopener">💳 Cổng Thẻ SOS DePIN</a>
+          </div>
         </div>
         <p class="stealth-bar-desc">
-          Âm thầm khóa tọa độ GPS, báo động ngầm về Công an gần nhất và <strong>tự động thu âm chứng cứ hiện trường 5 giây/lần niêm phong SHA-256</strong> mà kẻ xấu nhìn vào màn hình không thể phát hiện.
+          Âm thầm khóa tọa độ GPS vệ tinh thời gian thực, báo động ngầm về Công an gần nhất và <strong>ghi nhận giao dịch quy trình cứu hộ siêu nhẹ trên Chuỗi khối SHA-256</strong> (không cần ghi âm/video nặng máy) mà kẻ xấu nhìn vào màn hình không thể phát hiện.
         </p>
 
         <div class="stealth-countdown-pill" id="stealthCountdownBanner" hidden>
@@ -337,10 +343,13 @@
           <div id="trackingMap"></div>
         </div>
 
-        <!-- Export Official Document Button for Citizen -->
-        <div style="margin-top: 10px; margin-bottom: 12px;">
+        <!-- Export Official Document & Blockchain Verification Buttons for Citizen -->
+        <div style="margin-top: 10px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
           <button type="button" id="btnCitizenViewReportDocx" class="btn-refresh-loc" style="width: 100%; justify-content: center; background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8; font-weight: 700; font-size: 12px; padding: 9px; display: inline-flex; align-items: center; gap: 6px;">
             <svg class="svg-ico ico-md ico-blue" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> XEM & TẢI PHIẾU TIẾP NHẬN SỰ CỐ (FILE WORD / ẢNH)
+          </button>
+          <button type="button" id="btnCitizenVerifyBlockchain" class="btn-refresh-loc" style="width: 100%; justify-content: center; background: rgba(0, 236, 243, 0.14); border-color: #00ecf3; color: #00ecf3; font-weight: 800; font-size: 12px; padding: 9px; display: inline-flex; align-items: center; gap: 6px;">
+            ⛓️ ĐỐI CHỨNG &amp; GIẢI MÃ HỒ SƠ CHUỖI KHỐI (BLOCKCHAIN) ↗
           </button>
         </div>
 
