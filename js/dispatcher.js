@@ -111,6 +111,7 @@ class DispatcherApp {
     try { this.initHospitalsDirectory(); } catch (e) { console.error('initHospitalsDirectory error:', e); }
     try { this.initLocationPickerModal(); } catch (e) { console.error('initLocationPickerModal error:', e); }
     try { this.initZaloBotModal(); } catch (e) { console.error('initZaloBotModal error:', e); }
+    try { this.initBlockchainSecurityPanel(); } catch (e) { console.error('initBlockchainSecurityPanel error:', e); }
     try { this.checkAuth(); } catch (e) { console.error('checkAuth error:', e); }
     try { this.initMap(); } catch (e) { console.error('initMap error:', e); }
     try { this.updateDynamicYearUI(); } catch (e) { console.error('updateDynamicYearUI error:', e); }
@@ -12161,6 +12162,7 @@ class DispatcherApp {
 
     // Render direct 2-way chat messages
     this.renderDispatcherChat(inc);
+    try { this.renderBlockchainPanel(inc); } catch (e) { console.warn('renderBlockchainPanel error:', e); }
   }
 
   stopDrawerEscalationCountdown() {
@@ -12782,6 +12784,7 @@ class DispatcherApp {
       });
       const data = await res.json();
       if (data.ok && status === 'resolved') {
+        if (data.incident && data.incident.id) { this.incidents.set(data.incident.id, data.incident); }
         const inc = this.incidents.get(resolvedIncId);
         if (inc) {
           inc.status = 'resolved';
@@ -17421,6 +17424,425 @@ class DispatcherApp {
       }
     }
   }
+
+  getBlockchainSystemConfig() {
+    const host = (typeof window !== 'undefined' && window.location && window.location.hostname)
+      ? window.location.hostname.toLowerCase()
+      : '';
+    const isProduction = (host === 'sosvie.site' || host === 'www.sosvie.site');
+    return {
+      isProduction,
+      envName: isProduction ? 'HỆ THỐNG CHÍNH THỨC (PRODUCTION)' : 'MÔI TRƯỜNG THỬ NGHIỆM (TEST SANDBOX)',
+      chainId: isProduction ? 842026 : 84202600,
+      storageFolder: isProduction ? 'SOS_VIETNAM_OFFICIAL' : 'SOS_RENDER_SANDBOX'
+    };
+  }
+
+  escapeBcHtml(val) {
+    return String(val ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  initBlockchainSecurityPanel() {
+    const sysCfg = this.getBlockchainSystemConfig();
+    this.selectedBlockchainNetwork = '842026';
+    this._lastRenderedBcIncidentId = null;
+    this._lastLegalDossierByIncident = new Map();
+
+    window.runIntegrityCheck = (incidentId) => this.runIntegrityCheckForSelectedIncident(incidentId);
+
+    const netSwitch = document.getElementById('bcNetworkSwitch');
+    if (netSwitch) {
+      const firstOpt = netSwitch.querySelector('option[value="842026"]');
+      if (firstOpt) {
+        firstOpt.textContent = `SOS VIETNAM CHAIN (ID: ${sysCfg.chainId})`;
+      }
+      netSwitch.addEventListener('change', () => {
+        this.selectedBlockchainNetwork = netSwitch.value || '842026';
+        if (this.selectedIncidentId) {
+          const inc = this.incidents.get(this.selectedIncidentId);
+          if (inc) this.renderBlockchainPanel(inc);
+        }
+      });
+    }
+
+    const envBanner = document.getElementById('uiBcEnvBanner');
+    if (envBanner) {
+      envBanner.textContent = `${sysCfg.envName} · CHAIN ID: ${sysCfg.chainId} · ${sysCfg.storageFolder}`;
+    }
+  }
+
+  renderBlockchainPanel(inc) {
+    if (!inc) return;
+    const panel = document.getElementById('bcSecurityPanel');
+    if (!panel) return;
+
+    const sysCfg = this.getBlockchainSystemConfig();
+    const netSwitch = document.getElementById('bcNetworkSwitch');
+    const selectedNet = (netSwitch && netSwitch.value) || this.selectedBlockchainNetwork || '842026';
+
+    const envBanner = document.getElementById('uiBcEnvBanner');
+    if (envBanner) {
+      const netTitle = selectedNet === 'NDA'
+        ? 'NDA CHAIN QUỐC GIA (EVM LIÊN THÔNG)'
+        : (selectedNet === 'POLYGON'
+          ? 'POLYGON AMOY TESTNET (ID: 80002)'
+          : `CHAIN ID: ${inc.blockchain?.chainId || sysCfg.chainId}`);
+      envBanner.textContent = `${sysCfg.envName} · ${netTitle} · ${sysCfg.storageFolder}`;
+    }
+
+    // Preserve open verifyResult if SSE updates the SAME incident, reset when switching incidents
+    const verifyResultEl = document.getElementById('verifyResult');
+    if (this._lastRenderedBcIncidentId !== inc.id) {
+      this._lastRenderedBcIncidentId = inc.id;
+      if (verifyResultEl) {
+        verifyResultEl.style.display = 'none';
+        verifyResultEl.classList.remove('is-error');
+        verifyResultEl.innerHTML = '';
+      }
+    }
+
+    // 1. Hardware / DePIN Identity
+    const hwSec = inc.hardwareSecurity || {};
+    const uiHwMac = document.getElementById('uiHwMac');
+    const uiHwChannel = document.getElementById('uiHwChannel');
+    const uiCardBlockInfo = document.getElementById('uiCardBlockInfo');
+    const uiAuthBadge = document.getElementById('uiAuthBadge');
+
+    if (inc.isHardwareSos) {
+      const macStr = hwSec.hwMac || inc.hwMac || 'UNKNOWN';
+      if (uiHwMac) uiHwMac.textContent = `ESP32-C3 (eFuse MAC: ${macStr})`;
+      if (uiHwChannel) {
+        const csq = inc.signalCsq || 26;
+        uiHwChannel.textContent = `4G LTE Cat-1 (EG800K · CSQ ${csq}/31)`;
+      }
+      if (uiCardBlockInfo) {
+        const cid = hwSec.cardID || inc.cardID || inc.deviceId || 'TDM2421';
+        const modeTxt = hwSec.cardMode ? ` · Chế độ ${hwSec.cardMode}` : '';
+        const blkTxt = hwSec.cardBlockIndex ? ` · Block #${hwSec.cardBlockIndex}` : '';
+        uiCardBlockInfo.textContent = `Thẻ ${cid}${modeTxt}${blkTxt}`;
+      }
+      if (uiAuthBadge) {
+        uiAuthBadge.className = 'verified-tag';
+        if (hwSec.verified === true) {
+          uiAuthBadge.textContent = '✔ ĐÃ XÁC THỰC TRÊN SỔ CÁI (DePIN VERIFIED)';
+        } else if (hwSec.status === 'SPOOF_SUSPECTED') {
+          uiAuthBadge.classList.add('spoof-tag');
+          uiAuthBadge.textContent = '⚠ CẢNH BÁO GIẢ MẠO CHỮ KÝ PHẦN CỨNG (SPOOF SUSPECTED)';
+        } else {
+          uiAuthBadge.classList.add('legacy-tag');
+          uiAuthBadge.textContent = 'ℹ THIẾT BỊ ĐỜI CŨ CHƯA KÝ SỐ (LEGACY IOT)';
+        }
+      }
+    } else {
+      const isStealth = Boolean(inc.isStealthSos || inc.stealthMode || (Array.isArray(inc.evidenceRecords) && inc.evidenceRecords.some(r => r && r.stealthMode && r.stealthMode !== 'DIRECT_EVIDENCE' && r.stealthMode !== 'CITIZEN_CHAT_MEDIA')));
+      const stealthLabel = inc.stealthMode || inc.stealthModeType || 'STEALTH_CAMOUFLAGE';
+      if (uiHwMac) {
+        uiHwMac.textContent = isStealth
+          ? 'WebCrypto SHA-256 + MediaRecorder (Stealth SOS)'
+          : 'Web Citizen TLS 1.3 + W3C WebCrypto';
+      }
+      if (uiHwChannel) {
+        uiHwChannel.textContent = isStealth
+          ? 'Luồng Ngụy Trang Khẩn Cấp (5s Audio + Live GPS)'
+          : 'HTTPS / SSE Trực Tuyến Quốc Gia';
+      }
+      if (uiCardBlockInfo) {
+        uiCardBlockInfo.textContent = isStealth
+          ? `Chế độ bảo vệ nạn nhân (${stealthLabel})`
+          : 'Phiên định danh Công dân Web trực tiếp';
+      }
+      if (uiAuthBadge) {
+        uiAuthBadge.className = 'verified-tag web-tag';
+        uiAuthBadge.textContent = isStealth
+          ? '🕵️ NGỤY TRANG KHẨN CẤP ĐÃ NIÊM PHONG (STEALTH VERIFIED)'
+          : '✔ ĐÃ ĐÓNG DẤU SỔ CÁI CHUỖI KHỐI (WEB3 SEALED)';
+      }
+    }
+
+    // 2. Field Evidence SHA-256 & Stealth 5s Audio Clips
+    const evidenceList = Array.isArray(inc.evidenceRecords) ? inc.evidenceRecords : [];
+    const latestEv = evidenceList.length > 0 ? evidenceList[evidenceList.length - 1] : null;
+    const bc = inc.blockchain || {};
+
+    const uiEvidenceType = document.getElementById('uiEvidenceType');
+    const uiSealBadge = document.getElementById('uiSealBadge');
+    const uiStorageBadge = document.getElementById('uiStorageBadge');
+    const uiEvidenceHash = document.getElementById('uiEvidenceHash');
+    const uiTxLink = document.getElementById('uiTxLink');
+    const uiBlockNum = document.getElementById('uiBlockNum');
+
+    if (uiEvidenceType) {
+      if (latestEv) {
+        const m = String(latestEv.mimeType || '').toLowerCase();
+        const kindVi = m.startsWith('video/')
+          ? 'Video hiện trường'
+          : (m.startsWith('image/') ? 'Ảnh hiện trường' : 'Âm thanh hiện trường 5s');
+        uiEvidenceType.textContent = `Tọa độ GPS + ${kindVi} (${evidenceList.length} tệp)`;
+      } else if (inc.isHardwareSos) {
+        uiEvidenceType.textContent = 'Tọa độ GPS Vệ tinh + Vân tay phần cứng mạch 4G';
+      } else {
+        uiEvidenceType.textContent = 'Tọa độ GPS + Hồ sơ kích hoạt SOS ban đầu';
+      }
+    }
+
+    if (uiSealBadge) {
+      if (hwSec.status === 'SPOOF_SUSPECTED') {
+        uiSealBadge.textContent = '⚠ NGHI VẤN GIẢ MẠO';
+        uiSealBadge.style.borderColor = '#ef4444';
+        uiSealBadge.style.color = '#fca5a5';
+      } else {
+        uiSealBadge.textContent = '🔒 ĐÃ NIÊM PHONG';
+        uiSealBadge.style.borderColor = 'rgba(0, 236, 243, 0.48)';
+        uiSealBadge.style.color = '#00ECF3';
+      }
+    }
+
+    if (uiStorageBadge) {
+      if (latestEv) {
+        const providerMap = {
+          cloudinary: `Cloudinary Cloud (${latestEv.storageFolder || sysCfg.storageFolder})`,
+          supabase: `Supabase Storage (${latestEv.storageFolder || sysCfg.storageFolder})`,
+          'local-encrypted-vault': `Kho mã hóa AES-256-GCM (${latestEv.storageFolder || sysCfg.storageFolder} · local-encrypted-vault)`
+        };
+        const provLabel = providerMap[latestEv.storageProvider] || `${latestEv.storageProvider || 'local-encrypted-vault'} (${latestEv.storageFolder || sysCfg.storageFolder})`;
+        uiStorageBadge.textContent = `Kho lưu trữ: ${provLabel}`;
+      } else {
+        uiStorageBadge.textContent = `Kho lưu trữ: Sổ cái nội bộ (${sysCfg.storageFolder})`;
+      }
+    }
+
+    const displayHash = latestEv?.sha256Hash || hwSec.liveEvidenceHash || hwSec.bcSeal || bc.latestEvidenceHash || bc.latestTxHash || 'Đang chờ niêm phong SHA-256...';
+    if (uiEvidenceHash) {
+      uiEvidenceHash.textContent = displayHash;
+    }
+
+    const txHash = latestEv?.txHash || bc.latestTxHash || bc.triggerTxHash || '';
+    const blockNum = latestEv?.blockNumber || bc.latestBlockNumber || bc.triggerBlockNumber || null;
+
+    if (uiBlockNum) {
+      uiBlockNum.textContent = blockNum ? `#${blockNum}` : '#--';
+    }
+    if (uiTxLink) {
+      if (txHash) {
+        const shortTx = txHash.length > 16 ? `${txHash.slice(0, 8)}...${txHash.slice(-6)} ↗` : `${txHash} ↗`;
+        uiTxLink.textContent = shortTx;
+        uiTxLink.href = `/api/blockchain/explorer/${encodeURIComponent(txHash)}?network=${encodeURIComponent(selectedNet)}`;
+      } else {
+        uiTxLink.textContent = 'Đang tạo giao dịch...';
+        uiTxLink.href = '/api/blockchain/status';
+      }
+    }
+
+    // Playable 5s Stealth Audio / Media list (incremental DOM update so playing audio never stutters!)
+    const stealthBox = document.getElementById('uiStealthEvidenceBox');
+    const stealthCount = document.getElementById('uiStealthEvidenceCount');
+    const stealthList = document.getElementById('uiStealthEvidenceList');
+    if (stealthBox && stealthList) {
+      if (evidenceList.length === 0) {
+        stealthBox.style.display = 'none';
+        stealthList.innerHTML = '';
+        stealthList.dataset.incidentId = inc.id;
+      } else {
+        stealthBox.style.display = 'block';
+        if (stealthCount) stealthCount.textContent = String(evidenceList.length);
+        if (stealthList.dataset.incidentId !== inc.id) {
+          stealthList.innerHTML = '';
+          stealthList.dataset.incidentId = inc.id;
+        }
+        const renderedIds = new Set(
+          Array.from(stealthList.querySelectorAll('[data-evidence-id]')).map(el => el.getAttribute('data-evidence-id'))
+        );
+        evidenceList.forEach((ev, idx) => {
+          if (!ev || !ev.evidenceId || renderedIds.has(ev.evidenceId)) return;
+          const item = document.createElement('div');
+          item.className = 'bc-stealth-item';
+          item.setAttribute('data-evidence-id', ev.evidenceId);
+          const tStr = ev.createdAt ? new Date(ev.createdAt).toLocaleTimeString('vi-VN', { hour12: false }) : '--:--:--';
+          const shortSha = ev.sha256Hash ? `${ev.sha256Hash.slice(0, 12)}...${ev.sha256Hash.slice(-6)}` : '';
+          const mime = String(ev.mimeType || 'audio/webm').toLowerCase();
+          const modeTag = ev.stealthMode && ev.stealthMode !== 'DIRECT_EVIDENCE'
+            ? `[${this.escapeBcHtml(ev.stealthMode)}]`
+            : '[CHỨNG CỨ]';
+
+          let mediaPlayerHtml = '';
+          if (mime.startsWith('video/')) {
+            mediaPlayerHtml = `<video data-scene-media="1" controls preload="metadata" src="${this.escapeBcHtml(ev.mediaUrl)}" style="width:100%;max-height:140px;border-radius:6px;pointer-events:auto !important;"></video>`;
+          } else if (mime.startsWith('image/')) {
+            mediaPlayerHtml = `<a href="${this.escapeBcHtml(ev.mediaUrl)}" target="_blank" rel="noopener"><img src="${this.escapeBcHtml(ev.mediaUrl)}" alt="Chứng cứ hiện trường" style="max-width:100%;max-height:110px;border-radius:6px;border:1px solid #1E3F66;" /></a>`;
+          } else {
+            mediaPlayerHtml = `<audio class="bc-stealth-audio" controls preload="metadata" src="${this.escapeBcHtml(ev.mediaUrl)}"></audio>`;
+          }
+
+          item.innerHTML = `
+            <div class="bc-stealth-item-head">
+              <span><strong>#${idx + 1}</strong> ${modeTag} · ${this.escapeBcHtml(tStr)} · Block <strong>#${this.escapeBcHtml(ev.blockNumber || '--')}</strong></span>
+              <span style="color:#00ECF3;font-family:monospace;">${this.escapeBcHtml(shortSha)}</span>
+            </div>
+            ${mediaPlayerHtml}
+          `;
+          stealthList.appendChild(item);
+        });
+      }
+    }
+
+    // 3. Immutable Audit Trail Timeline
+    const timelineEl = document.getElementById('uiAuditTimeline');
+    if (timelineEl) {
+      const trail = Array.isArray(bc.auditTrail) ? bc.auditTrail : [];
+      if (trail.length === 0) {
+        const fallbackTime = inc.createdAt ? new Date(inc.createdAt).toLocaleTimeString('vi-VN', { hour12: false }) : '--:--:--';
+        timelineEl.innerHTML = `<li><span class="time">${this.escapeBcHtml(fallbackTime)}</span> Tín hiệu SOS đã ghi nhận trên hệ thống.</li>`;
+      } else {
+        timelineEl.innerHTML = trail.map((entry) => {
+          const tStr = entry.timestamp
+            ? new Date(entry.timestamp).toLocaleTimeString('vi-VN', { hour12: false })
+            : '--:--:--';
+          const blkLabel = entry.blockNumber ? `[Block #${this.escapeBcHtml(entry.blockNumber)}]` : '[Block]';
+          if (entry.action === '3_OFFICER_DISPATCH') {
+            const respSec = entry.responseTimeSeconds ?? bc.responseTimeSeconds ?? 0;
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong>Trực ban tiếp nhận (Phản ứng: ${this.escapeBcHtml(respSec)} giây).</strong></li>`;
+          }
+          if (entry.action === '1_SOS_TRIGGER') {
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} Tín hiệu SOS kích hoạt (${this.escapeBcHtml(entry.summary || 'Đã niêm phong khởi tạo')}).</li>`;
+          }
+          if (entry.action === '2_EVIDENCE_SEAL') {
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} Đã khóa tọa độ GPS &amp; niêm phong SHA-256 (${this.escapeBcHtml(entry.summary || 'Chứng cứ hiện trường')}).</li>`;
+          }
+          if (entry.action === '4_CASE_RESOLVED') {
+            return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} <strong style="color:#4ade80;">Hoàn tất ứng cứu &amp; đóng hồ sơ bất biến.</strong></li>`;
+          }
+          return `<li><span class="time">${this.escapeBcHtml(tStr)}</span> ${blkLabel} ${this.escapeBcHtml(entry.summary || entry.label || entry.action)}</li>`;
+        }).join('');
+      }
+    }
+  }
+
+  async runIntegrityCheckForSelectedIncident(explicitIncidentId = null) {
+    const targetId = explicitIncidentId || this.selectedIncidentId;
+    if (!targetId) {
+      this.showToast?.('Vui lòng chọn một hồ sơ sự cố SOS trước khi kiểm tra tính toàn vẹn.', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btnRunIntegrityCheck');
+    const resultEl = document.getElementById('verifyResult');
+    const netSwitch = document.getElementById('bcNetworkSwitch');
+    const selectedNetwork = (netSwitch && netSwitch.value) || this.selectedBlockchainNetwork || '842026';
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ ĐANG BĂM LẠI FILE GỐC & ĐỐI SOÁT SỔ CÁI (SHA-256)...';
+    }
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.classList.remove('is-error');
+      resultEl.innerHTML = '<div style="color:#00ECF3;font-weight:700;">Đang tải tệp chứng cứ gốc từ kho lưu trữ và tính toán lại mã băm SHA-256 trực tiếp trên máy chủ...</div>';
+    }
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const storedToken = this.currentOfficer?.token || sessionStorage.getItem('sos_dispatcher_token') || localStorage.getItem('sos_dispatcher_token') || '';
+      if (storedToken) {
+        headers.Authorization = `Bearer ${storedToken}`;
+      }
+
+      const res = await fetch('/api/dispatcher/blockchain/verify', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify({
+          incidentId: targetId,
+          network: selectedNetwork
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || `Lỗi máy chủ (${res.status})`);
+      }
+
+      if (data.legalDossier) {
+        this._lastLegalDossierByIncident.set(targetId, data.legalDossier);
+      }
+
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.classList.toggle('is-error', !data.verified);
+
+        const safeConclusion = this.escapeBcHtml(data.conclusion || '');
+        const origHash = this.escapeBcHtml(data.originalBlockchainHash || '--');
+        const currHash = this.escapeBcHtml(data.currentServerFileHash || '--');
+        const blockNum = this.escapeBcHtml(data.blockNumber || '--');
+        const evCount = Number(data.auditedEvidenceCount || 0);
+        const respSec = data.legalDossier?.responseTimeSeconds;
+        const safeQrSvg = (typeof data.qrSvg === 'string' && data.qrSvg.trim().startsWith('<svg') && !/<script/i.test(data.qrSvg))
+          ? data.qrSvg
+          : '';
+
+        const downloadBtnHtml = data.downloadUrl
+          ? `<a href="${this.escapeBcHtml(data.downloadUrl)}" download class="verify-action-link" id="btnDownloadOriginalEvidence">⬇️ Tải File Chứng Cứ Gốc (${evCount} tệp)</a>`
+          : '';
+        const explorerBtnHtml = data.explorerUrl
+          ? `<a href="${this.escapeBcHtml(data.explorerUrl)}" target="_blank" rel="noopener" class="verify-action-link" id="btnOpenBlockCertificate">🔗 Mở Chứng Thực Block #${blockNum} ↗</a>`
+          : '';
+
+        resultEl.innerHTML = `
+          <div class="verify-conclusion">${safeConclusion}</div>
+          <div style="font-size:10px;color:#91ACCD;margin-bottom:4px;">
+            Đối soát trực tiếp: <strong style="color:#F1ECCB;">${evCount > 0 ? `${evCount} tệp âm thanh/hình ảnh hiện trường` : 'Chữ ký phần cứng & Chuỗi khối vòng đời'}</strong>
+            ${respSec !== null && respSec !== undefined ? ` · Phản ứng: <strong style="color:#00ECF3;">${this.escapeBcHtml(respSec)} giây</strong>` : ''}
+          </div>
+          <div style="background:#061D3A;border:1px solid #1E3F66;border-radius:6px;padding:6px 8px;font-family:monospace;font-size:9.5px;word-break:break-all;line-height:1.45;">
+            <div style="color:#DFB077;">• Hash khắc trên Block (#${blockNum}):</div>
+            <div style="color:#00ECF3;margin-bottom:4px;">${origHash}</div>
+            <div style="color:#DFB077;">• Hash băm lại từ File gốc hiện tại:</div>
+            <div style="color:${data.verified ? '#4ade80' : '#f87171'};">${currHash}</div>
+          </div>
+          <div class="verify-qr-row">
+            ${safeQrSvg ? `<div class="verify-qr-box" id="verifyQrCodeBox" title="Quét mã QR để tra cứu Chứng thực Block">${safeQrSvg}</div>` : ''}
+            <div class="verify-btn-group">
+              ${downloadBtnHtml}
+              ${explorerBtnHtml}
+              <button type="button" class="verify-action-link gold" id="btnExportLegalDossierJson">📄 Trích Xuất Biên Bản Pháp Lý (.JSON)</button>
+            </div>
+          </div>
+        `;
+
+        const btnExportJson = resultEl.querySelector('#btnExportLegalDossierJson');
+        if (btnExportJson) {
+          btnExportJson.addEventListener('click', () => {
+            const dossierObj = this._lastLegalDossierByIncident.get(targetId) || data.legalDossier || data;
+            const blob = new Blob([JSON.stringify(dossierObj, null, 2)], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `HoSo_PhapLy_ChuoiKhoi_${targetId}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+          });
+        }
+      }
+    } catch (err) {
+      console.error('runIntegrityCheck error:', err);
+      if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.classList.add('is-error');
+        resultEl.innerHTML = `<div class="verify-conclusion">❌ LỖI KIỂM TRA TOÀN VẸN: ${this.escapeBcHtml(err.message || 'Không thể kết nối máy chủ')}</div>`;
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🛡️ KIỂM TRA TÍNH TOÀN VẸN CHỨNG CỨ (LIVE AUDIT)';
+      }
+    }
+  }
+
 }
 
 const bootDispatcherApp = () => {
