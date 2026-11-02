@@ -116,6 +116,248 @@ export function extractHostname(hostOrOrigin = '') {
   return raw.split('/')[0].split(':')[0].trim().toLowerCase();
 }
 
+export const OTS_HEADER_MAGIC = Buffer.from([
+  0x00, 0x4f, 0x70, 0x65, 0x6e, 0x54, 0x69, 0x6d,
+  0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x73, 0x00,
+  0x00, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x00, 0xbf,
+  0x89, 0xe2, 0xe8, 0x84, 0xe8, 0x92, 0x94
+]);
+
+export const OTS_CALENDAR_ENDPOINTS = Object.freeze([
+  'https://a.pool.opentimestamps.org/digest',
+  'https://b.pool.opentimestamps.org/digest',
+  'https://alice.btc.calendar.opentimestamps.org/digest',
+  'https://bob.btc.calendar.opentimestamps.org/digest'
+]);
+
+const OTS_PENDING_ATTESTATION_TAG = '83dfe30d2ef90c8e';
+const OTS_BITCOIN_ATTESTATION_TAG = '0588960d73d71901';
+
+export function normalizeNetworkView(networkInput = '') {
+  const raw = String(networkInput || '').trim().toUpperCase();
+  if (!raw || raw === '842026' || raw === '84202600' || raw === 'INTERNAL' || raw === 'SOS' || raw === 'SOS_INTERNAL') {
+    return '842026';
+  }
+  if (raw === 'NDA' || raw === 'NDACHAIN' || raw === 'NDA_NATIONAL' || raw === 'NATIONAL') {
+    return 'NDA';
+  }
+  if (raw === 'OTS' || raw === 'BITCOIN' || raw === 'BITCOIN_OTS' || raw === 'OPENTIMESTAMPS' || raw === 'GLOBAL_BITCOIN_OTS') {
+    return 'OTS';
+  }
+  if (raw === 'POLYGON' || raw === 'EVM' || raw === 'POLYGON_AMOY' || raw === 'GLOBAL_POLYGON_EVM') {
+    return 'POLYGON';
+  }
+  return '842026';
+}
+
+export function isZeroPiiNetworkView(networkInput = '') {
+  return normalizeNetworkView(networkInput) !== '842026';
+}
+
+export function computeCaseCommitmentHash(caseId = '') {
+  const clean = String(caseId || '').trim().toUpperCase();
+  return '0x' + sha256HexRaw(Buffer.from(`SOSVN_CASE|${clean}|842026`, 'utf8'));
+}
+
+export function describeZeroPiiStageVi(actionType) {
+  switch (actionType) {
+    case LIFECYCLE_ACTIONS.SOS_TRIGGER:
+      return 'Bước 1. Khởi tạo tín hiệu cứu hộ khẩn cấp (Zero-PII Commitment)';
+    case LIFECYCLE_ACTIONS.EVIDENCE_SEAL:
+      return 'Bước 2. Niêm phong mã băm chứng cứ số SHA-256 (Zero-PII)';
+    case LIFECYCLE_ACTIONS.CASE_ESCALATED:
+      return 'Bước 2B. Điều chuyển cấp chỉ huy theo SLA (Zero-PII)';
+    case LIFECYCLE_ACTIONS.OFFICER_DISPATCH:
+      return 'Bước 3. Tiếp nhận & điều động lực lượng trực chiến (Zero-PII)';
+    case LIFECYCLE_ACTIONS.OFFICER_APPROACHING:
+      return 'Bước 3A. Lực lượng áp sát bán kính hiện trường (Zero-PII)';
+    case LIFECYCLE_ACTIONS.OFFICER_ARRIVED:
+      return 'Bước 3B. Lực lượng có mặt tại hiện trường (Zero-PII)';
+    case LIFECYCLE_ACTIONS.CASE_RESOLVED:
+      return 'Bước 4. Hoàn tất ứng cứu & đóng hồ sơ bất biến (Zero-PII)';
+    case LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED:
+      return 'Bước 4B. Khóa hồ sơ vi phạm cảnh báo giả NĐ 144 (Zero-PII)';
+    case LIFECYCLE_ACTIONS.CARD_PROVISION_SEAL:
+      return 'Bước 0. Niêm phong định danh phần cứng DePIN (Zero-PII)';
+    default:
+      return 'Giao dịch cam kết mật mã Zero-PII';
+  }
+}
+
+export function buildZeroPiiPublicAnchorDocument(block) {
+  if (!block || typeof block !== 'object') return null;
+  const actionCode = String(block.action || block.payload?.action || 'UNKNOWN_STAGE');
+  const caseCommitmentHash = computeCaseCommitmentHash(block.caseId || block.payload?.caseId || '');
+  const doc = {
+    protocol: 'SOSVN-ANCHOR-V1',
+    canonicalChainId: 842026,
+    blockNumber: Number(block.blockNumber) || 0,
+    actionCode,
+    sealedAt: String(block.timestamp || block.payload?.timestamp || ''),
+    caseCommitmentHash,
+    prevHash: String(block.prevHash || ''),
+    txHash: String(block.txHash || ''),
+    payloadDigest: String(block.payloadDigest || block.evidenceHash || '')
+  };
+  const canonicalJson = JSON.stringify(doc, null, 2) + '\n';
+  const jsonBytes = Buffer.from(canonicalJson, 'utf8');
+  const anchorDigestBuf = crypto.createHash('sha256').update(jsonBytes).digest();
+  const anchorDigestHex = '0x' + anchorDigestBuf.toString('hex');
+  const compactCalldataUtf8 = `SOSVN-ANCHOR-V1|${doc.blockNumber}|${doc.actionCode}|${doc.caseCommitmentHash}|${doc.txHash}|${anchorDigestHex}`;
+  const compactCalldataHex = '0x' + Buffer.from(compactCalldataUtf8, 'utf8').toString('hex');
+  return {
+    document: doc,
+    canonicalJson,
+    jsonBytes,
+    anchorDigestBuf,
+    anchorDigestHex,
+    evmCalldataUtf8: compactCalldataUtf8,
+    evmCalldataHex: compactCalldataHex,
+    fileName: `SOSVN_Block_${doc.blockNumber}_PublicAnchor.json`,
+    otsFileName: `SOSVN_Block_${doc.blockNumber}_PublicAnchor.json.ots`
+  };
+}
+
+function readOtsVaruint(buf, offset) {
+  let value = 0;
+  let shift = 0;
+  let pos = offset;
+  while (pos < buf.length) {
+    const b = buf[pos++];
+    value += (b & 0x7f) * Math.pow(2, shift);
+    if ((b & 0x80) === 0) {
+      return { value, nextOffset: pos };
+    }
+    shift += 7;
+    if (shift > 35) throw new Error('OTS_VARUINT_OVERFLOW');
+  }
+  throw new Error('OTS_UNEXPECTED_EOF');
+}
+
+function readOtsVarbytes(buf, offset, maxLen = 8192) {
+  const { value: len, nextOffset } = readOtsVaruint(buf, offset);
+  if (len < 0 || len > maxLen || nextOffset + len > buf.length) {
+    throw new Error('OTS_VARBYTES_OUT_OF_RANGE');
+  }
+  return {
+    bytes: buf.subarray(nextOffset, nextOffset + len),
+    nextOffset: nextOffset + len
+  };
+}
+
+function parseOtsTimestampTree(buf, offset, currentMsg, attestations, depth = 0) {
+  if (depth > 64) throw new Error('OTS_MAX_DEPTH_EXCEEDED');
+  let pos = offset;
+  while (pos < buf.length && buf[pos] === 0xff) {
+    pos += 1;
+    pos = parseOtsTimestampTree(buf, pos, currentMsg, attestations, depth + 1);
+  }
+  if (pos >= buf.length) throw new Error('OTS_TREE_EOF');
+  const tag = buf[pos++];
+  if (tag === 0x00) {
+    if (pos + 8 > buf.length) throw new Error('OTS_ATTESTATION_TAG_EOF');
+    const attTagHex = buf.subarray(pos, pos + 8).toString('hex');
+    pos += 8;
+    const { bytes: payload, nextOffset } = readOtsVarbytes(buf, pos, 4096);
+    pos = nextOffset;
+    if (attTagHex === OTS_PENDING_ATTESTATION_TAG) {
+      const { bytes: uriBytes } = readOtsVarbytes(payload, 0, 2048);
+      attestations.push({
+        type: 'PendingAttestation',
+        calendarUri: uriBytes.toString('utf8'),
+        commitmentTipHex: '0x' + currentMsg.toString('hex')
+      });
+    } else if (attTagHex === OTS_BITCOIN_ATTESTATION_TAG) {
+      const { value: bitcoinBlockHeight } = readOtsVaruint(payload, 0);
+      attestations.push({
+        type: 'BitcoinBlockHeaderAttestation',
+        bitcoinBlockHeight,
+        merkleRootHex: '0x' + Buffer.from(currentMsg).reverse().toString('hex')
+      });
+    } else {
+      attestations.push({
+        type: 'UnknownAttestation',
+        tagHex: attTagHex,
+        commitmentTipHex: '0x' + currentMsg.toString('hex')
+      });
+    }
+    return pos;
+  }
+
+  let nextMsg = currentMsg;
+  if (tag === 0x08) {
+    nextMsg = crypto.createHash('sha256').update(currentMsg).digest();
+  } else if (tag === 0x02) {
+    nextMsg = crypto.createHash('sha1').update(currentMsg).digest();
+  } else if (tag === 0x03) {
+    nextMsg = crypto.createHash('ripemd160').update(currentMsg).digest();
+  } else if (tag === 0xf0) {
+    const { bytes: arg, nextOffset } = readOtsVarbytes(buf, pos, 4096);
+    pos = nextOffset;
+    nextMsg = Buffer.concat([currentMsg, arg]);
+  } else if (tag === 0xf1) {
+    const { bytes: arg, nextOffset } = readOtsVarbytes(buf, pos, 4096);
+    pos = nextOffset;
+    nextMsg = Buffer.concat([arg, currentMsg]);
+  } else if (tag === 0xf2) {
+    nextMsg = Buffer.from(currentMsg).reverse();
+  } else if (tag === 0xf3) {
+    nextMsg = Buffer.from(currentMsg.toString('hex'), 'ascii');
+  } else {
+    throw new Error(`OTS_UNSUPPORTED_OP_0x${tag.toString(16)}`);
+  }
+
+  return parseOtsTimestampTree(buf, pos, nextMsg, attestations, depth + 1);
+}
+
+export function inspectOtsProofBuffer(otsInput, expectedDigestInput = null) {
+  try {
+    const buf = Buffer.isBuffer(otsInput) ? otsInput : Buffer.from(String(otsInput || ''), 'base64');
+    if (buf.length < OTS_HEADER_MAGIC.length + 2 + 32) {
+      return { valid: false, error: 'OTS_TOO_SHORT' };
+    }
+    const headerSlice = buf.subarray(0, OTS_HEADER_MAGIC.length);
+    if (!headerSlice.equals(OTS_HEADER_MAGIC)) {
+      return { valid: false, error: 'OTS_MAGIC_MISMATCH' };
+    }
+    let pos = OTS_HEADER_MAGIC.length;
+    const { value: version, nextOffset } = readOtsVaruint(buf, pos);
+    pos = nextOffset;
+    if (version !== 1) {
+      return { valid: false, error: `OTS_UNSUPPORTED_VERSION_${version}` };
+    }
+    const hashOp = buf[pos++];
+    const digestLen = hashOp === 0x08 ? 32 : (hashOp === 0x02 || hashOp === 0x03 ? 20 : 0);
+    if (!digestLen || pos + digestLen > buf.length) {
+      return { valid: false, error: `OTS_UNSUPPORTED_HASH_OP_0x${hashOp.toString(16)}` };
+    }
+    const fileDigest = buf.subarray(pos, pos + digestLen);
+    pos += digestLen;
+
+    let digestMatchesExpected = true;
+    if (expectedDigestInput) {
+      const expBuf = Buffer.isBuffer(expectedDigestInput)
+        ? expectedDigestInput
+        : Buffer.from(normalizeHexDigest(String(expectedDigestInput)), 'hex');
+      digestMatchesExpected = expBuf.length === fileDigest.length && crypto.timingSafeEqual(fileDigest, expBuf);
+    }
+
+    const attestations = [];
+    const endPos = parseOtsTimestampTree(buf, pos, fileDigest, attestations, 0);
+    return {
+      valid: Boolean(digestMatchesExpected && attestations.length > 0 && endPos === buf.length),
+      version,
+      hashOp: 'SHA256',
+      byteLength: buf.length,
+      fileDigestHex: '0x' + fileDigest.toString('hex'),
+      digestMatchesExpected,
+      attestations
+    };
+  } catch (err) {
+    return { valid: false, error: err.message };
+  }
+}
+
 export function resolveSystemBlockchainConfig(hostOrOrigin = '') {
   const hostname = extractHostname(hostOrOrigin || process.env.PUBLIC_HOSTNAME || '');
   const isProduction = Boolean(
@@ -129,6 +371,64 @@ export function resolveSystemBlockchainConfig(hostOrOrigin = '') {
     : 'MÔI TRƯỜNG THỬ NGHIỆM (TEST SANDBOX)';
   const storageFolder = isProduction ? 'SOS_VIETNAM_OFFICIAL' : 'SOS_RENDER_SANDBOX';
 
+  const networks = {
+    '842026': {
+      code: '842026',
+      shortLabelVi: 'Nội Bộ SOS (842026)',
+      label: isProduction
+        ? 'SOS VIETNAM CHAIN (ID: 842026)'
+        : 'SOS VIETNAM CHAIN (ID: 842026 · SANDBOX 84202600)',
+      scopeTier: 'INTERNAL',
+      zeroPiiEnforced: false,
+      visibilityBadgeVi: 'MẠNG NỘI BỘ · HIỂN THỊ ĐẦY ĐỦ NGHIỆP VỤ',
+      visibilityDescVi: 'Trực ban đã xác thực xem được Full 100% chi tiết ca trực (Người báo, SĐT, CCCD, GPS, Cán bộ nhận ca, Thời lượng từng khâu).',
+      chainId: activeChainId,
+      rpcUrl: process.env.SOS_CHAIN_RPC_URL || '',
+      rpcConfigured: true,
+      explorerBase: '/api/blockchain/explorer/'
+    },
+    NDA: {
+      code: 'NDA',
+      shortLabelVi: 'Quốc Gia NDAChain',
+      label: 'NDA CHAIN QUỐC GIA (ĐỐI CHỨNG LIÊN NGÀNH)',
+      scopeTier: 'NATIONAL_INTERAGENCY',
+      zeroPiiEnforced: true,
+      visibilityBadgeVi: 'MẠNG QUỐC GIA · BẢO MẬT ZERO-PII',
+      visibilityDescVi: 'Đối chứng liên ngành cấp Quốc gia: Đã ẩn tuyệt đối Họ tên, SĐT, CCCD, Tọa độ GPS và Cán bộ — chỉ công bố Cam kết SHA-256 & SLA thời gian xử lý.',
+      chainId: Number(process.env.NDA_CHAIN_ID || 842025),
+      rpcUrl: process.env.NDA_CHAIN_RPC_URL || '',
+      rpcConfigured: Boolean(process.env.NDA_CHAIN_RPC_URL),
+      explorerBase: process.env.NDA_CHAIN_EXPLORER_URL || '/api/blockchain/explorer/'
+    },
+    OTS: {
+      code: 'OTS',
+      shortLabelVi: 'Quốc Tế Bitcoin (OTS)',
+      label: 'BITCOIN GLOBAL · OPENTIMESTAMPS CALENDAR',
+      scopeTier: 'GLOBAL_PUBLIC',
+      zeroPiiEnforced: true,
+      visibilityBadgeVi: 'MẠNG QUỐC TẾ BITCOIN · 100% ZERO-PII',
+      visibilityDescVi: 'Đối chứng toàn cầu trên hạ tầng Bitcoin OpenTimestamps: 0% lộ lọt thông tin nhạy cảm — tải tệp .json + .ots để kiểm chứng độc lập tại opentimestamps.org.',
+      chainId: 0,
+      rpcUrl: OTS_CALENDAR_ENDPOINTS[0],
+      rpcConfigured: true,
+      verificationSiteUrl: 'https://opentimestamps.org',
+      explorerBase: 'https://opentimestamps.org'
+    },
+    POLYGON: {
+      code: 'POLYGON',
+      shortLabelVi: 'Quốc Tế Polygon EVM',
+      label: 'POLYGON / ETHEREUM EVM GLOBAL EXPLORER',
+      scopeTier: 'GLOBAL_PUBLIC',
+      zeroPiiEnforced: true,
+      visibilityBadgeVi: 'MẠNG QUỐC TẾ EVM · 100% ZERO-PII',
+      visibilityDescVi: 'Khung dữ liệu neo EVM Quốc tế (Polygon Amoy / Ethereum): Chỉ xuất bản gói Calldata Cam kết SHA-256 (SOSVN-ANCHOR-V1), tuyệt đối không chứa PII.',
+      chainId: 80002,
+      rpcUrl: process.env.POLYGON_AMOY_RPC_URL || '',
+      rpcConfigured: Boolean(process.env.POLYGON_AMOY_RPC_URL),
+      explorerBase: process.env.POLYGON_AMOY_EXPLORER_URL || 'https://amoy.polygonscan.com/tx/'
+    }
+  };
+
   return {
     hostname: hostname || 'localhost',
     isProduction,
@@ -136,36 +436,12 @@ export function resolveSystemBlockchainConfig(hostOrOrigin = '') {
     chainId: activeChainId,
     canonicalChainId: 842026,
     storageFolder,
-    networks: {
-      '842026': {
-        code: '842026',
-        label: isProduction
-          ? 'SOS VIETNAM CHAIN (ID: 842026)'
-          : 'SOS VIETNAM CHAIN (ID: 842026 · SANDBOX 84202600)',
-        chainId: activeChainId,
-        rpcUrl: process.env.SOS_CHAIN_RPC_URL || '',
-        rpcConfigured: true,
-        explorerBase: '/api/blockchain/explorer/'
-      },
-      NDA: {
-        code: 'NDA',
-        label: 'NDA CHAIN QUỐC GIA',
-        chainId: Number(process.env.NDA_CHAIN_ID || 842025),
-        rpcUrl: process.env.NDA_CHAIN_RPC_URL || '',
-        rpcConfigured: Boolean(process.env.NDA_CHAIN_RPC_URL),
-        explorerBase: process.env.NDA_CHAIN_EXPLORER_URL || '/api/blockchain/explorer/'
-      },
-      POLYGON: {
-        code: 'POLYGON',
-        label: 'POLYGON AMOY TESTNET',
-        chainId: 80002,
-        rpcUrl: process.env.POLYGON_AMOY_RPC_URL || '',
-        rpcConfigured: Boolean(process.env.POLYGON_AMOY_RPC_URL),
-        explorerBase: process.env.POLYGON_AMOY_EXPLORER_URL || 'https://amoy.polygonscan.com/tx/'
-      }
-    }
+    networks,
+    supportedNetworks: ['842026', 'NDA', 'OTS', 'POLYGON'].map((k) => networks[k])
   };
 }
+
+export const BLOCKCHAIN_NETWORK_PROFILES = Object.freeze(resolveSystemBlockchainConfig('').networks);
 
 function getAcceptedSecretKeys() {
   return Array.from(new Set([
@@ -679,6 +955,203 @@ export class BlockchainLedgerService {
     });
   }
 
+  postOpenTimestampsDigest(calendarEndpoint, digestBuf, timeoutMs = 6000) {
+    return new Promise((resolve) => {
+      try {
+        const parsed = new URL(calendarEndpoint);
+        const transport = parsed.protocol === 'https:' ? https : http;
+        const req = transport.request(
+          {
+            protocol: parsed.protocol,
+            hostname: parsed.hostname,
+            port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+            path: parsed.pathname + parsed.search,
+            method: 'POST',
+            headers: {
+              Accept: 'application/vnd.opentimestamps.v1',
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Content-Length': digestBuf.length,
+              'User-Agent': 'SOSVietnam-ZeroPII-Anchor/2.0'
+            },
+            timeout: timeoutMs
+          },
+          (res) => {
+            const chunks = [];
+            let total = 0;
+            res.on('data', (chunk) => {
+              if (total < 16384) {
+                chunks.push(chunk);
+                total += chunk.length;
+              }
+            });
+            res.on('end', () => {
+              const body = Buffer.concat(chunks);
+              if (res.statusCode >= 200 && res.statusCode < 300 && body.length > 0) {
+                resolve({ ok: true, statusCode: res.statusCode, body, calendarEndpoint });
+              } else {
+                resolve({
+                  ok: false,
+                  statusCode: res.statusCode || 0,
+                  error: `CALENDAR_HTTP_${res.statusCode || 0}`
+                });
+              }
+            });
+          }
+        );
+        req.on('timeout', () => {
+          req.destroy();
+          resolve({ ok: false, error: 'CALENDAR_TIMEOUT' });
+        });
+        req.on('error', (err) => resolve({ ok: false, error: err.message }));
+        req.end(digestBuf);
+      } catch (err) {
+        resolve({ ok: false, error: err.message });
+      }
+    });
+  }
+
+  async anchorBlockToOpenTimestamps(blockOrRef, { forceRestamp = false, timeoutMs = 6000 } = {}) {
+    if (!this.state) this.loadLedger();
+    const block = (blockOrRef && typeof blockOrRef === 'object' && blockOrRef.blockNumber !== undefined)
+      ? this.findBlockByTxOrNumber(blockOrRef.blockNumber) || blockOrRef
+      : this.findBlockByTxOrNumber(blockOrRef);
+    if (!block) {
+      return { ok: false, error: 'BLOCK_NOT_FOUND' };
+    }
+    if (!block.externalAnchors || typeof block.externalAnchors !== 'object') {
+      block.externalAnchors = {};
+    }
+
+    const anchorPkg = buildZeroPiiPublicAnchorDocument(block);
+    const existing = block.externalAnchors.OTS;
+    if (
+      !forceRestamp
+      && existing
+      && existing.otsBase64
+      && existing.anchorDigestHex === anchorPkg.anchorDigestHex
+    ) {
+      const otsBuffer = Buffer.from(existing.otsBase64, 'base64');
+      const parsed = inspectOtsProofBuffer(otsBuffer, anchorPkg.anchorDigestBuf);
+      if (parsed.valid) {
+        return {
+          ok: true,
+          cached: true,
+          blockNumber: block.blockNumber,
+          anchorPkg,
+          otsBuffer,
+          otsInspection: parsed,
+          otsRecord: existing
+        };
+      }
+    }
+
+    let lastError = 'ALL_CALENDARS_UNREACHABLE';
+    for (const calendarUrl of OTS_CALENDAR_ENDPOINTS) {
+      const resp = await this.postOpenTimestampsDigest(calendarUrl, anchorPkg.anchorDigestBuf, timeoutMs);
+      if (!resp.ok || !resp.body) {
+        lastError = resp.error || 'CALENDAR_FAILED';
+        continue;
+      }
+      const otsBuffer = Buffer.concat([
+        OTS_HEADER_MAGIC,
+        Buffer.from([0x01, 0x08]),
+        anchorPkg.anchorDigestBuf,
+        resp.body
+      ]);
+      const inspection = inspectOtsProofBuffer(otsBuffer, anchorPkg.anchorDigestBuf);
+      if (!inspection.valid) {
+        lastError = inspection.error || 'INVALID_CALENDAR_OTS';
+        continue;
+      }
+      const primaryAtt = inspection.attestations[0] || {};
+      const otsRecord = {
+        protocol: 'OpenTimestamps-v1',
+        status: primaryAtt.type === 'BitcoinBlockHeaderAttestation' ? 'CONFIRMED_BTC_BLOCK' : 'STAMPED_PENDING_BTC',
+        stampedAt: new Date().toISOString(),
+        calendarEndpoint: calendarUrl,
+        calendarServerUri: primaryAtt.calendarUri || calendarUrl,
+        commitmentTipHex: primaryAtt.commitmentTipHex || null,
+        bitcoinBlockHeight: primaryAtt.bitcoinBlockHeight || null,
+        anchorDigestHex: anchorPkg.anchorDigestHex,
+        otsFileName: anchorPkg.otsFileName,
+        anchorFileName: anchorPkg.fileName,
+        otsByteLength: otsBuffer.length,
+        otsBase64: otsBuffer.toString('base64')
+      };
+      block.externalAnchors.OTS = otsRecord;
+      this.persistLedger();
+      return {
+        ok: true,
+        cached: false,
+        blockNumber: block.blockNumber,
+        anchorPkg,
+        otsBuffer,
+        otsInspection: inspection,
+        otsRecord
+      };
+    }
+
+    return {
+      ok: false,
+      blockNumber: block.blockNumber,
+      anchorPkg,
+      error: lastError
+    };
+  }
+
+  buildExternalAnchorSummary(block) {
+    if (!block || typeof block !== 'object') return null;
+    const anchorPkg = buildZeroPiiPublicAnchorDocument(block);
+    const ots = block.externalAnchors?.OTS || null;
+    const nda = block.externalAnchors?.NDA || null;
+    const polygon = block.externalAnchors?.POLYGON || null;
+    return {
+      protocol: anchorPkg.document.protocol,
+      blockNumber: anchorPkg.document.blockNumber,
+      actionCode: anchorPkg.document.actionCode,
+      sealedAt: anchorPkg.document.sealedAt,
+      caseCommitmentHash: anchorPkg.document.caseCommitmentHash,
+      txHash: anchorPkg.document.txHash,
+      prevHash: anchorPkg.document.prevHash,
+      payloadDigest: anchorPkg.document.payloadDigest,
+      anchorDigestHex: anchorPkg.anchorDigestHex,
+      anchorFileName: anchorPkg.fileName,
+      otsFileName: anchorPkg.otsFileName,
+      publicAnchorDocument: anchorPkg.document,
+      evmCalldataUtf8: anchorPkg.evmCalldataUtf8,
+      evmCalldataHex: anchorPkg.evmCalldataHex,
+      ots: ots
+        ? {
+            stamped: true,
+            status: ots.status,
+            stampedAt: ots.stampedAt,
+            calendarServerUri: ots.calendarServerUri,
+            commitmentTipHex: ots.commitmentTipHex,
+            bitcoinBlockHeight: ots.bitcoinBlockHeight || null,
+            otsByteLength: ots.otsByteLength,
+            verificationSiteUrl: 'https://opentimestamps.org'
+          }
+        : {
+            stamped: false,
+            status: 'READY_FOR_INSTANT_STAMP',
+            verificationSiteUrl: 'https://opentimestamps.org'
+          },
+      nda: nda
+        ? { anchored: true, ...nda }
+        : {
+            anchored: false,
+            status: process.env.NDA_CHAIN_RPC_URL ? 'RPC_READY' : 'ZERO_PII_COMMITMENT_READY'
+          },
+      polygon: polygon
+        ? { anchored: true, ...polygon }
+        : {
+            anchored: false,
+            status: process.env.POLYGON_AMOY_RPC_URL ? 'RPC_READY' : 'ZERO_PII_CALLDATA_READY',
+            explorerSiteUrl: 'https://amoy.polygonscan.com'
+          }
+    };
+  }
+
   sealBlockSync(actionType, caseId, payloadData = {}, options = {}) {
     if (!this.state) this.loadLedger();
     const sysCfg = resolveSystemBlockchainConfig(options.host || options.origin || '');
@@ -784,8 +1257,14 @@ export class BlockchainLedgerService {
       const num = Number(raw.replace(/^#/, ''));
       return this.state.blocks.find((b) => b.blockNumber === num) || null;
     }
-    const clean = raw.toLowerCase();
-    return this.state.blocks.find((b) => String(b.txHash || '').toLowerCase() === clean) || null;
+    const clean = ('0x' + raw.replace(/^0x/i, '')).toLowerCase();
+    return this.state.blocks.find((b) => {
+      if (String(b.txHash || '').toLowerCase() === clean) return true;
+      if (String(b.payloadDigest || '').toLowerCase() === clean) return true;
+      if (String(b.externalAnchors?.OTS?.anchorDigestHex || '').toLowerCase() === clean) return true;
+      if (computeCaseCommitmentHash(b.caseId).toLowerCase() === clean) return true;
+      return false;
+    }) || null;
   }
 
   /**
@@ -841,6 +1320,7 @@ export class BlockchainLedgerService {
     if (!this.cardRegistry) this.loadCardRegistry();
     const sysCfg = resolveSystemBlockchainConfig(host);
     const cardsList = Object.values(this.cardRegistry.cards || {});
+    const otsStampedBlocksCount = this.state.blocks.filter((b) => Boolean(b?.externalAnchors?.OTS?.otsBase64)).length;
     return {
       ok: true,
       schemaVersion: this.state.schemaVersion,
@@ -853,10 +1333,12 @@ export class BlockchainLedgerService {
       nextBlockNumber: this.state.nextBlockNumber,
       lastBlockHash: this.state.lastBlockHash,
       totalBlocks: this.state.blocks.length,
+      otsStampedBlocksCount,
       registeredCardsCount: cardsList.length,
       realCardsCount: cardsList.filter((c) => c.isImmutableReal).length,
       testCardsCount: cardsList.filter((c) => !c.isImmutableReal).length,
-      networks: sysCfg.networks
+      networks: sysCfg.networks,
+      supportedNetworks: sysCfg.supportedNetworks
     };
   }
 
@@ -1087,19 +1569,53 @@ export class BlockchainLedgerService {
     };
   }
 
-  sanitizeBlockForView(block, { includeRawPii = false } = {}) {
+  sanitizeBlockForView(block, { includeRawPii = false, networkView = '842026' } = {}) {
     if (!block || typeof block !== 'object') return null;
-    const cloned = JSON.parse(JSON.stringify(block));
-    const action = cloned.action || cloned.payload?.action || '';
-    const recomputedTxHash = cloned.payload
-      ? this.computeDeterministicTxHash(cloned.payload, cloned.blockNumber, cloned.prevHash)
+    const normNet = normalizeNetworkView(networkView);
+    const zeroPii = isZeroPiiNetworkView(normNet);
+    const action = block.action || block.payload?.action || '';
+    const recomputedTxHash = block.payload
+      ? this.computeDeterministicTxHash(block.payload, block.blockNumber, block.prevHash)
       : '';
-    const hashVerified = Boolean(recomputedTxHash && timingSafeHexEqual(cloned.txHash, recomputedTxHash));
+    const hashVerified = Boolean(recomputedTxHash && timingSafeHexEqual(block.txHash, recomputedTxHash));
+    const externalAnchor = this.buildExternalAnchorSummary(block);
 
+    if (zeroPii) {
+      return {
+        blockNumber: block.blockNumber,
+        txHash: block.txHash,
+        prevHash: block.prevHash,
+        payloadDigest: block.payloadDigest,
+        evidenceHash: block.payloadDigest,
+        chainId: block.chainId,
+        canonicalChainId: 842026,
+        action,
+        actionLabelVi: describeZeroPiiStageVi(action),
+        timestamp: block.timestamp,
+        recomputedTxHash,
+        hashVerified,
+        piiMasked: true,
+        zeroPiiEnforced: true,
+        networkView: normNet,
+        caseCommitmentHash: externalAnchor.caseCommitmentHash,
+        anchorDigestHex: externalAnchor.anchorDigestHex,
+        publicAnchor: externalAnchor
+      };
+    }
+
+    const cloned = JSON.parse(JSON.stringify(block));
+    if (cloned.externalAnchors?.OTS?.otsBase64) {
+      delete cloned.externalAnchors.OTS.otsBase64;
+    }
     cloned.actionLabelVi = describeBlockchainActionVi(action);
     cloned.recomputedTxHash = recomputedTxHash;
     cloned.hashVerified = hashVerified;
     cloned.piiMasked = !includeRawPii;
+    cloned.zeroPiiEnforced = false;
+    cloned.networkView = '842026';
+    cloned.caseCommitmentHash = externalAnchor.caseCommitmentHash;
+    cloned.anchorDigestHex = externalAnchor.anchorDigestHex;
+    cloned.publicAnchor = externalAnchor;
 
     if (!includeRawPii && cloned.payload && cloned.payload.data && typeof cloned.payload.data === 'object') {
       const d = cloned.payload.data;
@@ -1117,21 +1633,86 @@ export class BlockchainLedgerService {
     return cloned;
   }
 
-  describeBlockStepVi(block, { includeRawPii = false } = {}) {
-    const view = this.sanitizeBlockForView(block, { includeRawPii });
+  describeBlockStepVi(block, { includeRawPii = false, networkView = '842026' } = {}) {
+    const normNet = normalizeNetworkView(networkView);
+    const zeroPii = isZeroPiiNetworkView(normNet);
+    const view = this.sanitizeBlockForView(block, { includeRawPii, networkView: normNet });
     if (!view) return null;
-    const action = view.action || view.payload?.action || '';
-    const d = view.payload?.data || {};
+    const action = view.action || '';
+    const rawInternalData = block.payload?.data || {};
     const detailsVi = [];
-    let actorLabelVi = 'Hệ thống Sổ cái SOS';
-    let unitLabelVi = d.unitName || d.targetUnitName || d.routedUnitName || '';
-    let summaryVi = view.actionLabelVi;
-    let durationBadgeVi = '';
 
     const pushDetail = (label, value) => {
       if (value === null || value === undefined || value === '') return;
       detailsVi.push({ label, value: String(value) });
     };
+
+    if (zeroPii) {
+      let durationBadgeVi = '';
+      if (action === LIFECYCLE_ACTIONS.CASE_ESCALATED && rawInternalData.waitBeforeEscalationSeconds !== undefined && rawInternalData.waitBeforeEscalationSeconds !== null) {
+        durationBadgeVi = `Δt chuyển cấp: ${formatDurationSecondsVi(rawInternalData.waitBeforeEscalationSeconds)}`;
+      } else if (action === LIFECYCLE_ACTIONS.OFFICER_DISPATCH && rawInternalData.responseTimeSeconds !== undefined && rawInternalData.responseTimeSeconds !== null) {
+        durationBadgeVi = `Δt phản ứng: ${formatDurationSecondsVi(rawInternalData.responseTimeSeconds)}`;
+      } else if (action === LIFECYCLE_ACTIONS.OFFICER_APPROACHING && rawInternalData.approachingTimeSeconds !== undefined && rawInternalData.approachingTimeSeconds !== null) {
+        durationBadgeVi = `Δt áp sát: ${formatDurationSecondsVi(rawInternalData.approachingTimeSeconds)}`;
+      } else if (action === LIFECYCLE_ACTIONS.OFFICER_ARRIVED && rawInternalData.travelTimeSeconds !== undefined && rawInternalData.travelTimeSeconds !== null) {
+        durationBadgeVi = `Δt di chuyển: ${formatDurationSecondsVi(rawInternalData.travelTimeSeconds)}`;
+      } else if (action === LIFECYCLE_ACTIONS.CASE_RESOLVED && rawInternalData.totalCaseDurationSeconds !== undefined && rawInternalData.totalCaseDurationSeconds !== null) {
+        durationBadgeVi = `Δt toàn ca: ${formatDurationSecondsVi(rawInternalData.totalCaseDurationSeconds)}`;
+      } else if (action === LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED) {
+        durationBadgeVi = 'Khóa vi phạm NĐ 144 (Zero-PII)';
+      }
+
+      const pubAnchor = view.publicAnchor;
+      pushDetail('Chế độ công bố mạng ngoài', '🔒 ZERO-PII (Đã ẩn tuyệt đối Họ tên, SĐT, CCCD, GPS, Địa chỉ & Cán bộ)');
+      pushDetail('Giao thức cam kết', pubAnchor.protocol);
+      pushDetail('Cam kết Hồ sơ (Case Commitment)', pubAnchor.caseCommitmentHash);
+      pushDetail('Mã băm Neo Quốc tế (Anchor SHA-256)', pubAnchor.anchorDigestHex);
+      if (durationBadgeVi) pushDetail('Khoảng thời gian quy trình (SLA Δt)', durationBadgeVi);
+      if (normNet === 'OTS') {
+        pushDetail(
+          'Trạng thái Lịch Bitcoin (OpenTimestamps)',
+          pubAnchor.ots?.stamped
+            ? `✔ Đã đóng dấu (${pubAnchor.ots.calendarServerUri || 'OpenTimestamps Pool'})`
+            : '⚡ Sẵn sàng tải & đóng dấu tức thời (.OTS)'
+        );
+      } else if (normNet === 'POLYGON') {
+        pushDetail('Gói Calldata EVM (Zero-PII Hex)', `${pubAnchor.evmCalldataHex.slice(0, 42)}... (${(pubAnchor.evmCalldataHex.length - 2) / 2} bytes)`);
+      } else if (normNet === 'NDA') {
+        pushDetail('Chuẩn đối chứng Quốc gia NDAChain', `Cam kết liên ngành Zero-PII (${pubAnchor.nda?.status || 'ZERO_PII_COMMITMENT_READY'})`);
+      }
+
+      return {
+        blockNumber: view.blockNumber,
+        txHash: view.txHash,
+        prevHash: view.prevHash,
+        payloadDigest: view.payloadDigest,
+        evidenceHash: view.payloadDigest,
+        chainId: view.chainId,
+        action,
+        actionLabelVi: view.actionLabelVi,
+        timestamp: view.timestamp,
+        hashVerified: view.hashVerified,
+        recomputedTxHash: view.recomputedTxHash,
+        zeroPiiEnforced: true,
+        networkView: normNet,
+        caseCommitmentHash: pubAnchor.caseCommitmentHash,
+        anchorDigestHex: pubAnchor.anchorDigestHex,
+        publicAnchor: pubAnchor,
+        actorLabelVi: '🔒 Thực thể ẩn danh (Zero-PII)',
+        unitLabelVi: '🔒 Đơn vị bảo mật nội bộ',
+        summaryVi: `${view.actionLabelVi} — Cam kết mật mã một chiều SHA-256 không chứa dữ liệu định danh cá nhân.`,
+        durationBadgeVi,
+        detailsVi,
+        data: pubAnchor.publicAnchorDocument
+      };
+    }
+
+    const d = view.payload?.data || {};
+    let actorLabelVi = 'Hệ thống Sổ cái SOS';
+    let unitLabelVi = d.unitName || d.targetUnitName || d.routedUnitName || '';
+    let summaryVi = view.actionLabelVi;
+    let durationBadgeVi = '';
 
     if (action === LIFECYCLE_ACTIONS.SOS_TRIGGER) {
       const reporter = d.reporterName || d.userName || 'Người dân khẩn cấp';
@@ -1277,6 +1858,11 @@ export class BlockchainLedgerService {
       timestamp: view.timestamp,
       hashVerified: view.hashVerified,
       recomputedTxHash: view.recomputedTxHash,
+      zeroPiiEnforced: false,
+      networkView: '842026',
+      caseCommitmentHash: view.caseCommitmentHash,
+      anchorDigestHex: view.anchorDigestHex,
+      publicAnchor: view.publicAnchor,
       actorLabelVi,
       unitLabelVi,
       summaryVi,
@@ -1286,7 +1872,9 @@ export class BlockchainLedgerService {
     };
   }
 
-  buildCaseProcessSummary(caseBlocks = [], incidentMeta = null, { includeRawPii = false } = {}) {
+  buildCaseProcessSummary(caseBlocks = [], incidentMeta = null, { includeRawPii = false, networkView = '842026' } = {}) {
+    const normNet = normalizeNetworkView(networkView);
+    const zeroPii = isZeroPiiNetworkView(normNet);
     const ordered = [...(Array.isArray(caseBlocks) ? caseBlocks : [])]
       .filter((b) => b && typeof b === 'object')
       .sort((a, b) => (Number(a.blockNumber) || 0) - (Number(b.blockNumber) || 0));
@@ -1348,19 +1936,6 @@ export class BlockchainLedgerService {
       : (closeData.onSceneHandlingSeconds !== undefined ? closeData.onSceneHandlingSeconds : null);
     const totalCaseDurationSeconds = diffSec(triggeredAt, resolvedAt, closeData.totalCaseDurationSeconds ?? null);
 
-    const rawPhone = trigData.reporterPhone || trigData.userPhone || trigData.phone || incidentMeta?.reporterPhone || incidentMeta?.phone || '';
-    const rawCccd = trigData.userCCCD || trigData.cccd || incidentMeta?.userCCCD || '';
-    const reporterPhone = includeRawPii ? rawPhone : maskLedgerPii(rawPhone, 3, 3);
-    const userCCCD = includeRawPii ? rawCccd : maskLedgerPii(rawCccd, 3, 3);
-
-    const officerRank = dispData.officerRank || arrData.officerRank || closeData.officerRank || incidentMeta?.acceptedByOfficer?.rank || '';
-    const officerName = dispData.officerName || arrData.officerName || closeData.officerName || dispData.officerId || incidentMeta?.acceptedByOfficer?.name || '';
-    const officerFullTitle = dispData.officerFullTitle
-      || arrData.officerFullTitle
-      || closeData.officerFullTitle
-      || [officerRank, officerName].filter(Boolean).join(' ').trim()
-      || '';
-
     let currentStageCode = 'PENDING_DISPATCH';
     let currentStageLabelVi = 'Đang chờ Trực ban tiếp nhận';
     if (fakeBlock) {
@@ -1383,15 +1958,126 @@ export class BlockchainLedgerService {
       currentStageLabelVi = 'Đã chuyển vượt cấp Chỉ huy Tỉnh/TP';
     }
 
+    const rawInternalCaseId = triggerBlock?.caseId || ordered[0]?.caseId || incidentMeta?.id || '';
+    const caseCommitmentHash = computeCaseCommitmentHash(rawInternalCaseId);
     const steps = ordered
       .map((blk, idx) => {
-        const step = this.describeBlockStepVi(blk, { includeRawPii });
+        const step = this.describeBlockStepVi(blk, { includeRawPii, networkView: normNet });
         return step ? { stepIndex: idx + 1, ...step } : null;
       })
       .filter(Boolean);
 
+    const durations = {
+      responseTimeSeconds,
+      responseTimeTextVi: formatDurationSecondsVi(responseTimeSeconds),
+      approachingTimeSeconds,
+      approachingTimeTextVi: formatDurationSecondsVi(approachingTimeSeconds),
+      travelTimeSeconds,
+      travelTimeTextVi: formatDurationSecondsVi(travelTimeSeconds),
+      totalToSceneSeconds,
+      totalToSceneTextVi: formatDurationSecondsVi(totalToSceneSeconds),
+      onSceneHandlingSeconds,
+      onSceneHandlingTextVi: formatDurationSecondsVi(onSceneHandlingSeconds),
+      totalCaseDurationSeconds,
+      totalCaseDurationTextVi: formatDurationSecondsVi(totalCaseDurationSeconds)
+    };
+
+    const timestamps = {
+      triggeredAt,
+      escalatedAt,
+      dispatchedAt,
+      approachingAt,
+      arrivedAt,
+      resolvedAt
+    };
+
+    if (zeroPii) {
+      const latestBlockObj = ordered[ordered.length - 1] || null;
+      return {
+        caseId: null,
+        caseCommitmentHash,
+        networkView: normNet,
+        zeroPiiEnforced: true,
+        totalBlocksInCase: ordered.length,
+        evidenceFilesCount: evidenceBlocks.length,
+        transactionMode: evidenceBlocks.length > 0 ? 'PROCESS_AND_MEDIA_HASH' : 'LIGHTWEIGHT_PROCESS_TRANSACTION',
+        currentStageCode,
+        currentStageLabelVi,
+        isResolved: Boolean(resolvedBlock || fakeBlock),
+        isFakeAlarm: Boolean(fakeBlock),
+        reporter: {
+          name: '🔒 Đã ẩn bảo mật Zero-PII (Công dân ẩn danh)',
+          phone: '🔒 Không công bố trên mạng quốc tế',
+          cardID: null,
+          userCCCD: null,
+          channel: 'ENCRYPTED_COMMITMENT',
+          channelLabelVi: 'Giao thức Cam kết Một chiều (Zero-PII)',
+          agency: '',
+          agencyName: 'Lực lượng Cứu hộ Khẩn cấp (Ẩn chi tiết đơn vị)',
+          lat: null,
+          lng: null,
+          accuracy: null,
+          address: '🔒 Đã khóa tọa độ GPS & địa chỉ nội bộ (Zero-GPS)',
+          incidentTags: [],
+          customNotes: ''
+        },
+        routing: {
+          initialUnitName: '🔒 Đơn vị trực chiến nội bộ (Zero-PII)',
+          initialUnitAddress: '',
+          initialUnitPhone: '',
+          escalatedCount: escalationBlocks.length,
+          escalatedToUnitName: escalationBlocks.length > 0 ? '🔒 Cấp chỉ huy trực thuộc (Zero-PII)' : null,
+          escalationReason: null
+        },
+        officer: {
+          accepted: Boolean(dispatchBlock),
+          rank: null,
+          name: null,
+          fullTitle: dispatchBlock ? '🔒 Lực lượng trực chiến đã tiếp nhận (Zero-PII)' : 'Đang chờ tiếp nhận (Zero-PII)',
+          account: null,
+          phone: null,
+          unitName: '🔒 Đơn vị cứu hộ nội bộ (Zero-PII)',
+          stationAddress: '',
+          dispatchChannel: null,
+          dispatchChannelLabelVi: dispatchBlock ? 'Đã xác thực chữ ký nội bộ' : 'Chưa tiếp nhận',
+          etaMinutes: dispData.etaMinutes ?? arrData.etaMinutes ?? null
+        },
+        timestamps,
+        durations,
+        resolution: {
+          closed: Boolean(closingBlock),
+          isFakeAlarm: Boolean(fakeBlock),
+          closedBy: closingBlock ? 'verified_actor_commitment' : null,
+          officerFullTitle: null,
+          note: ''
+        },
+        firstBlockNumber: ordered[0]?.blockNumber || null,
+        firstTxHash: ordered[0]?.txHash || null,
+        latestBlockNumber: latestBlockObj?.blockNumber || null,
+        latestTxHash: latestBlockObj?.txHash || null,
+        latestPublicAnchor: latestBlockObj ? this.buildExternalAnchorSummary(latestBlockObj) : null,
+        steps
+      };
+    }
+
+    const rawPhone = trigData.reporterPhone || trigData.userPhone || trigData.phone || incidentMeta?.reporterPhone || incidentMeta?.phone || '';
+    const rawCccd = trigData.userCCCD || trigData.cccd || incidentMeta?.userCCCD || '';
+    const reporterPhone = includeRawPii ? rawPhone : maskLedgerPii(rawPhone, 3, 3);
+    const userCCCD = includeRawPii ? rawCccd : maskLedgerPii(rawCccd, 3, 3);
+
+    const officerRank = dispData.officerRank || arrData.officerRank || closeData.officerRank || incidentMeta?.acceptedByOfficer?.rank || '';
+    const officerName = dispData.officerName || arrData.officerName || closeData.officerName || dispData.officerId || incidentMeta?.acceptedByOfficer?.name || '';
+    const officerFullTitle = dispData.officerFullTitle
+      || arrData.officerFullTitle
+      || closeData.officerFullTitle
+      || [officerRank, officerName].filter(Boolean).join(' ').trim()
+      || '';
+
     return {
-      caseId: triggerBlock?.caseId || ordered[0]?.caseId || incidentMeta?.id || '',
+      caseId: rawInternalCaseId,
+      caseCommitmentHash,
+      networkView: '842026',
+      zeroPiiEnforced: false,
       totalBlocksInCase: ordered.length,
       evidenceFilesCount: evidenceBlocks.length,
       transactionMode: evidenceBlocks.length > 0 ? 'PROCESS_AND_MEDIA_HASH' : 'LIGHTWEIGHT_PROCESS_TRANSACTION',
@@ -1436,28 +2122,8 @@ export class BlockchainLedgerService {
         dispatchChannelLabelVi: dispData.channel === 'zalo_bot' ? 'Zalo Tác Chiến' : (dispatchBlock ? 'Bàn Điều Phối Web' : 'Chưa tiếp nhận'),
         etaMinutes: dispData.etaMinutes ?? arrData.etaMinutes ?? null
       },
-      timestamps: {
-        triggeredAt,
-        escalatedAt,
-        dispatchedAt,
-        approachingAt,
-        arrivedAt,
-        resolvedAt
-      },
-      durations: {
-        responseTimeSeconds,
-        responseTimeTextVi: formatDurationSecondsVi(responseTimeSeconds),
-        approachingTimeSeconds,
-        approachingTimeTextVi: formatDurationSecondsVi(approachingTimeSeconds),
-        travelTimeSeconds,
-        travelTimeTextVi: formatDurationSecondsVi(travelTimeSeconds),
-        totalToSceneSeconds,
-        totalToSceneTextVi: formatDurationSecondsVi(totalToSceneSeconds),
-        onSceneHandlingSeconds,
-        onSceneHandlingTextVi: formatDurationSecondsVi(onSceneHandlingSeconds),
-        totalCaseDurationSeconds,
-        totalCaseDurationTextVi: formatDurationSecondsVi(totalCaseDurationSeconds)
-      },
+      timestamps,
+      durations,
       resolution: {
         closed: Boolean(closingBlock),
         isFakeAlarm: Boolean(fakeBlock),
@@ -1469,16 +2135,29 @@ export class BlockchainLedgerService {
       firstTxHash: ordered[0]?.txHash || null,
       latestBlockNumber: ordered[ordered.length - 1]?.blockNumber || null,
       latestTxHash: ordered[ordered.length - 1]?.txHash || null,
+      latestPublicAnchor: ordered[ordered.length - 1] ? this.buildExternalAnchorSummary(ordered[ordered.length - 1]) : null,
       steps
     };
   }
 
-  lookupLedger(query, { includeRawPii = false, incidentMeta = null, host = '' } = {}) {
+  lookupLedger(query, { includeRawPii = false, incidentMeta = null, host = '', networkView = '842026' } = {}) {
     if (!this.state) this.loadLedger();
     const sysCfg = resolveSystemBlockchainConfig(host);
+    const normNet = normalizeNetworkView(networkView);
+    const zeroPii = isZeroPiiNetworkView(normNet);
+    const activeNetworkProfile = sysCfg.networks[normNet] || sysCfg.networks['842026'];
     const raw = String(query || '').trim();
     if (!raw) {
-      return { ok: false, found: false, error: 'EMPTY_QUERY', sysConfig: sysCfg };
+      return {
+        ok: false,
+        found: false,
+        error: 'EMPTY_QUERY',
+        networkView: normNet,
+        zeroPiiEnforced: zeroPii,
+        activeNetworkProfile,
+        supportedNetworks: sysCfg.supportedNetworks,
+        sysConfig: sysCfg
+      };
     }
 
     let queryType = 'caseId';
@@ -1497,6 +2176,8 @@ export class BlockchainLedgerService {
         (b) => String(b.txHash || '').toLowerCase() === hex
           || String(b.payloadDigest || '').toLowerCase() === hex
           || String(b.evidenceHash || '').toLowerCase() === hex
+          || String(b.externalAnchors?.OTS?.anchorDigestHex || '').toLowerCase() === hex
+          || computeCaseCommitmentHash(b.caseId).toLowerCase() === hex
       ) || null;
       if (matchedBlock) caseId = matchedBlock.caseId;
     }
@@ -1521,7 +2202,11 @@ export class BlockchainLedgerService {
       return {
         ok: true,
         found: false,
-        query: raw,
+        query: zeroPii ? '[ZERO_PII_QUERY]' : raw,
+        networkView: normNet,
+        zeroPiiEnforced: zeroPii,
+        activeNetworkProfile,
+        supportedNetworks: sysCfg.supportedNetworks,
         sysConfig: {
           envName: sysCfg.envName,
           chainId: sysCfg.chainId,
@@ -1542,18 +2227,32 @@ export class BlockchainLedgerService {
           )
         };
 
-    const processSummary = this.buildCaseProcessSummary(caseBlocks, incidentMeta, { includeRawPii });
-    const sanitizedBlocks = caseBlocks.map((b) => this.sanitizeBlockForView(b, { includeRawPii }));
+    const caseCommitmentHash = computeCaseCommitmentHash(caseId);
+    const processSummary = this.buildCaseProcessSummary(caseBlocks, incidentMeta, {
+      includeRawPii,
+      networkView: normNet
+    });
+    const sanitizedBlocks = caseBlocks.map((b) => this.sanitizeBlockForView(b, {
+      includeRawPii,
+      networkView: normNet
+    }));
+    const publicAnchor = this.buildExternalAnchorSummary(matchedBlock);
 
     return {
       ok: true,
       found: true,
-      query: raw,
+      query: zeroPii && queryType === 'caseId' ? caseCommitmentHash : raw,
       queryType,
-      piiMasked: !includeRawPii,
-      caseId,
+      networkView: normNet,
+      zeroPiiEnforced: zeroPii,
+      activeNetworkProfile,
+      supportedNetworks: sysCfg.supportedNetworks,
+      piiMasked: zeroPii ? true : !includeRawPii,
+      caseId: zeroPii ? null : caseId,
+      caseCommitmentHash,
       matchedBlockNumber: matchedBlock.blockNumber,
       matchedTxHash: matchedBlock.txHash,
+      publicAnchor,
       sysConfig: {
         envName: sysCfg.envName,
         chainId: sysCfg.chainId,
@@ -1572,35 +2271,49 @@ export class BlockchainLedgerService {
     };
   }
 
-  getRecentBlocks(limit = 20, { includeRawPii = false, host = '' } = {}) {
+  getRecentBlocks(limit = 20, { includeRawPii = false, host = '', networkView = '842026' } = {}) {
     if (!this.state) this.loadLedger();
     const sysCfg = resolveSystemBlockchainConfig(host);
+    const normNet = normalizeNetworkView(networkView);
+    const zeroPii = isZeroPiiNetworkView(normNet);
+    const activeNetworkProfile = sysCfg.networks[normNet] || sysCfg.networks['842026'];
     const maxItems = Math.min(Math.max(1, Number(limit) || 20), 100);
     const slice = this.state.blocks.slice(-maxItems).reverse();
     const items = slice.map((b) => {
-      const step = this.describeBlockStepVi(b, { includeRawPii });
+      const step = this.describeBlockStepVi(b, { includeRawPii, networkView: normNet });
+      const caseCommitmentHash = computeCaseCommitmentHash(b.caseId);
+      const pubAnchor = step?.publicAnchor || this.buildExternalAnchorSummary(b);
       return {
         blockNumber: b.blockNumber,
         txHash: b.txHash,
         prevHash: b.prevHash,
         payloadDigest: b.payloadDigest,
-        caseId: b.caseId,
+        caseId: zeroPii ? null : b.caseId,
+        caseCommitmentHash,
+        anchorDigestHex: pubAnchor?.anchorDigestHex || null,
+        otsStamped: Boolean(pubAnchor?.ots?.stamped),
         action: b.action,
-        actionLabelVi: step?.actionLabelVi || describeBlockchainActionVi(b.action),
+        actionLabelVi: step?.actionLabelVi || (zeroPii ? describeZeroPiiStageVi(b.action) : describeBlockchainActionVi(b.action)),
         actorLabelVi: step?.actorLabelVi || '',
         unitLabelVi: step?.unitLabelVi || '',
         summaryVi: step?.summaryVi || '',
         durationBadgeVi: step?.durationBadgeVi || '',
         timestamp: b.timestamp,
         chainId: b.chainId,
-        envName: b.envName,
+        envName: zeroPii ? activeNetworkProfile.label : b.envName,
+        networkView: normNet,
+        zeroPiiEnforced: zeroPii,
         hashVerified: Boolean(step?.hashVerified)
       };
     });
 
     return {
       ok: true,
-      piiMasked: !includeRawPii,
+      networkView: normNet,
+      zeroPiiEnforced: zeroPii,
+      activeNetworkProfile,
+      supportedNetworks: sysCfg.supportedNetworks,
+      piiMasked: zeroPii ? true : !includeRawPii,
       totalBlocks: this.state.blocks.length,
       lastBlockHash: this.state.lastBlockHash,
       genesisHash: this.state.genesisHash,
@@ -1610,9 +2323,83 @@ export class BlockchainLedgerService {
     };
   }
 
-  verifyExportedDossier(dossierInput, { host = '' } = {}) {
+  verifyExportedDossier(dossierInput, { host = '', networkView = '842026', includeRawPii = true } = {}) {
     if (!this.state) this.loadLedger();
     const sysCfg = resolveSystemBlockchainConfig(host);
+    const normNet = normalizeNetworkView(networkView);
+    const zeroPii = isZeroPiiNetworkView(normNet);
+
+    // Support verifying SOSVN-ANCHOR-V1 PublicAnchor.json Zero-PII files directly
+    if (dossierInput && typeof dossierInput === 'object' && dossierInput.protocol === 'SOSVN-ANCHOR-V1') {
+      const blkNum = Number(dossierInput.blockNumber) || 0;
+      const serverBlock = this.state.blocks.find((sb) => sb.blockNumber === blkNum) || null;
+      const canonicalServerAnchor = serverBlock ? buildZeroPiiPublicAnchorDocument(serverBlock) : null;
+      const txMatched = Boolean(serverBlock && timingSafeHexEqual(serverBlock.txHash, String(dossierInput.txHash || '')));
+      const prevMatched = Boolean(serverBlock && timingSafeHexEqual(serverBlock.prevHash, String(dossierInput.prevHash || '')));
+      const payloadMatched = Boolean(serverBlock && timingSafeHexEqual(serverBlock.payloadDigest, String(dossierInput.payloadDigest || '')));
+      const commitmentMatched = Boolean(
+        canonicalServerAnchor && timingSafeHexEqual(canonicalServerAnchor.document.caseCommitmentHash, String(dossierInput.caseCommitmentHash || ''))
+      );
+      const exactMatched = Boolean(serverBlock && txMatched && prevMatched && payloadMatched && commitmentMatched);
+      const caseBlocks = serverBlock && serverBlock.caseId ? this.getCaseBlocks(serverBlock.caseId) : (serverBlock ? [serverBlock] : []);
+      const effectiveNet = normNet === '842026' ? 'OTS' : normNet;
+      return {
+        ok: true,
+        verified: exactMatched,
+        cryptographicIntact: exactMatched,
+        serverLedgerAllMatched: exactMatched,
+        tamperDetected: Boolean(serverBlock && !exactMatched),
+        verdictCode: exactMatched ? 'PUBLIC_ANCHOR_VERIFIED' : (serverBlock ? 'TAMPERED_DATA_DETECTED' : 'PUBLIC_ANCHOR_SERVER_BLOCK_NOT_FOUND'),
+        verdictTitleVi: exactMatched
+          ? `XÁC THỰC CAM KẾT ZERO-PII THÀNH CÔNG 100% (BLOCK #${blkNum})`
+          : (serverBlock ? `CẢNH BÁO SAI LỆCH TỆP CAM KẾT CÔNG KHAI TẠI BLOCK #${blkNum}` : `TỆP CAM KẾT ZERO-PII HỢP LỆ CẤU TRÚC — CHƯA CÓ BLOCK #${blkNum} TRÊN MÁY CHỦ NÀY`),
+        verdictDetailVi: exactMatched
+          ? `Tệp SOSVN_Block_${blkNum}_PublicAnchor.json khớp 100% TxHash, PrevHash, PayloadDigest và CaseCommitmentHash với Sổ cái gốc mà không lộ bất kỳ dữ liệu cá nhân (Zero-PII) nào.`
+          : 'Một hoặc nhiều mã băm cam kết trong tệp PublicAnchor.json không khớp với Block trên Sổ cái.',
+        checkedBlocksCount: 1,
+        networkView: effectiveNet,
+        zeroPiiEnforced: true,
+        corruptedBlocks: serverBlock && !exactMatched
+          ? [{
+              blockNumber: blkNum,
+              action: String(dossierInput.actionCode || ''),
+              actionLabelVi: describeZeroPiiStageVi(dossierInput.actionCode),
+              providedTxHash: String(dossierInput.txHash || ''),
+              expectedTxHash: serverBlock.txHash,
+              serverTxHash: serverBlock.txHash,
+              reasonsVi: ['Mã băm cam kết trong PublicAnchor.json đã bị thay đổi so với Sổ cái gốc']
+            }]
+          : [],
+        blockVerifications: [{
+          blockNumber: blkNum,
+          action: String(dossierInput.actionCode || ''),
+          actionLabelVi: describeZeroPiiStageVi(dossierInput.actionCode),
+          timestamp: dossierInput.sealedAt || null,
+          providedTxHash: String(dossierInput.txHash || ''),
+          recomputedTxHash: serverBlock?.txHash || String(dossierInput.txHash || ''),
+          providedPayloadDigest: String(dossierInput.payloadDigest || ''),
+          recomputedPayloadDigest: serverBlock?.payloadDigest || String(dossierInput.payloadDigest || ''),
+          prevHash: String(dossierInput.prevHash || ''),
+          selfHashMatched: exactMatched,
+          payloadDigestMatched: payloadMatched,
+          prevChainConsistent: prevMatched,
+          existsOnServerLedger: Boolean(serverBlock),
+          txHashMatchesServer: txMatched,
+          serverTxHash: serverBlock?.txHash || null,
+          status: exactMatched ? 'VERIFIED_ON_LEDGER' : (serverBlock ? 'TAMPERED' : 'HASH_VALID_OFF_LEDGER'),
+          reasonsVi: []
+        }],
+        processSummary: caseBlocks.length > 0
+          ? this.buildCaseProcessSummary(caseBlocks, null, { includeRawPii: false, networkView: effectiveNet })
+          : null,
+        publicAnchor: serverBlock ? this.buildExternalAnchorSummary(serverBlock) : null,
+        sysConfig: {
+          envName: sysCfg.envName,
+          chainId: sysCfg.chainId,
+          totalBlocksOnServer: this.state.blocks.length
+        }
+      };
+    }
 
     let rawBlocks = [];
     let dossierMeta = null;
@@ -1790,7 +2577,11 @@ export class BlockchainLedgerService {
       const sb = this.state.blocks.find((s) => s.blockNumber === blk.blockNumber && (!blk.txHash || timingSafeHexEqual(s.txHash, blk.txHash)));
       return sb || blk;
     });
-    const processSummary = this.buildCaseProcessSummary(blocksForSummary, null, { includeRawPii: true });
+    const processSummary = this.buildCaseProcessSummary(blocksForSummary, null, {
+      includeRawPii: zeroPii ? false : includeRawPii,
+      networkView: normNet
+    });
+    const latestServerOrFileBlock = blocksForSummary[blocksForSummary.length - 1] || null;
 
     return {
       ok: true,
@@ -1798,6 +2589,8 @@ export class BlockchainLedgerService {
       cryptographicIntact: allCryptographicIntact && !tamperDetected,
       serverLedgerAllMatched: allServerMatched && !tamperDetected,
       tamperDetected,
+      networkView: normNet,
+      zeroPiiEnforced: zeroPii,
       verdictCode,
       verdictTitleVi,
       verdictDetailVi,
@@ -1805,6 +2598,7 @@ export class BlockchainLedgerService {
       corruptedBlocks,
       blockVerifications,
       processSummary,
+      publicAnchor: latestServerOrFileBlock ? this.buildExternalAnchorSummary(latestServerOrFileBlock) : null,
       sysConfig: {
         envName: sysCfg.envName,
         chainId: sysCfg.chainId,
