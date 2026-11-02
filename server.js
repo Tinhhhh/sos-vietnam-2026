@@ -22,6 +22,15 @@ import {
   verifyChainedCardSeal,
   verifyHardwareDePINPayload
 } from './services/blockchain-ledger-service.js';
+import {
+  computeSha256Hex,
+  normalizeSha256Hex,
+  parseMultipartFormData,
+  storeFieldEvidence,
+  readEvidenceRawBuffer,
+  createEvidenceAccessToken,
+  verifyEvidenceAccessToken
+} from './services/evidence-storage-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,9 +60,9 @@ const CONTENT_SECURITY_POLICY = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com https://db.onlinewebfonts.com",
-  "img-src 'self' data: blob: https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com https://nominatim.openstreetmap.org https://photon.komoot.io",
-  "media-src 'self' data: blob: https://d8j0ntlcm91z4.cloudfront.net https://assets.mixkit.co",
-  "connect-src 'self' https://api.open-meteo.com https://nominatim.openstreetmap.org https://photon.komoot.io https://get.geojs.io https://router.project-osrm.org https://demotiles.maplibre.org https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com",
+  "img-src 'self' data: blob: https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com https://nominatim.openstreetmap.org https://photon.komoot.io https://res.cloudinary.com https://*.supabase.co",
+  "media-src 'self' data: blob: https://d8j0ntlcm91z4.cloudfront.net https://assets.mixkit.co https://res.cloudinary.com https://*.supabase.co",
+  "connect-src 'self' https://api.open-meteo.com https://nominatim.openstreetmap.org https://photon.komoot.io https://get.geojs.io https://router.project-osrm.org https://demotiles.maplibre.org https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com https://res.cloudinary.com https://*.supabase.co",
   "worker-src 'self' blob:"
 ].join('; ');
 
@@ -5628,6 +5637,552 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -------------------------------------------------------------
+  // API: Field Evidence RAM SHA-256 Sealing & Multi-Tier Storage (Hang muc 2)
+  // -------------------------------------------------------------
+  if (urlPath === '/api/sos/upload-evidence' && req.method === 'POST') {
+    const MAX_EVIDENCE_BYTES = 25 * 1024 * 1024;
+    const chunks = [];
+    let totalBytes = 0;
+    let tooLarge = false;
+
+    req.on('data', (chunk) => {
+      if (tooLarge) return;
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += buf.length;
+      if (totalBytes > MAX_EVIDENCE_BYTES) {
+        tooLarge = true;
+        return;
+      }
+      chunks.push(buf);
+    });
+
+    req.on('end', async () => {
+      if (tooLarge) {
+        res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: 'Tệp chứng cứ vượt quá giới hạn 25MB.' }));
+      }
+      try {
+        const rawBody = Buffer.concat(chunks);
+        const contentType = String(req.headers['content-type'] || '');
+        let fields = {};
+        let fileBuffer = null;
+        let mimeType = 'audio/webm';
+        let fileName = 'stealth_evidence.webm';
+
+        if (/multipart\/form-data/i.test(contentType)) {
+          const parsed = parseMultipartFormData(rawBody, contentType);
+          fields = parsed.fields || {};
+          if (parsed.files && parsed.files.length > 0) {
+            fileBuffer = parsed.files[0].buffer;
+            mimeType = parsed.files[0].mimeType || mimeType;
+            fileName = parsed.files[0].fileName || fileName;
+          }
+        } else {
+          const jsonPayload = JSON.parse(rawBody.toString('utf8') || '{}');
+          fields = jsonPayload || {};
+          mimeType = String(jsonPayload.mimeType || mimeType);
+          fileName = String(jsonPayload.fileName || fileName);
+          const rawB64 = String(jsonPayload.base64Data || jsonPayload.dataUrl || '').trim();
+          if (rawB64) {
+            const commaIdx = rawB64.indexOf(',');
+            if (rawB64.startsWith('data:') && commaIdx !== -1) {
+              const headerPart = rawB64.slice(5, commaIdx);
+              const semiIdx = headerPart.indexOf(';');
+              mimeType = (semiIdx !== -1 ? headerPart.slice(0, semiIdx) : headerPart) || mimeType;
+              fileBuffer = Buffer.from(rawB64.slice(commaIdx + 1), 'base64');
+            } else {
+              fileBuffer = Buffer.from(rawB64, 'base64');
+            }
+          }
+        }
+
+        const incidentId = String(fields.incidentId || fields.id || '').trim();
+        const incident = incidents.get(incidentId);
+        if (!incident) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy ca sự cố SOS.' }));
+        }
+        const suppliedCitizenToken = String(req.headers[CITIZEN_ACCESS_TOKEN_HEADER] || fields.accessToken || '').trim();
+        const sessionToken = securityFirewall.extractToken(req);
+        const hasDispatcherAuth = Boolean(sessionToken && !securityFirewall.isTokenRevoked(sessionToken) && securityCryptoService.verifySessionToken(sessionToken));
+        const hasCitizenAuth = incident.citizenAccessTokenHash
+          ? (suppliedCitizenToken.length >= 32 && hashCitizenAccessToken(suppliedCitizenToken) === incident.citizenAccessTokenHash)
+          : true;
+        if (!hasCitizenAuth && !hasDispatcherAuth) {
+          res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chưa xác thực khóa truy cập công dân (x-sos-access-token) hoặc phiên trực ban.' }));
+        }
+
+        if (!fileBuffer || fileBuffer.length === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Thiếu dữ liệu tệp âm thanh/video chứng cứ.' }));
+        }
+
+        const effectiveHost = resolveEffectiveRequestHost(req);
+        const stored = await storeFieldEvidence({
+          incidentId,
+          buffer: fileBuffer,
+          mimeType,
+          fileName,
+          hostname: effectiveHost,
+          clientSha256: fields.clientSha256 || '',
+          stealthMode: fields.stealthMode || '',
+          chunkIndex: Number(fields.chunkIndex || 0),
+          durationMs: Number(fields.durationMs || 5000)
+        });
+
+        if (stored.clientHashProvided && stored.clientHashMatched === false) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({
+            ok: false,
+            code: 'CLIENT_SHA256_MISMATCH',
+            error: 'Cảnh báo toàn vẹn: Mã băm SHA-256 từ trình duyệt không khớp dữ liệu nhận được trên máy chủ.',
+            clientSha256: stored.clientSha256,
+            serverSha256: stored.sha256Hash
+          }));
+        }
+
+        const latNum = parseFloat(fields.lat);
+        const lngNum = parseFloat(fields.lng);
+        const accNum = parseFloat(fields.accuracy);
+        if (Number.isFinite(latNum) && Number.isFinite(lngNum) && (Math.abs(latNum) > 0.0001 || Math.abs(lngNum) > 0.0001)) {
+          incident.lat = latNum;
+          incident.lng = lngNum;
+          if (Number.isFinite(accNum) && accNum > 0) incident.gpsAccuracy = accNum;
+          if (!Array.isArray(incident.citizenGpsTrail)) incident.citizenGpsTrail = [];
+          incident.citizenGpsTrail.push({ lat: latNum, lng: lngNum, t: Date.now() });
+          if (incident.citizenGpsTrail.length > 120) incident.citizenGpsTrail.shift();
+        }
+
+        if (fields.stealthMode) {
+          incident.isStealthSos = true;
+          incident.stealthMode = String(fields.stealthMode);
+          incident.stealthActive = true;
+        }
+
+        const sealReceipt = await recordIncidentBlockchainEvent(
+          incident,
+          LIFECYCLE_ACTIONS.EVIDENCE_SEAL,
+          {
+            evidenceId: stored.evidenceId,
+            fileName: stored.fileName,
+            mimeType: stored.mimeType,
+            sizeBytes: stored.sizeBytes,
+            durationMs: stored.durationMs,
+            chunkIndex: stored.chunkIndex,
+            stealthMode: stored.stealthMode || 'DIRECT_EVIDENCE',
+            sha256Hash: stored.sha256Hash,
+            clientSha256: stored.clientSha256,
+            clientHashMatched: stored.clientHashMatched,
+            storageProvider: stored.storageProvider,
+            storageFolder: stored.storageFolder,
+            lat: Number.isFinite(latNum) ? latNum : incident.lat,
+            lng: Number.isFinite(lngNum) ? lngNum : incident.lng
+          },
+          { host: effectiveHost }
+        );
+
+        const dlToken = createEvidenceAccessToken({
+          incidentId,
+          evidenceId: stored.evidenceId,
+          expiresInMs: 7 * 24 * 60 * 60 * 1000
+        });
+        const playbackUrl = `${stored.internalMediaUrl}?dlToken=${encodeURIComponent(dlToken)}`;
+
+        const evidenceRecord = {
+          evidenceId: stored.evidenceId,
+          incidentId,
+          fileName: stored.fileName,
+          mimeType: stored.mimeType,
+          sizeBytes: stored.sizeBytes,
+          durationMs: stored.durationMs,
+          chunkIndex: stored.chunkIndex,
+          stealthMode: stored.stealthMode || 'DIRECT_EVIDENCE',
+          sha256Hash: stored.sha256Hash,
+          clientSha256: stored.clientSha256,
+          clientHashMatched: stored.clientHashMatched,
+          storageProvider: stored.storageProvider,
+          storageFolder: stored.storageFolder,
+          mediaUrl: stored.storageProvider === 'cloudinary' && stored.remoteUrl ? stored.remoteUrl : playbackUrl,
+          internalMediaUrl: stored.internalMediaUrl,
+          remoteUrl: stored.remoteUrl,
+          vaultRelativePath: stored.vaultRelativePath,
+          cloudMetadata: stored.cloudMetadata,
+          blockNumber: sealReceipt?.blockNumber ?? null,
+          txHash: sealReceipt?.txHash ?? null,
+          chainId: sealReceipt?.chainId ?? null,
+          lat: Number.isFinite(latNum) ? latNum : incident.lat,
+          lng: Number.isFinite(lngNum) ? lngNum : incident.lng,
+          createdAt: stored.createdAt
+        };
+
+        if (!Array.isArray(incident.evidenceRecords)) incident.evidenceRecords = [];
+        incident.evidenceRecords.push(evidenceRecord);
+        incident.updatedAt = new Date().toISOString();
+        saveIncidentHistory();
+
+        broadcastToDispatchers('sos_update', incident);
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(JSON.stringify({
+          ok: true,
+          evidenceId: evidenceRecord.evidenceId,
+          mediaUrl: evidenceRecord.mediaUrl,
+          sha256Hash: evidenceRecord.sha256Hash,
+          clientHashMatched: evidenceRecord.clientHashMatched,
+          blockNumber: evidenceRecord.blockNumber,
+          txHash: evidenceRecord.txHash,
+          chainId: evidenceRecord.chainId,
+          storageProvider: evidenceRecord.storageProvider,
+          storageFolder: evidenceRecord.storageFolder,
+          evidence: evidenceRecord
+        }));
+      } catch (err) {
+        console.error('[EVIDENCE UPLOAD] Error:', err);
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: publicRequestError(err) }));
+      }
+    });
+    return;
+  }
+
+  // -------------------------------------------------------------
+  // API: Continuous Stealth GPS Telemetry Heartbeat (Hang muc 5.2)
+  // -------------------------------------------------------------
+  if (urlPath === '/api/sos/stealth-gps' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => {
+      if (body.length < 64 * 1024) body += chunk;
+    });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const incidentId = String(payload.incidentId || payload.id || '').trim();
+        const incident = incidents.get(incidentId);
+        if (!incident) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy ca sự cố SOS.' }));
+        }
+        const suppliedGpsToken = String(req.headers[CITIZEN_ACCESS_TOKEN_HEADER] || payload.accessToken || '').trim();
+        const gpsSessionToken = securityFirewall.extractToken(req);
+        const hasDispatcherGpsAuth = Boolean(gpsSessionToken && !securityFirewall.isTokenRevoked(gpsSessionToken) && securityCryptoService.verifySessionToken(gpsSessionToken));
+        const hasCitizenGpsAuth = incident.citizenAccessTokenHash
+          ? (suppliedGpsToken.length >= 32 && hashCitizenAccessToken(suppliedGpsToken) === incident.citizenAccessTokenHash)
+          : true;
+        if (!hasCitizenGpsAuth && !hasDispatcherGpsAuth) {
+          res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Chưa xác thực khóa truy cập công dân cho luồng GPS ngụy trang.' }));
+        }
+
+        const latNum = parseFloat(payload.lat);
+        const lngNum = parseFloat(payload.lng);
+        const accNum = parseFloat(payload.accuracy);
+        if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
+          incident.lat = latNum;
+          incident.lng = lngNum;
+          if (Number.isFinite(accNum) && accNum > 0) incident.gpsAccuracy = accNum;
+          if (!Array.isArray(incident.citizenGpsTrail)) incident.citizenGpsTrail = [];
+          incident.citizenGpsTrail.push({ lat: latNum, lng: lngNum, t: Date.now() });
+          if (incident.citizenGpsTrail.length > 120) incident.citizenGpsTrail.shift();
+        }
+        incident.isStealthSos = true;
+        incident.stealthActive = payload.stealthActive !== false;
+        if (payload.stealthMode) incident.stealthMode = String(payload.stealthMode);
+        incident.updatedAt = new Date().toISOString();
+        saveIncidentHistory();
+        broadcastToDispatchers('sos_update', incident);
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(JSON.stringify({
+          ok: true,
+          incidentId,
+          lat: incident.lat,
+          lng: incident.lng,
+          stealthActive: incident.stealthActive,
+          updatedAt: incident.updatedAt
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: publicRequestError(err) }));
+      }
+    });
+    return;
+  }
+
+  // -------------------------------------------------------------
+  // API: Stream / Download Sealed Field Evidence File (Audio/Video/Image)
+  // -------------------------------------------------------------
+  if (urlPath.startsWith('/api/sos/evidence-file/') && req.method === 'GET') {
+    const rest = urlPath.replace('/api/sos/evidence-file/', '');
+    const slashIdx = rest.indexOf('/');
+    const incidentId = slashIdx !== -1 ? decodeURIComponent(rest.slice(0, slashIdx)) : '';
+    const evidenceId = slashIdx !== -1 ? decodeURIComponent(rest.slice(slashIdx + 1)) : '';
+    const incident = incidents.get(incidentId);
+    if (!incident || !evidenceId) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy hồ sơ chứng cứ.' }));
+    }
+
+    const dlToken = urlObj.searchParams.get('dlToken') || '';
+    const hasSignedDlToken = dlToken && verifyEvidenceAccessToken(dlToken, incidentId, evidenceId);
+
+    let hasDispatcherSession = false;
+    if (!hasSignedDlToken) {
+      const sessionToken = securityFirewall.extractToken(req);
+      if (sessionToken && !securityFirewall.isTokenRevoked(sessionToken)) {
+        const verifiedUser = securityCryptoService.verifySessionToken(sessionToken);
+        if (verifiedUser) hasDispatcherSession = true;
+      }
+    }
+
+    let hasCitizenToken = false;
+    if (!hasSignedDlToken && !hasDispatcherSession) {
+      const suppliedCitizenToken = req.headers[CITIZEN_ACCESS_TOKEN_HEADER] || urlObj.searchParams.get('access_token') || '';
+      if (typeof suppliedCitizenToken === 'string' && suppliedCitizenToken.length >= 32 && incident.citizenAccessTokenHash) {
+        const suppliedHash = hashCitizenAccessToken(suppliedCitizenToken);
+        if (suppliedHash === incident.citizenAccessTokenHash) {
+          hasCitizenToken = true;
+        }
+      }
+    }
+
+    if (!hasSignedDlToken && !hasDispatcherSession && !hasCitizenToken) {
+      res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Chưa xác thực quyền truy cập tệp chứng cứ hiện trường.' }));
+    }
+
+    const records = Array.isArray(incident.evidenceRecords) ? incident.evidenceRecords : [];
+    const targetRec = records.find((r) => r && r.evidenceId === evidenceId);
+    if (!targetRec) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy bản ghi tệp chứng cứ.' }));
+    }
+
+    const rawResult = await readEvidenceRawBuffer(targetRec);
+    if (!rawResult.ok || !rawResult.buffer) {
+      res.writeHead(rawResult.tampered ? 409 : 404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({
+        ok: false,
+        tampered: Boolean(rawResult.tampered),
+        reason: rawResult.reason || 'EVIDENCE_UNAVAILABLE',
+        error: 'Không thể giải mã hoặc truy xuất tệp chứng cứ gốc.'
+      }));
+    }
+
+    const fullBuf = rawResult.buffer;
+    const totalLen = fullBuf.length;
+    const contentType = targetRec.mimeType || 'audio/webm';
+    const wantDownload = urlObj.searchParams.get('download') === '1';
+    const safeDownloadName = String(targetRec.fileName || `${evidenceId}.webm`).replace(/["\r\n]/g, '_');
+    const baseHeaders = {
+      'Content-Type': contentType,
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'private, max-age=300',
+      'X-Evidence-SHA256': targetRec.sha256Hash || '',
+      'X-Blockchain-TxHash': targetRec.txHash || '',
+      ...(wantDownload
+        ? { 'Content-Disposition': `attachment; filename="${safeDownloadName}"` }
+        : { 'Content-Disposition': `inline; filename="${safeDownloadName}"` })
+    };
+
+    const rangeHeader = req.headers.range;
+    if (rangeHeader && /^bytes=\d*-\d*$/i.test(rangeHeader) && !wantDownload) {
+      const [startStr, endStr] = rangeHeader.replace(/bytes=/i, '').split('-');
+      let start = startStr ? parseInt(startStr, 10) : 0;
+      let end = endStr ? parseInt(endStr, 10) : totalLen - 1;
+      if (!Number.isFinite(start) || start < 0) start = 0;
+      if (!Number.isFinite(end) || end >= totalLen) end = totalLen - 1;
+      if (start <= end && start < totalLen) {
+        const sliced = fullBuf.subarray(start, end + 1);
+        res.writeHead(206, {
+          ...baseHeaders,
+          'Content-Range': `bytes ${start}-${end}/${totalLen}`,
+          'Content-Length': String(sliced.length)
+        });
+        return res.end(sliced);
+      }
+    }
+
+    res.writeHead(200, {
+      ...baseHeaders,
+      'Content-Length': String(totalLen)
+    });
+    return res.end(fullBuf);
+  }
+
+  // -------------------------------------------------------------
+  // API: Live Server-Side SHA-256 Integrity Audit & Legal Extraction (Hang muc 4)
+  // -------------------------------------------------------------
+  if (urlPath === '/api/dispatcher/blockchain/verify' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => {
+      if (body.length < 128 * 1024) body += chunk;
+    });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const incidentId = String(payload.incidentId || payload.id || '').trim();
+        const requestedEvidenceId = String(payload.evidenceId || '').trim();
+        const selectedNetwork = String(payload.network || '842026').trim();
+        const incident = incidents.get(incidentId);
+        if (!incident) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy hồ sơ sự cố cần giám định.' }));
+        }
+
+        const effectiveHost = resolveEffectiveRequestHost(req);
+        const sysConfig = resolveSystemBlockchainConfig(effectiveHost);
+        const origin = detectRequestOrigin(req);
+        const chainCheck = blockchainLedgerService.verifyCaseChainIntegrity(incidentId);
+        const caseBlocks = blockchainLedgerService.getCaseBlocks(incidentId);
+        const evidenceList = Array.isArray(incident.evidenceRecords) ? incident.evidenceRecords : [];
+
+        const auditedEvidence = [];
+        for (const rec of evidenceList) {
+          if (requestedEvidenceId && rec.evidenceId !== requestedEvidenceId) continue;
+          const sealedBlock = caseBlocks.find(
+            (b) => b.payload?.actionType === LIFECYCLE_ACTIONS.EVIDENCE_SEAL && b.payload?.data?.evidenceId === rec.evidenceId
+          );
+          const originalBlockchainHash = normalizeSha256Hex(
+            sealedBlock?.payload?.data?.sha256Hash || rec.sha256Hash || ''
+          );
+
+          const rawRead = await readEvidenceRawBuffer(rec);
+          const currentServerFileHash = rawRead.ok && rawRead.buffer
+            ? computeSha256Hex(rawRead.buffer)
+            : (rawRead.corruptedRawSha256 || '0x0000000000000000000000000000000000000000000000000000000000000000');
+
+          const isMatch = Boolean(
+            rawRead.ok &&
+            !rawRead.tampered &&
+            originalBlockchainHash &&
+            currentServerFileHash === originalBlockchainHash
+          );
+
+          const dlToken = createEvidenceAccessToken({
+            incidentId,
+            evidenceId: rec.evidenceId,
+            expiresInMs: 24 * 60 * 60 * 1000
+          });
+          const downloadUrl = `${origin}/api/sos/evidence-file/${encodeURIComponent(incidentId)}/${encodeURIComponent(rec.evidenceId)}?download=1&dlToken=${encodeURIComponent(dlToken)}`;
+
+          auditedEvidence.push({
+            evidenceId: rec.evidenceId,
+            fileName: rec.fileName,
+            mimeType: rec.mimeType,
+            sizeBytes: rec.sizeBytes,
+            durationMs: rec.durationMs,
+            stealthMode: rec.stealthMode,
+            storageProvider: rec.storageProvider,
+            storageFolder: rec.storageFolder,
+            blockNumber: sealedBlock?.blockNumber ?? rec.blockNumber ?? null,
+            txHash: sealedBlock?.txHash ?? rec.txHash ?? null,
+            originalBlockchainHash,
+            currentServerFileHash,
+            matched: isMatch,
+            tamperReason: isMatch ? null : (rawRead.reason || 'SHA256_HASH_MISMATCH'),
+            downloadUrl
+          });
+        }
+
+        const primaryEvidence = auditedEvidence.length > 0
+          ? auditedEvidence[auditedEvidence.length - 1]
+          : null;
+
+        const latestBlock = caseBlocks.length > 0 ? caseBlocks[caseBlocks.length - 1] : null;
+        const hwSpoofed = incident.hardwareSecurity?.status === 'SPOOF_SUSPECTED';
+        const allEvidenceIntact = auditedEvidence.every((item) => item.matched === true);
+        const verified = Boolean(chainCheck.ok && !hwSpoofed && allEvidenceIntact);
+
+        const originalBlockchainHash = primaryEvidence
+          ? primaryEvidence.originalBlockchainHash
+          : (incident.hardwareSecurity?.liveEvidenceHash || incident.blockchain?.latestHash || latestBlock?.hash || '');
+        const currentServerFileHash = primaryEvidence
+          ? primaryEvidence.currentServerFileHash
+          : (chainCheck.ok && !hwSpoofed ? originalBlockchainHash : '0xTAMPERED_OR_SPOOFED_SIGNATURE');
+
+        const txHash = primaryEvidence?.txHash || incident.blockchain?.latestTxHash || latestBlock?.txHash || '';
+        const blockNumber = primaryEvidence?.blockNumber || incident.blockchain?.latestBlockNumber || latestBlock?.blockNumber || null;
+        const explorerUrl = txHash ? `${origin}/api/blockchain/explorer/${encodeURIComponent(txHash)}` : `${origin}/api/blockchain/status`;
+        const qrSvg = generateQrCodeSvg(explorerUrl);
+
+        const conclusion = verified
+          ? '✔ XÁC THỰC THÀNH CÔNG (100% NGUYÊN VẸN) - ĐỦ TIÊU CHUẨN TRÍCH XUẤT LÀM CHỨNG CỨ PHÁP LÝ'
+          : '❌ CẢNH BÁO VI PHẠM TOÀN VẸN DỮ LIỆU - PHÁT HIỆN DẤU HIỆU GIẢ MẠO HOẶC CHỈNH SỬA TRÁI PHÉP';
+
+        const auditedAtIso = new Date().toISOString();
+        const auditorOfficer = req.user?.username || req.headers['x-officer-username'] || 'admin';
+        const legalDossier = {
+          dossierId: `LEGAL-BC-${incidentId}-${Date.now()}`,
+          auditedAt: auditedAtIso,
+          auditorOfficer,
+          selectedNetwork,
+          environmentLabel: sysConfig.envLabel,
+          chainId: sysConfig.chainId,
+          chainName: sysConfig.chainName,
+          incidentId,
+          agency: incident.agencyName || incident.agency,
+          address: incident.address,
+          coordinates: { lat: incident.lat, lng: incident.lng },
+          hardwareSecurity: incident.hardwareSecurity || null,
+          responseTimeSeconds: incident.blockchain?.responseTimeSeconds ?? null,
+          chainIntegrity: chainCheck,
+          verified,
+          conclusion,
+          originalBlockchainHash,
+          currentServerFileHash,
+          blockNumber,
+          txHash,
+          explorerUrl,
+          downloadUrl: primaryEvidence?.downloadUrl || null,
+          auditedEvidenceCount: auditedEvidence.length,
+          auditedEvidence,
+          lifecycleBlocks: caseBlocks.map((b) => ({
+            blockNumber: b.blockNumber,
+            actionType: b.payload?.actionType,
+            txHash: b.txHash,
+            hash: b.hash,
+            prevHash: b.prevHash,
+            isoTime: b.isoTime,
+            responseTimeSeconds: b.payload?.data?.responseTimeSeconds ?? null
+          }))
+        };
+
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        return res.end(JSON.stringify({
+          ok: true,
+          verified,
+          conclusion,
+          incidentId,
+          selectedNetwork,
+          chainId: sysConfig.chainId,
+          chainName: sysConfig.chainName,
+          environmentLabel: sysConfig.envLabel,
+          blockNumber,
+          txHash,
+          originalBlockchainHash,
+          currentServerFileHash,
+          chainIntegrity: chainCheck,
+          hardwareSecurity: incident.hardwareSecurity || null,
+          responseTimeSeconds: incident.blockchain?.responseTimeSeconds ?? null,
+          auditedEvidenceCount: auditedEvidence.length,
+          auditedEvidence,
+          downloadUrl: primaryEvidence?.downloadUrl || null,
+          primaryFileName: primaryEvidence?.fileName || null,
+          explorerUrl,
+          qrSvg,
+          legalDossier
+        }));
+      } catch (err) {
+        console.error('[BLOCKCHAIN VERIFY] Error:', err);
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: publicRequestError(err) }));
+      }
+    });
+    return;
+  }
+
+  // -------------------------------------------------------------
   // API: Get Single SOS
   // -------------------------------------------------------------
   if (
@@ -7188,6 +7743,33 @@ const server = http.createServer(async (req, res) => {
         if (!Array.isArray(incident.messages)) incident.messages = [];
         incident.messages.push(mediaMsg);
         incident.updatedAt = nowIso;
+
+        const chatMediaHashes = normalizedItems.map((m) => {
+          const commaIdx = String(m.dataUrl || '').indexOf(',');
+          const rawBuf = (String(m.dataUrl || '').startsWith('data:') && commaIdx !== -1)
+            ? Buffer.from(m.dataUrl.slice(commaIdx + 1), 'base64')
+            : Buffer.from(String(m.dataUrl || ''), 'utf8');
+          const sha256Hash = computeSha256Hex(rawBuf);
+          m.sha256Hash = sha256Hash;
+          return { id: m.id, name: m.name, type: m.type, sha256Hash, sizeBytes: rawBuf.length };
+        });
+        recordIncidentBlockchainEvent(
+          incident,
+          LIFECYCLE_ACTIONS.EVIDENCE_SEAL,
+          {
+            source: 'CHAT_SCENE_MEDIA',
+            count: chatMediaHashes.length,
+            sha256Hash: chatMediaHashes[0]?.sha256Hash || null,
+            items: chatMediaHashes
+          },
+          { host: resolveEffectiveRequestHost(req) }
+        ).then(() => {
+          saveIncidentHistory();
+          broadcastToDispatchers('sos_update', incident);
+        }).catch((sealErr) => {
+          console.warn('[BLOCKCHAIN] Chat media seal warning:', sealErr.message);
+        });
+
         saveIncidentHistory();
 
         notifyCitizen(incidentId, 'new_message', { incidentId, message: mediaMsg });
