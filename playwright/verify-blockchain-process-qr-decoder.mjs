@@ -379,7 +379,17 @@ async function main() {
     // =========================================================================
     // STEP 3: Dispatcher #bcSecurityPanel UI, Live Audit, OpenCV QR Scan & .JSON Download
     // =========================================================================
-    await dispPage.waitForTimeout(450);
+    // Allow HTTPS SSE sos_update(resolved) event to arrive and settle, then open the completed case dossier
+    // exactly as a Dispatcher inspecting a resolved case from History/Queue.
+    await dispPage.waitForTimeout(900);
+    await dispPage.evaluate(({ id, inc }) => {
+      if (window.dispatcherApp) {
+        if (inc) window.dispatcherApp.incidents.set(id, inc);
+        window.dispatcherApp.selectIncident(id);
+      }
+    }, { id: mainCaseId, inc: resolvedRes?.incident || null });
+    await dispPage.waitForTimeout(300);
+
     const panelUi = await dispPage.evaluate(() => {
       const panel = document.getElementById('bcSecurityPanel');
       panel?.scrollIntoView({ block: 'center' });
@@ -689,9 +699,18 @@ async function main() {
       }
     );
 
-    // Cleanly close the covert Stealth SOS incident so staging Dispatcher queue has 0 leftover active test incidents
-    if (stealthIncidentId) {
-      await dispPage.evaluate(async (id) => {
+    // Cleanly close all QA Stealth SOS incidents (including any left by an interrupted run) so staging queue stays spotless
+    await dispPage.evaluate(async (explicitId) => {
+      const targetIds = new Set();
+      if (explicitId) targetIds.add(explicitId);
+      if (window.dispatcherApp?.incidents) {
+        for (const [id, inc] of window.dispatcherApp.incidents.entries()) {
+          if (inc && inc.status !== 'resolved' && inc.status !== 'fake_alarm' && inc.isStealthSos) {
+            targetIds.add(id);
+          }
+        }
+      }
+      for (const id of targetIds) {
         await fetch('/api/dispatcher/accept', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -713,8 +732,8 @@ async function main() {
             note: 'Đóng ca kiểm thử tự động Stealth SOS siêu nhẹ.'
           })
         }).catch(() => {});
-      }, stealthIncidentId);
-    }
+      }
+    }, stealthIncidentId);
 
     await publicContext.close();
     await dispContext.close();

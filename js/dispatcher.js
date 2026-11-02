@@ -10860,7 +10860,7 @@ class DispatcherApp {
         this.incidentQueueList.style.display = 'flex';
         this.incidentQueueList.style.setProperty('display', 'flex', 'important');
       }
-    } else if (activeList.length === 0 || (this.selectedIncidentId && !this.incidents.has(this.selectedIncidentId))) {
+    } else if ((activeList.length === 0 && !this.selectedIncidentId) || (this.selectedIncidentId && !this.incidents.has(this.selectedIncidentId))) {
       this.selectedIncidentId = null;
       const drawer = this.activeIncidentDrawer || document.getElementById('activeIncidentDrawer');
       if (drawer) {
