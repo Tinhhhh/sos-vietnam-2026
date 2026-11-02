@@ -27,10 +27,62 @@ const MAX_PERSISTED_BLOCKS = 5000;
 export const LIFECYCLE_ACTIONS = Object.freeze({
   SOS_TRIGGER: '1_SOS_TRIGGER',
   EVIDENCE_SEAL: '2_EVIDENCE_SEAL',
+  CASE_ESCALATED: '2B_CASE_ESCALATED',
   OFFICER_DISPATCH: '3_OFFICER_DISPATCH',
+  OFFICER_APPROACHING: '3A_OFFICER_APPROACHING',
+  OFFICER_ARRIVED: '3B_OFFICER_ARRIVED',
   CASE_RESOLVED: '4_CASE_RESOLVED',
+  FAKE_ALARM_FLAGGED: '4B_FAKE_ALARM',
   CARD_PROVISION_SEAL: '0_CARD_PROVISION_SEAL'
 });
+
+export function describeBlockchainActionVi(actionType) {
+  switch (actionType) {
+    case LIFECYCLE_ACTIONS.SOS_TRIGGER:
+      return '1. Khởi tạo & Báo tin cứu hộ khẩn cấp';
+    case LIFECYCLE_ACTIONS.EVIDENCE_SEAL:
+      return '2. Niêm phong chứng cứ số SHA-256 hiện trường';
+    case LIFECYCLE_ACTIONS.CASE_ESCALATED:
+      return '2B. Chuyển vượt cấp Chỉ huy Tỉnh / Thành phố';
+    case LIFECYCLE_ACTIONS.OFFICER_DISPATCH:
+      return '3. Trực ban tiếp nhận & Xuất quân cứu hộ';
+    case LIFECYCLE_ACTIONS.OFFICER_APPROACHING:
+      return '3A. Đội cứu hộ tiếp cận gần hiện trường (< 300m)';
+    case LIFECYCLE_ACTIONS.OFFICER_ARRIVED:
+      return '3B. Lực lượng cứu hộ đã có mặt tại hiện trường';
+    case LIFECYCLE_ACTIONS.CASE_RESOLVED:
+      return '4. Hoàn tất ứng cứu & Đóng hồ sơ bất biến';
+    case LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED:
+      return '4B. Lập biên bản báo tin giả (Nghị định 144/2021/NĐ-CP)';
+    case LIFECYCLE_ACTIONS.CARD_PROVISION_SEAL:
+      return '0. Cấp phát / Nối khối Thẻ SOS vật lý (DePIN)';
+    default:
+      return String(actionType || 'Giao dịch sổ cái');
+  }
+}
+
+export function formatDurationSecondsVi(seconds) {
+  if (seconds === null || seconds === undefined || !Number.isFinite(Number(seconds))) {
+    return 'Chưa ghi nhận';
+  }
+  const sec = Math.max(0, Math.round(Number(seconds)));
+  if (sec === 0) return '0 giây (< 1s)';
+  const hrs = Math.floor(sec / 3600);
+  const mins = Math.floor((sec % 3600) / 60);
+  const rem = sec % 60;
+  const parts = [];
+  if (hrs > 0) parts.push(`${hrs} giờ`);
+  if (mins > 0) parts.push(`${mins} phút`);
+  if (rem > 0 || parts.length === 0) parts.push(`${rem} giây`);
+  return sec >= 60 ? `${parts.join(' ')} (${sec}s)` : parts.join(' ');
+}
+
+export function maskLedgerPii(value, head = 3, tail = 3) {
+  const s = String(value || '').trim();
+  if (!s) return '';
+  if (s.length <= head + tail) return s.slice(0, 1) + '***';
+  return `${s.slice(0, head)}***${s.slice(-tail)}`;
+}
 
 function sha256HexRaw(input) {
   return crypto.createHash('sha256').update(input).digest('hex');
@@ -519,7 +571,7 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
   };
 }
 
-class BlockchainLedgerService {
+export class BlockchainLedgerService {
   constructor() {
     this.state = null;
     this.cardRegistry = null;
@@ -1034,6 +1086,732 @@ class BlockchainLedgerService {
       uartCommands: ['WIPE_CARD', 'WIPE_FLASH']
     };
   }
+
+  sanitizeBlockForView(block, { includeRawPii = false } = {}) {
+    if (!block || typeof block !== 'object') return null;
+    const cloned = JSON.parse(JSON.stringify(block));
+    const action = cloned.action || cloned.payload?.action || '';
+    const recomputedTxHash = cloned.payload
+      ? this.computeDeterministicTxHash(cloned.payload, cloned.blockNumber, cloned.prevHash)
+      : '';
+    const hashVerified = Boolean(recomputedTxHash && timingSafeHexEqual(cloned.txHash, recomputedTxHash));
+
+    cloned.actionLabelVi = describeBlockchainActionVi(action);
+    cloned.recomputedTxHash = recomputedTxHash;
+    cloned.hashVerified = hashVerified;
+    cloned.piiMasked = !includeRawPii;
+
+    if (!includeRawPii && cloned.payload && cloned.payload.data && typeof cloned.payload.data === 'object') {
+      const d = cloned.payload.data;
+      for (const phoneKey of ['reporterPhone', 'userPhone', 'phone']) {
+        if (d[phoneKey]) d[phoneKey] = maskLedgerPii(d[phoneKey], 3, 3);
+      }
+      for (const idKey of ['userCCCD', 'cccd']) {
+        if (d[idKey]) d[idKey] = maskLedgerPii(d[idKey], 3, 3);
+      }
+      if (d.clientIp) {
+        d.clientIp = maskLedgerPii(d.clientIp, 3, 2);
+      }
+    }
+
+    return cloned;
+  }
+
+  describeBlockStepVi(block, { includeRawPii = false } = {}) {
+    const view = this.sanitizeBlockForView(block, { includeRawPii });
+    if (!view) return null;
+    const action = view.action || view.payload?.action || '';
+    const d = view.payload?.data || {};
+    const detailsVi = [];
+    let actorLabelVi = 'Hệ thống Sổ cái SOS';
+    let unitLabelVi = d.unitName || d.targetUnitName || d.routedUnitName || '';
+    let summaryVi = view.actionLabelVi;
+    let durationBadgeVi = '';
+
+    const pushDetail = (label, value) => {
+      if (value === null || value === undefined || value === '') return;
+      detailsVi.push({ label, value: String(value) });
+    };
+
+    if (action === LIFECYCLE_ACTIONS.SOS_TRIGGER) {
+      const reporter = d.reporterName || d.userName || 'Người dân khẩn cấp';
+      const phone = d.reporterPhone || d.userPhone || d.phone || '';
+      actorLabelVi = phone ? `${reporter} (${phone})` : reporter;
+      unitLabelVi = d.routedUnitName || d.unitName || 'Trạm trực gần nhất';
+      const coords = (Number.isFinite(Number(d.lat)) && Number.isFinite(Number(d.lng)))
+        ? `${Number(d.lat).toFixed(5)}, ${Number(d.lng).toFixed(5)}${d.accuracy ? ` (±${Math.round(Number(d.accuracy))}m)` : ''}`
+        : '';
+      summaryVi = `${actorLabelVi} phát tín hiệu cứu hộ qua kênh ${d.channelLabelVi || d.channel || 'WEB_SOS'}${d.address ? ` tại ${d.address}` : ''}.`;
+      pushDetail('Người báo tin', actorLabelVi);
+      if (d.cardID) pushDetail('Mã thẻ DePIN', d.cardID);
+      if (d.userCCCD) pushDetail('CCCD định danh', d.userCCCD);
+      pushDetail('Kênh phát tín hiệu', d.channelLabelVi || d.channel || 'WEB_SOS');
+      pushDetail('Lực lượng yêu cầu', d.agencyName || d.agency || 'Cứu hộ liên ngành');
+      if (coords) pushDetail('Tọa độ GPS khóa cứng', coords);
+      if (d.address) pushDetail('Địa chỉ hiện trường', d.address);
+      if (Array.isArray(d.incidentTags) && d.incidentTags.length > 0) {
+        pushDetail('Phân loại sự cố', d.incidentTags.join(', '));
+      }
+      if (d.customNotes) pushDetail('Ghi chú hiện trường', d.customNotes);
+      if (unitLabelVi) pushDetail('Đơn vị định tuyến đầu tiên', unitLabelVi);
+    } else if (action === LIFECYCLE_ACTIONS.CASE_ESCALATED) {
+      actorLabelVi = d.escalatedByOfficer || d.officerFullTitle || 'Hệ thống Điều phối Tự động';
+      unitLabelVi = d.targetUnitName || d.unitName || 'Chỉ huy Cấp Tỉnh/Thành phố';
+      if (d.waitBeforeEscalationSeconds !== undefined && d.waitBeforeEscalationSeconds !== null) {
+        durationBadgeVi = `Chờ trước chuyển cấp: ${formatDurationSecondsVi(d.waitBeforeEscalationSeconds)}`;
+      }
+      summaryVi = `Chuyển vượt cấp từ ${d.previousUnitName || 'Trạm cơ sở'} lên ${unitLabelVi}${d.reason ? ` (${d.reason})` : ''}.`;
+      pushDetail('Đơn vị trước đó', d.previousUnitName || 'Trạm cơ sở');
+      pushDetail('Đơn vị tiếp nhận vượt cấp', unitLabelVi);
+      pushDetail('Người/Cơ chế kích hoạt', actorLabelVi);
+      if (d.reason) pushDetail('Lý do chuyển cấp', d.reason);
+      if (durationBadgeVi) pushDetail('Thời gian chờ trước chuyển cấp', formatDurationSecondsVi(d.waitBeforeEscalationSeconds));
+    } else if (action === LIFECYCLE_ACTIONS.OFFICER_DISPATCH) {
+      const fullOfficer = d.officerFullTitle
+        || [d.officerRank, d.officerName].filter(Boolean).join(' ').trim()
+        || d.officerId
+        || 'Cán bộ trực ban';
+      actorLabelVi = fullOfficer;
+      unitLabelVi = d.unitName || 'Đơn vị trực chiến';
+      if (d.responseTimeSeconds !== undefined && d.responseTimeSeconds !== null) {
+        durationBadgeVi = `Phản ứng: ${formatDurationSecondsVi(d.responseTimeSeconds)}`;
+      }
+      summaryVi = `${fullOfficer} (${unitLabelVi}) đã nhận lệnh và xuất quân cứu hộ${d.etaMinutes ? ` — dự kiến ${d.etaMinutes} phút tới nơi` : ''}.`;
+      pushDetail('Cán bộ nhận ca', fullOfficer);
+      if (d.officerAccount) pushDetail('Tài khoản trực ban', d.officerAccount);
+      if (d.officerPhone) pushDetail('SĐT trực chiến', d.officerPhone);
+      pushDetail('Đơn vị xuất quân', unitLabelVi);
+      if (d.stationAddress) pushDetail('Trụ sở xuất phát', d.stationAddress);
+      pushDetail('Kênh nhận lệnh', d.channel === 'zalo_bot' ? 'Zalo Tác Chiến' : 'Bàn Điều Phối Web');
+      if (d.responseTimeSeconds !== undefined && d.responseTimeSeconds !== null) {
+        pushDetail('Thời gian tiếp nhận (Phản ứng)', formatDurationSecondsVi(d.responseTimeSeconds));
+      }
+      if (d.etaMinutes) pushDetail('Thời gian di chuyển dự kiến (ETA)', `${d.etaMinutes} phút`);
+    } else if (action === LIFECYCLE_ACTIONS.OFFICER_APPROACHING) {
+      actorLabelVi = d.officerFullTitle || d.officerName || 'Tổ công tác hiện trường';
+      unitLabelVi = d.unitName || 'Đội cứu hộ';
+      if (d.approachingTimeSeconds !== undefined && d.approachingTimeSeconds !== null) {
+        durationBadgeVi = `Tiếp cận sau: ${formatDurationSecondsVi(d.approachingTimeSeconds)}`;
+      }
+      summaryVi = `${actorLabelVi} (${unitLabelVi}) đã áp sát phạm vi < 300m quanh hiện trường.`;
+      pushDetail('Tổ công tác', actorLabelVi);
+      pushDetail('Đơn vị', unitLabelVi);
+      if (d.approachingTimeSeconds !== undefined && d.approachingTimeSeconds !== null) {
+        pushDetail('Thời gian từ lúc xuất quân', formatDurationSecondsVi(d.approachingTimeSeconds));
+      }
+    } else if (action === LIFECYCLE_ACTIONS.OFFICER_ARRIVED) {
+      actorLabelVi = d.officerFullTitle || d.officerName || 'Tổ công tác hiện trường';
+      unitLabelVi = d.unitName || 'Đội cứu hộ';
+      if (d.travelTimeSeconds !== undefined && d.travelTimeSeconds !== null) {
+        durationBadgeVi = `Di chuyển: ${formatDurationSecondsVi(d.travelTimeSeconds)}`;
+      }
+      summaryVi = `${actorLabelVi} (${unitLabelVi}) đã có mặt tại hiện trường${d.travelTimeSeconds !== undefined && d.travelTimeSeconds !== null ? ` sau ${formatDurationSecondsVi(d.travelTimeSeconds)} di chuyển` : ''}.`;
+      pushDetail('Cán bộ có mặt', actorLabelVi);
+      pushDetail('Đơn vị tác chiến', unitLabelVi);
+      if (d.travelTimeSeconds !== undefined && d.travelTimeSeconds !== null) {
+        pushDetail('Thời gian di chuyển thực tế', formatDurationSecondsVi(d.travelTimeSeconds));
+      }
+      if (d.totalToSceneSeconds !== undefined && d.totalToSceneSeconds !== null) {
+        pushDetail('Tổng thời gian từ lúc báo SOS tới hiện trường', formatDurationSecondsVi(d.totalToSceneSeconds));
+      }
+      if (d.etaMinutes) {
+        pushDetail('Đối chiếu ETA ban đầu', `Dự kiến ${d.etaMinutes} phút`);
+      }
+    } else if (action === LIFECYCLE_ACTIONS.CASE_RESOLVED) {
+      const closedByCitizen = d.closedBy === 'citizen';
+      actorLabelVi = closedByCitizen
+        ? (d.reporterName || 'Người dân báo an toàn')
+        : (d.officerFullTitle || d.officerName || d.closedBy || 'Cán bộ trực ban');
+      unitLabelVi = d.unitName || 'Đơn vị xử lý';
+      if (d.totalCaseDurationSeconds !== undefined && d.totalCaseDurationSeconds !== null) {
+        durationBadgeVi = `Tổng ca: ${formatDurationSecondsVi(d.totalCaseDurationSeconds)}`;
+      }
+      summaryVi = `${actorLabelVi} xác nhận hoàn tất ứng cứu & đóng hồ sơ ca trực${d.resolutionNote ? `: "${d.resolutionNote}"` : ''}.`;
+      pushDetail('Người xác nhận kết thúc', closedByCitizen ? `${actorLabelVi} (Người dân tự xác nhận an toàn)` : `${actorLabelVi} (Lực lượng chức năng)`);
+      if (unitLabelVi) pushDetail('Đơn vị phụ trách', unitLabelVi);
+      if (d.onSceneHandlingSeconds !== undefined && d.onSceneHandlingSeconds !== null) {
+        pushDetail('Thời gian xử lý tại hiện trường', formatDurationSecondsVi(d.onSceneHandlingSeconds));
+      }
+      if (d.totalCaseDurationSeconds !== undefined && d.totalCaseDurationSeconds !== null) {
+        pushDetail('Tổng thời gian toàn trình ca cứu hộ', formatDurationSecondsVi(d.totalCaseDurationSeconds));
+      }
+      if (d.resolutionNote) pushDetail('Biên bản / Kết quả xử lý', d.resolutionNote);
+    } else if (action === LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED) {
+      actorLabelVi = d.officerFullTitle || d.officerName || 'Cán bộ trực ban';
+      unitLabelVi = d.unitName || 'Cơ quan chức năng';
+      durationBadgeVi = 'Vi phạm NĐ 144/2021/NĐ-CP';
+      summaryVi = `${actorLabelVi} lập biên bản cảnh báo/xử lý báo tin giả theo Nghị định 144/2021/NĐ-CP${d.reason ? `: "${d.reason}"` : ''}.`;
+      pushDetail('Cán bộ lập biên bản', actorLabelVi);
+      pushDetail('Đơn vị xác minh', unitLabelVi);
+      pushDetail('Lý do / Hành vi ghi nhận', d.reason || 'Báo tin giả / Quấy rối đường dây khẩn cấp');
+      if (d.clientIp) pushDetail('Địa chỉ mạng (IP) lưu vết', d.clientIp);
+      if (d.totalCaseDurationSeconds !== undefined && d.totalCaseDurationSeconds !== null) {
+        pushDetail('Thời gian xác minh cho tới lúc khóa ca', formatDurationSecondsVi(d.totalCaseDurationSeconds));
+      }
+    } else if (action === LIFECYCLE_ACTIONS.EVIDENCE_SEAL) {
+      actorLabelVi = d.uploadedBy || 'Thiết bị hiện trường';
+      summaryVi = `Niêm phong tệp chứng cứ số ${d.evidenceId || ''} (${d.mimeType || 'dữ liệu hiện trường'}) bằng mã băm SHA-256.`;
+      if (d.evidenceId) pushDetail('Mã tệp chứng cứ', d.evidenceId);
+      if (d.mimeType) pushDetail('Định dạng', d.mimeType);
+      if (d.sizeBytes) pushDetail('Dung lượng', `${Number(d.sizeBytes).toLocaleString('vi-VN')} bytes`);
+      if (d.sha256Hash) pushDetail('SHA-256 tệp gốc', d.sha256Hash);
+    } else if (action === LIFECYCLE_ACTIONS.CARD_PROVISION_SEAL) {
+      actorLabelVi = d.issuerUnit || 'Trung tâm Cấp phát Thẻ DePIN';
+      unitLabelVi = d.issuerUnit || 'BTL CSCĐ / Công an cơ sở';
+      summaryVi = `Cấp phát / cập nhật thẻ cứng SOS vật lý ${d.cardID || ''} cho công dân ${d.userName || ''}.`;
+      if (d.cardID) pushDetail('Mã thẻ vật lý (UID)', d.cardID);
+      if (d.userName) pushDetail('Chủ thẻ', d.userName);
+      if (d.mode) pushDetail('Chế độ thẻ', d.mode);
+    }
+
+    return {
+      blockNumber: view.blockNumber,
+      txHash: view.txHash,
+      prevHash: view.prevHash,
+      payloadDigest: view.payloadDigest,
+      evidenceHash: view.evidenceHash,
+      chainId: view.chainId,
+      envName: view.envName,
+      action,
+      actionLabelVi: view.actionLabelVi,
+      timestamp: view.timestamp,
+      hashVerified: view.hashVerified,
+      recomputedTxHash: view.recomputedTxHash,
+      actorLabelVi,
+      unitLabelVi,
+      summaryVi,
+      durationBadgeVi,
+      detailsVi,
+      data: d
+    };
+  }
+
+  buildCaseProcessSummary(caseBlocks = [], incidentMeta = null, { includeRawPii = false } = {}) {
+    const ordered = [...(Array.isArray(caseBlocks) ? caseBlocks : [])]
+      .filter((b) => b && typeof b === 'object')
+      .sort((a, b) => (Number(a.blockNumber) || 0) - (Number(b.blockNumber) || 0));
+
+    const findFirst = (act) => ordered.find((b) => (b.action || b.payload?.action) === act) || null;
+    const findLast = (act) => {
+      for (let i = ordered.length - 1; i >= 0; i--) {
+        if ((ordered[i].action || ordered[i].payload?.action) === act) return ordered[i];
+      }
+      return null;
+    };
+
+    const triggerBlock = findFirst(LIFECYCLE_ACTIONS.SOS_TRIGGER) || ordered[0] || null;
+    const escalationBlocks = ordered.filter((b) => (b.action || b.payload?.action) === LIFECYCLE_ACTIONS.CASE_ESCALATED);
+    const latestEscalationBlock = escalationBlocks.length > 0 ? escalationBlocks[escalationBlocks.length - 1] : null;
+    const dispatchBlock = findLast(LIFECYCLE_ACTIONS.OFFICER_DISPATCH);
+    const approachingBlock = findLast(LIFECYCLE_ACTIONS.OFFICER_APPROACHING);
+    const arrivedBlock = findLast(LIFECYCLE_ACTIONS.OFFICER_ARRIVED);
+    const resolvedBlock = findLast(LIFECYCLE_ACTIONS.CASE_RESOLVED);
+    const fakeBlock = findLast(LIFECYCLE_ACTIONS.FAKE_ALARM_FLAGGED);
+    const closingBlock = fakeBlock || resolvedBlock;
+    const evidenceBlocks = ordered.filter((b) => (b.action || b.payload?.action) === LIFECYCLE_ACTIONS.EVIDENCE_SEAL);
+
+    const trigData = triggerBlock?.payload?.data || {};
+    const escData = latestEscalationBlock?.payload?.data || {};
+    const dispData = dispatchBlock?.payload?.data || {};
+    const apprData = approachingBlock?.payload?.data || {};
+    const arrData = arrivedBlock?.payload?.data || {};
+    const closeData = closingBlock?.payload?.data || {};
+
+    const toMs = (iso) => {
+      if (!iso) return null;
+      const ms = new Date(iso).getTime();
+      return Number.isFinite(ms) ? ms : null;
+    };
+    const diffSec = (startIso, endIso, fallbackVal = null) => {
+      if (fallbackVal !== null && fallbackVal !== undefined && Number.isFinite(Number(fallbackVal))) {
+        return Math.max(0, Math.round(Number(fallbackVal)));
+      }
+      const s = toMs(startIso);
+      const e = toMs(endIso);
+      if (s === null || e === null) return null;
+      return Math.max(0, Math.round((e - s) / 1000));
+    };
+
+    const triggeredAt = trigData.triggeredAt || triggerBlock?.timestamp || incidentMeta?.createdAt || null;
+    const escalatedAt = escData.escalatedAt || latestEscalationBlock?.timestamp || incidentMeta?.escalatedAt || null;
+    const dispatchedAt = dispData.dispatchedAt || dispatchBlock?.timestamp || incidentMeta?.dispatchedAt || null;
+    const approachingAt = apprData.approachingAt || approachingBlock?.timestamp || incidentMeta?.approachingAt || null;
+    const arrivedAt = arrData.arrivedAt || arrivedBlock?.timestamp || incidentMeta?.arrivedAt || null;
+    const resolvedAt = closeData.resolvedAt || closeData.flaggedAt || closingBlock?.timestamp || incidentMeta?.resolvedAt || null;
+
+    const responseTimeSeconds = diffSec(triggeredAt, dispatchedAt, dispData.responseTimeSeconds ?? closeData.responseTimeSeconds ?? null);
+    const approachingTimeSeconds = diffSec(dispatchedAt, approachingAt, apprData.approachingTimeSeconds ?? null);
+    const travelTimeSeconds = diffSec(dispatchedAt, arrivedAt, arrData.travelTimeSeconds ?? closeData.travelTimeSeconds ?? null);
+    const totalToSceneSeconds = diffSec(triggeredAt, arrivedAt, arrData.totalToSceneSeconds ?? closeData.totalToSceneSeconds ?? null);
+    const onSceneHandlingSeconds = arrivedAt
+      ? diffSec(arrivedAt, resolvedAt, closeData.onSceneHandlingSeconds ?? null)
+      : (closeData.onSceneHandlingSeconds !== undefined ? closeData.onSceneHandlingSeconds : null);
+    const totalCaseDurationSeconds = diffSec(triggeredAt, resolvedAt, closeData.totalCaseDurationSeconds ?? null);
+
+    const rawPhone = trigData.reporterPhone || trigData.userPhone || trigData.phone || incidentMeta?.reporterPhone || incidentMeta?.phone || '';
+    const rawCccd = trigData.userCCCD || trigData.cccd || incidentMeta?.userCCCD || '';
+    const reporterPhone = includeRawPii ? rawPhone : maskLedgerPii(rawPhone, 3, 3);
+    const userCCCD = includeRawPii ? rawCccd : maskLedgerPii(rawCccd, 3, 3);
+
+    const officerRank = dispData.officerRank || arrData.officerRank || closeData.officerRank || incidentMeta?.acceptedByOfficer?.rank || '';
+    const officerName = dispData.officerName || arrData.officerName || closeData.officerName || dispData.officerId || incidentMeta?.acceptedByOfficer?.name || '';
+    const officerFullTitle = dispData.officerFullTitle
+      || arrData.officerFullTitle
+      || closeData.officerFullTitle
+      || [officerRank, officerName].filter(Boolean).join(' ').trim()
+      || '';
+
+    let currentStageCode = 'PENDING_DISPATCH';
+    let currentStageLabelVi = 'Đang chờ Trực ban tiếp nhận';
+    if (fakeBlock) {
+      currentStageCode = 'FAKE_ALARM_FLAGGED';
+      currentStageLabelVi = 'Đã khóa ca & lập biên bản báo giả (NĐ 144)';
+    } else if (resolvedBlock) {
+      currentStageCode = 'RESOLVED';
+      currentStageLabelVi = 'Đã hoàn tất ứng cứu & đóng hồ sơ';
+    } else if (arrivedBlock) {
+      currentStageCode = 'ARRIVED_ON_SCENE';
+      currentStageLabelVi = 'Lực lượng cứu hộ đã có mặt tại hiện trường';
+    } else if (approachingBlock) {
+      currentStageCode = 'APPROACHING_SCENE';
+      currentStageLabelVi = 'Đội cứu hộ đang tiếp cận (< 300m)';
+    } else if (dispatchBlock) {
+      currentStageCode = 'DISPATCHED_EN_ROUTE';
+      currentStageLabelVi = 'Trực ban đã nhận ca & đang di chuyển';
+    } else if (latestEscalationBlock) {
+      currentStageCode = 'ESCALATED_WAITING';
+      currentStageLabelVi = 'Đã chuyển vượt cấp Chỉ huy Tỉnh/TP';
+    }
+
+    const steps = ordered
+      .map((blk, idx) => {
+        const step = this.describeBlockStepVi(blk, { includeRawPii });
+        return step ? { stepIndex: idx + 1, ...step } : null;
+      })
+      .filter(Boolean);
+
+    return {
+      caseId: triggerBlock?.caseId || ordered[0]?.caseId || incidentMeta?.id || '',
+      totalBlocksInCase: ordered.length,
+      evidenceFilesCount: evidenceBlocks.length,
+      transactionMode: evidenceBlocks.length > 0 ? 'PROCESS_AND_MEDIA_HASH' : 'LIGHTWEIGHT_PROCESS_TRANSACTION',
+      currentStageCode,
+      currentStageLabelVi,
+      isResolved: Boolean(resolvedBlock || fakeBlock),
+      isFakeAlarm: Boolean(fakeBlock),
+      reporter: {
+        name: trigData.reporterName || trigData.userName || incidentMeta?.reporterName || 'Người dân khẩn cấp',
+        phone: reporterPhone || 'Chưa cung cấp',
+        cardID: trigData.cardID || incidentMeta?.cardID || null,
+        userCCCD: userCCCD || null,
+        channel: trigData.channel || incidentMeta?.sourceChannel || 'WEB_SOS',
+        channelLabelVi: trigData.channelLabelVi || (trigData.isStealth ? 'SOS Ngụy Trang Khẩn Cấp (Stealth)' : 'Cổng Web Khẩn Cấp SOSVie'),
+        agency: trigData.agency || incidentMeta?.agency || '',
+        agencyName: trigData.agencyName || incidentMeta?.agencyName || 'Cứu hộ liên ngành',
+        lat: trigData.lat ?? incidentMeta?.lat ?? null,
+        lng: trigData.lng ?? incidentMeta?.lng ?? null,
+        accuracy: trigData.accuracy ?? incidentMeta?.accuracy ?? null,
+        address: trigData.address || incidentMeta?.address || '',
+        incidentTags: Array.isArray(trigData.incidentTags) ? trigData.incidentTags : (incidentMeta?.incidentTags || []),
+        customNotes: trigData.customNotes || incidentMeta?.notes || ''
+      },
+      routing: {
+        initialUnitName: trigData.routedUnitName || trigData.unitName || incidentMeta?.assignedUnit?.name || 'Trạm trực cơ sở',
+        initialUnitAddress: trigData.routedUnitAddress || incidentMeta?.assignedUnit?.address || '',
+        initialUnitPhone: trigData.routedUnitPhone || incidentMeta?.assignedUnit?.phone || '',
+        escalatedCount: escalationBlocks.length,
+        escalatedToUnitName: escData.targetUnitName || null,
+        escalationReason: escData.reason || null
+      },
+      officer: {
+        accepted: Boolean(dispatchBlock || officerFullTitle),
+        rank: officerRank || null,
+        name: officerName || null,
+        fullTitle: officerFullTitle || 'Chưa có cán bộ nhận ca',
+        account: dispData.officerAccount || closeData.officerAccount || null,
+        phone: dispData.officerPhone || incidentMeta?.acceptedByOfficer?.phone || null,
+        unitName: dispData.unitName || arrData.unitName || closeData.unitName || incidentMeta?.assignedUnit?.name || 'Đang điều phối',
+        stationAddress: dispData.stationAddress || incidentMeta?.assignedUnit?.address || '',
+        dispatchChannel: dispData.channel || null,
+        dispatchChannelLabelVi: dispData.channel === 'zalo_bot' ? 'Zalo Tác Chiến' : (dispatchBlock ? 'Bàn Điều Phối Web' : 'Chưa tiếp nhận'),
+        etaMinutes: dispData.etaMinutes ?? arrData.etaMinutes ?? null
+      },
+      timestamps: {
+        triggeredAt,
+        escalatedAt,
+        dispatchedAt,
+        approachingAt,
+        arrivedAt,
+        resolvedAt
+      },
+      durations: {
+        responseTimeSeconds,
+        responseTimeTextVi: formatDurationSecondsVi(responseTimeSeconds),
+        approachingTimeSeconds,
+        approachingTimeTextVi: formatDurationSecondsVi(approachingTimeSeconds),
+        travelTimeSeconds,
+        travelTimeTextVi: formatDurationSecondsVi(travelTimeSeconds),
+        totalToSceneSeconds,
+        totalToSceneTextVi: formatDurationSecondsVi(totalToSceneSeconds),
+        onSceneHandlingSeconds,
+        onSceneHandlingTextVi: formatDurationSecondsVi(onSceneHandlingSeconds),
+        totalCaseDurationSeconds,
+        totalCaseDurationTextVi: formatDurationSecondsVi(totalCaseDurationSeconds)
+      },
+      resolution: {
+        closed: Boolean(closingBlock),
+        isFakeAlarm: Boolean(fakeBlock),
+        closedBy: closeData.closedBy || (fakeBlock ? 'dispatcher' : null),
+        officerFullTitle: closeData.officerFullTitle || officerFullTitle || null,
+        note: closeData.resolutionNote || closeData.reason || incidentMeta?.resolutionNote || ''
+      },
+      firstBlockNumber: ordered[0]?.blockNumber || null,
+      firstTxHash: ordered[0]?.txHash || null,
+      latestBlockNumber: ordered[ordered.length - 1]?.blockNumber || null,
+      latestTxHash: ordered[ordered.length - 1]?.txHash || null,
+      steps
+    };
+  }
+
+  lookupLedger(query, { includeRawPii = false, incidentMeta = null, host = '' } = {}) {
+    if (!this.state) this.loadLedger();
+    const sysCfg = resolveSystemBlockchainConfig(host);
+    const raw = String(query || '').trim();
+    if (!raw) {
+      return { ok: false, found: false, error: 'EMPTY_QUERY', sysConfig: sysCfg };
+    }
+
+    let queryType = 'caseId';
+    let matchedBlock = null;
+    let caseId = '';
+
+    if (/^#?\d+$/.test(raw)) {
+      queryType = 'blockNumber';
+      const num = Number(raw.replace(/^#/, ''));
+      matchedBlock = this.state.blocks.find((b) => b.blockNumber === num) || null;
+      if (matchedBlock) caseId = matchedBlock.caseId;
+    } else if (/^(0x)?[0-9a-fA-F]{64}$/.test(raw)) {
+      queryType = 'hash';
+      const hex = ('0x' + raw.replace(/^0x/i, '')).toLowerCase();
+      matchedBlock = this.state.blocks.find(
+        (b) => String(b.txHash || '').toLowerCase() === hex
+          || String(b.payloadDigest || '').toLowerCase() === hex
+          || String(b.evidenceHash || '').toLowerCase() === hex
+      ) || null;
+      if (matchedBlock) caseId = matchedBlock.caseId;
+    }
+
+    let caseBlocks = [];
+    if (matchedBlock) {
+      caseBlocks = caseId ? this.getCaseBlocks(caseId) : [matchedBlock];
+    } else {
+      const upper = raw.toUpperCase();
+      caseBlocks = this.state.blocks.filter(
+        (b) => String(b.caseId || '').toUpperCase() === upper
+          || String(b.payload?.data?.cardID || '').toUpperCase() === upper
+      );
+      if (caseBlocks.length > 0) {
+        queryType = 'caseId';
+        matchedBlock = caseBlocks[caseBlocks.length - 1];
+        caseId = matchedBlock.caseId;
+      }
+    }
+
+    if (!matchedBlock || caseBlocks.length === 0) {
+      return {
+        ok: true,
+        found: false,
+        query: raw,
+        sysConfig: {
+          envName: sysCfg.envName,
+          chainId: sysCfg.chainId,
+          canonicalChainId: 842026,
+          totalBlocks: this.state.blocks.length
+        }
+      };
+    }
+
+    const chainIntegrity = caseId
+      ? this.verifyCaseChainIntegrity(caseId)
+      : {
+          ok: true,
+          blockCount: 1,
+          allBlocksIntact: timingSafeHexEqual(
+            matchedBlock.txHash,
+            this.computeDeterministicTxHash(matchedBlock.payload, matchedBlock.blockNumber, matchedBlock.prevHash)
+          )
+        };
+
+    const processSummary = this.buildCaseProcessSummary(caseBlocks, incidentMeta, { includeRawPii });
+    const sanitizedBlocks = caseBlocks.map((b) => this.sanitizeBlockForView(b, { includeRawPii }));
+
+    return {
+      ok: true,
+      found: true,
+      query: raw,
+      queryType,
+      piiMasked: !includeRawPii,
+      caseId,
+      matchedBlockNumber: matchedBlock.blockNumber,
+      matchedTxHash: matchedBlock.txHash,
+      sysConfig: {
+        envName: sysCfg.envName,
+        chainId: sysCfg.chainId,
+        canonicalChainId: 842026,
+        genesisHash: this.state.genesisHash,
+        totalBlocks: this.state.blocks.length
+      },
+      chainIntegrity: {
+        ok: chainIntegrity.ok,
+        blockCount: chainIntegrity.blockCount,
+        allBlocksIntact: chainIntegrity.allBlocksIntact,
+        blocks: chainIntegrity.blocks || []
+      },
+      processSummary,
+      blocks: sanitizedBlocks
+    };
+  }
+
+  getRecentBlocks(limit = 20, { includeRawPii = false, host = '' } = {}) {
+    if (!this.state) this.loadLedger();
+    const sysCfg = resolveSystemBlockchainConfig(host);
+    const maxItems = Math.min(Math.max(1, Number(limit) || 20), 100);
+    const slice = this.state.blocks.slice(-maxItems).reverse();
+    const items = slice.map((b) => {
+      const step = this.describeBlockStepVi(b, { includeRawPii });
+      return {
+        blockNumber: b.blockNumber,
+        txHash: b.txHash,
+        prevHash: b.prevHash,
+        payloadDigest: b.payloadDigest,
+        caseId: b.caseId,
+        action: b.action,
+        actionLabelVi: step?.actionLabelVi || describeBlockchainActionVi(b.action),
+        actorLabelVi: step?.actorLabelVi || '',
+        unitLabelVi: step?.unitLabelVi || '',
+        summaryVi: step?.summaryVi || '',
+        durationBadgeVi: step?.durationBadgeVi || '',
+        timestamp: b.timestamp,
+        chainId: b.chainId,
+        envName: b.envName,
+        hashVerified: Boolean(step?.hashVerified)
+      };
+    });
+
+    return {
+      ok: true,
+      piiMasked: !includeRawPii,
+      totalBlocks: this.state.blocks.length,
+      lastBlockHash: this.state.lastBlockHash,
+      genesisHash: this.state.genesisHash,
+      envName: sysCfg.envName,
+      chainId: sysCfg.chainId,
+      blocks: items
+    };
+  }
+
+  verifyExportedDossier(dossierInput, { host = '' } = {}) {
+    if (!this.state) this.loadLedger();
+    const sysCfg = resolveSystemBlockchainConfig(host);
+
+    let rawBlocks = [];
+    let dossierMeta = null;
+    if (Array.isArray(dossierInput)) {
+      rawBlocks = dossierInput;
+    } else if (dossierInput && typeof dossierInput === 'object') {
+      if (Array.isArray(dossierInput.lifecycleBlocks)) {
+        rawBlocks = dossierInput.lifecycleBlocks;
+        dossierMeta = dossierInput;
+      } else if (Array.isArray(dossierInput.blocks)) {
+        rawBlocks = dossierInput.blocks;
+        dossierMeta = dossierInput;
+      } else if (dossierInput.blockNumber !== undefined && (dossierInput.txHash || dossierInput.payload)) {
+        rawBlocks = [dossierInput];
+      }
+    }
+
+    if (!rawBlocks || rawBlocks.length === 0) {
+      return {
+        ok: false,
+        verified: false,
+        verdictCode: 'INVALID_DOSSIER_FORMAT',
+        verdictTitleVi: 'Không tìm thấy dữ liệu Block hợp lệ trong tệp tải lên',
+        verdictDetailVi: 'Vui lòng tải lên tệp Biên bản Pháp lý (.JSON) trích xuất từ hệ thống SOS Vietnam hoặc dán đối tượng JSON chứa danh sách lifecycleBlocks / Block.',
+        corruptedBlocks: []
+      };
+    }
+
+    const normalizedBlocks = [...rawBlocks]
+      .filter((b) => b && typeof b === 'object')
+      .map((b) => ({
+        blockNumber: Number(b.blockNumber) || 0,
+        action: b.action || b.actionType || b.payload?.action || '',
+        caseId: b.caseId || b.payload?.caseId || dossierMeta?.incidentId || '',
+        timestamp: b.timestamp || b.isoTime || b.payload?.timestamp || null,
+        prevHash: b.prevHash || '',
+        txHash: b.txHash || b.hash || '',
+        payloadDigest: b.payloadDigest || '',
+        evidenceHash: b.evidenceHash || '',
+        payload: b.payload && typeof b.payload === 'object' ? b.payload : null
+      }))
+      .sort((a, b) => a.blockNumber - b.blockNumber);
+
+    const blockVerifications = [];
+    const corruptedBlocks = [];
+    let allCryptographicIntact = true;
+    let allServerMatched = true;
+    let hasFullPayloads = true;
+
+    for (let i = 0; i < normalizedBlocks.length; i++) {
+      const blk = normalizedBlocks[i];
+      const serverBlock = this.state.blocks.find((sb) => sb.blockNumber === blk.blockNumber) || null;
+      const serverByHash = blk.txHash
+        ? (this.state.blocks.find((sb) => timingSafeHexEqual(sb.txHash, blk.txHash)) || null)
+        : null;
+
+      let recomputedTxHash = '';
+      let recomputedPayloadDigest = '';
+      let selfHashMatched = false;
+      let payloadDigestMatched = true;
+
+      if (blk.payload && typeof blk.payload === 'object') {
+        recomputedPayloadDigest = sha256Prefixed(Buffer.from(JSON.stringify(blk.payload.data || {}), 'utf8'));
+        recomputedTxHash = this.computeDeterministicTxHash(blk.payload, blk.blockNumber, blk.prevHash);
+        selfHashMatched = Boolean(blk.txHash && timingSafeHexEqual(blk.txHash, recomputedTxHash));
+        if (blk.payloadDigest) {
+          payloadDigestMatched = timingSafeHexEqual(blk.payloadDigest, recomputedPayloadDigest);
+        }
+      } else {
+        hasFullPayloads = false;
+        allCryptographicIntact = false;
+      }
+
+      let prevChainConsistent = true;
+      if (i > 0 && normalizedBlocks[i - 1].blockNumber + 1 === blk.blockNumber && normalizedBlocks[i - 1].txHash) {
+        prevChainConsistent = timingSafeHexEqual(blk.prevHash, normalizedBlocks[i - 1].txHash);
+      }
+
+      const existsOnServerAtBlockNumber = Boolean(serverBlock);
+      const txHashMatchesServer = Boolean(
+        serverBlock && blk.txHash && timingSafeHexEqual(serverBlock.txHash, blk.txHash)
+      );
+      const payloadDigestMatchesServer = Boolean(
+        serverBlock && (!recomputedPayloadDigest || timingSafeHexEqual(serverBlock.payloadDigest, recomputedPayloadDigest))
+      );
+
+      if (!selfHashMatched || !payloadDigestMatched || !prevChainConsistent) {
+        allCryptographicIntact = false;
+      }
+      if (!existsOnServerAtBlockNumber || !txHashMatchesServer || !payloadDigestMatchesServer) {
+        allServerMatched = false;
+      }
+
+      const reasonsVi = [];
+      if (!blk.payload) {
+        reasonsVi.push('Thiếu trường payload gốc để tự băm lại SHA-256');
+      } else {
+        if (!selfHashMatched) {
+          reasonsVi.push('Mã băm txHash không khớp với nội dung payload (Dữ liệu trong tệp đã bị chỉnh sửa sau khi niêm phong)');
+        }
+        if (!payloadDigestMatched) {
+          reasonsVi.push('Mã payloadDigest không khớp với dữ liệu chi tiết ca trực');
+        }
+      }
+      if (!prevChainConsistent) {
+        reasonsVi.push('Đứt gãy liên kết prevHash với Block liền trước');
+      }
+      if (existsOnServerAtBlockNumber && !txHashMatchesServer) {
+        reasonsVi.push(`Không khớp với Block #${blk.blockNumber} đang lưu trên Sổ cái máy chủ (TxHash gốc: ${serverBlock.txHash.slice(0, 18)}...)`);
+      }
+
+      const blockCorrupted = (!selfHashMatched && Boolean(blk.payload))
+        || !payloadDigestMatched
+        || !prevChainConsistent
+        || (existsOnServerAtBlockNumber && !txHashMatchesServer);
+
+      if (blockCorrupted) {
+        corruptedBlocks.push({
+          blockNumber: blk.blockNumber,
+          action: blk.action,
+          actionLabelVi: describeBlockchainActionVi(blk.action),
+          providedTxHash: blk.txHash || '',
+          expectedTxHash: recomputedTxHash || '',
+          serverTxHash: serverBlock?.txHash || '',
+          reasonsVi
+        });
+      }
+
+      blockVerifications.push({
+        blockNumber: blk.blockNumber,
+        action: blk.action,
+        actionLabelVi: describeBlockchainActionVi(blk.action),
+        timestamp: blk.timestamp,
+        providedTxHash: blk.txHash,
+        recomputedTxHash,
+        providedPayloadDigest: blk.payloadDigest,
+        recomputedPayloadDigest,
+        prevHash: blk.prevHash,
+        selfHashMatched,
+        payloadDigestMatched,
+        prevChainConsistent,
+        existsOnServerLedger: existsOnServerAtBlockNumber || Boolean(serverByHash),
+        txHashMatchesServer,
+        serverTxHash: serverBlock?.txHash || null,
+        status: blockCorrupted
+          ? 'TAMPERED'
+          : (selfHashMatched && txHashMatchesServer ? 'VERIFIED_ON_LEDGER' : (selfHashMatched ? 'HASH_VALID_OFF_LEDGER' : 'INCOMPLETE_LEGACY')),
+        reasonsVi
+      });
+    }
+
+    const tamperDetected = corruptedBlocks.length > 0;
+    let verdictCode = 'AUTHENTIC_AND_ON_LEDGER';
+    let verdictTitleVi = 'XÁC THỰC THÀNH CÔNG 100% — DỮ LIỆU NGUYÊN VẸN & KHỚP SỔ CÁI GỐC';
+    let verdictDetailVi = `Toàn bộ ${normalizedBlocks.length} Block trong tệp hồ sơ đều khớp tuyệt đối thuật toán băm SHA-256 và trùng khớp với Sổ cái đang vận hành trên hệ thống (${sysCfg.envName}).`;
+
+    if (tamperDetected) {
+      verdictCode = 'TAMPERED_DATA_DETECTED';
+      const badNums = corruptedBlocks.map((c) => `#${c.blockNumber}`).join(', ');
+      verdictTitleVi = `CẢNH BÁO GIẢ MẠO / CHỈNH SỬA TRÁI PHÉP TẠI BLOCK ${badNums}`;
+      verdictDetailVi = 'Nội dung tệp JSON hoặc mã băm đã bị thay đổi dù chỉ 1 ký tự so với bản ghi đã niêm phong trên chuỗi khối. Hồ sơ này KHÔNG còn giá trị chứng cứ nguyên bản.';
+    } else if (!hasFullPayloads) {
+      verdictCode = 'LEGACY_SUMMARY_ONLY_DOSSIER';
+      verdictTitleVi = 'TỆP BIÊN BẢN PHIÊN BẢN CŨ (THIẾU PAYLOAD GỐC)';
+      verdictDetailVi = 'Tệp này được xuất ở định dạng rút gọn cũ nên không đủ trường payload để băm lại ngoại tuyến; vui lòng tra cứu trực tiếp bằng Mã ca (Case ID) hoặc Block # trên cổng đối chứng.';
+    } else if (!allServerMatched) {
+      verdictCode = 'HASH_VALID_NOT_FOUND_ON_THIS_SERVER';
+      verdictTitleVi = 'CHỮ KÝ SHA-256 NỘI TẠI HỢP LỆ — CHƯA TÌM THẤY TRÊN MÁY CHỦ HIỆN TẠI';
+      verdictDetailVi = 'Cấu trúc mật mã SHA-256 của từng Block trong tệp hoàn toàn nguyên vẹn (không bị sửa đổi), nhưng Block này thuộc phiên/môi trường máy chủ khác với sổ cái hiện tại.';
+    }
+
+    // Use server blocks as fallback only when legacy dossier lacks payload AND matches server hash
+    const blocksForSummary = normalizedBlocks.map((blk) => {
+      if (blk.payload) return blk;
+      const sb = this.state.blocks.find((s) => s.blockNumber === blk.blockNumber && (!blk.txHash || timingSafeHexEqual(s.txHash, blk.txHash)));
+      return sb || blk;
+    });
+    const processSummary = this.buildCaseProcessSummary(blocksForSummary, null, { includeRawPii: true });
+
+    return {
+      ok: true,
+      verified: allCryptographicIntact && allServerMatched && !tamperDetected,
+      cryptographicIntact: allCryptographicIntact && !tamperDetected,
+      serverLedgerAllMatched: allServerMatched && !tamperDetected,
+      tamperDetected,
+      verdictCode,
+      verdictTitleVi,
+      verdictDetailVi,
+      checkedBlocksCount: normalizedBlocks.length,
+      corruptedBlocks,
+      blockVerifications,
+      processSummary,
+      sysConfig: {
+        envName: sysCfg.envName,
+        chainId: sysCfg.chainId,
+        totalBlocksOnServer: this.state.blocks.length
+      }
+    };
+  }
 }
 
 export const blockchainLedgerService = new BlockchainLedgerService();
@@ -1316,19 +2094,19 @@ export function generateQrCodeMatrix(text) {
   }
 
   const fmt = bchFormatInfo(maskPattern);
-  for (let i = 0; i <= 5; i++) modules[8][i] = ((fmt >>> i) & 1) === 1;
-  modules[8][7] = ((fmt >>> 6) & 1) === 1;
+  for (let i = 0; i <= 5; i++) modules[i][8] = ((fmt >>> i) & 1) === 1;
+  modules[7][8] = ((fmt >>> 6) & 1) === 1;
   modules[8][8] = ((fmt >>> 7) & 1) === 1;
-  modules[7][8] = ((fmt >>> 8) & 1) === 1;
-  for (let i = 9; i < 15; i++) modules[14 - i][8] = ((fmt >>> i) & 1) === 1;
+  modules[8][7] = ((fmt >>> 8) & 1) === 1;
+  for (let i = 9; i < 15; i++) modules[8][14 - i] = ((fmt >>> i) & 1) === 1;
 
-  for (let i = 0; i < 8; i++) modules[size - 1 - i][8] = ((fmt >>> i) & 1) === 1;
-  for (let i = 8; i < 15; i++) modules[8][size - 15 + i] = ((fmt >>> i) & 1) === 1;
+  for (let i = 0; i < 8; i++) modules[8][size - 1 - i] = ((fmt >>> i) & 1) === 1;
+  for (let i = 8; i < 15; i++) modules[size - 15 + i][8] = ((fmt >>> i) & 1) === 1;
 
   return modules;
 }
 
-export function generateQrCodeSvg(text, { pixelSize = 148, margin = 3, darkColor = '#0f172a', lightColor = '#ffffff' } = {}) {
+export function generateQrCodeSvg(text, { pixelSize = 148, margin = 4, darkColor = '#0f172a', lightColor = '#ffffff' } = {}) {
   const matrix = generateQrCodeMatrix(text);
   const count = matrix.length;
   const viewSize = count + margin * 2;
