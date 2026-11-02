@@ -28,7 +28,7 @@ Benchmark records measured numbers only (inventory counts, payload/proof byte si
 |-------|--------|------|----------|--------|-------|--------|-------|----------|
 | P1-A | PII substring leaks in `NDA` / `OTS` / `POLYGON` projected JSON (`19` sensitive tokens tested) | count | - | 0 | 0 | 0 | 0 | `E1-P1A-TEST1` |
 | P1-A | Live OpenTimestamps `.ots` detached binary proof size (`anchorBlockToOpenTimestamps`) | bytes | 237 | 307 | - | <= 1024 | +70 | `E1-P1A-TEST2` |
-| P1-B | Synchronous `/api/sos` block-seal blocking overhead from global `.ots` anchoring | ms | 0 | - | - | <= 5 (async non-blocking) | - | Pending `P1-B` |
+| P1-B | Synchronous `/api/sos` block-seal blocking overhead from global `.ots` anchoring | ms | 0 | 0 (`27ms` total `/api/sos/create`) | 0 | <= 5 (async non-blocking) | 0 | `E1-P1B-ROUTE1` |
 
 ## B2 - P2 Benchmarks
 

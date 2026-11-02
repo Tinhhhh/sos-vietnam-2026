@@ -152,7 +152,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - Actual-status Update: Cập nhật dòng `services/blockchain-ledger-service.js` và thêm dòng `R1` vào `Status Refresh Log`.
   - Commit Boundary: commit sau khi `P1-A` vượt qua kiểm thử và `anvien detect-changes`.
 
-- [ ] P1-B: Non-blocking global anchoring hooks, `.ots`/`.anchor.json` download APIs, network-aware ledger routes, and 4-network switcher on `/api/blockchain/explorer/:ref` in `server.js`
+- [x] P1-B: Non-blocking global anchoring hooks, `.ots`/`.anchor.json` download APIs, network-aware ledger routes, and 4-network switcher on `/api/blockchain/explorer/:ref` in `server.js`
   - Goal: Tự động neo bất đồng bộ Block mới lên `OpenTimestamps` trong `recordIncidentBlockchainEvent`, mở các API tải tệp đối chứng quốc tế (`GET /api/blockchain/ots/:ref`, `GET /api/blockchain/anchor-doc/:ref`, `POST /api/blockchain/anchor/:ref`), truyền tham số `network` cho các API sổ cái, và bổ sung thanh chuyển đổi 4 mạng tương tác trực tiếp trên trang Vi bằng `/api/blockchain/explorer/:ref`.
   - Scope Boundary:
     - Editable: `server.js`

@@ -16,10 +16,15 @@ import { createZaloBotService } from './services/zalo-bot-service.js';
 import {
   LIFECYCLE_ACTIONS,
   blockchainLedgerService,
+  buildZeroPiiPublicAnchorDocument,
+  computeCaseCommitmentHash,
+  computeChainedCardSeal,
   describeBlockchainActionVi,
+  describeZeroPiiStageVi,
   formatDurationSecondsVi,
   generateQrCodeSvg,
-  computeChainedCardSeal,
+  isZeroPiiNetworkView,
+  normalizeNetworkView,
   resolveSystemBlockchainConfig,
   verifyChainedCardSeal,
   verifyHardwareDePINPayload
@@ -2118,6 +2123,17 @@ function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, o
     timestamp: nowIso
   });
 
+  const caseCommitmentHash = computeCaseCommitmentHash(incident.id);
+  const anchorPkg = buildZeroPiiPublicAnchorDocument({
+    blockNumber: receipt.blockNumber,
+    action: actionType,
+    timestamp: receipt.timestamp,
+    caseId: incident.id,
+    prevHash: receipt.prevHash,
+    txHash: receipt.txHash,
+    payloadDigest: receipt.payloadDigest
+  });
+
   if (actionType === LIFECYCLE_ACTIONS.SOS_TRIGGER && !incident.blockchain.triggerBlockNumber) {
     incident.blockchain.triggerBlockNumber = receipt.blockNumber;
     incident.blockchain.triggerTxHash = receipt.txHash;
@@ -2126,9 +2142,11 @@ function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, o
 
   incident.blockchain.chainId = receipt.chainId;
   incident.blockchain.envName = receipt.envName;
+  incident.blockchain.caseCommitmentHash = caseCommitmentHash;
   incident.blockchain.latestBlockNumber = receipt.blockNumber;
   incident.blockchain.latestTxHash = receipt.txHash;
   incident.blockchain.latestEvidenceHash = receipt.evidenceHash;
+  incident.blockchain.latestAnchorDigest = anchorPkg?.anchorDigestHex || null;
   if (!Array.isArray(incident.blockchain.auditTrail)) {
     incident.blockchain.auditTrail = [];
   }
@@ -2164,12 +2182,15 @@ function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, o
     step: incident.blockchain.auditTrail.length + 1,
     action: actionType,
     label: describeLifecycleActionVi(actionType),
+    zeroPiiLabel: describeZeroPiiStageVi(actionType),
     summary: summaryText,
     blockNumber: receipt.blockNumber,
     txHash: receipt.txHash,
     prevHash: receipt.prevHash,
     payloadDigest: receipt.payloadDigest,
     evidenceHash: receipt.evidenceHash,
+    caseCommitmentHash,
+    anchorDigestHex: anchorPkg?.anchorDigestHex || undefined,
     officerFullTitle: enrichedPayload.officerFullTitle || enrichedPayload.officerName || undefined,
     unitName: enrichedPayload.unitName || enrichedPayload.targetUnitName || enrichedPayload.routedUnitName || undefined,
     responseTimeSeconds: actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH ? incident.blockchain.responseTimeSeconds : undefined,
@@ -2185,68 +2206,166 @@ function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, o
   incident.blockchain.processSummary = blockchainLedgerService.buildCaseProcessSummary(
     caseBlocks,
     incident,
-    { includeRawPii: true }
+    { includeRawPii: true, networkView: '842026' }
   );
+
+  // Non-blocking global Zero-PII timestamp anchor onto Bitcoin OpenTimestamps pool (0ms SOS latency overhead)
+  setImmediate(() => {
+    blockchainLedgerService.anchorBlockToOpenTimestamps(receipt.blockNumber).catch((err) => {
+      console.warn(`[OTS-ANCHOR] Async stamp skipped for Block #${receipt.blockNumber}:`, err?.message || err);
+    });
+  });
 
   return receipt;
 }
 
-function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl, portalUrl = '', processSummary = null) {
-  const payloadData = block?.payload?.data || {};
-  const maskedPhone = payloadData.reporterPhone ? maskExplorerPii(payloadData.reporterPhone, 3, 3) : null;
-  const maskedCccd = payloadData.userCCCD ? maskExplorerPii(payloadData.userCCCD, 4, 3) : null;
+function resolveLedgerBlockByAnyRef(ref) {
+  const cleanRef = String(ref || '').trim();
+  if (!cleanRef) return null;
+  let block = blockchainLedgerService.findBlockByTxOrNumber(cleanRef);
+  if (!block && incidents.has(cleanRef)) {
+    const caseBlocks = blockchainLedgerService.getCaseBlocks(cleanRef);
+    block = caseBlocks[caseBlocks.length - 1] || null;
+  }
+  if (!block) {
+    const upper = cleanRef.toUpperCase();
+    const caseBlocks = blockchainLedgerService.getCaseBlocks(upper);
+    if (caseBlocks.length > 0) {
+      block = caseBlocks[caseBlocks.length - 1];
+    }
+  }
+  return block;
+}
+
+function buildBlockchainNetworkUrls(origin, { blockNumber = null, txHash = '', caseId = '', networkView = '842026' } = {}) {
+  const normNet = normalizeNetworkView(networkView);
+  const zeroPii = isZeroPiiNetworkView(normNet);
+  const refToken = txHash || (blockNumber !== null && blockNumber !== undefined ? String(blockNumber) : '');
+  const portalParams = new URLSearchParams();
+  if (txHash) {
+    portalParams.set('tx', txHash);
+  } else if (blockNumber !== null && blockNumber !== undefined) {
+    portalParams.set('q', `#${blockNumber}`);
+  }
+  if (!zeroPii && caseId) {
+    portalParams.set('case', caseId);
+  }
+  portalParams.set('network', normNet);
+
+  const verificationPortalUrl = `${origin}/tra-cuu-blockchain.html?${portalParams.toString()}`;
+  const explorerCertificateUrl = refToken
+    ? `${origin}/api/blockchain/explorer/${encodeURIComponent(refToken)}?network=${encodeURIComponent(normNet)}`
+    : `${origin}/api/blockchain/status`;
+  const blockRef = blockNumber !== null && blockNumber !== undefined ? String(blockNumber) : refToken;
+  const anchorDocUrl = blockRef
+    ? `${origin}/api/blockchain/anchor-doc/${encodeURIComponent(blockRef)}?download=1`
+    : null;
+  const otsDownloadUrl = blockRef
+    ? `${origin}/api/blockchain/ots/${encodeURIComponent(blockRef)}`
+    : null;
+  return {
+    networkView: normNet,
+    zeroPiiEnforced: zeroPii,
+    verificationPortalUrl,
+    explorerCertificateUrl,
+    anchorDocUrl,
+    otsDownloadUrl
+  };
+}
+
+function renderBlockchainExplorerCertificateHtml(
+  block,
+  chainCheck,
+  qrSvg,
+  explorerUrl,
+  portalUrl = '',
+  processSummary = null,
+  viewOptions = {}
+) {
+  const normNet = normalizeNetworkView(viewOptions.networkView || '842026');
+  const zeroPii = isZeroPiiNetworkView(normNet);
+  const isOfficer = Boolean(viewOptions.isOfficer);
+  const sysCfg = viewOptions.sysConfig || resolveSystemBlockchainConfig('');
+  const activeNetMeta = sysCfg.networks?.[normNet] || sysCfg.networks?.['842026'] || {};
+  const pubAnchor = viewOptions.publicAnchor || blockchainLedgerService.buildExternalAnchorSummary(block);
+  const anchorDocUrl = viewOptions.anchorDocUrl || `/api/blockchain/anchor-doc/${encodeURIComponent(String(block.blockNumber))}?download=1`;
+  const otsDownloadUrl = viewOptions.otsDownloadUrl || `/api/blockchain/ots/${encodeURIComponent(String(block.blockNumber))}`;
+
+  const payloadData = zeroPii ? {} : (block?.payload?.data || {});
+  const rawPhone = payloadData.reporterPhone || payloadData.userPhone || payloadData.phone || '';
+  const rawCccd = payloadData.userCCCD || payloadData.cccd || '';
+  const displayPhone = zeroPii ? '' : (isOfficer ? rawPhone : (rawPhone ? maskExplorerPii(rawPhone, 3, 3) : ''));
+  const displayCccd = zeroPii ? '' : (isOfficer ? rawCccd : (rawCccd ? maskExplorerPii(rawCccd, 4, 3) : ''));
   const intactBadge = chainCheck?.allBlocksIntact
     ? '✔ CHUỖI KHỐI NGUYÊN VẸN 100% (IMMUTABLE VERIFIED)'
     : '⚠ CẢNH BÁO SAI LỆCH SỔ CÁI';
   const badgeColor = chainCheck?.allBlocksIntact ? '#10b981' : '#ef4444';
   const dur = processSummary?.durations || {};
-  const trailRows = (chainCheck?.blocks || []).map((b) => `
+
+  const netTabs = [
+    { code: '842026', icon: '🇻🇳', name: 'Nội Bộ SOS 842026', sub: isOfficer ? 'Full 100% Nghiệp vụ' : 'Nghiệp vụ Quốc nội' },
+    { code: 'NDA', icon: '🏛️', name: 'Quốc Gia NDAChain', sub: 'Liên ngành · Zero-PII' },
+    { code: 'OTS', icon: '🌍', name: 'Quốc Tế Bitcoin (OTS)', sub: 'OpenTimestamps · Zero-PII' },
+    { code: 'POLYGON', icon: '🌍', name: 'Quốc Tế Polygon EVM', sub: 'Calldata EVM · Zero-PII' }
+  ];
+  const netSwitcherHtml = netTabs.map((tab) => {
+    const active = tab.code === normNet;
+    const href = `/api/blockchain/explorer/${encodeURIComponent(block.txHash)}?network=${encodeURIComponent(tab.code)}`;
+    return `<a class="net-tab${active ? ' active' : ''}${tab.code !== '842026' ? ' ext' : ''}" href="${escapeHtmlSafe(href)}" data-net="${escapeHtmlSafe(tab.code)}">
+      <span class="net-tab-top">${tab.icon} ${escapeHtmlSafe(tab.name)}</span>
+      <span class="net-tab-sub">${escapeHtmlSafe(tab.sub)}</span>
+    </a>`;
+  }).join('');
+
+  const trailRows = (chainCheck?.blocks || []).map((b) => {
+    const actionLabel = zeroPii ? describeZeroPiiStageVi(b.action) : describeLifecycleActionVi(b.action);
+    const blkHref = `/api/blockchain/explorer/${encodeURIComponent(String(b.blockNumber))}?network=${encodeURIComponent(normNet)}`;
+    return `
     <tr>
-      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;color:#38bdf8;font-family:monospace;">#${b.blockNumber}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;">${escapeHtmlSafe(describeLifecycleActionVi(b.action))}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;font-family:monospace;"><a href="${escapeHtmlSafe(blkHref)}" style="color:#38bdf8;text-decoration:none;font-weight:700;">#${b.blockNumber}</a></td>
+      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;">${escapeHtmlSafe(actionLabel)}</td>
       <td style="padding:8px 10px;border-bottom:1px solid #1e293b;font-family:monospace;font-size:12px;">${escapeHtmlSafe(String(b.txHash).slice(0, 22))}...</td>
       <td style="padding:8px 10px;border-bottom:1px solid #1e293b;color:${b.hashMatched && b.prevMatched ? '#10b981' : '#ef4444'};">${b.hashMatched && b.prevMatched ? '✔ Hợp lệ' : '✘ Lỗi'}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
-  return `<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chứng Thực Chuỗi Khối Block #${block.blockNumber} — SOS Vietnam Chain</title>
-  <style>
-    body { margin:0; background:#060c18; color:#e2e8f0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding:24px; }
-    .wrap { max-width:920px; margin:0 auto; background:#0f172a; border:1px solid #1e293b; border-radius:14px; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,0.55); }
-    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:1px solid #1e293b; padding-bottom:16px; flex-wrap:wrap; }
-    .title { font-size:18px; font-weight:800; color:#38bdf8; letter-spacing:0.4px; margin:0 0 6px 0; }
-    .sub { font-size:13px; color:#94a3b8; margin:0; }
-    .badge { display:inline-block; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; background:rgba(16,185,129,0.12); color:${badgeColor}; border:1px solid ${badgeColor}; }
-    .grid { display:grid; grid-template-columns: 1fr auto; gap:20px; margin-top:20px; align-items:start; }
-    @media (max-width:680px) { .grid { grid-template-columns: 1fr; } }
-    .kv { display:grid; grid-template-columns: 195px 1fr; gap:8px 12px; font-size:13px; }
-    .kv div:nth-child(odd) { color:#94a3b8; font-weight:600; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break:break-all; color:#f8fafc; }
-    .qr-box { background:#ffffff; padding:10px; border-radius:10px; text-align:center; color:#0f172a; font-size:11px; font-weight:700; }
-    .cta-btn { display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:10px 16px; border-radius:10px; background:linear-gradient(135deg,#0284c7,#0ea5e9); color:#ffffff; text-decoration:none; font-weight:700; font-size:13px; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
-    th { text-align:left; padding:8px 10px; background:#1e293b; color:#cbd5e1; font-size:12px; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="hdr">
-      <div>
-        <h1 class="title">⛓️ VI BẰNG BẢO CHỨNG GIAO DỊCH QUY TRÌNH — SOS VIETNAM BLOCKCHAIN</h1>
-        <p class="sub">${escapeHtmlSafe(block.envName)} · Chain ID: <strong>${block.chainId}</strong> (Canonical: 842026)</p>
-      </div>
-      <span class="badge">${intactBadge}</span>
-    </div>
-    <div class="grid">
-      <div class="kv">
+  const privacyBannerHtml = zeroPii
+    ? `<div class="privacy-banner zero-pii">
+        <div class="pb-title">🛡️ CHẾ ĐỘ ĐỐI CHỨNG MẠNG NGOÀI NỘI BỘ (${escapeHtmlSafe(activeNetMeta.shortLabelVi || normNet)}) — BẢO MẬT TUYỆT ĐỐI ZERO-PII</div>
+        <div class="pb-desc">0% thông tin định danh cá nhân &amp; tác chiến (Họ tên, SĐT, CCCD, Tọa độ GPS, Địa chỉ, Cán bộ nhận ca) được đưa lên mạng quốc gia/quốc tế. Toàn bộ được thay bằng <strong>Cam kết Mật mã Một chiều SHA-256</strong> nhưng vẫn đối chứng minh bạch 100% trình tự thời gian xử lý (SLA Δt) và dấu thời gian toàn cầu.</div>
+      </div>`
+    : `<div class="privacy-banner internal">
+        <div class="pb-title">🇻🇳 CHẾ ĐỘ SỔ CÁI NỘI BỘ SOS VIỆT NAM (CHAIN ID: ${escapeHtmlSafe(String(block.chainId))} · CANONICAL 842026)</div>
+        <div class="pb-desc">${isOfficer
+          ? 'Phiên Cán bộ Trực ban đã xác thực: Hiển thị <strong>Full 100% chi tiết nghiệp vụ ca cứu hộ</strong> (Người báo, SĐT gốc, CCCD, Tọa độ GPS, Cán bộ &amp; Đơn vị nhận ca).'
+          : 'Chế độ tra cứu nội bộ công khai: Hiển thị quy trình xử lý tiếng Việt và tự động che bảo vệ một phần SĐT / CCCD của công dân.'}</div>
+      </div>`;
+
+  const kvRowsHtml = zeroPii
+    ? `
+        <div>Cam Kết Hồ Sơ (Zero-PII):</div><div class="mono" style="color:#a78bfa;font-weight:700;">${escapeHtmlSafe(pubAnchor?.caseCommitmentHash || '')}</div>
+        <div>Số Khối (Block):</div><div class="mono" style="color:#38bdf8;font-weight:700;">#${block.blockNumber}</div>
+        <div>Bước Quy Trình (Zero-PII):</div><div>${escapeHtmlSafe(describeZeroPiiStageVi(block.action))}</div>
+        <div>Người Báo Tin &amp; SĐT:</div><div class="redacted-pill">🔒 ĐÃ ẨN BẢO MẬT ZERO-PII (0% Dữ liệu cá nhân trên mạng quốc tế)</div>
+        <div>Tọa Độ GPS &amp; Địa Chỉ:</div><div class="redacted-pill">🔒 ĐÃ KHÓA TỌA ĐỘ NỘI BỘ (Zero-GPS)</div>
+        <div>Cán Bộ &amp; Đơn Vị Trực Chiến:</div><div class="redacted-pill">🔒 ĐÃ ẨN BẢO MẬT LỰC LƯỢNG NỘI BỘ (Zero-PII)</div>
+        <div>Thời Gian Tiếp Nhận (Δt):</div><div class="mono" style="color:#10b981;font-weight:700;">${escapeHtmlSafe(dur.responseTimeTextVi || 'Chưa ghi nhận')}</div>
+        <div>Thời Gian Di Chuyển (Δt):</div><div class="mono" style="color:#38bdf8;font-weight:700;">${escapeHtmlSafe(dur.travelTimeTextVi || 'Chưa ghi nhận')}</div>
+        <div>Tổng Thời Gian Toàn Trình:</div><div class="mono" style="color:#fbbf24;font-weight:700;">${escapeHtmlSafe(dur.totalCaseDurationTextVi || 'Đang xử lý')}</div>
+        <div>Mã Giao Dịch (TxHash):</div><div class="mono">${escapeHtmlSafe(block.txHash)}</div>
+        <div>Khối Liên Kết Trước (PrevHash):</div><div class="mono">${escapeHtmlSafe(block.prevHash)}</div>
+        <div>Mã Băm Dữ Liệu (Payload SHA-256):</div><div class="mono">${escapeHtmlSafe(block.payloadDigest || block.evidenceHash)}</div>
+        <div>Mã Neo Quốc Tế (Anchor SHA-256):</div><div class="mono" style="color:#34d399;font-weight:700;">${escapeHtmlSafe(pubAnchor?.anchorDigestHex || '')}</div>
+        <div>Thời Gian Niêm Phong (UTC):</div><div class="mono">${escapeHtmlSafe(block.timestamp)}</div>
+      `
+    : `
         <div>Mã Hồ Sơ Sự Cố:</div><div class="mono">${escapeHtmlSafe(block.caseId)}</div>
         <div>Số Khối (Block):</div><div class="mono" style="color:#38bdf8;font-weight:700;">#${block.blockNumber}</div>
         <div>Bước Quy Trình:</div><div>${escapeHtmlSafe(describeLifecycleActionVi(block.action))}</div>
-        <div>Người Báo Tin:</div><div>${escapeHtmlSafe(processSummary?.reporter?.name || payloadData.reporterName || 'Người dân khẩn cấp')}${maskedPhone ? ` (${escapeHtmlSafe(maskedPhone)})` : ''}</div>
+        <div>Người Báo Tin:</div><div>${escapeHtmlSafe(processSummary?.reporter?.name || payloadData.reporterName || 'Người dân khẩn cấp')}${displayPhone ? ` (${escapeHtmlSafe(displayPhone)})` : ''}</div>
+        ${isOfficer && (processSummary?.reporter?.address || payloadData.address || (payloadData.lat && payloadData.lng))
+          ? `<div>Vị Trí Hiện Trường (Nội bộ):</div><div>${escapeHtmlSafe(processSummary?.reporter?.address || payloadData.address || '')}${payloadData.lat && payloadData.lng ? ` <span class="mono" style="color:#38bdf8;">[${Number(payloadData.lat).toFixed(5)}, ${Number(payloadData.lng).toFixed(5)}]</span>` : ''}</div>`
+          : ''}
         <div>Cán Bộ &amp; Đơn Vị Nhận Ca:</div><div>${escapeHtmlSafe(processSummary?.officer?.fullTitle || payloadData.officerFullTitle || payloadData.officerName || 'Đang điều phối')} — ${escapeHtmlSafe(processSummary?.officer?.unitName || payloadData.unitName || '')}</div>
         <div>Thời Gian Tiếp Nhận:</div><div class="mono" style="color:#10b981;font-weight:700;">${escapeHtmlSafe(dur.responseTimeTextVi || 'Chưa ghi nhận')}</div>
         <div>Thời Gian Di Chuyển Tới Nơi:</div><div class="mono" style="color:#38bdf8;font-weight:700;">${escapeHtmlSafe(dur.travelTimeTextVi || 'Chưa ghi nhận')}</div>
@@ -2254,16 +2373,122 @@ function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explo
         <div>Mã Giao Dịch (TxHash):</div><div class="mono">${escapeHtmlSafe(block.txHash)}</div>
         <div>Khối Liên Kết Trước (PrevHash):</div><div class="mono">${escapeHtmlSafe(block.prevHash)}</div>
         <div>Mã Băm Dữ Liệu (SHA-256):</div><div class="mono" style="color:#fbbf24;">${escapeHtmlSafe(block.payloadDigest || block.evidenceHash)}</div>
+        <div>Cam Kết Quốc Tế (Zero-PII):</div><div class="mono" style="color:#a78bfa;">${escapeHtmlSafe(pubAnchor?.caseCommitmentHash || '')}</div>
         <div>Thời Gian Niêm Phong:</div><div class="mono">${escapeHtmlSafe(block.timestamp)}</div>
-        ${maskedCccd ? `<div>CCCD Định Danh (Đã che PII):</div><div class="mono">${escapeHtmlSafe(maskedCccd)}</div>` : ''}
+        ${displayCccd ? `<div>CCCD Định Danh${isOfficer ? ' (Full Nội bộ)' : ' (Đã che PII)'}:</div><div class="mono">${escapeHtmlSafe(displayCccd)}</div>` : ''}
+      `;
+
+  const otsStatusText = pubAnchor?.ots?.stamped
+    ? `✔ Đã đóng dấu Lịch Bitcoin Toàn cầu (${pubAnchor.ots.calendarServerUri || 'OpenTimestamps Pool'} · ${pubAnchor.ots.otsByteLength || 0} bytes)`
+    : '⚡ Sẵn sàng tải & đóng dấu tức thời lên Lịch Bitcoin OpenTimestamps (.ots)';
+
+  const globalProofBoxHtml = zeroPii
+    ? `<div class="global-proof-box" id="explorerGlobalProofBox">
+        <div class="gp-hdr">🌍 BẰNG CHỨNG ĐỐI CHỨNG ĐỘC LẬP TOÀN CẦU (${escapeHtmlSafe(pubAnchor?.protocol || 'SOSVN-ANCHOR-V1')})</div>
+        <div class="gp-meta">
+          <div><strong>Trạng thái Lịch Bitcoin (OpenTimestamps):</strong> <span style="color:#34d399;">${escapeHtmlSafe(otsStatusText)}</span></div>
+          ${normNet === 'POLYGON' ? `<div style="margin-top:6px;"><strong>Calldata Hex EVM (Zero-PII):</strong> <span class="mono" style="font-size:11.5px;color:#cbd5e1;">${escapeHtmlSafe(pubAnchor?.evmCalldataHex || '')}</span></div>` : ''}
+          ${normNet === 'NDA' ? `<div style="margin-top:6px;"><strong>Chuẩn Liên Ngành Quốc Gia:</strong> <span class="mono" style="font-size:12px;color:#38bdf8;">NDAChain Zero-PII Commitment (${escapeHtmlSafe(pubAnchor?.nda?.status || 'ZERO_PII_COMMITMENT_READY')})</span></div>` : ''}
+        </div>
+        <div class="gp-actions">
+          <a class="gp-btn primary" id="btnExplorerDownloadAnchorJson" href="${escapeHtmlSafe(anchorDocUrl)}">📥 1. Tải Tệp Cam Kết (.anchor.json)</a>
+          <a class="gp-btn emerald" id="btnExplorerDownloadOts" href="${escapeHtmlSafe(otsDownloadUrl)}">⛓️ 2. Tải Chứng Chỉ Bitcoin (.ots)</a>
+          <a class="gp-btn outline" id="btnExplorerOpenOtsSite" href="https://opentimestamps.org" target="_blank" rel="noopener noreferrer">🌍 3. Đối Chứng Tại OpenTimestamps.org ↗</a>
+        </div>
+        <p class="gp-hint">Hướng dẫn kiểm chứng quốc tế: Tải tệp <code>${escapeHtmlSafe(pubAnchor?.anchorFileName || '')}</code> (hoàn toàn không chứa thông tin mật) cùng tệp chữ ký nhị phân <code>${escapeHtmlSafe(pubAnchor?.otsFileName || '')}</code>, sau đó kéo thả cả 2 tệp vào trang kiểm định toàn cầu <strong>opentimestamps.org</strong>.</p>
+      </div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chứng Thực Chuỗi Khối Block #${block.blockNumber} (${normNet}) — SOS Vietnam Chain</title>
+  <style>
+    body { margin:0; background:#060c18; color:#e2e8f0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding:24px; }
+    .wrap { max-width:960px; margin:0 auto; background:#0f172a; border:1px solid #1e293b; border-radius:14px; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,0.55); }
+    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:1px solid #1e293b; padding-bottom:16px; flex-wrap:wrap; }
+    .title { font-size:18px; font-weight:800; color:#38bdf8; letter-spacing:0.4px; margin:0 0 6px 0; }
+    .sub { font-size:13px; color:#94a3b8; margin:0; }
+    .badge { display:inline-block; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; background:rgba(16,185,129,0.12); color:${badgeColor}; border:1px solid ${badgeColor}; }
+    .net-switch-wrap { margin-top:16px; background:#09101f; border:1px solid #1e293b; border-radius:12px; padding:12px; }
+    .net-switch-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; color:#94a3b8; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
+    .net-switch-bar { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:8px; }
+    @media (max-width:760px) { .net-switch-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .net-tab { display:flex; flex-direction:column; gap:3px; padding:10px 12px; border-radius:9px; background:#0f172a; border:1px solid #1e293b; color:#cbd5e1; text-decoration:none; transition:all 0.16s ease; }
+    .net-tab:hover { border-color:#38bdf8; background:#132038; }
+    .net-tab.active { background:linear-gradient(135deg, rgba(14,165,233,0.22), rgba(2,132,199,0.12)); border-color:#38bdf8; color:#ffffff; box-shadow:0 0 0 1px rgba(56,189,248,0.35); }
+    .net-tab.ext.active { background:linear-gradient(135deg, rgba(16,185,129,0.22), rgba(5,150,105,0.12)); border-color:#10b981; box-shadow:0 0 0 1px rgba(16,185,129,0.35); }
+    .net-tab-top { font-size:12.5px; font-weight:800; }
+    .net-tab-sub { font-size:11px; color:#94a3b8; }
+    .net-tab.active .net-tab-sub { color:#e2e8f0; }
+    .privacy-banner { margin-top:14px; padding:12px 14px; border-radius:10px; font-size:12.5px; line-height:1.5; }
+    .privacy-banner.internal { background:rgba(14,165,233,0.1); border:1px solid rgba(56,189,248,0.35); color:#bae6fd; }
+    .privacy-banner.zero-pii { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.4); color:#d1fae5; }
+    .pb-title { font-weight:800; font-size:13px; margin-bottom:4px; }
+    .grid { display:grid; grid-template-columns: 1fr auto; gap:20px; margin-top:18px; align-items:start; }
+    @media (max-width:680px) { .grid { grid-template-columns: 1fr; } }
+    .kv { display:grid; grid-template-columns: 205px 1fr; gap:8px 12px; font-size:13px; align-items:baseline; }
+    @media (max-width:560px) { .kv { grid-template-columns: 1fr; } }
+    .kv div:nth-child(odd) { color:#94a3b8; font-weight:600; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break:break-all; color:#f8fafc; }
+    .redacted-pill { display:inline-block; padding:3px 9px; border-radius:6px; background:rgba(16,185,129,0.14); border:1px solid rgba(16,185,129,0.38); color:#6ee7b7; font-size:12px; font-weight:700; }
+    .qr-box { background:#ffffff; padding:10px; border-radius:10px; text-align:center; color:#0f172a; font-size:11px; font-weight:700; }
+    .global-proof-box { margin-top:18px; padding:16px; border-radius:12px; background:#091426; border:1px solid rgba(16,185,129,0.4); }
+    .gp-hdr { font-size:13.5px; font-weight:800; color:#34d399; margin-bottom:8px; }
+    .gp-meta { font-size:12.5px; color:#cbd5e1; line-height:1.5; }
+    .gp-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    .gp-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border-radius:9px; font-size:12.5px; font-weight:700; text-decoration:none; }
+    .gp-btn.primary { background:#0284c7; color:#ffffff; }
+    .gp-btn.emerald { background:#059669; color:#ffffff; }
+    .gp-btn.outline { background:transparent; border:1px solid #38bdf8; color:#38bdf8; }
+    .gp-hint { margin:10px 0 0 0; font-size:12px; color:#94a3b8; line-height:1.45; }
+    .cta-row { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+    .cta-btn { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:10px; background:linear-gradient(135deg,#0284c7,#0ea5e9); color:#ffffff; text-decoration:none; font-weight:700; font-size:13px; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
+    th { text-align:left; padding:8px 10px; background:#1e293b; color:#cbd5e1; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap" data-active-network="${escapeHtmlSafe(normNet)}" data-zero-pii="${zeroPii ? 'true' : 'false'}">
+    <div class="hdr">
+      <div>
+        <h1 class="title">⛓️ VI BẰNG BẢO CHỨNG GIAO DỊCH QUY TRÌNH — SOS VIETNAM BLOCKCHAIN</h1>
+        <p class="sub">${escapeHtmlSafe(activeNetMeta.label || block.envName)} · Môi trường: <strong>${escapeHtmlSafe(block.envName)}</strong></p>
+      </div>
+      <span class="badge">${intactBadge}</span>
+    </div>
+
+    <div class="net-switch-wrap" id="explorerNetworkSwitcher">
+      <div class="net-switch-label">
+        <span>🌐 CHUYỂN ĐỔI MẠNG CHUỖI KHỐI XEM ĐỐI CHỨNG (4 MẠNG)</span>
+        <span style="color:${zeroPii ? '#34d399' : '#38bdf8'};">${escapeHtmlSafe(activeNetMeta.visibilityBadgeVi || '')}</span>
+      </div>
+      <div class="net-switch-bar">
+        ${netSwitcherHtml}
+      </div>
+    </div>
+
+    ${privacyBannerHtml}
+
+    <div class="grid">
+      <div class="kv">
+        ${kvRowsHtml}
       </div>
       <div class="qr-box">
         ${qrSvg}
-        <div style="margin-top:6px;">QUÉT ĐỐI CHỨNG HỒ SƠ</div>
+        <div style="margin-top:6px;">QUÉT ĐỐI CHỨNG (${escapeHtmlSafe(normNet)})</div>
       </div>
     </div>
-    ${portalUrl ? `<a class="cta-btn" href="${escapeHtmlSafe(portalUrl)}">🔍 Mở Cổng Đối Chứng Xác Thực &amp; Phần Mềm Giải Mã Hồ Sơ (.JSON) ↗</a>` : ''}
-    <h2 style="font-size:14px;color:#94a3b8;margin-top:24px;">LỊCH SỬ GIAO DỊCH CHUỖI KHỐI CỦA HỒ SƠ (${(chainCheck?.blocks || []).length} BLOCK)</h2>
+
+    ${globalProofBoxHtml}
+
+    <div class="cta-row">
+      ${portalUrl ? `<a class="cta-btn" href="${escapeHtmlSafe(portalUrl)}">🔍 Mở Cổng Đối Chứng Xác Thực &amp; Phần Mềm Giải Mã Hồ Sơ (.JSON) ↗</a>` : ''}
+    </div>
+
+    <h2 style="font-size:14px;color:#94a3b8;margin-top:24px;">LỊCH SỬ GIAO DỊCH CHUỖI KHỐI CỦA HỒ SƠ (${(chainCheck?.blocks || []).length} BLOCK · CHẾ ĐỘ ${escapeHtmlSafe(normNet)})</h2>
     <table>
       <thead><tr><th>Block</th><th>Sự kiện quy trình</th><th>TxHash</th><th>Toàn vẹn SHA-256</th></tr></thead>
       <tbody>${trailRows}</tbody>
@@ -3263,13 +3488,32 @@ const server = http.createServer(async (req, res) => {
   if (urlPath === '/api/blockchain/recent' && req.method === 'GET') {
     const officerSession = resolveOptionalOfficerSession(req);
     const limit = Number(urlObj.searchParams.get('limit') || 20);
+    const networkView = normalizeNetworkView(urlObj.searchParams.get('network') || '842026');
+    const origin = detectRequestOrigin(req);
     const result = blockchainLedgerService.getRecentBlocks(limit, {
       includeRawPii: Boolean(officerSession),
-      host: resolveEffectiveRequestHost(req)
+      host: resolveEffectiveRequestHost(req),
+      networkView
+    });
+    const enrichedBlocks = (result.blocks || []).map((item) => {
+      const urls = buildBlockchainNetworkUrls(origin, {
+        blockNumber: item.blockNumber,
+        txHash: item.txHash,
+        caseId: item.caseId || '',
+        networkView
+      });
+      return {
+        ...item,
+        explorerCertificateUrl: urls.explorerCertificateUrl,
+        verificationPortalUrl: urls.verificationPortalUrl,
+        anchorDocUrl: urls.anchorDocUrl,
+        otsDownloadUrl: urls.otsDownloadUrl
+      };
     });
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify({
       ...result,
+      blocks: enrichedBlocks,
       viewerRole: officerSession ? 'officer' : 'public'
     }));
   }
@@ -3280,28 +3524,41 @@ const server = http.createServer(async (req, res) => {
       || urlObj.searchParams.get('tx')
       || urlObj.searchParams.get('case')
       || urlObj.searchParams.get('block')
+      || urlObj.searchParams.get('commitment')
       || ''
     ).trim();
+    const networkView = normalizeNetworkView(urlObj.searchParams.get('network') || '842026');
     if (!q) {
       res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(JSON.stringify({ ok: false, found: false, error: 'Vui lòng nhập Mã TxHash (0x...), Số Block (#101) hoặc Mã ca sự cố (SOS-...)' }));
+      return res.end(JSON.stringify({
+        ok: false,
+        found: false,
+        networkView,
+        error: 'Vui lòng nhập Mã TxHash (0x...), Số Block (#101), Cam kết Zero-PII (0x...) hoặc Mã ca sự cố (SOS-...)'
+      }));
     }
     const officerSession = resolveOptionalOfficerSession(req);
     const includeRawPii = Boolean(officerSession);
     const effectiveHost = resolveEffectiveRequestHost(req);
-    const directIncident = incidents.get(q) || Array.from(incidents.values()).find((it) => String(it?.id || '').toUpperCase() === q.toUpperCase()) || null;
-    let lookup = blockchainLedgerService.lookupLedger(q, {
+
+    // If querying OTS mode and the matched block was created prior to OTS upgrade, stamp on demand so proof is ready immediately
+    const preMatchedBlock = resolveLedgerBlockByAnyRef(q);
+    if (preMatchedBlock && networkView === 'OTS' && !preMatchedBlock.externalAnchors?.OTS?.otsBase64) {
+      await blockchainLedgerService.anchorBlockToOpenTimestamps(preMatchedBlock, { timeoutMs: 4500 }).catch(() => null);
+    }
+
+    const internalCaseId = preMatchedBlock?.caseId || q;
+    const directIncident = incidents.get(internalCaseId)
+      || Array.from(incidents.values()).find((it) => String(it?.id || '').toUpperCase() === String(internalCaseId).toUpperCase())
+      || null;
+
+    const lookup = blockchainLedgerService.lookupLedger(q, {
       includeRawPii,
       incidentMeta: directIncident,
-      host: effectiveHost
+      host: effectiveHost,
+      networkView
     });
-    if (lookup.found && lookup.caseId && !directIncident && incidents.has(lookup.caseId)) {
-      lookup = blockchainLedgerService.lookupLedger(q, {
-        includeRawPii,
-        incidentMeta: incidents.get(lookup.caseId),
-        host: effectiveHost
-      });
-    }
+
     if (!lookup.found) {
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify({
@@ -3311,15 +3568,21 @@ const server = http.createServer(async (req, res) => {
       }));
     }
     const origin = detectRequestOrigin(req);
-    const verificationPortalUrl = `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(lookup.matchedTxHash)}&case=${encodeURIComponent(lookup.caseId || '')}`;
-    const explorerCertificateUrl = `${origin}/api/blockchain/explorer/${encodeURIComponent(lookup.matchedTxHash)}`;
-    const qrSvg = generateQrCodeSvg(verificationPortalUrl);
+    const urls = buildBlockchainNetworkUrls(origin, {
+      blockNumber: lookup.matchedBlockNumber,
+      txHash: lookup.matchedTxHash,
+      caseId: lookup.caseId || '',
+      networkView
+    });
+    const qrSvg = generateQrCodeSvg(urls.verificationPortalUrl);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify({
       ...lookup,
       viewerRole: officerSession ? 'officer' : 'public',
-      verificationPortalUrl,
-      explorerCertificateUrl,
+      verificationPortalUrl: urls.verificationPortalUrl,
+      explorerCertificateUrl: urls.explorerCertificateUrl,
+      anchorDocUrl: urls.anchorDocUrl,
+      otsDownloadUrl: urls.otsDownloadUrl,
       qrSvg
     }));
   }
@@ -3344,20 +3607,33 @@ const server = http.createServer(async (req, res) => {
         const targetPayload = parsed && typeof parsed === 'object' && parsed.dossier !== undefined
           ? parsed.dossier
           : parsed;
+        const requestedNet = normalizeNetworkView(
+          (parsed && typeof parsed === 'object' && parsed.network) || urlObj.searchParams.get('network') || '842026'
+        );
         const result = blockchainLedgerService.verifyExportedDossier(targetPayload, {
-          host: resolveEffectiveRequestHost(req)
+          host: resolveEffectiveRequestHost(req),
+          networkView: requestedNet,
+          includeRawPii: !isZeroPiiNetworkView(requestedNet)
         });
+        const effectiveNet = normalizeNetworkView(result.networkView || requestedNet);
         const origin = detectRequestOrigin(req);
-        const latestTx = result.processSummary?.latestTxHash || '';
+        const latestTx = result.processSummary?.latestTxHash || result.publicAnchor?.txHash || '';
+        const latestBlk = result.processSummary?.latestBlockNumber || result.publicAnchor?.blockNumber || null;
         const caseId = result.processSummary?.caseId || '';
-        const verificationPortalUrl = latestTx
-          ? `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(latestTx)}&case=${encodeURIComponent(caseId)}`
-          : `${origin}/tra-cuu-blockchain.html`;
-        const qrSvg = latestTx ? generateQrCodeSvg(verificationPortalUrl) : null;
+        const urls = buildBlockchainNetworkUrls(origin, {
+          blockNumber: latestBlk,
+          txHash: latestTx,
+          caseId,
+          networkView: effectiveNet
+        });
+        const qrSvg = latestTx ? generateQrCodeSvg(urls.verificationPortalUrl) : null;
         res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(JSON.stringify({
           ...result,
-          verificationPortalUrl,
+          verificationPortalUrl: urls.verificationPortalUrl,
+          explorerCertificateUrl: urls.explorerCertificateUrl,
+          anchorDocUrl: urls.anchorDocUrl,
+          otsDownloadUrl: urls.otsDownloadUrl,
           qrSvg
         }));
       } catch (err) {
@@ -3373,54 +3649,169 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (urlPath.startsWith('/api/blockchain/anchor-doc/') && req.method === 'GET') {
+    const ref = decodeURIComponent(urlPath.replace('/api/blockchain/anchor-doc/', '').trim());
+    const block = resolveLedgerBlockByAnyRef(ref);
+    if (!block) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy Block cần trích xuất tệp cam kết Zero-PII.' }));
+    }
+    const anchorPkg = buildZeroPiiPublicAnchorDocument(block);
+    const headers = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Anchor-Digest-SHA256': anchorPkg.anchorDigestHex
+    };
+    if (urlObj.searchParams.get('download') === '1') {
+      headers['Content-Disposition'] = `attachment; filename="${anchorPkg.fileName}"`;
+    }
+    res.writeHead(200, headers);
+    return res.end(anchorPkg.jsonBytes);
+  }
+
+  if (urlPath.startsWith('/api/blockchain/ots/') && req.method === 'GET') {
+    const ref = decodeURIComponent(urlPath.replace('/api/blockchain/ots/', '').trim());
+    const block = resolveLedgerBlockByAnyRef(ref);
+    if (!block) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy Block cần tải chứng chỉ Bitcoin OpenTimestamps (.ots).' }));
+    }
+    const stampRes = await blockchainLedgerService.anchorBlockToOpenTimestamps(block, {
+      forceRestamp: urlObj.searchParams.get('refresh') === '1',
+      timeoutMs: 6500
+    });
+    if (!stampRes.ok || !stampRes.otsBuffer) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify({
+        ok: false,
+        blockNumber: block.blockNumber,
+        error: 'Chưa thể nhận phản hồi từ cụm máy chủ lịch OpenTimestamps quốc tế: ' + (stampRes.error || 'UNKNOWN')
+      }));
+    }
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stampRes.otsBuffer.length,
+      'Content-Disposition': `attachment; filename="${stampRes.anchorPkg.otsFileName}"`,
+      'Cache-Control': 'no-store',
+      'X-Anchor-Digest-SHA256': stampRes.anchorPkg.anchorDigestHex,
+      'X-OTS-Calendar-Server': stampRes.otsRecord?.calendarServerUri || ''
+    });
+    return res.end(stampRes.otsBuffer);
+  }
+
+  if (urlPath.startsWith('/api/blockchain/anchor/') && req.method === 'POST') {
+    const ref = decodeURIComponent(urlPath.replace('/api/blockchain/anchor/', '').trim());
+    const block = resolveLedgerBlockByAnyRef(ref);
+    if (!block) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy Block cần đóng dấu quốc tế.' }));
+    }
+    const stampRes = await blockchainLedgerService.anchorBlockToOpenTimestamps(block, {
+      forceRestamp: urlObj.searchParams.get('refresh') === '1',
+      timeoutMs: 6500
+    });
+    const origin = detectRequestOrigin(req);
+    const urls = buildBlockchainNetworkUrls(origin, {
+      blockNumber: block.blockNumber,
+      txHash: block.txHash,
+      caseId: '',
+      networkView: 'OTS'
+    });
+    res.writeHead(stampRes.ok ? 200 : 502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({
+      ok: stampRes.ok,
+      cached: Boolean(stampRes.cached),
+      blockNumber: block.blockNumber,
+      txHash: block.txHash,
+      publicAnchor: blockchainLedgerService.buildExternalAnchorSummary(block),
+      otsInspection: stampRes.otsInspection || null,
+      anchorDocUrl: urls.anchorDocUrl,
+      otsDownloadUrl: urls.otsDownloadUrl,
+      error: stampRes.error || undefined
+    }));
+  }
+
   if (urlPath.startsWith('/api/blockchain/explorer/') && req.method === 'GET') {
     const ref = decodeURIComponent(urlPath.replace('/api/blockchain/explorer/', '').trim());
-    let block = blockchainLedgerService.findBlockByTxOrNumber(ref);
-    if (!block && incidents.has(ref)) {
-      const caseBlocks = blockchainLedgerService.getCaseBlocks(ref);
-      block = caseBlocks[caseBlocks.length - 1] || null;
-    }
+    const networkView = normalizeNetworkView(urlObj.searchParams.get('network') || '842026');
+    const zeroPii = isZeroPiiNetworkView(networkView);
+    const block = resolveLedgerBlockByAnyRef(ref);
     if (!block) {
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
       return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy Block hoặc mã giao dịch TxHash trên sổ cái' }));
     }
+    if (networkView === 'OTS' && !block.externalAnchors?.OTS?.otsBase64) {
+      await blockchainLedgerService.anchorBlockToOpenTimestamps(block, { timeoutMs: 5000 }).catch(() => null);
+    }
+
+    const effectiveHost = resolveEffectiveRequestHost(req);
+    const sysCfg = resolveSystemBlockchainConfig(effectiveHost);
     const chainCheck = blockchainLedgerService.verifyCaseChainIntegrity(block.caseId);
     const caseBlocks = block.caseId ? blockchainLedgerService.getCaseBlocks(block.caseId) : [block];
     const officerSession = resolveOptionalOfficerSession(req);
+    const includeRawPii = Boolean(officerSession) && !zeroPii;
     const processSummary = blockchainLedgerService.buildCaseProcessSummary(
       caseBlocks,
       block.caseId ? incidents.get(block.caseId) : null,
-      { includeRawPii: Boolean(officerSession) }
+      { includeRawPii, networkView }
     );
     const origin = detectRequestOrigin(req);
-    const explorerUrl = `${origin}/api/blockchain/explorer/${block.txHash}`;
-    const portalUrl = `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(block.txHash)}&case=${encodeURIComponent(block.caseId || '')}`;
-    const qrSvg = generateQrCodeSvg(portalUrl);
+    const urls = buildBlockchainNetworkUrls(origin, {
+      blockNumber: block.blockNumber,
+      txHash: block.txHash,
+      caseId: zeroPii ? '' : (block.caseId || ''),
+      networkView
+    });
+    const publicAnchor = blockchainLedgerService.buildExternalAnchorSummary(block);
+    const qrSvg = generateQrCodeSvg(urls.verificationPortalUrl);
     const wantsJson = urlObj.searchParams.get('format') === 'json' ||
       (String(req.headers.accept || '').includes('application/json') && !String(req.headers.accept || '').includes('text/html'));
 
     if (wantsJson) {
-      const safePayload = { ...(block.payload?.data || {}) };
-      if (!officerSession) {
-        if (safePayload.reporterPhone) safePayload.reporterPhone = maskExplorerPii(safePayload.reporterPhone, 3, 3);
-        if (safePayload.userCCCD) safePayload.userCCCD = maskExplorerPii(safePayload.userCCCD, 4, 3);
-      }
+      const sanitizedBlock = blockchainLedgerService.sanitizeBlockForView(block, {
+        includeRawPii,
+        networkView
+      });
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(JSON.stringify({
         ok: true,
-        block: {
-          ...block,
-          payload: { ...block.payload, data: safePayload }
-        },
+        networkView,
+        zeroPiiEnforced: zeroPii,
+        activeNetworkProfile: sysCfg.networks[networkView],
+        supportedNetworks: sysCfg.supportedNetworks,
+        block: sanitizedBlock,
+        publicAnchor,
         processSummary,
-        chainIntegrity: chainCheck,
-        explorerUrl,
-        verificationPortalUrl: portalUrl,
+        chainIntegrity: {
+          ok: chainCheck.ok,
+          blockCount: chainCheck.blockCount,
+          allBlocksIntact: chainCheck.allBlocksIntact,
+          blocks: chainCheck.blocks || []
+        },
+        explorerUrl: urls.explorerCertificateUrl,
+        verificationPortalUrl: urls.verificationPortalUrl,
+        anchorDocUrl: urls.anchorDocUrl,
+        otsDownloadUrl: urls.otsDownloadUrl,
         qrSvg
       }));
     }
 
-    const html = renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl, portalUrl, processSummary);
+    const html = renderBlockchainExplorerCertificateHtml(
+      block,
+      chainCheck,
+      qrSvg,
+      urls.explorerCertificateUrl,
+      urls.verificationPortalUrl,
+      processSummary,
+      {
+        networkView,
+        isOfficer: Boolean(officerSession),
+        sysConfig: sysCfg,
+        publicAnchor,
+        anchorDocUrl: urls.anchorDocUrl,
+        otsDownloadUrl: urls.otsDownloadUrl
+      }
+    );
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(html);
   }
@@ -6289,7 +6680,8 @@ const server = http.createServer(async (req, res) => {
         const payload = JSON.parse(body || '{}');
         const incidentId = String(payload.incidentId || payload.id || '').trim();
         const requestedEvidenceId = String(payload.evidenceId || '').trim();
-        const selectedNetwork = String(payload.network || '842026').trim();
+        const selectedNetwork = normalizeNetworkView(payload.network || '842026');
+        const zeroPii = isZeroPiiNetworkView(selectedNetwork);
         const incident = incidents.get(incidentId);
         if (!incident) {
           res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -6364,90 +6756,178 @@ const server = http.createServer(async (req, res) => {
         const allEvidenceIntact = auditedEvidence.every((item) => item.matched === true);
         const verified = Boolean(chainCheck.ok && !hwSpoofed && allEvidenceIntact);
 
+        if (latestBlock && !latestBlock.externalAnchors?.OTS?.otsBase64) {
+          if (selectedNetwork === 'OTS' || payload.ensureOts === true) {
+            await blockchainLedgerService.anchorBlockToOpenTimestamps(latestBlock, { timeoutMs: 4500 }).catch(() => null);
+          } else {
+            setImmediate(() => {
+              blockchainLedgerService.anchorBlockToOpenTimestamps(latestBlock).catch(() => {});
+            });
+          }
+        }
+
         const txHash = primaryEvidence?.txHash || incident.blockchain?.latestTxHash || latestBlock?.txHash || '';
         const blockNumber = primaryEvidence?.blockNumber || incident.blockchain?.latestBlockNumber || latestBlock?.blockNumber || null;
+        const caseCommitmentHash = computeCaseCommitmentHash(incidentId);
+        const publicAnchor = latestBlock ? blockchainLedgerService.buildExternalAnchorSummary(latestBlock) : null;
 
         const originalBlockchainHash = primaryEvidence
           ? primaryEvidence.originalBlockchainHash
-          : (incident.hardwareSecurity?.liveEvidenceHash || latestBlock?.txHash || incident.blockchain?.latestTxHash || '');
+          : (zeroPii
+            ? (publicAnchor?.anchorDigestHex || latestBlock?.txHash || '')
+            : (incident.hardwareSecurity?.liveEvidenceHash || latestBlock?.txHash || incident.blockchain?.latestTxHash || ''));
         const currentServerFileHash = primaryEvidence
           ? primaryEvidence.currentServerFileHash
-          : (!hwSpoofed ? (latestChainAudit?.recomputedTxHash || originalBlockchainHash) : '0x0000000000000000000000000000000000000000000000000000000000000000');
+          : (!hwSpoofed
+            ? (zeroPii ? (publicAnchor?.anchorDigestHex || latestChainAudit?.recomputedTxHash || originalBlockchainHash) : (latestChainAudit?.recomputedTxHash || originalBlockchainHash))
+            : '0x0000000000000000000000000000000000000000000000000000000000000000');
 
-        const verificationPortalUrl = txHash
-          ? `${origin}/tra-cuu-blockchain.html?tx=${encodeURIComponent(txHash)}&case=${encodeURIComponent(incidentId)}`
-          : `${origin}/tra-cuu-blockchain.html?case=${encodeURIComponent(incidentId)}`;
-        const explorerUrl = txHash ? `${origin}/api/blockchain/explorer/${encodeURIComponent(txHash)}` : `${origin}/api/blockchain/status`;
+        const netUrls = buildBlockchainNetworkUrls(origin, {
+          blockNumber,
+          txHash,
+          caseId: zeroPii ? '' : incidentId,
+          networkView: selectedNetwork
+        });
+        const verificationPortalUrl = netUrls.verificationPortalUrl;
+        const explorerUrl = netUrls.explorerCertificateUrl;
         const qrSvg = generateQrCodeSvg(verificationPortalUrl);
-        const processSummary = blockchainLedgerService.buildCaseProcessSummary(caseBlocks, incident, { includeRawPii: true });
+        const processSummary = blockchainLedgerService.buildCaseProcessSummary(caseBlocks, incident, {
+          includeRawPii: !zeroPii,
+          networkView: selectedNetwork
+        });
         const resolvedChainName = sysConfig.networks?.[selectedNetwork]?.label
-          || sysConfig.networks?.SOS_CHAIN?.label
+          || sysConfig.networks?.['842026']?.label
           || 'SOS Chain (Chain ID: 842026)';
 
         const conclusion = verified
-          ? '✔ XÁC THỰC THÀNH CÔNG (100% NGUYÊN VẸN) - ĐỦ TIÊU CHUẨN ĐỐI CHỨNG & TRÍCH XUẤT BIÊN BẢN PHÁP LÝ'
+          ? (zeroPii
+            ? `✔ XÁC THỰC CAM KẾT ZERO-PII THÀNH CÔNG (100% NGUYÊN VẸN · 0% LỘ LỌT THÔNG TIN TRÊN MẠNG ${selectedNetwork})`
+            : '✔ XÁC THỰC THÀNH CÔNG (100% NGUYÊN VẸN) - ĐỦ TIÊU CHUẨN ĐỐI CHỨNG & TRÍCH XUẤT BIÊN BẢN PHÁP LÝ')
           : '❌ CẢNH BÁO VI PHẠM TOÀN VẸN DỮ LIỆU - PHÁT HIỆN DẤU HIỆU GIẢ MẠO HOẶC CHỈNH SỬA TRÁI PHÉP';
 
         const auditedAtIso = new Date().toISOString();
         const auditorOfficer = req.user?.username || req.headers['x-officer-username'] || 'admin';
-        const legalDossier = {
-          schemaVersion: '2.1-PROCESS-DOSSIER',
-          dossierId: `LEGAL-BC-${incidentId}-${Date.now()}`,
-          auditedAt: auditedAtIso,
-          auditorOfficer,
-          selectedNetwork,
-          environmentLabel: sysConfig.envName,
-          chainId: sysConfig.chainId,
-          canonicalChainId: 842026,
-          chainName: resolvedChainName,
-          incidentId,
-          agency: incident.agencyName || incident.agency,
-          address: incident.address,
-          coordinates: { lat: incident.lat, lng: incident.lng },
-          hardwareSecurity: incident.hardwareSecurity || null,
-          responseTimeSeconds: processSummary.durations.responseTimeSeconds,
-          travelTimeSeconds: processSummary.durations.travelTimeSeconds,
-          onSceneHandlingSeconds: processSummary.durations.onSceneHandlingSeconds,
-          totalCaseDurationSeconds: processSummary.durations.totalCaseDurationSeconds,
-          processSummary,
-          chainIntegrity: chainCheck,
-          verified,
-          conclusion,
-          originalBlockchainHash,
-          currentServerFileHash,
-          blockNumber,
-          txHash,
-          verificationPortalUrl,
-          explorerUrl,
-          downloadUrl: primaryEvidence?.downloadUrl || null,
-          auditedEvidenceCount: auditedEvidence.length,
-          auditedEvidence,
-          lifecycleBlocks: caseBlocks.map((b) => ({
-            blockNumber: b.blockNumber,
-            action: b.action,
-            actionType: b.action,
-            actionLabelVi: describeLifecycleActionVi(b.action),
-            caseId: b.caseId,
-            timestamp: b.timestamp,
-            isoTime: b.timestamp,
-            prevHash: b.prevHash,
-            txHash: b.txHash,
-            payloadDigest: b.payloadDigest,
-            evidenceHash: b.evidenceHash,
-            responseTimeSeconds: b.payload?.data?.responseTimeSeconds ?? null,
-            travelTimeSeconds: b.payload?.data?.travelTimeSeconds ?? null,
-            totalCaseDurationSeconds: b.payload?.data?.totalCaseDurationSeconds ?? null,
-            payload: b.payload
-          }))
-        };
+        const safeAuditedEvidenceForView = zeroPii
+          ? auditedEvidence.map((ev) => ({
+              evidenceId: ev.evidenceId,
+              mimeType: ev.mimeType,
+              sizeBytes: ev.sizeBytes,
+              blockNumber: ev.blockNumber,
+              txHash: ev.txHash,
+              originalBlockchainHash: ev.originalBlockchainHash,
+              currentServerFileHash: ev.currentServerFileHash,
+              matched: ev.matched
+            }))
+          : auditedEvidence;
+
+        const legalDossier = zeroPii
+          ? {
+              protocol: 'SOSVN-ANCHOR-V1',
+              schemaVersion: '2.2-ZERO-PII-EXTERNAL-DOSSIER',
+              dossierId: `GLOBAL-ANCHOR-${caseCommitmentHash.slice(0, 14)}-${Date.now()}`,
+              auditedAt: auditedAtIso,
+              selectedNetwork,
+              zeroPiiEnforced: true,
+              environmentLabel: sysConfig.envName,
+              canonicalChainId: 842026,
+              chainName: resolvedChainName,
+              caseCommitmentHash,
+              responseTimeSeconds: processSummary.durations.responseTimeSeconds,
+              travelTimeSeconds: processSummary.durations.travelTimeSeconds,
+              onSceneHandlingSeconds: processSummary.durations.onSceneHandlingSeconds,
+              totalCaseDurationSeconds: processSummary.durations.totalCaseDurationSeconds,
+              processSummary,
+              publicAnchor,
+              chainIntegrity: {
+                ok: chainCheck.ok,
+                blockCount: chainCheck.blockCount,
+                allBlocksIntact: chainCheck.allBlocksIntact,
+                blocks: chainCheck.blocks || []
+              },
+              verified,
+              conclusion,
+              originalBlockchainHash,
+              currentServerFileHash,
+              blockNumber,
+              txHash,
+              verificationPortalUrl,
+              explorerUrl,
+              anchorDocUrl: netUrls.anchorDocUrl,
+              otsDownloadUrl: netUrls.otsDownloadUrl,
+              auditedEvidenceCount: safeAuditedEvidenceForView.length,
+              auditedEvidence: safeAuditedEvidenceForView,
+              lifecycleBlocks: caseBlocks.map((b) =>
+                blockchainLedgerService.sanitizeBlockForView(b, { includeRawPii: false, networkView: selectedNetwork })
+              )
+            }
+          : {
+              schemaVersion: '2.1-PROCESS-DOSSIER',
+              dossierId: `LEGAL-BC-${incidentId}-${Date.now()}`,
+              auditedAt: auditedAtIso,
+              auditorOfficer,
+              selectedNetwork,
+              zeroPiiEnforced: false,
+              environmentLabel: sysConfig.envName,
+              chainId: sysConfig.chainId,
+              canonicalChainId: 842026,
+              chainName: resolvedChainName,
+              incidentId,
+              caseCommitmentHash,
+              agency: incident.agencyName || incident.agency,
+              address: incident.address,
+              coordinates: { lat: incident.lat, lng: incident.lng },
+              hardwareSecurity: incident.hardwareSecurity || null,
+              responseTimeSeconds: processSummary.durations.responseTimeSeconds,
+              travelTimeSeconds: processSummary.durations.travelTimeSeconds,
+              onSceneHandlingSeconds: processSummary.durations.onSceneHandlingSeconds,
+              totalCaseDurationSeconds: processSummary.durations.totalCaseDurationSeconds,
+              processSummary,
+              publicAnchor,
+              chainIntegrity: chainCheck,
+              verified,
+              conclusion,
+              originalBlockchainHash,
+              currentServerFileHash,
+              blockNumber,
+              txHash,
+              verificationPortalUrl,
+              explorerUrl,
+              anchorDocUrl: netUrls.anchorDocUrl,
+              otsDownloadUrl: netUrls.otsDownloadUrl,
+              downloadUrl: primaryEvidence?.downloadUrl || null,
+              auditedEvidenceCount: auditedEvidence.length,
+              auditedEvidence,
+              lifecycleBlocks: caseBlocks.map((b) => ({
+                blockNumber: b.blockNumber,
+                action: b.action,
+                actionType: b.action,
+                actionLabelVi: describeLifecycleActionVi(b.action),
+                caseId: b.caseId,
+                timestamp: b.timestamp,
+                isoTime: b.timestamp,
+                prevHash: b.prevHash,
+                txHash: b.txHash,
+                payloadDigest: b.payloadDigest,
+                evidenceHash: b.evidenceHash,
+                responseTimeSeconds: b.payload?.data?.responseTimeSeconds ?? null,
+                travelTimeSeconds: b.payload?.data?.travelTimeSeconds ?? null,
+                totalCaseDurationSeconds: b.payload?.data?.totalCaseDurationSeconds ?? null,
+                payload: b.payload
+              }))
+            };
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         return res.end(JSON.stringify({
           ok: true,
           verified,
           conclusion,
-          incidentId,
+          incidentId: zeroPii ? null : incidentId,
+          caseCommitmentHash,
           selectedNetwork,
+          networkView: selectedNetwork,
+          zeroPiiEnforced: zeroPii,
+          activeNetworkProfile: sysConfig.networks?.[selectedNetwork] || null,
+          supportedNetworks: sysConfig.supportedNetworks,
           chainId: sysConfig.chainId,
           chainName: resolvedChainName,
           environmentLabel: sysConfig.envName,
@@ -6455,17 +6935,25 @@ const server = http.createServer(async (req, res) => {
           txHash,
           originalBlockchainHash,
           currentServerFileHash,
-          chainIntegrity: chainCheck,
-          hardwareSecurity: incident.hardwareSecurity || null,
+          publicAnchor,
+          chainIntegrity: {
+            ok: chainCheck.ok,
+            blockCount: chainCheck.blockCount,
+            allBlocksIntact: chainCheck.allBlocksIntact,
+            blocks: chainCheck.blocks || []
+          },
+          hardwareSecurity: zeroPii ? null : (incident.hardwareSecurity || null),
           responseTimeSeconds: processSummary.durations.responseTimeSeconds,
           travelTimeSeconds: processSummary.durations.travelTimeSeconds,
           onSceneHandlingSeconds: processSummary.durations.onSceneHandlingSeconds,
           totalCaseDurationSeconds: processSummary.durations.totalCaseDurationSeconds,
           processSummary,
-          auditedEvidenceCount: auditedEvidence.length,
-          auditedEvidence,
-          downloadUrl: primaryEvidence?.downloadUrl || null,
-          primaryFileName: primaryEvidence?.fileName || null,
+          auditedEvidenceCount: safeAuditedEvidenceForView.length,
+          auditedEvidence: safeAuditedEvidenceForView,
+          downloadUrl: zeroPii ? null : (primaryEvidence?.downloadUrl || null),
+          primaryFileName: zeroPii ? null : (primaryEvidence?.fileName || null),
+          anchorDocUrl: netUrls.anchorDocUrl,
+          otsDownloadUrl: netUrls.otsDownloadUrl,
           verificationPortalUrl,
           explorerUrl,
           qrSvg,
