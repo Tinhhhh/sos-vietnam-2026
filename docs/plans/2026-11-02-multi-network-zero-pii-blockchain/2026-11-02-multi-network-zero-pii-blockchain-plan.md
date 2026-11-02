@@ -370,7 +370,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - Actual-status Update: Cập nhật dòng Playwright E2E suite trong `actual-status.md`, ghi `R5`.
   - Commit Boundary: commit sau khi `P3-A` đạt `100% PASS`.
 
-- [ ] P3-B: Push to Staging (`https://sos-vietnam-2026.onrender.com/`) and execute live Staging Playwright + OpenTimestamps E2E verification
+- [x] P3-B: Push to Staging (`https://sos-vietnam-2026.onrender.com/`) and execute live Staging Playwright + OpenTimestamps E2E verification
   - Goal: Đẩy các commit lên `origin/main` để Render tự động triển khai lên môi trường Staging **`https://sos-vietnam-2026.onrender.com/`**, chờ bản mới kích hoạt, và chạy `playwright/verify-multi-network-zero-pii-blockchain.mjs --staging` xác minh trực tiếp trên môi trường thật (bao gồm cả đối chứng Block cũ `#101` và ca mới trên Staging).
   - Scope Boundary:
     - Editable: `Reports/qa/playwright/multi-network-zero-pii-blockchain-staging.{json,md}`, `Reports/qa/playwright/screenshots/*`

@@ -42,7 +42,7 @@ Benchmark records measured numbers only (inventory counts, payload/proof byte si
 |-------|--------|------|----------|--------|-------|--------|-------|----------|
 | P3-A | Docker E2E assertions passed (`verify-multi-network-zero-pii-blockchain.mjs`) | pct | - | 100% (`10/10`, `0` PII leaks) | 100% | 100% | 0 | `E3-P3A-PW1` |
 | P3-A | OpenCV `QRCodeDetector` decode rate across all 3 surfaces | pct | 100% | 100% (`4/4` multinet + regression `12/12`) | 100% | 100% | 0 | `E3-P3A-PW1`, `E3-P3A-REGR1` |
-| P3-B | Live Render Staging (`sos-vietnam-2026.onrender.com`) E2E assertions passed | pct | - | - | - | 100% | - | Pending `P3-B` |
+| P3-B | Live Render Staging (`sos-vietnam-2026.onrender.com`) E2E assertions passed | pct | - | 100% (`10/10`, `0` PII leaks, `4/4` QR decode, `307B` `.ots`) | 100% | 100% | 0 | `E3-P3B-PW1` |
 
 ## Non-Benchmarkable Notes
 
