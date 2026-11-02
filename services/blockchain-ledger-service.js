@@ -128,6 +128,10 @@ function getAcceptedSecretKeys() {
  * Computes Chained Identity Block SHA-256 seal per DAC_TA_DONG_BO_WEB_VA_AI.md Section 4 & CapPhatTheSOS.cpp:
  * payload = PrevSeal + "|" + BlockIndex + "|" + Mode + "|" + ID + "|" + Name + "|" + Phone + "|" + CCCD + "|" + Officer + "|" + Timestamp + "|" + SecretKey
  */
+export function sanitizeCardField(val) {
+  return String(val ?? '').replace(/[\r\n]/g, '').replace(/\|/g, '-').trim();
+}
+
 export function computeChainedCardSeal(
   {
     prevSeal = ZERO_PREV_SEAL,
@@ -140,13 +144,13 @@ export function computeChainedCardSeal(
     officer = '',
     timestamp = ''
   } = {},
-  secretKey = DAC_TA_SECRET_KEY,
-  { uppercaseNoPrefix = true } = {}
+  secretKey = COMMAND_SECRET_KEY,
+  { uppercaseNoPrefix = false } = {}
 ) {
   const cleanPrev = String(prevSeal || '').trim() || ZERO_PREV_SEAL;
   const idx = Math.max(1, parseInt(blockIndex, 10) || 1);
   const normMode = String(mode || 'REAL').trim().toUpperCase();
-  const payload = `${cleanPrev}|${idx}|${normMode}|${String(id ?? '').trim()}|${String(name ?? '').trim()}|${String(phone ?? '').trim()}|${String(cccd ?? '').trim()}|${String(officer ?? '').trim()}|${String(timestamp ?? '').trim()}|${secretKey}`;
+  const payload = `${cleanPrev}|${idx}|${normMode}|${sanitizeCardField(id)}|${sanitizeCardField(name)}|${sanitizeCardField(phone)}|${sanitizeCardField(cccd)}|${sanitizeCardField(officer)}|${sanitizeCardField(timestamp)}|${secretKey}`;
   const hex = sha256HexRaw(Buffer.from(payload, 'utf8'));
   return uppercaseNoPrefix ? hex.toUpperCase() : ('0x' + hex.toLowerCase());
 }
@@ -157,12 +161,12 @@ export function verifyChainedCardSeal(cardData = {}) {
   if (!normSupplied) {
     return { verified: false, reason: 'MISSING_OR_MALFORMED_SEAL', matchedScheme: null };
   }
-  const id = String(cardData.id || cardData.cardID || cardData.card_id || '').trim();
-  const name = String(cardData.name || cardData.user_name || '').trim();
-  const phone = String(cardData.phone || cardData.user_phone || '').trim();
-  const cccd = String(cardData.cccd || cardData.user_cccd || '').trim();
-  const officer = String(cardData.officer || cardData.card_officer || '').trim();
-  const timestamp = String(cardData.timestamp || cardData.time || cardData.card_time || '').trim();
+  const id = sanitizeCardField(cardData.id || cardData.cardID || cardData.card_id || cardData.device_id || '');
+  const name = sanitizeCardField(cardData.name || cardData.user_name || cardData.fullName || cardData.victim_name || '');
+  const phone = sanitizeCardField(cardData.phone || cardData.user_phone || '');
+  const cccd = sanitizeCardField(cardData.cccd || cardData.user_cccd || '');
+  const rawOfficer = sanitizeCardField(cardData.officer || cardData.card_officer || '');
+  const timestamp = sanitizeCardField(cardData.timestamp || cardData.time || cardData.card_time || cardData.created_at || '');
   const blockIndex = Math.max(1, parseInt(cardData.blockIndex ?? cardData.block ?? cardData.card_block ?? 1, 10) || 1);
   const rawMode = String(cardData.mode || cardData.card_mode || '').trim().toUpperCase();
   const rawPrev = String(cardData.prevSeal || cardData.prev_seal || '').trim();
@@ -171,33 +175,37 @@ export function verifyChainedCardSeal(cardData = {}) {
   const prevCandidates = Array.from(new Set([
     rawPrev,
     ZERO_PREV_SEAL,
+    '0'.repeat(64),
+    normPrevHex ? ('0x' + normPrevHex.toLowerCase()) : '',
     normPrevHex ? normPrevHex.toUpperCase() : '',
     normPrevHex ? normPrevHex.toLowerCase() : '',
-    normPrevHex ? ('0x' + normPrevHex.toLowerCase()) : '',
     normPrevHex ? ('0x' + normPrevHex.toUpperCase()) : ''
   ].filter(Boolean)));
+  const officerCandidates = Array.from(new Set([rawOfficer, rawOfficer || 'BTL CSCD - E10 D1']));
   const modeCandidates = Array.from(new Set([rawMode, 'REAL', 'TEST', 'LEGACY'].filter(Boolean)));
   const keys = getAcceptedSecretKeys();
 
   for (const key of keys) {
     for (const m of modeCandidates) {
-      for (const prev of prevCandidates) {
-        const candidateHex = computeChainedCardSeal(
-          { prevSeal: prev, blockIndex, mode: m, id, name, phone, cccd, officer, timestamp },
-          key,
-          { uppercaseNoPrefix: true }
-        );
-        if (timingSafeHexEqual(suppliedSeal, candidateHex)) {
-          const keyLabel = key === DAC_TA_SECRET_KEY ? 'DAC_TA_E10' : 'CPP_CMD_E10';
-          return {
-            verified: true,
-            matchedScheme: `CHAINED_BLOCK_V2_${m}_${keyLabel}`,
-            mode: m,
-            blockIndex,
-            prevSeal: prev,
-            canonicalSealUpper: candidateHex,
-            canonicalSealPrefixed: '0x' + candidateHex.toLowerCase()
-          };
+      for (const off of officerCandidates) {
+        for (const prev of prevCandidates) {
+          const candidateHex = computeChainedCardSeal(
+            { prevSeal: prev, blockIndex, mode: m, id, name, phone, cccd, officer: off, timestamp },
+            key,
+            { uppercaseNoPrefix: true }
+          );
+          if (timingSafeHexEqual(suppliedSeal, candidateHex)) {
+            const keyLabel = key === DAC_TA_SECRET_KEY ? 'DAC_TA_E10' : 'CPP_CMD_E10';
+            return {
+              verified: true,
+              matchedScheme: `CHAINED_BLOCK_V2_${m}_${keyLabel}`,
+              mode: m,
+              blockIndex,
+              prevSeal: prev,
+              canonicalSealUpper: candidateHex,
+              canonicalSealPrefixed: '0x' + candidateHex.toLowerCase()
+            };
+          }
         }
       }
     }
@@ -258,12 +266,12 @@ function extractRawJsonCoordTokens(rawBody = '') {
  * - live_evidence_hash: SHA256(cardID|hwMacID|unitCode|currentLat,currentLon|bc_seal)
  */
 export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
-  const cardID = String(data.cardID || data.card_id || data.id || data.device_id || data.deviceId || '').trim();
-  const userName = String(data.user_name || data.name || data.citizen_name || data.reporterName || '').trim();
-  const userPhone = String(data.user_phone || data.phone || data.reporterPhone || '').trim();
-  const userCCCD = String(data.user_cccd || data.cccd || '').trim();
-  const cardOfficer = String(data.officer || data.card_officer || '').trim();
-  const cardTimestamp = String(data.card_time || data.timestamp || data.time || '').trim();
+  const cardID = sanitizeCardField(data.cardID || data.card_id || data.id || data.device_id || data.deviceId || '');
+  const userName = sanitizeCardField(data.user_name || data.name || data.fullName || data.victim_name || data.citizen_name || data.reporterName || '');
+  const userPhone = sanitizeCardField(data.user_phone || data.phone || data.reporterPhone || '');
+  const userCCCD = sanitizeCardField(data.user_cccd || data.cccd || '');
+  const cardOfficer = sanitizeCardField(data.officer || data.card_officer || '');
+  const cardTimestamp = sanitizeCardField(data.card_time || data.timestamp || data.time || data.created_at || '');
   const cardMode = String(data.card_mode || data.mode || '').trim().toUpperCase() || null;
   const cardBlockIndex = parseInt(data.card_block ?? data.blockIndex ?? data.block ?? 0, 10) || null;
   const cardPrevSeal = String(data.prev_seal || data.prevSeal || '').trim() || null;
@@ -834,13 +842,13 @@ class BlockchainLedgerService {
    */
   registerOrUpdateCardBlock(input = {}, options = {}) {
     if (!this.cardRegistry) this.loadCardRegistry();
-    const id = String(input.id || input.cardID || '').trim();
-    const name = String(input.name || input.user_name || '').trim();
-    const phone = String(input.phone || input.user_phone || '').trim();
-    const cccd = String(input.cccd || input.user_cccd || '').trim();
-    const officer = String(input.officer || input.card_officer || 'Cán bộ E10 - Đ1').trim();
+    const id = sanitizeCardField(input.id || input.cardID || '');
+    const name = sanitizeCardField(input.name || input.user_name || '');
+    const phone = sanitizeCardField(input.phone || input.user_phone || '');
+    const cccd = sanitizeCardField(input.cccd || input.user_cccd || '');
+    const officer = sanitizeCardField(input.officer || input.card_officer || '') || 'BTL CSCD - E10 D1';
     const requestedMode = String(input.mode || input.card_mode || 'TEST').trim().toUpperCase() === 'REAL' ? 'REAL' : 'TEST';
-    const timestamp = String(input.timestamp || input.time || '').trim() ||
+    const timestamp = sanitizeCardField(input.timestamp || input.time || input.created_at || '') ||
       new Date().toISOString().replace('T', ' ').slice(0, 19);
 
     if (!id || !name) {
@@ -854,14 +862,15 @@ class BlockchainLedgerService {
 
     if (existing && Array.isArray(existing.blocks) && existing.blocks.length > 0) {
       const lastBlk = existing.blocks[existing.blocks.length - 1];
+      const inheritedPrev = lastBlk.sealPrefixed || ('0x' + String(lastBlk.seal || '').replace(/^0x/i, '').toLowerCase());
       if (existing.isImmutableReal) {
         // Real card: CANNOT reset to Genesis Block #1; MUST chain Block #N+1
         effectiveMode = 'REAL';
         targetBlockIndex = lastBlk.blockIndex + 1;
-        targetPrevSeal = lastBlk.seal;
+        targetPrevSeal = inheritedPrev;
       } else if (input.appendChain !== false && requestedMode === existing.mode) {
         targetBlockIndex = lastBlk.blockIndex + 1;
-        targetPrevSeal = lastBlk.seal;
+        targetPrevSeal = inheritedPrev;
       } else if (requestedMode === 'REAL') {
         effectiveMode = 'REAL';
         targetBlockIndex = 1;
@@ -869,9 +878,9 @@ class BlockchainLedgerService {
       }
     }
 
-    // If caller supplied an explicit seal from CapPhatTheSOS.exe / ESP32 READ_DATA, verify it; otherwise generate per DAC_TA 4.1
+    // If caller supplied an explicit seal from CapPhatTheSOS.exe / ESP32 READ_DATA, verify it; otherwise generate per DAC_TA v2.1 Section 5.2
     let finalSealUpper = '';
-    let sealScheme = `DAC_TA_V2_${effectiveMode}`;
+    let sealScheme = `CHAINED_BLOCK_V2_${effectiveMode}_CPP_CMD_E10`;
     if (input.seal || input.bc_seal) {
       const check = verifyChainedCardSeal({
         prevSeal: input.prevSeal || input.prev_seal || targetPrevSeal,
@@ -911,7 +920,7 @@ class BlockchainLedgerService {
           officer,
           timestamp
         },
-        DAC_TA_SECRET_KEY,
+        COMMAND_SECRET_KEY,
         { uppercaseNoPrefix: true }
       );
     }

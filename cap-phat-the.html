@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cổng Cấp Phát &amp; Đồng Bộ 3 Tầng Thẻ Cứu Hộ SOS v2.1 (Web3 DePIN — E10)</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261102_web3_depin_v1">
+  <style>
+    :root {
+      --clr-bg-top: #041B3B;
+      --clr-bg-bot: #020D1C;
+      --clr-card-bg: #061D3A;
+      --clr-card-border: #1E3F66;
+      --clr-input-bg: #020F20;
+      --clr-input-border: #18365C;
+      --clr-text-main: #F1ECCB;
+      --clr-text-gold: #DFB077;
+      --clr-text-muted: #91ACCD;
+      --clr-neon-cyan: #00ECF3;
+      --clr-crimson-top: #C9182B;
+      --clr-crimson-bot: #7A000D;
+      --clr-green-dot: #22C55E;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(180deg, var(--clr-bg-top) 0%, var(--clr-bg-bot) 100%);
+      color: var(--clr-text-main);
+      line-height: 1.5;
+      padding: 20px 16px 48px;
+    }
+
+    .e10-container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .e10-topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: var(--clr-card-bg);
+      border: 1px solid var(--clr-card-border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+    }
+
+    .e10-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .e10-crest {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid var(--clr-text-gold);
+      background: radial-gradient(circle at 30% 30%, #c9182b, #5c0610);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: var(--clr-text-main);
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .e10-title-group h1 {
+      font-size: 18.5px;
+      font-weight: 800;
+      color: var(--clr-text-main);
+      letter-spacing: 0.3px;
+    }
+
+    .e10-subtitle {
+      font-size: 12.5px;
+      color: var(--clr-text-gold);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .e10-status-cluster {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .e10-env-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--clr-input-bg);
+      border: 1px solid var(--clr-card-border);
+      border-radius: 999px;
+      padding: 6px 13px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--clr-neon-cyan);
+    }
+
+    .e10-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--clr-green-dot);
+      box-shadow: 0 0 10px var(--clr-green-dot);
+    }
+
+    .e10-nav-link {
+      text-decoration: none;
+      color: var(--clr-text-main);
+      background: rgba(24, 54, 92, 0.55);
+      border: 1px solid var(--clr-card-border);
+      padding: 7px 13px;
+      border-radius: 9px;
+      font-size: 12.5px;
+      font-weight: 700;
+      transition: border-color 0.18s ease, color 0.18s ease;
+    }
+
+    .e10-nav-link:hover {
+      border-color: var(--clr-neon-cyan);
+      color: var(--clr-neon-cyan);
+    }
+
+    .e10-mode-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .e10-mode-btn {
+      cursor: pointer;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1.5px solid var(--clr-card-border);
+      background: var(--clr-card-bg);
+      color: var(--clr-text-muted);
+      font-size: 13.5px;
+      font-weight: 800;
+      text-align: left;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .e10-mode-btn span.mode-desc {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--clr-text-muted);
+    }
+
+    .e10-mode-btn.is-active-test {
+      border-color: var(--clr-neon-cyan);
+      color: var(--clr-neon-cyan);
+      box-shadow: 0 0 0 1px rgba(0, 236, 243, 0.25), 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .e10-mode-btn.is-active-real {
+      background: linear-gradient(180deg, rgba(201, 24, 43, 0.28) 0%, rgba(122, 0, 13, 0.38) 100%);
+      border-color: var(--clr-text-gold);
+      color: var(--clr-text-main);
+      box-shadow: 0 0 0 1px rgba(223, 176, 119, 0.32), 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .e10-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 980px) {
+      .e10-grid,
+      .e10-mode-bar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .e10-card {
+      background: var(--clr-card-bg);
+      border: 1px solid var(--clr-card-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36);
+    }
+
+    .e10-card-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(30, 63, 102, 0.75);
+      padding-bottom: 11px;
+      margin-bottom: 14px;
+    }
+
+    .e10-card-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--clr-text-gold);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+
+    .e10-badge {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--clr-input-bg);
+      border: 1px solid var(--clr-card-border);
+      color: var(--clr-neon-cyan);
+    }
+
+    .e10-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .e10-form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .e10-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .e10-field.full-span {
+      grid-column: 1 / -1;
+    }
+
+    .e10-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--clr-text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .e10-input,
+    .e10-select,
+    .e10-textarea {
+      width: 100%;
+      background: var(--clr-input-bg);
+      border: 1px solid var(--clr-input-border);
+      border-radius: 9px;
+      padding: 9px 11px;
+      color: var(--clr-text-main);
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .e10-input::placeholder,
+    .e10-textarea::placeholder {
+      color: rgba(145, 172, 205, 0.48);
+    }
+
+    .e10-input:focus,
+    .e10-select:focus,
+    .e10-textarea:focus {
+      border-color: var(--clr-neon-cyan);
+      box-shadow: 0 0 0 2px rgba(0, 236, 243, 0.16);
+    }
+
+    .e10-mono {
+      font-family: 'Consolas', 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+    }
+
+    .e10-inline-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .e10-btn {
+      cursor: pointer;
+      border-radius: 10px;
+      border: 1px solid var(--clr-card-border);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--clr-text-main);
+      background: rgba(24, 54, 92, 0.72);
+      transition: all 0.16s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .e10-btn:hover {
+      border-color: var(--clr-neon-cyan);
+      color: var(--clr-neon-cyan);
+    }
+
+    .e10-btn-sm {
+      padding: 6px 10px;
+      font-size: 11.5px;
+      white-space: nowrap;
+    }
+
+    .e10-btn-primary {
+      background: linear-gradient(180deg, var(--clr-crimson-top) 0%, var(--clr-crimson-bot) 100%);
+      border-color: #ef4444;
+      color: var(--clr-text-main);
+    }
+
+    .e10-btn-primary:hover {
+      filter: brightness(1.08);
+      color: #ffffff;
+      border-color: var(--clr-text-gold);
+    }
+
+    .e10-btn-cyan {
+      background: rgba(0, 236, 243, 0.14);
+      border-color: var(--clr-neon-cyan);
+      color: var(--clr-neon-cyan);
+    }
+
+    .e10-btn-wipe {
+      width: 100%;
+      margin-top: 6px;
+      background: rgba(234, 179, 8, 0.14);
+      border-color: rgba(234, 179, 8, 0.6);
+      color: #fde68a;
+    }
+
+    .e10-btn-wipe.is-locked-real {
+      background: rgba(122, 0, 13, 0.45);
+      border-color: rgba(223, 176, 119, 0.55);
+      color: var(--clr-text-gold);
+      cursor: not-allowed;
+    }
+
+    .e10-actions-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .e10-alert {
+      margin-top: 12px;
+      padding: 11px 13px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      border: 1px solid var(--clr-card-border);
+      background: var(--clr-input-bg);
+    }
+
+    .e10-alert.is-error {
+      border-color: #f87171;
+      background: rgba(122, 0, 13, 0.55);
+      color: #fecaca;
+    }
+
+    .e10-alert.is-ok {
+      border-color: #22c55e;
+      background: rgba(20, 83, 45, 0.48);
+      color: #bbf7d0;
+    }
+
+    .e10-serial-log {
+      background: #010913;
+      border: 1px solid var(--clr-input-border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      height: 190px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #a5f3fc;
+      white-space: pre-wrap;
+      margin-top: 10px;
+    }
+
+    .e10-serial-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .e10-table-wrap {
+      overflow-x: auto;
+    }
+
+    table.e10-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    table.e10-table th,
+    table.e10-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(30, 63, 102, 0.55);
+      text-align: left;
+    }
+
+    table.e10-table th {
+      color: var(--clr-text-gold);
+      font-weight: 800;
+      font-size: 11.5px;
+      text-transform: uppercase;
+    }
+
+    .e10-tag-real {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(201, 24, 43, 0.32);
+      border: 1px solid var(--clr-text-gold);
+      color: var(--clr-text-main);
+      font-weight: 800;
+      font-size: 11px;
+    }
+
+    .e10-tag-test {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(0, 236, 243, 0.14);
+      border: 1px solid var(--clr-neon-cyan);
+      color: var(--clr-neon-cyan);
+      font-weight: 800;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="e10-container">
+    <!-- Top Header -->
+    <header class="e10-topbar">
+      <div class="e10-brand">
+        <div class="e10-crest">E10</div>
+        <div class="e10-title-group">
+          <h1>CỔNG CẤP PHÁT &amp; ĐỒNG BỘ 3 TẦNG THẺ CỨU HỘ SOS (v2.1 DePIN)</h1>
+          <div class="e10-subtitle">Bộ Tư Lệnh Cảnh Sát Cơ Động (E10 - Đ1) • Đồng bộ CapPhatTheSOS.exe ⇄ ESP32-C3 TDM2421 4G ⇄ Web</div>
+        </div>
+      </div>
+      <div class="e10-status-cluster">
+        <div class="e10-env-pill" id="depinEnvBadge">
+          <span class="e10-dot"></span>
+          <span id="depinEnvText">ĐANG KIỂM TRA SỔ CÁI...</span>
+        </div>
+        <a href="/" class="e10-nav-link">🏠 Trang Cứu Hộ Công Dân</a>
+        <a href="/dispatcher.html" class="e10-nav-link">🛡️ Trung Tâm Chỉ Huy</a>
+      </div>
+    </header>
+
+    <!-- Dual-Mode Switcher -->
+    <section class="e10-mode-bar" aria-label="Chế độ hoạt động cấp phát thẻ">
+      <button type="button" class="e10-mode-btn is-active-test" id="btnModeTest">
+        <span>🧪 CHẾ ĐỘ THỬ NGHIỆM (TEST MODE)</span>
+        <span class="mode-desc">Kiểm thử mạch ESP32-C3 TDM2421, cáp USB-UART &amp; cho phép WIPE_FLASH đưa chip về xuất xưởng.</span>
+      </button>
+      <button type="button" class="e10-mode-btn" id="btnModeReal">
+        <span>🛡️ CHẾ ĐỘ CẤP PHÁT THẬT (REAL PRODUCTION MODE)</span>
+        <span class="mode-desc">Genesis Block #1 chỉ cấp 1 lần duy nhất (khóa xóa trắng). Cập nhật tự động Nối khối Block #2, #3...</span>
+      </button>
+    </section>
+
+    <div class="e10-grid">
+      <!-- Left Column: Provisioning & Blockchain Chaining Form (Rule 3: Empty initial values, cue placeholders only) -->
+      <section class="e10-card">
+        <div class="e10-card-header">
+          <div class="e10-card-title">1. Hồ Sơ NVS Flash &amp; Nối Khối Blockchain (10 Trường Chuẩn v2.1)</div>
+          <div class="e10-inline-row">
+            <button type="button" class="e10-btn e10-btn-sm" id="btnLoadSpecVector" title="Điền Vector Kiểm Thử Chuẩn Mục 5.5">🧪 Vector Chuẩn v2.1</button>
+            <span class="e10-badge" id="cardChainStateBadge">THẺ TRỐNG • BLOCK #1</span>
+          </div>
+        </div>
+
+        <div class="e10-form-grid">
+          <div class="e10-field">
+            <label for="cardIdInput">1. Mã Thẻ SOS (ID)</label>
+            <div class="e10-inline-row">
+              <input id="cardIdInput" class="e10-input e10-mono" type="text" value="" placeholder="VD: SOS_CSCD10_09" autocomplete="off">
+              <button type="button" class="e10-btn e10-btn-sm" id="btnLookupCard">🔍 Tra cứu</button>
+            </div>
+          </div>
+
+          <div class="e10-field">
+            <label for="cardNameInput">2. Họ và Tên Chủ Thẻ (UTF-8)</label>
+            <input id="cardNameInput" class="e10-input" type="text" value="" placeholder="Nhập họ tên thật của chủ thẻ..." autocomplete="off">
+          </div>
+
+          <div class="e10-field">
+            <label for="cardPhoneInput">3. Số Điện Thoại Liên Hệ</label>
+            <input id="cardPhoneInput" class="e10-input e10-mono" type="text" value="" placeholder="VD: 0918889999" autocomplete="off">
+          </div>
+
+          <div class="e10-field">
+            <label for="cardCccdInput">4. Số CCCD / Định Danh (12 số)</label>
+            <input id="cardCccdInput" class="e10-input e10-mono" type="text" value="" placeholder="VD: 079200012345" autocomplete="off">
+          </div>
+
+          <div class="e10-field">
+            <label for="cardOfficerInput">5. Cán Bộ Cấp Phát (OFFICER)</label>
+            <input id="cardOfficerInput" class="e10-input" type="text" value="" placeholder="Mặc định: BTL CSCD - E10 D1" autocomplete="off">
+          </div>
+
+          <div class="e10-field">
+            <label for="cardTimeInput">6. Thời Gian Tạo Khối (TIME)</label>
+            <div class="e10-inline-row">
+              <input id="cardTimeInput" class="e10-input e10-mono" type="text" value="" placeholder="YYYY-MM-DD HH:MM:SS">
+              <button type="button" class="e10-btn e10-btn-sm" id="btnNowTime">⏱ Giờ chuẩn</button>
+            </div>
+          </div>
+
+          <div class="e10-field">
+            <label for="cardModeDisplay">7. Chế Độ (MODE) &amp; 8. Thứ Tự Khối (BLOCK)</label>
+            <div class="e10-inline-row">
+              <input id="cardModeDisplay" class="e10-input e10-mono" type="text" value="TEST" readonly>
+              <input id="cardBlockInput" class="e10-input e10-mono" type="number" min="1" step="1" value="1" style="max-width: 96px;">
+            </div>
+          </div>
+
+          <div class="e10-field">
+            <label for="cardHwMacInput">eFuse MAC ESP32-C3 &amp; Nút Bắn 4G</label>
+            <div class="e10-inline-row">
+              <input id="cardHwMacInput" class="e10-input e10-mono" type="text" value="" placeholder="VD: A4CF128E3B09">
+              <select id="cardSimButtonSelect" class="e10-select" style="max-width: 148px;" title="Chọn nút vật lý IO3/IO4/IO5 khi bắn thử 4G">
+                <option value="1">Nút 1: Công an</option>
+                <option value="2">Nút 2: CSGT</option>
+                <option value="3">Nút 3: CNCH</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="e10-field full-span">
+            <label for="cardSecretProfileSelect">Chuẩn Khóa Bí Mật Đồng Bộ (COMMAND_SECRET_KEY)</label>
+            <select id="cardSecretProfileSelect" class="e10-select e10-mono">
+              <option value="CPP_CMD_E10">Chuẩn Đồng Bộ 3 Tầng v2.1: BTL_CSCD_E10_D1_SOS_VIETNAM_2026 (0x + 64 hex thường)</option>
+              <option value="DAC_TA_E10">Khóa Tương Thích Phụ: SOS_VIETNAM_TACTICAL_ESC_2026_DEPIN_SECURE_KEY (64 HEX)</option>
+            </select>
+          </div>
+
+          <div class="e10-field full-span">
+            <label for="cardPrevSealInput">9. Mã Băm Khối Trước (PREV_SEAL — 66 ký tự 0x...)</label>
+            <input id="cardPrevSealInput" class="e10-input e10-mono" type="text" value="0x0000000000000000000000000000000000000000000000000000000000000000">
+          </div>
+
+          <div class="e10-field full-span">
+            <label for="cardSealOutput">10. Chữ Ký Niêm Phong SHA-256 (SEAL — Để trống nếu thẻ chưa cấp phát)</label>
+            <input id="cardSealOutput" class="e10-input e10-mono" type="text" value="" placeholder="Tự động sinh 0x + 64 hex khi nhập ID &amp; Họ tên" readonly>
+          </div>
+        </div>
+
+        <div class="e10-actions-stack">
+          <button type="button" class="e10-btn e10-btn-primary" id="btnProvisionCard">
+            ⚡ NẠP NVS (ĐỐI CHIẾU READ_DATA) &amp; ĐỒNG BỘ SỔ CÁI PORTAL
+          </button>
+
+          <button type="button" class="e10-btn e10-btn-cyan" id="btnSimulateHardwareSos">
+            🚨 GIẢ LẬP BẤM NÚT 4G LTE GỬI LÊN /api/hardware-sos
+          </button>
+
+          <button type="button" class="e10-btn e10-btn-wipe" id="btnWipeCard">
+            🗑️ XÓA THÔNG TIN TEST (RESET CHIP ĐỂ NẠP THỬ LẠI)
+          </button>
+        </div>
+
+        <div id="depinSecurityAlert" class="e10-alert" hidden></div>
+      </section>
+
+      <!-- Right Column: Web Serial UART (115200 8N1) & SHA-256 Seal Verifier -->
+      <div style="display: flex; flex-direction: column; gap: 18px;">
+        <section class="e10-card">
+          <div class="e10-card-header">
+            <div class="e10-card-title">2. Kết Nối USB-UART ESP32-C3 TDM2421 (115200 8N1)</div>
+            <span class="e10-badge" id="serialStateBadge">CHƯA MỞ CỔNG COM</span>
+          </div>
+
+          <div class="e10-serial-toolbar">
+            <button type="button" class="e10-btn e10-btn-cyan e10-btn-sm" id="btnSerialConnect">🔌 Mở 1 Phiên COM (DTR=1, RTS=1)</button>
+            <button type="button" class="e10-btn e10-btn-sm" id="btnSerialPing">📡 PING</button>
+            <button type="button" class="e10-btn e10-btn-sm" id="btnSerialRead">📥 READ_DATA</button>
+            <button type="button" class="e10-btn e10-btn-sm" id="btnSerialSetServerUrl" title="Cấu hình động s_url 4G trên NVS">🌐 Gửi URL 4G</button>
+            <button type="button" class="e10-btn e10-btn-sm" id="btnSerialDisconnect">⏹ Đóng COM</button>
+          </div>
+
+          <div style="font-size: 11.5px; color: var(--clr-text-muted);">
+            Quy tắc bất biến v2.1: Giữ <strong>1 phiên COM duy nhất</strong> (<code>DTR=true, RTS=true</code>) → Thăm dò <code>READ_DATA</code> → <code>SET_*</code> chờ <code>ACK</code> → <code>SAVE_FLASH</code> chờ <code>SAVE_OK</code> → Đọc ngược <code>READ_DATA</code> đối chiếu 100%.
+          </div>
+
+          <div class="e10-serial-log" id="serialConsoleLog">[SYSTEM v2.1] Sẵn sàng mở phiên USB-UART (115200 8N1, DTR=1, RTS=1) hoặc đồng bộ Sổ cái Cloud...</div>
+        </section>
+
+        <section class="e10-card">
+          <div class="e10-card-header">
+            <div class="e10-card-title">3. Giám Định Chữ Ký SHA-256 &amp; Khối READ_DATA</div>
+            <button type="button" class="e10-btn e10-btn-sm" id="btnFillReadDataFromForm">📋 Xuất mẫu READ_DATA</button>
+          </div>
+
+          <div class="e10-field">
+            <label for="rawReadDataInput">Dán phản hồi lệnh READ_DATA từ ESP32-C3 (hoặc để trống để kiểm định biểu mẫu bên trái):</label>
+            <textarea id="rawReadDataInput" class="e10-textarea e10-mono" rows="6" placeholder="ID:SOS_CSCD10_09&#10;NAME:...&#10;MODE:REAL&#10;BLOCK:1&#10;PREV_SEAL:0x0000...&#10;SEAL:0x...&#10;HW_MAC:A4CF128E3B09&#10;STATUS:OK&#10;END_READ"></textarea>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <button type="button" class="e10-btn e10-btn-cyan" style="width: 100%;" id="btnVerifySealNow">
+              🛡️ ĐỐI CHIẾU TOÀN VẸN MÃ BĂM SHA-256 TRÊN SỔ CÁI
+            </button>
+          </div>
+
+          <div id="verifySealResultBox" class="e10-alert" hidden></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Registered Cards Ledger Table -->
+    <section class="e10-card">
+      <div class="e10-card-header">
+        <div class="e10-card-title">4. Sổ Cái Thẻ SOS DePIN Đã Cấp Phát &amp; Nối Khối</div>
+        <button type="button" class="e10-btn e10-btn-sm" id="btnRefreshCards">🔄 Làm mới danh sách</button>
+      </div>
+      <div class="e10-table-wrap">
+        <table class="e10-table">
+          <thead>
+            <tr>
+              <th>Mã Thẻ (ID)</th>
+              <th>Chủ Thẻ</th>
+              <th>Chế Độ</th>
+              <th>Chuỗi Khối Thẻ</th>
+              <th>Chữ Ký SEAL Hiện Tại</th>
+              <th>Ledger Block / TxHash</th>
+              <th>Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="depinCardsTableBody">
+            <tr>
+              <td colspan="7" style="color: var(--clr-text-muted); text-align: center; padding: 18px;">Đang tải danh sách thẻ DePIN...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/js/depin-card-portal.js?v=20261102_web3_depin_v1"></script>
+</body>
+</html>

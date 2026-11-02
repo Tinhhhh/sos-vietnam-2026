@@ -9378,3 +9378,439 @@ video::-webkit-media-controls-mute-button { display: none !important; }
   border-color: rgba(223, 176, 119, 0.65);
   color: #DFB077;
 }
+
+/* ==========================================================================
+   HANG MUC 5: CITIZEN WEB EMERGENCY CAMOUFLAGE (STEALTH SOS & iOS FAKE CALL)
+   ========================================================================== */
+body.sos-stealth-camo-active {
+  overflow: hidden !important;
+  touch-action: manipulation;
+}
+
+.stealth-emergency-card {
+  max-width: 680px;
+  margin: 14px auto 24px;
+  padding: 15px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  background: linear-gradient(165deg, rgba(6, 29, 58, 0.88) 0%, rgba(2, 13, 28, 0.94) 100%);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.44);
+}
+
+.stealth-bar-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.stealth-bar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #f1eccb;
+  letter-spacing: 0.25px;
+}
+
+.stealth-shield-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #00ecf3;
+  box-shadow: 0 0 10px #00ecf3;
+  flex-shrink: 0;
+}
+
+.stealth-depin-link {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #dfb077;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(223, 176, 119, 0.45);
+  background: rgba(2, 15, 32, 0.72);
+}
+
+.stealth-depin-link:hover {
+  border-color: #00ecf3;
+  color: #00ecf3;
+}
+
+.stealth-bar-desc {
+  font-size: 12px;
+  color: #91accd;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.stealth-countdown-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 13px;
+  margin-bottom: 11px;
+  border-radius: 12px;
+  background: rgba(20, 83, 45, 0.65);
+  border: 1px solid #22c55e;
+  color: #dcfce7;
+  font-size: 12.5px;
+}
+
+.stealth-countdown-pill[hidden] {
+  display: none !important;
+}
+
+.stealth-cancel-btn {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.stealth-actions-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .stealth-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stealth-action-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.btn-stealth-mode {
+  flex: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 13px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  text-align: left;
+  color: #f8fafc;
+  transition: transform 0.14s ease, border-color 0.16s ease;
+}
+
+.btn-stealth-mode:active {
+  transform: scale(0.985);
+}
+
+.btn-stealth-ios-call {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.28) 0%, rgba(15, 23, 42, 0.92) 100%);
+  border-color: rgba(34, 197, 94, 0.52);
+}
+
+.btn-stealth-blackout {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, #020617 100%);
+  border-color: rgba(148, 163, 184, 0.42);
+}
+
+.stealth-btn-ico {
+  font-size: 21px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.stealth-btn-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stealth-btn-copy strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f1eccb;
+}
+
+.stealth-btn-copy small {
+  font-size: 11px;
+  color: #91accd;
+}
+
+.stealth-btn-copy em {
+  font-style: normal;
+  font-weight: 700;
+  color: #4ade80;
+}
+
+.btn-stealth-edit-caller {
+  cursor: pointer;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(30, 63, 102, 0.85);
+  background: rgba(2, 15, 32, 0.85);
+  color: #00ecf3;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tracking-stealth-quickbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 6px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: rgba(2, 15, 32, 0.72);
+  border: 1px solid rgba(30, 63, 102, 0.75);
+}
+
+.tracking-stealth-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #dfb077;
+}
+
+.btn-tracking-stealth {
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  background: rgba(22, 163, 74, 0.2);
+  color: #dcfce7;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.btn-tracking-stealth.btn-tracking-blackout {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: #020617;
+  color: #e2e8f0;
+}
+
+/* Fullscreen iOS Incoming & Active Call Camouflage */
+.ios-fakecall-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999998;
+  background: radial-gradient(circle at 50% 18%, #2a3342 0%, #141923 52%, #090b10 100%);
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ios-fakecall-overlay[hidden] {
+  display: none !important;
+}
+
+.ios-call-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: max(64px, env(safe-area-inset-top, 48px)) 28px max(52px, env(safe-area-inset-bottom, 40px));
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.ios-call-screen[hidden] {
+  display: none !important;
+}
+
+.ios-caller-header {
+  text-align: center;
+}
+
+.ios-caller-sub {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 6px;
+}
+
+.ios-caller-title {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  color: #ffffff;
+}
+
+.ios-call-timer {
+  margin-top: 8px;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ios-incoming-bottom {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 38px;
+}
+
+.ios-quick-remind-row {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+}
+
+.ios-mini-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+}
+
+.ios-mini-glyph {
+  font-size: 20px;
+}
+
+.ios-answer-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+}
+
+.ios-call-cta-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.ios-round-cta {
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+}
+
+.ios-cta-decline {
+  background: #ff3b30;
+}
+
+.ios-cta-answer {
+  background: #34c759;
+}
+
+.ios-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px 26px;
+  width: 100%;
+  max-width: 330px;
+  margin: 18px auto;
+}
+
+.ios-pad-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.ios-pad-circle {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ios-pad-btn.is-toggled .ios-pad-circle {
+  background: #ffffff;
+  color: #111827;
+}
+
+.ios-dtmf-sheet {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  padding: 14px 18px;
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+}
+
+.ios-dtmf-sheet[hidden] {
+  display: none !important;
+}
+
+.ios-dtmf-nums {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.ios-hide-dtmf-btn {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ios-hangup-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.ios-proximity-blackout,
+.blackout-stealth-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000000 !important;
+  z-index: 999999 !important;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ios-proximity-blackout[hidden],
+.blackout-stealth-overlay[hidden] {
+  display: none !important;
+}

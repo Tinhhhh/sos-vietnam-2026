@@ -27,7 +27,7 @@
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-Bold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/fonts/hubot-sans/HubotSans-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/vendor/maplibre-gl.css">
-  <link rel="stylesheet" href="/css/style.css?v=20261013_mobile_v3">
+  <link rel="stylesheet" href="/css/style.css?v=20261102_web3_depin_v1">
   <link rel="stylesheet" href="/css/map.css?v=20261013_mobile_v3">
   <link rel="stylesheet" href="/css/tactical-responsive.css?v=20261013_mobile_v3">
 </head>
@@ -54,6 +54,9 @@
       <button type="button" class="nav-pill-item" id="btnOpenSurvivalGuide">
         <svg class="svg-ico ico-md ico-amber" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg> Cẩm Nang
       </button>
+      <a href="/cap-phat-the.html" class="nav-pill-item" target="_blank">
+        <svg class="svg-ico ico-md ico-emerald" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"></rect><line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" stroke-width="2"></line></svg> Thẻ SOS DePIN
+      </a>
       <a href="/dispatcher.html" class="nav-pill-item btn-pill-dispatcher-link" target="_blank">
         <svg class="svg-ico ico-md ico-blue" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg> Cổng Trực Ban
       </a>
@@ -167,6 +170,48 @@
           <span>Vui lòng <strong>chỉ kích hoạt SOS</strong> trong tình huống thực sự nguy cấp đe dọa trực tiếp đến tính mạng, sức khỏe và an toàn trật tự.</span>
         </div>
       </div>
+
+      <!-- Hang muc 5: Che do Nguy trang Khan cap (Stealth Mode & iOS Fake Call) -->
+      <section class="stealth-emergency-card liquid-glass" id="stealthEmergencyBar" aria-label="Chế độ ngụy trang khẩn cấp">
+        <div class="stealth-bar-header">
+          <div class="stealth-bar-title">
+            <span class="stealth-shield-dot"></span>
+            <strong>NGỤY TRANG KHẨN CẤP (KHI ĐỐI MẶT KẺ ĐE DỌA • KHÔNG THỂ NÓI CHUYỆN)</strong>
+          </div>
+          <a href="/cap-phat-the.html" class="stealth-depin-link" target="_blank">💳 Cổng Thẻ SOS DePIN</a>
+        </div>
+        <p class="stealth-bar-desc">
+          Âm thầm khóa tọa độ GPS, báo động ngầm về Công an gần nhất và <strong>tự động thu âm chứng cứ hiện trường 5 giây/lần niêm phong SHA-256</strong> mà kẻ xấu nhìn vào màn hình không thể phát hiện.
+        </p>
+
+        <div class="stealth-countdown-pill" id="stealthCountdownBanner" hidden>
+          <div>
+            📞 Cuộc gọi giả từ "<strong class="js-ios-caller-name">Ba</strong>" sẽ đổ chuông sau <strong id="stealthCountdownSeconds">3</strong> giây...
+          </div>
+          <button type="button" class="stealth-cancel-btn" id="btnCancelStealthCountdown">Hủy</button>
+        </div>
+
+        <div class="stealth-actions-grid">
+          <div class="stealth-action-wrap">
+            <button type="button" class="btn-stealth-mode btn-stealth-ios-call" id="btnFakeIncomingCall">
+              <span class="stealth-btn-ico">📞</span>
+              <span class="stealth-btn-copy">
+                <strong>Giả Cuộc Gọi Đến (iOS)</strong>
+                <small>Đổ chuông sau 3s • Gọi từ: <em id="stealthCallerNameLabel">Ba</em></small>
+              </span>
+            </button>
+            <button type="button" class="btn-stealth-edit-caller" id="btnEditFakeCaller" title="Đổi tên người gọi giả lập">✏️ Đổi tên</button>
+          </div>
+
+          <button type="button" class="btn-stealth-mode btn-stealth-blackout" id="btnBlackoutStealth">
+            <span class="stealth-btn-ico">🌑</span>
+            <span class="stealth-btn-copy">
+              <strong>Giả Vờ Tắt Màn Hình</strong>
+              <small>Màn hình đen #000000 • Chạm 4 lần liên tiếp để mở</small>
+            </span>
+          </button>
+        </div>
+      </section>
     </div>
 
     <!-- View 2: Live Tracking Screen (Shown after SOS submitted) -->
@@ -180,6 +225,12 @@
           <div id="trackStatusBadge" class="tracking-badge-status pending">
             <svg class="svg-ico ico-sm ico-amber" viewBox="0 0 24 24"><path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path></svg> Đang gửi trực ban Xã/Phường
           </div>
+        </div>
+
+        <div class="tracking-stealth-quickbar" id="trackingStealthQuickBar">
+          <span class="tracking-stealth-label">🕵️ Ngụy trang tức thì:</span>
+          <button type="button" class="btn-tracking-stealth" id="btnTrackingFakeCall">📞 Giả Cuộc Gọi Đến</button>
+          <button type="button" class="btn-tracking-stealth btn-tracking-blackout" id="btnTrackingBlackout">🌑 Tắt Đen Màn Hình</button>
         </div>
 
         <!-- 5-Step Visual Stepper -->
@@ -1415,6 +1466,103 @@
     </div>
   </div>
 
+  <!-- Hang muc 5.1: iOS Fake Incoming & Active Call Fullscreen Camouflage -->
+  <div id="iosFakeCallOverlay" class="ios-fakecall-overlay" hidden aria-hidden="true">
+    <!-- Phase A: Incoming Call Screen -->
+    <div id="iosIncomingCallScreen" class="ios-call-screen ios-incoming-screen">
+      <div class="ios-caller-header">
+        <div class="ios-caller-sub">di động</div>
+        <div class="ios-caller-title js-ios-caller-name">Ba</div>
+      </div>
+
+      <div class="ios-incoming-bottom">
+        <div class="ios-quick-remind-row">
+          <div class="ios-mini-action">
+            <span class="ios-mini-glyph">⏰</span>
+            <small>Nhắc tôi</small>
+          </div>
+          <div class="ios-mini-action">
+            <span class="ios-mini-glyph">💬</span>
+            <small>Tin nhắn</small>
+          </div>
+        </div>
+
+        <div class="ios-answer-row">
+          <div class="ios-call-cta-col">
+            <button type="button" class="ios-round-cta ios-cta-decline" id="btnIosDeclineCall" aria-label="Từ chối cuộc gọi">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 9c-3.8 0-7.2 1.4-9.8 3.7-.4.4-.4 1 0 1.4l2.1 2.1c.4.4.9.4 1.3.1 1.2-.9 2.6-1.5 4.1-1.8.5-.1.9-.5.9-1V11c.5-.1.9-.1 1.4-.1s.9 0 1.4.1v2.5c0 .5.4.9.9 1 1.5.3 2.9.9 4.1 1.8.4.3 1 .3 1.3-.1l2.1-2.1c.4-.4.4-1 0-1.4C19.2 10.4 15.8 9 12 9z"/></svg>
+            </button>
+            <small>Từ chối</small>
+          </div>
+
+          <div class="ios-call-cta-col">
+            <button type="button" class="ios-round-cta ios-cta-answer" id="btnIosAnswerCall" aria-label="Trả lời cuộc gọi">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1C10.61 21 3 13.39 3 4c0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+            </button>
+            <small>Trả lời</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase B: Active In-Call Screen (6 Round iOS Keypad Buttons + 00:01 Timer) -->
+    <div id="iosActiveCallScreen" class="ios-call-screen ios-active-screen" hidden>
+      <div class="ios-caller-header">
+        <div class="ios-caller-title js-ios-caller-name">Ba</div>
+        <div id="iosCallTimer" class="ios-call-timer">00:01</div>
+      </div>
+
+      <div class="ios-keypad-grid">
+        <button type="button" class="ios-pad-btn js-ios-toggle-btn" id="btnIosMute">
+          <span class="ios-pad-circle">🎙️</span>
+          <small>Tắt tiếng</small>
+        </button>
+        <button type="button" class="ios-pad-btn" id="btnIosKeypad">
+          <span class="ios-pad-circle">🔢</span>
+          <small>Bàn phím</small>
+        </button>
+        <button type="button" class="ios-pad-btn js-ios-toggle-btn is-toggled" id="btnIosSpeaker">
+          <span class="ios-pad-circle">🔊</span>
+          <small>Loa ngoài</small>
+        </button>
+        <button type="button" class="ios-pad-btn" id="btnIosAddCall">
+          <span class="ios-pad-circle">➕</span>
+          <small>Thêm cuộc gọi</small>
+        </button>
+        <button type="button" class="ios-pad-btn" id="btnIosFaceTime">
+          <span class="ios-pad-circle">📹</span>
+          <small>FaceTime</small>
+        </button>
+        <button type="button" class="ios-pad-btn" id="btnIosContactsProximity" title="Úp màn hình tiệm cận tối đen #000000">
+          <span class="ios-pad-circle">👤</span>
+          <small>Danh bạ</small>
+        </button>
+      </div>
+
+      <div id="iosDtmfSheet" class="ios-dtmf-sheet" hidden>
+        <div class="ios-dtmf-nums">
+          <span>1</span><span>2</span><span>3</span>
+          <span>4</span><span>5</span><span>6</span>
+          <span>7</span><span>8</span><span>9</span>
+          <span>*</span><span>0</span><span>#</span>
+        </div>
+        <button type="button" class="ios-hide-dtmf-btn" id="btnIosHideKeypad">Ẩn bàn phím</button>
+      </div>
+
+      <div class="ios-hangup-wrap">
+        <button type="button" class="ios-round-cta ios-cta-decline" id="btnIosHangupCall" aria-label="Kết thúc cuộc gọi">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M12 9c-3.8 0-7.2 1.4-9.8 3.7-.4.4-.4 1 0 1.4l2.1 2.1c.4.4.9.4 1.3.1 1.2-.9 2.6-1.5 4.1-1.8.5-.1.9-.5.9-1V11c.5-.1.9-.1 1.4-.1s.9 0 1.4.1v2.5c0 .5.4.9.9 1 1.5.3 2.9.9 4.1 1.8.4.3 1 .3 1.3-.1l2.1-2.1c.4-.4.4-1 0-1.4C19.2 10.4 15.8 9 12 9z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Proximity Sensor Blackout (#000000 when "Danh ba" tapped; double-tap to wake call UI) -->
+    <div id="iosProximityBlackout" class="ios-proximity-blackout" hidden></div>
+  </div>
+
+  <!-- Hang muc 5.2: Blackout Stealth Mode (#000000 Screen-Off Illusion; 4 taps to unlock) -->
+  <div id="blackoutStealthOverlay" class="blackout-stealth-overlay" hidden aria-hidden="true"></div>
+
   <!-- Audio Alert Chimes -->
   <audio id="sfxSiren" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2874/2874-preview.mp3"></audio>
   <audio id="sfxIncomingCall" preload="auto" loop src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
@@ -1428,7 +1576,7 @@
   <script src="/js/connection-aware-background.js?v=20260914_1"></script>
   <script src="/js/tactical-layout.js?v=20260904_2"></script>
 
-  <script type="module" src="/js/app.js?v=20261026_zalo_media_v7"></script>
+  <script type="module" src="/js/app.js?v=20261102_web3_depin_v1"></script>
   <script>
     // Register PWA Service Worker for Home Screen Installability
     if ('serviceWorker' in navigator) {

@@ -1,5 +1,6 @@
 import { LocationService } from './location.js?v=20261012_wardhud_single_v5';
 import { MapController } from './map-controller.js?v=20261012_wardhud_single_v5';
+import { initStealthSOS } from './stealth-sos.js?v=20261102_web3_depin_v1';
 
 // ---------------------------------------------------------------------------
 // PATCH 2026-10-13: Dynamic ICE servers with TURN relay support.
@@ -5305,6 +5306,7 @@ function bootstrapApp() {
   app.bindReportDocxEvents();
   app.bindLegalWarningToggle();
   bindCitizenSafeButton(app);
+  initStealthSOS(app);
 }
 
 if (document.readyState === 'loading') {

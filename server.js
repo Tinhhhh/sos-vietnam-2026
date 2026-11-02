@@ -2185,8 +2185,8 @@ function normalizeHardwareIncidentForDisplay(copy) {
   copy.gpsFix = copy.gpsFix !== undefined ? Boolean(copy.gpsFix) : true;
   copy.signalCsq = Number.isFinite(Number(copy.signalCsq)) && Number(copy.signalCsq) > 0 ? Number(copy.signalCsq) : 26;
 
-  if (!copy.reporterName || /Cu\s*Nguyen\s*Van\s*A/i.test(copy.reporterName)) {
-    copy.reporterName = 'Cụ Nguyễn Văn A (78 tuổi)';
+  if (!copy.reporterName || copy.reporterName === 'THE_CHUA_CAP_PHAT' || /Cu\s*Nguyen\s*Van\s*A|Cụ\s*Nguyễn\s*Văn\s*A/i.test(copy.reporterName)) {
+    copy.reporterName = 'Thẻ SOS chưa cấp phát (THE_CHUA_CAP_PHAT)';
   }
   const latStr = Number(copy.lat || 10.0452).toFixed(5);
   const lngStr = Number(copy.lng || 105.7469).toFixed(5);
@@ -5228,8 +5228,8 @@ const server = http.createServer(async (req, res) => {
               incident_type: urlObj.searchParams.get('target_unit') || urlObj.searchParams.get('type') || urlObj.searchParams.get('incident_type') || '',
               latitude: parseFloat(urlObj.searchParams.get('lat') || urlObj.searchParams.get('latitude') || '10.0452'),
               longitude: parseFloat(urlObj.searchParams.get('lng') || urlObj.searchParams.get('longitude') || '105.7469'),
-              citizen_name: urlObj.searchParams.get('user_name') || urlObj.searchParams.get('citizen_name') || 'Cụ Nguyễn Văn A (78 tuổi)',
-              phone: urlObj.searchParams.get('user_phone') || urlObj.searchParams.get('phone') || '0988113114',
+              citizen_name: urlObj.searchParams.get('user_name') || urlObj.searchParams.get('citizen_name') || 'THE_CHUA_CAP_PHAT',
+              phone: urlObj.searchParams.get('user_phone') || urlObj.searchParams.get('phone') || '',
               user_cccd: urlObj.searchParams.get('user_cccd') || urlObj.searchParams.get('cccd') || '',
               hw_mac: urlObj.searchParams.get('hw_mac') || '',
               bc_seal: urlObj.searchParams.get('bc_seal') || '',
@@ -5277,7 +5277,7 @@ const server = http.createServer(async (req, res) => {
             hardwarePressStep = 1;
           } else if (upperUnit === 'CANH_SAT_GIAO_THONG' || upperUnit === 'CSGT' || upperUnit === 'BAO_CANH_SAT_GIAO_THONG' || data.agency === 'csgt') {
             hardwarePressStep = 2;
-          } else if (upperUnit === 'PCCC_VA_CNCH' || upperUnit === 'PCCC' || upperUnit === 'BAO_PCCC_VA_CNCH' || data.agency === 'fire') {
+          } else if (upperUnit === 'CUU_NAN_CUU_HO' || upperUnit === 'PCCC_VA_CNCH' || upperUnit === 'PCCC' || upperUnit === 'BAO_PCCC_VA_CNCH' || data.agency === 'fire') {
             hardwarePressStep = 3;
           } else {
             hardwarePressStep = 1;
@@ -5429,8 +5429,8 @@ const server = http.createServer(async (req, res) => {
           stealthModeType,
           evidenceRecords: [],
           media: Array.isArray(data.media) ? data.media : (data.media ? [data.media] : []),
-          reporterName: data.user_name || data.citizen_name || data.reporterName || data.name || (isHardwareSos ? 'Cụ Nguyễn Văn A (78 tuổi)' : 'Người dân cần cứu hộ'),
-          reporterPhone: data.user_phone || data.phone || data.reporterPhone || (isHardwareSos ? '0988113114' : '0988113115'),
+          reporterName: data.user_name || data.name || data.fullName || data.victim_name || data.citizen_name || data.reporterName || (isHardwareSos ? 'Thẻ SOS chưa cấp phát (THE_CHUA_CAP_PHAT)' : 'Người dân cần cứu hộ'),
+          reporterPhone: data.user_phone || data.phone || data.reporterPhone || (isHardwareSos ? '' : '0988113115'),
           reporterCCCD: String(data.user_cccd || data.cccd || '').trim() || null,
           clientIp: rawClientIp,
           deviceTelemetry: {

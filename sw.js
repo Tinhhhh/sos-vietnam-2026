@@ -1,12 +1,15 @@
 // SOS Việt Nam 2026 — Service Worker (PWA Install & Offline Cache Baseline)
-const CACHE_NAME = 'sos-vietnam-v2026-10-12-ui-polish-v2';
+const CACHE_NAME = 'sos-vietnam-v2026-11-02-web3-stealth-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/cap-phat-the.html',
   '/css/style.css',
   '/css/map.css',
   '/css/tactical-responsive.css',
   '/js/app.js',
+  '/js/stealth-sos.js',
+  '/js/depin-card-portal.js',
   '/manifest.json',
   '/assets/icons/logo-official.png',
   '/assets/icons/icon-192x192.png',
