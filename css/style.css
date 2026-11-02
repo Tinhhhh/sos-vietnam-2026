@@ -10575,6 +10575,304 @@ body.bcv-portal-body {
   color: #00ecf3;
 }
 
+/* ============================================================================
+   Multi-Network Tiered Visibility Switcher & Global Zero-PII Proof Styles
+   ============================================================================ */
+.bcv-net-switch-card {
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  background: linear-gradient(145deg, rgba(4, 24, 52, 0.96), rgba(2, 14, 31, 0.96));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.bcv-net-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.bcv-net-visibility-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.bcv-net-visibility-pill.is-internal {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  color: #6ee7b7;
+}
+
+.bcv-net-visibility-pill.is-zeropii {
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.65);
+  color: #7dd3fc;
+}
+
+.bcv-role-tag.is-zeropii {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(56, 189, 248, 0.65);
+  color: #bae6fd;
+}
+
+.bcv-net-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bcv-net-btn {
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: rgba(3, 19, 41, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bcv-net-btn:hover {
+  border-color: rgba(0, 236, 243, 0.65);
+  background: rgba(8, 35, 69, 0.92);
+}
+
+.bcv-net-btn.is-active {
+  background: linear-gradient(135deg, rgba(0, 236, 243, 0.18), rgba(14, 116, 144, 0.34));
+  border-color: #00ecf3;
+  box-shadow: 0 0 0 1px rgba(0, 236, 243, 0.35), 0 6px 18px rgba(0, 236, 243, 0.14);
+}
+
+.bcv-net-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.bcv-net-kicker.is-zeropii {
+  color: #38bdf8;
+}
+
+.bcv-net-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1.3;
+}
+
+.bcv-net-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.bcv-net-privacy-notice {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.09);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  color: #d1fae5;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.bcv-net-privacy-notice.is-zeropii {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #e0f2fe;
+}
+
+.bcv-global-anchor-box {
+  margin-bottom: 16px;
+  border-radius: 10px;
+  padding: 13px 14px;
+  background: rgba(3, 22, 46, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.48);
+}
+
+.bcv-global-anchor-box.is-compact {
+  padding: 10px 13px;
+  background: rgba(4, 24, 48, 0.78);
+  border-style: dashed;
+}
+
+.bcv-ga-compact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bcv-ga-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.bcv-ga-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.bcv-ga-sub {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.bcv-ga-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bcv-ga-kv {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(1, 10, 22, 0.78);
+  border: 1px solid rgba(30, 63, 102, 0.75);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bcv-ga-kv span {
+  font-size: 10.5px;
+  color: #91accd;
+  font-weight: 700;
+}
+
+.bcv-ga-kv code {
+  font-size: 11px;
+  color: #f8fafc;
+  word-break: break-all;
+}
+
+.bcv-ga-howto,
+.bcv-ga-calldata {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(2, 14, 30, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  font-size: 11.8px;
+  color: #dbeafe;
+  line-height: 1.5;
+}
+
+.bcv-ga-calldata code {
+  display: block;
+  font-size: 10.5px;
+  color: #7dd3fc;
+  word-break: break-all;
+  max-height: 76px;
+  overflow-y: auto;
+}
+
+.bcv-metric-card.is-zeropii-card {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: linear-gradient(155deg, rgba(4, 26, 54, 0.9), rgba(2, 13, 28, 0.92));
+}
+
+/* Dispatcher #bcSecurityPanel 4-Network Segmented Pill Bar */
+.bc-net-pill-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.bc-net-pill {
+  appearance: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(30, 63, 102, 0.9);
+  background: rgba(2, 15, 32, 0.85);
+  color: #cbd5e1;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.bc-net-pill small {
+  font-size: 9px;
+  font-weight: 600;
+  color: #91accd;
+}
+
+.bc-net-pill:hover {
+  border-color: rgba(0, 236, 243, 0.6);
+  color: #ffffff;
+}
+
+.bc-net-pill.is-active {
+  background: linear-gradient(135deg, rgba(0, 236, 243, 0.2), rgba(14, 116, 144, 0.35));
+  border-color: #00ecf3;
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 236, 243, 0.28);
+}
+
+.bc-net-pill.is-active small {
+  color: #7dd3fc;
+}
+
+@media (max-width: 960px) {
+  .bcv-net-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .bcv-ga-kv-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  body.bcv-portal-body {
+    padding: 12px 10px 40px;
+  }
+  .bcv-shell,
+  .bcv-shell * {
+    box-sizing: border-box;
+    min-width: 0;
+  }
+  .bcv-card {
+    padding: 14px 12px;
+  }
+  .bcv-input {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .bcv-net-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media print {
   body.bcv-portal-body {
     background: #ffffff !important;

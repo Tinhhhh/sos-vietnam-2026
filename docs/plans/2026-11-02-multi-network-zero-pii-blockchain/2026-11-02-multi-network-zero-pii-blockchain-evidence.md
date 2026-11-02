@@ -63,13 +63,16 @@ Matching plan item(s): `P1-A`, `P1-B`
 - **`E1-P1B-ROUTE1`**: Wired non-blocking `setImmediate(() => blockchainLedgerService.anchorBlockToOpenTimestamps(receipt.blockNumber).catch(...))` inside `recordIncidentBlockchainEvent` (`server.js`) and validated via isolated HTTP runtime `.tmp/p1b-server-test/verify-p1b.mjs` on port `3489`: `POST /api/sos/create` completed in `27ms` total (`0ms` synchronous calendar wait) and `autoOtsStampedInBackground: true` persisted a `272`-byte `.ots` proof to the ledger.
 - **`E1-P1B-ROUTE2`**: Implemented `GET /api/blockchain/anchor-doc/:ref`, `GET /api/blockchain/ots/:ref`, `POST /api/blockchain/anchor/:ref`, upgraded `/api/blockchain/recent`, `/api/blockchain/lookup`, `/api/blockchain/verify-dossier`, `POST /api/dispatcher/blockchain/verify`, and upgraded `renderBlockchainExplorerCertificateHtml` (`/api/blockchain/explorer/:ref`) with 4-network `#explorerNetworkSwitcher` + `#explorerGlobalProofBox`. Verified `node --check server.js` (exit `0`) and ran HTTP audit across `12` sensitive PII tokens -> `piiLeaksAcrossAllExternalEndpoints: 0` across JSON, HTML, URLs, and QR codes on `NDA`, `OTS`, and `POLYGON`, with `SHA256(anchor-doc)` (`512` bytes) matching `.ots` (`272` bytes) 100%; cleaned `.tmp/p1b-server-test/` immediately after test.
 - **`E1-P1B-DETECT1`**: Ran `anvien analyze --force` (`scanned=518`, `parsed_code=164`, `failed=0`, `nodes=87643`, `relationships=93491`) and `anvien detect-changes --repo sos-vietnam-2026 --scope all` (`risk_level: "high"` scope warning reviewed; edits strictly scoped to blockchain helper and route handlers in `server.js`).
-- **`E1-P1B-COMMIT1`**: Committed `P1-B` (`server.js` + plan ledgers) on `main`.
+- **`E1-P1B-COMMIT1`**: Committed `P1-B` (`server.js` + plan ledgers) on `main` (`12204cc`).
 
 ## E2 - P2 Evidence
 
 Matching plan item(s): `P2-A`, `P2-B`
 
-*(To be recorded upon completion of `P2-A` and `P2-B`.)*
+- **`E2-P2A-UI1`**: Added `#bcvNetworkSwitchCard` (`#bcvNetworkSwitchBar` 4-network switcher buttons `842026`, `NDA`, `OTS`, `POLYGON` + `#bcvActiveNetVisibilityBadge` + `#bcvNetworkPrivacyNotice`) and `#bcvGlobalAnchorBox` to `tra-cuu-blockchain.html` with responsive CSS in `css/style.css`; verified via Chromium Playwright (`verify-p2a.mjs`) at both `1440x900` (`overflowDesktop: false`) and `390x844` (`overflowMobile: false`).
+- **`E2-P2A-UI2`**: Upgraded `js/blockchain-verifier-portal.js` (`node --check` exit `0`) and verified live toggling across `842026` -> `NDA` -> `OTS` -> `POLYGON` -> `842026` plus Tab 2 `PublicAnchor.json` (`SOSVN-ANCHOR-V1`) verification (`piiLeakCount: 0` across URL, input value, body text, report HTML, and recent blocks table; `consoleErrorsCount: 0`; cleaned `.tmp/p2a-portal-test/`).
+- **`E2-P2A-DETECT1`**: Ran `anvien analyze --force` (`scanned=518`, `parsed_code=164`, `failed=0`, `nodes=88020`, `relationships=93896`) and `anvien detect-changes --repo sos-vietnam-2026 --scope all` (`risk_level: "critical"` scope warning reviewed; self-contained portal HTML/JS/CSS changes only).
+- **`E2-P2A-COMMIT1`**: Committed `P2-A` (`tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, `css/style.css`, and plan ledgers) on `main`.
 
 ## E3 - P3 Evidence
 

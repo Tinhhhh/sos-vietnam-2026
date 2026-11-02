@@ -212,7 +212,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - P2-A: 4-Network Switcher Bar & Zero-PII International Verification View on `/tra-cuu-blockchain.html` (`tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, `css/style.css`)
   - P2-B: Segmented 4-Network Switcher Pill Bar & Live Full-vs-Zero-PII Preview inside `dispatcher.html` `#bcSecurityPanel` (`dispatcher.html`, `js/dispatcher.js`, `sw.js`)
 
-- [ ] P2-A: 4-Network Switcher Bar & Zero-PII International Verification View on `/tra-cuu-blockchain.html`
+- [x] P2-A: 4-Network Switcher Bar & Zero-PII International Verification View on `/tra-cuu-blockchain.html`
   - Goal: Bổ sung Thanh Chuyển Đổi 4 Mạng Chuỗi Khối (`#bcvNetworkSwitchBar`) nổi bật trên `/tra-cuu-blockchain.html` để khi người dùng chuyển giữa `Nội bộ 842026`, `Quốc gia NDAChain`, `Quốc tế Bitcoin OTS`, và `Quốc tế Polygon EVM`, cả Báo cáo đối chứng hồ sơ lẫn Bảng danh sách Block mới nhất đều chuyển đổi tức thời giữa chế độ Nghiệp vụ Nội bộ và chế độ Cam kết Mật mã Quốc tế Zero-PII (kèm nút tải `.anchor.json` + `.ots` và liên kết `https://opentimestamps.org`).
   - Scope Boundary:
     - Editable: `tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, `css/style.css`

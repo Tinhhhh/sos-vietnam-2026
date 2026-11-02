@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cổng Đối Chứng Xác Thực &amp; Phần Mềm Giải Mã Hồ Sơ Chuỗi Khối — SOS Việt Nam 2026</title>
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261102_bcv1">
-  <link rel="stylesheet" href="/css/style.css?v=20261102_bcv1">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261102_bcv2">
+  <link rel="stylesheet" href="/css/style.css?v=20261102_bcv2">
 </head>
 <body class="bcv-portal-body">
   <div class="bcv-shell">
@@ -33,6 +33,50 @@
         <span class="bcv-role-tag" id="bcvViewerRoleBadge">🌐 Chế độ Tra cứu Công khai (Tự động che SĐT/CCCD)</span>
       </div>
     </div>
+
+    <section class="bcv-card bcv-net-switch-card bcv-no-print" id="bcvNetworkSwitchCard" aria-label="Chuyển đổi mạng chuỗi khối đối chứng">
+      <div class="bcv-net-head">
+        <div>
+          <h2 class="bcv-section-title" style="margin-bottom:2px;">🌐 CHUYỂN ĐỔI MẠNG CHUỖI KHỐI &amp; PHÂN TẦNG BẢO MẬT (NỘI BỘ ↔ QUỐC GIA ↔ QUỐC TẾ)</h2>
+          <p class="bcv-section-desc" style="margin-bottom:0;">
+            Bấm chuyển đổi qua lại giữa <strong>Mạng Nội Bộ</strong> (xem đầy đủ chi tiết nghiệp vụ cứu hộ) và các <strong>Mạng Quốc Gia / Quốc Tế</strong> (xác thực tính tồn tại &amp; thời gian từng khâu với <strong>0% lộ lọt thông tin cá nhân — Zero-PII</strong>).
+          </p>
+        </div>
+        <span class="bcv-net-visibility-pill is-internal" id="bcvActiveNetVisibilityBadge">
+          🇻🇳 MẠNG NỘI BỘ (842026) · HIỂN THỊ CHI TIẾT NGHIỆP VỤ
+        </span>
+      </div>
+
+      <div class="bcv-net-bar" id="bcvNetworkSwitchBar" role="group" aria-label="Danh sách 4 mạng chuỗi khối">
+        <button type="button" class="bcv-net-btn is-active" data-bcv-net="842026" id="bcvNetBtn842026" aria-pressed="true">
+          <span class="bcv-net-kicker">🇻🇳 NỘI BỘ · CHAIN 842026</span>
+          <strong class="bcv-net-title">Sổ Cái Nội Bộ SOS Việt Nam</strong>
+          <small class="bcv-net-sub">Trực ban xem Full 100% · Công khai che nhẹ SĐT/CCCD</small>
+        </button>
+
+        <button type="button" class="bcv-net-btn" data-bcv-net="NDA" id="bcvNetBtnNDA" aria-pressed="false">
+          <span class="bcv-net-kicker is-zeropii">🏛️ QUỐC GIA · ZERO-PII</span>
+          <strong class="bcv-net-title">Chuỗi Khối Quốc Gia (NDAChain)</strong>
+          <small class="bcv-net-sub">Đối chứng liên ngành toàn quốc · Ẩn tuyệt đối PII/GPS</small>
+        </button>
+
+        <button type="button" class="bcv-net-btn" data-bcv-net="OTS" id="bcvNetBtnOTS" aria-pressed="false">
+          <span class="bcv-net-kicker is-zeropii">🌍 QUỐC TẾ · BITCOIN .OTS</span>
+          <strong class="bcv-net-title">Bitcoin Toàn Cầu (OpenTimestamps)</strong>
+          <small class="bcv-net-sub">Tải chứng chỉ .ots kiểm chứng trên opentimestamps.org</small>
+        </button>
+
+        <button type="button" class="bcv-net-btn" data-bcv-net="POLYGON" id="bcvNetBtnPOLYGON" aria-pressed="false">
+          <span class="bcv-net-kicker is-zeropii">🌍 QUỐC TẾ · EVM HEX</span>
+          <strong class="bcv-net-title">Polygon / Ethereum EVM Quốc Tế</strong>
+          <small class="bcv-net-sub">Gói Calldata Hex Zero-PII chuẩn hợp đồng thông minh</small>
+        </button>
+      </div>
+
+      <div class="bcv-net-privacy-notice" id="bcvNetworkPrivacyNotice">
+        🛡️ <strong>Đang xem Mạng Nội Bộ SOS (Chain 842026):</strong> Cán bộ trực ban đã đăng nhập được xem 100% chi tiết (Họ tên, SĐT, CCCD, tọa độ GPS, cán bộ nhận ca); người xem công khai được xem quy trình tiếng Việt đã che một phần SĐT/CCCD. Bấm sang <strong>NDAChain / Bitcoin OTS / Polygon EVM</strong> để kiểm tra dữ liệu neo ra bên ngoài (cam kết 0% lộ thông tin nhạy cảm).
+      </div>
+    </section>
 
     <section class="bcv-guide-banner bcv-no-print" aria-label="Hướng dẫn đối chứng & giải mã">
       <div class="bcv-guide-step">
@@ -130,6 +174,8 @@
         <a href="#" target="_blank" rel="noopener" class="bcv-btn" id="btnOpenRawCertificate" hidden>📜 Xem Vi Bằng Raw Block ↗</a>
       </div>
 
+      <div id="bcvGlobalAnchorBox" class="bcv-global-anchor-box" hidden></div>
+
       <div class="bcv-summary-layout">
         <div>
           <h3 class="bcv-section-title" style="margin-bottom:10px;">📊 Bảng Giải Mã Chi Tiết Giao Dịch Quy Trình Cứu Hộ</h3>
@@ -160,7 +206,7 @@
           <thead>
             <tr>
               <th>Block</th>
-              <th>Mã Ca Trực</th>
+              <th id="bcvRecentCaseColHeader">Mã Ca / Cam Kết</th>
               <th>Bước Giao Dịch Quy Trình</th>
               <th>Người Thực Hiện / Đơn Vị</th>
               <th>Thời Lượng</th>
@@ -177,6 +223,6 @@
     </section>
   </div>
 
-  <script src="/js/blockchain-verifier-portal.js?v=20261102_bcv1"></script>
+  <script src="/js/blockchain-verifier-portal.js?v=20261102_bcv2"></script>
 </body>
 </html>
