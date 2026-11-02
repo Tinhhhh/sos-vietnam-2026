@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cổng Đối Chứng Xác Thực &amp; Phần Mềm Giải Mã Hồ Sơ Chuỗi Khối — SOS Việt Nam 2026</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/logo-police-round-192.png?v=20261102_bcv1">
+  <link rel="stylesheet" href="/css/style.css?v=20261102_bcv1">
+</head>
+<body class="bcv-portal-body">
+  <div class="bcv-shell">
+    <header class="bcv-topbar">
+      <div class="bcv-brand">
+        <img src="/assets/icons/logo-police-round-192.png" alt="SOS Việt Nam" class="bcv-brand-logo">
+        <div>
+          <h1 class="bcv-brand-title">⛓️ CỔNG ĐỐI CHỨNG XÁC THỰC &amp; GIẢI MÃ HỒ SƠ CHUỖI KHỐI</h1>
+          <p class="bcv-brand-sub">Hệ thống Giám định Sổ cái Giao dịch Cứu hộ Bất biến &amp; Phần mềm Đọc Biên bản Pháp lý (.JSON) — SOS Việt Nam</p>
+        </div>
+      </div>
+      <nav class="bcv-nav-cluster" aria-label="Điều hướng hệ thống">
+        <a href="/" class="bcv-nav-btn is-primary">🚨 Trang Báo Cứu Hộ</a>
+        <a href="/dispatcher.html" class="bcv-nav-btn">🛡️ Bàn Điều Phối Trực Ban</a>
+        <a href="/cap-phat-the.html" class="bcv-nav-btn">🪪 Cổng Thẻ SOS DePIN</a>
+      </nav>
+    </header>
+
+    <div class="bcv-status-strip">
+      <div class="bcv-status-pill">
+        <span class="bcv-live-dot"></span>
+        <span id="bcvLedgerStatusText">Đang kết nối Sổ cái Chuỗi khối SOS Vietnam...</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="bcv-role-tag" id="bcvViewerRoleBadge">🌐 Chế độ Tra cứu Công khai (Tự động che SĐT/CCCD)</span>
+      </div>
+    </div>
+
+    <section class="bcv-guide-banner bcv-no-print" aria-label="Hướng dẫn đối chứng & giải mã">
+      <div class="bcv-guide-step">
+        <strong>1. Đối chứng dữ liệu thật ở đâu?</strong>
+        Nhập <code>TxHash (0x...)</code>, <code>Số Block (#105)</code> hoặc <code>Mã ca (SOS-...)</code> ngay tại trang này (hoặc quét mã QR trên biên bản) để đối chiếu trực tiếp với Sổ cái gốc đang chạy trên máy chủ.
+      </div>
+      <div class="bcv-guide-step">
+        <strong>2. Đọc &amp; giải mã tệp .JSON bằng phần mềm nào?</strong>
+        Chuyển sang tab <b>“Giải Mã &amp; Giám Định Tệp Hồ Sơ (.JSON)”</b>, kéo thả tệp <code>HoSo_PhapLy_ChuoiKhoi_*.json</code> vào: phần mềm tự dịch toàn bộ mã Block sang tiếng Việt chi tiết từng giây.
+      </div>
+      <div class="bcv-guide-step">
+        <strong>3. Làm sao biết tệp không bị sửa đổi?</strong>
+        Trình duyệt tự băm lại <code>SHA-256 (WebCrypto)</code> từng Block ngoại tuyến và đối chiếu kép với Sổ cái máy chủ. Sửa dù chỉ 1 ký tự cũng báo đỏ vị trí Block bị can thiệp.
+      </div>
+    </section>
+
+    <div class="bcv-tabs-bar" role="tablist">
+      <button type="button" class="bcv-tab-btn is-active" id="tabBtnLookup" role="tab" aria-selected="true">
+        <span>🔍</span>
+        <div>
+          <div>1. Đối Chứng Mã Blockchain Trực Tiếp Trên Sổ Cái</div>
+          <small style="font-weight:600;opacity:0.85;">Tra cứu bằng Mã giao dịch TxHash, Số Block (#) hoặc Mã ca SOS</small>
+        </div>
+      </button>
+      <button type="button" class="bcv-tab-btn" id="tabBtnDecoder" role="tab" aria-selected="false">
+        <span>📂</span>
+        <div>
+          <div>2. Phần Mềm Giải Mã &amp; Giám Định File Hồ Sơ (.JSON)</div>
+          <small style="font-weight:600;opacity:0.85;">Đọc chi tiết sự việc từ file trích xuất &amp; kiểm tra chống chỉnh sửa SHA-256</small>
+        </div>
+      </button>
+    </div>
+
+    <!-- TAB 1: LIVE LEDGER LOOKUP -->
+    <section class="bcv-card" id="bcvLookupInputCard" aria-labelledby="tabBtnLookup">
+      <h2 class="bcv-section-title">🔍 Đối Chứng Xác Thực Dữ Liệu Trên Sổ Cái Hệ Thống</h2>
+      <p class="bcv-section-desc">
+        Dán <strong>Mã giao dịch (TxHash 0x...)</strong>, <strong>Số thứ tự Khối (ví dụ: #101 hoặc 101)</strong>, hoặc <strong>Mã hồ sơ ca trực (ví dụ: SOS-...)</strong> để kiểm tra xem bản ghi có thực sự tồn tại nguyên vẹn trên Sổ cái SOS Việt Nam hay không.
+      </p>
+      <form id="bcvLookupForm" class="bcv-search-row">
+        <input
+          type="text"
+          id="bcvQueryInput"
+          class="bcv-input"
+          placeholder="Nhập TxHash (0x...), Số Block (#102) hoặc Mã ca (SOS-...)..."
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button type="submit" class="bcv-btn is-cyan" id="btnLookupSubmit">🔍 Đối Chứng &amp; Giải Mã</button>
+        <button type="button" class="bcv-btn is-gold" id="btnLoadLatestBlock">⚡ Xem Giao Dịch Mới Nhất</button>
+      </form>
+    </section>
+
+    <!-- TAB 2: JSON DOSSIER & BLOCK DECODER SOFTWARE -->
+    <section class="bcv-card" id="bcvDecoderInputCard" hidden aria-labelledby="tabBtnDecoder">
+      <h2 class="bcv-section-title">📂 Phần Mềm Giải Mã &amp; Giám Định Tệp Biên Bản Pháp Lý (.JSON)</h2>
+      <p class="bcv-section-desc">
+        Tải lên tệp <code>HoSo_PhapLy_ChuoiKhoi_*.json</code> (xuất từ Bàn Điều Phối) hoặc dán nội dung JSON của Block: hệ thống sẽ giải mã ra hồ sơ tiếng Việt đầy đủ (ai báo, ai nhận, giờ tiếp nhận, thời gian di chuyển, tổng thời gian quy trình) đồng thời băm lại SHA-256 để phát hiện mọi chỉnh sửa.
+      </p>
+
+      <div class="bcv-dropzone" id="bcvDropZone" tabindex="0" role="button" aria-label="Tải lên tệp JSON hồ sơ chuỗi khối">
+        <input type="file" id="bcvFileInput" accept=".json,application/json" hidden>
+        <div class="bcv-dropzone-title">📄 Kéo thả tệp <code>HoSo_PhapLy_ChuoiKhoi_*.json</code> vào đây hoặc bấm để chọn tệp</div>
+        <div class="bcv-dropzone-sub" id="bcvSelectedFileLabel">Hỗ trợ tệp Biên bản Pháp lý (.JSON) hoặc mảng JSON các Block — xử lý trực tiếp bằng WebCrypto SHA-256</div>
+      </div>
+
+      <textarea
+        id="bcvRawJsonInput"
+        class="bcv-textarea"
+        placeholder='Hoặc dán trực tiếp nội dung tệp JSON / mã Block vào đây để giải mã và giám định...'
+        spellcheck="false"
+      ></textarea>
+
+      <div class="bcv-action-bar">
+        <button type="button" class="bcv-btn is-cyan" id="btnDecodeJson">🔐 Giải Mã Hồ Sơ &amp; Giám Định SHA-256 Kép</button>
+        <button type="button" class="bcv-btn is-danger-outline" id="btnSimulateTamper" title="Thử thay đổi 1 ký tự trong nội dung JSON để kiểm chứng khả năng phát hiện giả mạo">
+          🧪 Thử Sửa 1 Ký Tự (Test Phát Hiện Giả Mạo)
+        </button>
+        <button type="button" class="bcv-btn" id="btnClearDecoder">🧹 Xóa Nội Dung</button>
+      </div>
+    </section>
+
+    <!-- UNIFIED REPORT OUTPUT -->
+    <section class="bcv-card" id="bcvReportCard" hidden aria-live="polite">
+      <div id="bcvVerdictBanner" class="bcv-verdict-banner">
+        <div class="bcv-verdict-title" id="bcvVerdictTitle">--</div>
+        <div class="bcv-verdict-detail" id="bcvVerdictDetail">--</div>
+        <div class="bcv-dual-badges" id="bcvVerdictBadges"></div>
+      </div>
+
+      <div class="bcv-action-bar bcv-no-print" style="margin-bottom:16px;">
+        <button type="button" class="bcv-btn" id="btnPrintDossier">🖨️ In Biên Bản Giải Mã Hồ Sơ</button>
+        <button type="button" class="bcv-btn is-gold" id="btnDownloadCurrentJson">💾 Tải Tệp Hồ Sơ Chuẩn (.JSON)</button>
+        <button type="button" class="bcv-btn" id="btnCopyVerifyLink">🔗 Sao Chép Link Đối Chứng</button>
+        <a href="#" target="_blank" rel="noopener" class="bcv-btn" id="btnOpenRawCertificate" hidden>📜 Xem Vi Bằng Raw Block ↗</a>
+      </div>
+
+      <div class="bcv-summary-layout">
+        <div>
+          <h3 class="bcv-section-title" style="margin-bottom:10px;">📊 Bảng Giải Mã Chi Tiết Giao Dịch Quy Trình Cứu Hộ</h3>
+          <div class="bcv-summary-grid" id="bcvProcessSummaryGrid"></div>
+        </div>
+        <div class="bcv-qr-panel" id="bcvQrPanel">
+          <div class="bcv-qr-svg-wrap" id="bcvQrSvgBox"></div>
+          <div class="bcv-qr-caption">Quét QR bằng camera điện thoại để mở trực tiếp trang đối chứng này</div>
+          <div id="bcvCaseBadge" style="font-family:monospace;font-size:11.5px;color:#00ecf3;word-break:break-all;"></div>
+        </div>
+      </div>
+
+      <h3 class="bcv-section-title" style="margin-bottom:10px;">⛓️ Nhật Ký Giải Mã Từng Khối Giao Dịch (Block-by-Block Transaction Log)</h3>
+      <div class="bcv-steps-list" id="bcvDecodedStepsList"></div>
+    </section>
+
+    <!-- LIVE RECENT LEDGER FEED -->
+    <section class="bcv-card" id="bcvRecentSection">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <div>
+          <h2 class="bcv-section-title" style="margin-bottom:2px;">📡 Sổ Cái Giao Dịch Chuỗi Khối Gần Nhất Trên Hệ Thống</h2>
+          <p class="bcv-section-desc" style="margin-bottom:0;">Bấm vào bất kỳ giao dịch nào bên dưới để đối chứng và giải mã toàn bộ quy trình ca trực tương ứng.</p>
+        </div>
+        <button type="button" class="bcv-btn" id="btnRefreshRecent">🔄 Làm mới sổ cái</button>
+      </div>
+      <div class="bcv-table-wrap">
+        <table class="bcv-table">
+          <thead>
+            <tr>
+              <th>Block</th>
+              <th>Mã Ca Trực</th>
+              <th>Bước Giao Dịch Quy Trình</th>
+              <th>Người Thực Hiện / Đơn Vị</th>
+              <th>Thời Lượng</th>
+              <th>Thời Gian Ghi Khối</th>
+              <th>Mã TxHash</th>
+              <th>Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="bcvRecentTableBody">
+            <tr><td colspan="8" style="text-align:center;color:#91accd;">Đang tải dữ liệu sổ cái...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="/js/blockchain-verifier-portal.js?v=20261102_bcv1"></script>
+</body>
+</html>

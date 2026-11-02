@@ -37,7 +37,7 @@
 | Phase | Metric | Unit | Baseline | Latest | Final | Target | Delta | Evidence |
 |-------|--------|------|----------|--------|-------|--------|-------|----------|
 | P2 | Default Stealth SOS 5-second audio upload rate per minute | files/min | 12 | - | - | 0 | - | Pending `P2-B` |
-| P2 | Offline WebCrypto SHA-256 dossier verification latency (4-block dossier) | ms | - | - | - | < 50 | - | Pending `P2-A` |
+| P2 | Offline WebCrypto SHA-256 dossier verification latency (4-block dossier) | ms | - | 2.962 | - | < 50 | - | `E2-P2A-JS1` |
 
 ## B3 - P3 Benchmarks
 

@@ -223,7 +223,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - `P2-A`: Build `/tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, and Portal Styles in `css/style.css`
   - `P2-B`: Update `js/stealth-sos.js`, `dispatcher.html`, `js/dispatcher.js`, `index.html`, `cap-phat-the.html`, and `sw.js`
 
-- [ ] P2-A: Build `/tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, and Portal Styles in `css/style.css`
+- [x] P2-A: Build `/tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, and Portal Styles in `css/style.css`
   - Goal: Provide an authoritative, crystal-clear Vietnamese Web Portal & Block Decoder software so anyone can cross-verify a Blockchain code (`TxHash` / `Block #` / `Case ID`) OR upload/paste an exported `.JSON` dossier / raw block to decode every detail of the SOS case and verify mathematical SHA-256 integrity.
   - Scope Boundary:
     - Editable: `tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, `css/style.css`

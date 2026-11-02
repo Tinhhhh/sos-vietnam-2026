@@ -56,7 +56,9 @@ Matching plan item(s): `P1-A`, `P1-B`
 
 Matching plan item(s): `P2-A`, `P2-B`
 
-*(To be recorded as P2 slices complete)*
+- `E2-P2A-HTML1`: Created `tra-cuu-blockchain.html` (`182` lines) and appended scoped `.bcv-*` + `.bc-process-*` styles to `css/style.css`. Verified via `node .tmp/test-p2a.mjs`: `GET /tra-cuu-blockchain.html` -> HTTP `200`, `Content-Security-Policy` `script-src 'self'` satisfied with `0` external CDN script tags, both `#tabBtnLookup` and `#tabBtnDecoder` plus `#bcvRecentSection` and `@media print` report rules present.
+- `E2-P2A-JS1`: Created `js/blockchain-verifier-portal.js` (`886` lines) implementing live `/api/blockchain/lookup` cross-check, drag-and-drop/upload + raw paste `.JSON` dossier decoder, WebCrypto `SHA-256` offline deterministic block re-hashing (`verifyDossierOfflineWebCrypto`), online `/api/blockchain/verify-dossier` cross-check, 1-click `#btnSimulateTamper` test, and live recent ledger table. Verified via `node --check js/blockchain-verifier-portal.js` (exit `0`) and `node .tmp/test-p2a.mjs`: 4-block dossier WebCrypto SHA-256 verification passed `4/4` blocks in `2.962ms`, and 1-field mutation (`travelTimeSeconds = 9999`) detected `corruptedCount: 1` in `0.543ms`.
+- `E2-P2A-DETECT1`: Ran `anvien analyze --force` (`files: scanned=509 parsed_code=163 failed=0`, `graph: nodes=85870 relationships=91651`) and `anvien detect-changes --repo sos-vietnam-2026 --scope all` (`risk_level: "low"`).
 
 ## E3 - P3 Evidence
 
