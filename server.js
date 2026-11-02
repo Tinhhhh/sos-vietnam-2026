@@ -13,6 +13,15 @@ import { readRuntimeData, runtimeDataPath, writeRuntimeData } from './services/r
 import { defaultPasswordForAccount } from './services/agency-password-policy.js';
 import { generateAccountsWorkbookBuffer } from './services/accounts-excel-generator.js';
 import { createZaloBotService } from './services/zalo-bot-service.js';
+import {
+  LIFECYCLE_ACTIONS,
+  blockchainLedgerService,
+  generateQrCodeSvg,
+  computeChainedCardSeal,
+  resolveSystemBlockchainConfig,
+  verifyChainedCardSeal,
+  verifyHardwareDePINPayload
+} from './services/blockchain-ledger-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -723,6 +732,14 @@ function performZaloIncidentAccept({ incidentId, chatId = '', binding = null, of
     senderName: `${incident.dispatchUnit.officerFullTitle} (${incident.dispatchUnit.unitName})`,
     text: `Chào bạn, tôi là ${incident.dispatchUnit.officerFullTitle} từ ${respondingName}. Tôi vừa tiếp nhận tín hiệu khẩn cấp qua Zalo Trực Ban và lực lượng đang khẩn trương di chuyển tới vị trí của bạn (dự kiến ${eta} phút). Liên hệ trực tiếp SĐT: ${resolvedPhone}!`,
     timestamp: new Date().toISOString()
+  });
+
+  recordIncidentBlockchainEvent(incident, LIFECYCLE_ACTIONS.OFFICER_DISPATCH, {
+    via: via || 'zalo',
+    unitName: respondingName,
+    officerName: incident.dispatchUnit.officerFullTitle,
+    officerPhone: resolvedPhone,
+    etaMinutes: eta
   });
 
   saveIncidentHistory();
@@ -1948,6 +1965,200 @@ function maskPhoneNumber(phone) {
   return phone.trim();
 }
 
+function resolveEffectiveRequestHost(req) {
+  const fwd = String(req?.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
+  return fwd || String(req?.headers?.host || '').trim();
+}
+
+function maskExplorerPii(raw, keepStart = 3, keepEnd = 3) {
+  const s = String(raw || '').trim();
+  if (!s) return 'N/A';
+  if (s.length <= keepStart + keepEnd) return s.slice(0, 1) + '***';
+  return s.slice(0, keepStart) + '****' + s.slice(s.length - keepEnd);
+}
+
+function escapeHtmlSafe(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function describeLifecycleActionVi(actionType) {
+  switch (actionType) {
+    case LIFECYCLE_ACTIONS.SOS_TRIGGER:
+      return '1. Kích hoạt SOS & Khóa tọa độ DePIN';
+    case LIFECYCLE_ACTIONS.EVIDENCE_SEAL:
+      return '2. Niêm phong chứng cứ hiện trường (SHA-256)';
+    case LIFECYCLE_ACTIONS.OFFICER_DISPATCH:
+      return '3. Cán bộ trực ban tiếp nhận & xuất phát';
+    case LIFECYCLE_ACTIONS.CASE_RESOLVED:
+      return '4. Hoàn tất cứu hộ & Đóng hồ sơ vụ việc';
+    default:
+      return actionType;
+  }
+}
+
+function recordIncidentBlockchainEvent(incident, actionType, payloadData = {}, options = {}) {
+  if (!incident || !incident.id) return null;
+  const nowIso = options.timestamp || new Date().toISOString();
+  const sysCfg = resolveSystemBlockchainConfig(options.host || '');
+
+  if (!incident.blockchain || typeof incident.blockchain !== 'object') {
+    incident.blockchain = {
+      chainId: sysCfg.chainId,
+      canonicalChainId: 842026,
+      envName: sysCfg.envName,
+      storageFolder: sysCfg.storageFolder,
+      triggerBlockNumber: null,
+      triggerTxHash: null,
+      triggerTimestamp: null,
+      latestBlockNumber: null,
+      latestTxHash: null,
+      latestEvidenceHash: null,
+      responseTimeSeconds: null,
+      auditTrail: []
+    };
+  }
+
+  const enrichedPayload = { ...payloadData };
+  if (actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH) {
+    const t1 = Date.parse(incident.blockchain.triggerTimestamp || incident.createdAt || nowIso);
+    const t3 = Date.parse(nowIso);
+    const responseSec = Number.isFinite(t1) && Number.isFinite(t3)
+      ? Math.max(0, Math.round((t3 - t1) / 1000))
+      : 0;
+    enrichedPayload.responseTimeSeconds = responseSec;
+    incident.blockchain.responseTimeSeconds = responseSec;
+  }
+
+  const { receipt } = blockchainLedgerService.sealBlockSync(actionType, incident.id, enrichedPayload, {
+    ...options,
+    timestamp: nowIso
+  });
+
+  if (actionType === LIFECYCLE_ACTIONS.SOS_TRIGGER && !incident.blockchain.triggerBlockNumber) {
+    incident.blockchain.triggerBlockNumber = receipt.blockNumber;
+    incident.blockchain.triggerTxHash = receipt.txHash;
+    incident.blockchain.triggerTimestamp = receipt.timestamp;
+  }
+
+  incident.blockchain.chainId = receipt.chainId;
+  incident.blockchain.envName = receipt.envName;
+  incident.blockchain.latestBlockNumber = receipt.blockNumber;
+  incident.blockchain.latestTxHash = receipt.txHash;
+  incident.blockchain.latestEvidenceHash = receipt.evidenceHash;
+  if (!Array.isArray(incident.blockchain.auditTrail)) {
+    incident.blockchain.auditTrail = [];
+  }
+
+  let summaryText = describeLifecycleActionVi(actionType);
+  if (actionType === LIFECYCLE_ACTIONS.SOS_TRIGGER) {
+    summaryText = `Khởi tạo hồ sơ #${incident.id} (${incident.isHardwareSos ? (incident.hardwareSecurity?.status || 'IOT_DEPIN') : (incident.isStealthSos ? 'WEB_STEALTH' : 'WEB_SOS')})`;
+  } else if (actionType === LIFECYCLE_ACTIONS.EVIDENCE_SEAL) {
+    summaryText = `Niêm phong chứng cứ ${enrichedPayload.evidenceId || ''} (${enrichedPayload.mimeType || 'audio/webm'})`;
+  } else if (actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH) {
+    summaryText = `${enrichedPayload.officerName || 'Cán bộ trực ban'} tiếp nhận (Phản ứng: ${incident.blockchain.responseTimeSeconds ?? 0}s)`;
+  } else if (actionType === LIFECYCLE_ACTIONS.CASE_RESOLVED) {
+    summaryText = `Đóng hồ sơ an toàn (${enrichedPayload.closedBy === 'citizen' ? 'Công dân xác nhận' : 'Trực ban xác nhận'})`;
+  }
+
+  incident.blockchain.auditTrail.push({
+    step: incident.blockchain.auditTrail.length + 1,
+    action: actionType,
+    label: describeLifecycleActionVi(actionType),
+    summary: summaryText,
+    blockNumber: receipt.blockNumber,
+    txHash: receipt.txHash,
+    prevHash: receipt.prevHash,
+    evidenceHash: receipt.evidenceHash,
+    responseTimeSeconds: actionType === LIFECYCLE_ACTIONS.OFFICER_DISPATCH ? incident.blockchain.responseTimeSeconds : undefined,
+    timestamp: receipt.timestamp
+  });
+
+  return receipt;
+}
+
+function renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl) {
+  const payloadData = block?.payload?.data || {};
+  const maskedPhone = payloadData.reporterPhone ? maskExplorerPii(payloadData.reporterPhone, 3, 3) : null;
+  const maskedCccd = payloadData.userCCCD ? maskExplorerPii(payloadData.userCCCD, 4, 3) : null;
+  const intactBadge = chainCheck?.allBlocksIntact
+    ? '✔ CHUỖI KHỐI NGUYÊN VẸN 100% (IMMUTABLE VERIFIED)'
+    : '⚠ CẢNH BÁO SAI LỆCH SỔ CÁI';
+  const badgeColor = chainCheck?.allBlocksIntact ? '#10b981' : '#ef4444';
+  const trailRows = (chainCheck?.blocks || []).map((b) => `
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;color:#38bdf8;font-family:monospace;">#${b.blockNumber}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;">${escapeHtmlSafe(describeLifecycleActionVi(b.action))}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;font-family:monospace;font-size:12px;">${escapeHtmlSafe(String(b.txHash).slice(0, 22))}...</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #1e293b;color:${b.hashMatched && b.prevMatched ? '#10b981' : '#ef4444'};">${b.hashMatched && b.prevMatched ? '✔ Hợp lệ' : '✘ Lỗi'}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chứng Thực Chuỗi Khối Block #${block.blockNumber} — SOS Vietnam Chain</title>
+  <style>
+    body { margin:0; background:#060c18; color:#e2e8f0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding:24px; }
+    .wrap { max-width:880px; margin:0 auto; background:#0f172a; border:1px solid #1e293b; border-radius:14px; padding:24px; box-shadow:0 20px 50px rgba(0,0,0,0.55); }
+    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:1px solid #1e293b; padding-bottom:16px; flex-wrap:wrap; }
+    .title { font-size:18px; font-weight:800; color:#38bdf8; letter-spacing:0.4px; margin:0 0 6px 0; }
+    .sub { font-size:13px; color:#94a3b8; margin:0; }
+    .badge { display:inline-block; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; background:rgba(16,185,129,0.12); color:${badgeColor}; border:1px solid ${badgeColor}; }
+    .grid { display:grid; grid-template-columns: 1fr auto; gap:20px; margin-top:20px; align-items:start; }
+    @media (max-width:680px) { .grid { grid-template-columns: 1fr; } }
+    .kv { display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size:13px; }
+    .kv div:nth-child(odd) { color:#94a3b8; font-weight:600; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break:break-all; color:#f8fafc; }
+    .qr-box { background:#ffffff; padding:10px; border-radius:10px; text-align:center; color:#0f172a; font-size:11px; font-weight:700; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; font-size:13px; }
+    th { text-align:left; padding:8px 10px; background:#1e293b; color:#cbd5e1; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hdr">
+      <div>
+        <h1 class="title">⛓️ VI BẰNG BẢO CHỨNG SỐ — SOS VIETNAM BLOCKCHAIN EXPLORER</h1>
+        <p class="sub">${escapeHtmlSafe(block.envName)} · Chain ID: <strong>${block.chainId}</strong> (Canonical: 842026)</p>
+      </div>
+      <span class="badge">${intactBadge}</span>
+    </div>
+    <div class="grid">
+      <div class="kv">
+        <div>Mã Hồ Sơ Sự Cố:</div><div class="mono">${escapeHtmlSafe(block.caseId)}</div>
+        <div>Số Khối (Block):</div><div class="mono" style="color:#38bdf8;font-weight:700;">#${block.blockNumber}</div>
+        <div>Hành Động Nghiệp Vụ:</div><div>${escapeHtmlSafe(describeLifecycleActionVi(block.action))}</div>
+        <div>Mã Giao Dịch (TxHash):</div><div class="mono">${escapeHtmlSafe(block.txHash)}</div>
+        <div>Khối Liên Kết Trước (PrevHash):</div><div class="mono">${escapeHtmlSafe(block.prevHash)}</div>
+        <div>Mã Băm Chứng Cứ (SHA-256):</div><div class="mono" style="color:#fbbf24;">${escapeHtmlSafe(block.evidenceHash)}</div>
+        <div>Thời Gian Niêm Phong:</div><div class="mono">${escapeHtmlSafe(block.timestamp)}</div>
+        ${payloadData.hwMac ? `<div>Định Danh Chip Phần Cứng:</div><div class="mono">${escapeHtmlSafe(payloadData.hwMac)} (${escapeHtmlSafe(payloadData.hardwareStatus || 'DePIN')})</div>` : ''}
+        ${maskedPhone ? `<div>SĐT Công Dân (Đã che PII):</div><div class="mono">${escapeHtmlSafe(maskedPhone)}</div>` : ''}
+        ${maskedCccd ? `<div>CCCD Định Danh (Đã che PII):</div><div class="mono">${escapeHtmlSafe(maskedCccd)}</div>` : ''}
+        ${payloadData.responseTimeSeconds !== undefined ? `<div>Thời Gian Phản Ứng Cứu Hộ:</div><div class="mono" style="color:#10b981;font-weight:700;">${Number(payloadData.responseTimeSeconds)} giây</div>` : ''}
+      </div>
+      <div class="qr-box">
+        ${qrSvg}
+        <div style="margin-top:6px;">QUÉT XÁC THỰC BLOCK</div>
+      </div>
+    </div>
+    <h2 style="font-size:14px;color:#94a3b8;margin-top:24px;">LỊCH SỬ CHUỖI KHỐI CỦA HỒ SƠ (${(chainCheck?.blocks || []).length} BLOCK)</h2>
+    <table>
+      <thead><tr><th>Block</th><th>Sự kiện vòng đời</th><th>TxHash</th><th>Toàn vẹn</th></tr></thead>
+      <tbody>${trailRows}</tbody>
+    </table>
+    <p style="font-size:12px;color:#64748b;margin-top:18px;">URL Tra cứu công khai: <span class="mono">${escapeHtmlSafe(explorerUrl)}</span></p>
+  </div>
+</body>
+</html>`;
+}
+
 function normalizeHardwareIncidentForDisplay(copy) {
   if (!copy || !copy.isHardwareSos) return copy;
   const ward = copy.jurisdiction?.ward || copy.assignedUnit?.ward || 'Phường Long Tuyền';
@@ -1982,7 +2193,10 @@ function normalizeHardwareIncidentForDisplay(copy) {
     copy.incidentTags = ['Báo cháy nổ & Cứu nạn cứu hộ khẩn cấp (PCCC & CNCH)'];
   }
   const unitName = copy.dispatchUnit?.unitName || copy.assignedUnit?.name || 'Đơn vị trực ban sở tại';
-  copy.customNotes = `Đơn vị tiếp nhận: ${unitName} · Kết nối: SIM 4G LTE + GPS (${copy.hardwareModel})`;
+  const depinTag = copy.hardwareSecurity?.hasSeal
+    ? ` · Thẻ DePIN: ${copy.cardID || copy.deviceId || 'N/A'} (${copy.hardwareSecurity.status})`
+    : '';
+  copy.customNotes = `Đơn vị tiếp nhận: ${unitName} · Kết nối: SIM 4G LTE + GPS (${copy.hardwareModel})${depinTag}`;
   return copy;
 }
 
@@ -2921,6 +3135,167 @@ const server = http.createServer(async (req, res) => {
         playChime: true
       }
     }));
+  }
+
+  // -------------------------------------------------------------
+  // API: Web3 Blockchain Ledger Status & Public Block Certificate Explorer
+  // -------------------------------------------------------------
+  if (urlPath === '/api/blockchain/status' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify(blockchainLedgerService.getLedgerStats(resolveEffectiveRequestHost(req))));
+  }
+
+  if (urlPath.startsWith('/api/blockchain/explorer/') && req.method === 'GET') {
+    const ref = decodeURIComponent(urlPath.replace('/api/blockchain/explorer/', '').trim());
+    let block = blockchainLedgerService.findBlockByTxOrNumber(ref);
+    if (!block && incidents.has(ref)) {
+      const caseBlocks = blockchainLedgerService.getCaseBlocks(ref);
+      block = caseBlocks[caseBlocks.length - 1] || null;
+    }
+    if (!block) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Không tìm thấy Block hoặc mã giao dịch TxHash trên sổ cái' }));
+    }
+    const chainCheck = blockchainLedgerService.verifyCaseChainIntegrity(block.caseId);
+    const origin = detectRequestOrigin(req);
+    const explorerUrl = `${origin}/api/blockchain/explorer/${block.txHash}`;
+    const qrSvg = generateQrCodeSvg(explorerUrl);
+    const wantsJson = urlObj.searchParams.get('format') === 'json' ||
+      (String(req.headers.accept || '').includes('application/json') && !String(req.headers.accept || '').includes('text/html'));
+
+    if (wantsJson) {
+      const safePayload = { ...(block.payload?.data || {}) };
+      if (safePayload.reporterPhone) safePayload.reporterPhone = maskExplorerPii(safePayload.reporterPhone, 3, 3);
+      if (safePayload.userCCCD) safePayload.userCCCD = maskExplorerPii(safePayload.userCCCD, 4, 3);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify({
+        ok: true,
+        block: {
+          ...block,
+          payload: { ...block.payload, data: safePayload }
+        },
+        chainIntegrity: chainCheck,
+        explorerUrl,
+        qrSvg
+      }));
+    }
+
+    const html = renderBlockchainExplorerCertificateHtml(block, chainCheck, qrSvg, explorerUrl);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(html);
+  }
+
+  // -------------------------------------------------------------
+  // API: DePIN SOS Card Provisioning, Chaining Update & Seal Verification (DAC_TA_DONG_BO_WEB_VA_AI.md)
+  // -------------------------------------------------------------
+  const maskCardRecordForPublic = (card, isAuthorizedOfficer) => {
+    if (!card || isAuthorizedOfficer) return card;
+    return {
+      ...card,
+      phone: maskExplorerPii(card.phone, 3, 3),
+      cccd: maskExplorerPii(card.cccd, 4, 3),
+      blocks: (card.blocks || []).map((b) => ({
+        ...b,
+        phone: maskExplorerPii(b.phone, 3, 3),
+        cccd: maskExplorerPii(b.cccd, 4, 3)
+      }))
+    };
+  };
+
+  if (urlPath === '/api/depin/cards' && req.method === 'GET') {
+    const isOfficer = Boolean(securityFirewall.extractAndVerifyUser?.(req) || req.headers.authorization);
+    const cards = blockchainLedgerService.listRegisteredCards().map((c) => maskCardRecordForPublic(c, isOfficer));
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({ ok: true, count: cards.length, cards }));
+  }
+
+  if (urlPath.startsWith('/api/depin/cards/') && req.method === 'GET') {
+    const cardId = decodeURIComponent(urlPath.replace('/api/depin/cards/', '').trim());
+    const card = blockchainLedgerService.getRegisteredCard(cardId);
+    if (!card) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ ok: false, error: 'Chưa tìm thấy hồ sơ thẻ SOS trên cổng đồng bộ' }));
+    }
+    const isOfficer = Boolean(req.headers.authorization);
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({ ok: true, card: maskCardRecordForPublic(card, isOfficer) }));
+  }
+
+  if (urlPath === '/api/depin/verify-seal' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => { if (body.length < 32768) body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        // Support parsing raw UART READ_DATA multiline dump if rawReadData is sent
+        if (typeof data.rawReadData === 'string' && data.rawReadData.trim()) {
+          for (const rawLine of data.rawReadData.split('\n')) {
+            const line = rawLine.trim();
+            if (line.startsWith('ID:')) data.id = line.slice(3).trim();
+            else if (line.startsWith('NAME:')) data.name = line.slice(5).trim();
+            else if (line.startsWith('PHONE:')) data.phone = line.slice(6).trim();
+            else if (line.startsWith('CCCD:')) data.cccd = line.slice(5).trim();
+            else if (line.startsWith('OFFICER:')) data.officer = line.slice(8).trim();
+            else if (line.startsWith('TIME:')) data.timestamp = line.slice(5).trim();
+            else if (line.startsWith('MODE:')) data.mode = line.slice(5).trim();
+            else if (line.startsWith('BLOCK:')) data.blockIndex = parseInt(line.slice(6).trim(), 10) || 1;
+            else if (line.startsWith('PREV_SEAL:')) data.prevSeal = line.slice(10).trim();
+            else if (line.startsWith('SEAL:')) data.seal = line.slice(5).trim();
+          }
+        }
+        const check = verifyChainedCardSeal(data);
+        const registryMatch = blockchainLedgerService.findRegisteredCardBySeal(data.id || data.cardID, data.seal || data.bc_seal);
+        const expectedDacTaSeal = computeChainedCardSeal(data);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({
+          ok: true,
+          verified: Boolean(check.verified || registryMatch),
+          verification: check,
+          registeredOnPortal: Boolean(registryMatch),
+          expectedSampleSealFormat: expectedDacTaSeal ? expectedDacTaSeal.slice(0, 12) + '...' : null
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: publicRequestError(err) }));
+      }
+    });
+    return;
+  }
+
+  if (urlPath === '/api/depin/cards/provision' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => { if (body.length < 32768) body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const result = blockchainLedgerService.registerOrUpdateCardBlock(data, {
+          host: resolveEffectiveRequestHost(req)
+        });
+        res.writeHead(result.ok ? 200 : (result.statusCode || 400), { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: publicRequestError(err) }));
+      }
+    });
+    return;
+  }
+
+  if (urlPath === '/api/depin/cards/wipe' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (chunk) => { if (body.length < 16384) body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const result = blockchainLedgerService.wipeTestCard(data.id || data.cardID);
+        res.writeHead(result.ok ? 200 : (result.statusCode || 403), { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: false, error: publicRequestError(err) }));
+      }
+    });
+    return;
   }
 
   // -------------------------------------------------------------
@@ -4800,24 +5175,32 @@ const server = http.createServer(async (req, res) => {
         lng: inc.lng,
         address: inc.address,
         status: inc.status,
+        cardID: inc.cardID || inc.deviceId || null,
+        hwMac: inc.hwMac || inc.hardwareSecurity?.hwMac || null,
+        hardwareAuthStatus: inc.hardwareSecurity?.status || null,
+        blockNumber: inc.blockchain?.latestBlockNumber || null,
+        txHash: inc.blockchain?.latestTxHash || null,
         createdAt: inc.createdAt
       }));
+    const ledgerStats = blockchainLedgerService.getLedgerStats(resolveEffectiveRequestHost(req));
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     return res.end(JSON.stringify({
       ok: true,
-      service: 'SOS Vietnam 2026 - Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K) & Wearable IoT Gateway',
+      service: 'SOS Vietnam 2026 - Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K) & DePIN Blockchain Gateway',
       status: 'ONLINE',
       endpoint: '/api/hardware-sos',
       supportedMethods: ['GET', 'POST'],
+      chainId: ledgerStats.chainId,
+      envName: ledgerStats.envName,
       activeHardwareCount: hwIncidents.length,
       hardwareIncidents: hwIncidents
     }));
   }
 
   // -------------------------------------------------------------
-  // API: Create SOS Incident with Real Station Database (Web + 4G GPS ESP32-C3 TDM2421)
+  // API: Create SOS Incident with Real Station Database (Web + 4G GPS ESP32-C3 TDM2421 + DePIN Seal)
   // -------------------------------------------------------------
-  const isHardwareGetPush = (urlPath === '/api/hardware-sos/push' || ((urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && (urlObj.searchParams.has('press_step') || urlObj.searchParams.has('lat')))) && req.method === 'GET';
+  const isHardwareGetPush = (urlPath === '/api/hardware-sos/push' || ((urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && (urlObj.searchParams.has('press_step') || urlObj.searchParams.has('button') || urlObj.searchParams.has('lat')))) && req.method === 'GET';
   if (((urlPath === '/api/sos/create' || urlPath === '/api/incidents' || urlPath === '/api/hardware-sos' || urlPath === '/api/sos/hardware') && req.method === 'POST') || isHardwareGetPush) {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -4825,18 +5208,23 @@ const server = http.createServer(async (req, res) => {
       try {
         const data = isHardwareGetPush
           ? {
-              device_id: urlObj.searchParams.get('device_id') || 'TDM2421-4G-GPS-01',
+              device_id: urlObj.searchParams.get('cardID') || urlObj.searchParams.get('device_id') || 'TDM2421-4G-GPS-01',
+              cardID: urlObj.searchParams.get('cardID') || '',
               hardware_model: urlObj.searchParams.get('hardware_model') || 'Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K)',
               network_mode: urlObj.searchParams.get('network_mode') || '4G_LTE_SIM',
               signal_csq: parseInt(urlObj.searchParams.get('csq') || '26', 10),
               gps_fix: urlObj.searchParams.get('gps_fix') !== '0' && urlObj.searchParams.get('gps_fix') !== 'false',
-              press_step: parseInt(urlObj.searchParams.get('press_step') || '1', 10),
+              press_step: parseInt(urlObj.searchParams.get('button') || urlObj.searchParams.get('press_step') || '1', 10),
               agency: urlObj.searchParams.get('agency') || '',
-              incident_type: urlObj.searchParams.get('incident_type') || '',
+              incident_type: urlObj.searchParams.get('target_unit') || urlObj.searchParams.get('type') || urlObj.searchParams.get('incident_type') || '',
               latitude: parseFloat(urlObj.searchParams.get('lat') || urlObj.searchParams.get('latitude') || '10.0452'),
               longitude: parseFloat(urlObj.searchParams.get('lng') || urlObj.searchParams.get('longitude') || '105.7469'),
-              citizen_name: urlObj.searchParams.get('citizen_name') || 'Cụ Nguyễn Văn A (78 tuổi)',
-              phone: urlObj.searchParams.get('phone') || '0988113114',
+              citizen_name: urlObj.searchParams.get('user_name') || urlObj.searchParams.get('citizen_name') || 'Cụ Nguyễn Văn A (78 tuổi)',
+              phone: urlObj.searchParams.get('user_phone') || urlObj.searchParams.get('phone') || '0988113114',
+              user_cccd: urlObj.searchParams.get('user_cccd') || urlObj.searchParams.get('cccd') || '',
+              hw_mac: urlObj.searchParams.get('hw_mac') || '',
+              bc_seal: urlObj.searchParams.get('bc_seal') || '',
+              live_evidence_hash: urlObj.searchParams.get('live_evidence_hash') || '',
               source: 'WEARABLE_IOT_BUTTON'
             }
           : JSON.parse(body || '{}');
@@ -4844,12 +5232,17 @@ const server = http.createServer(async (req, res) => {
           isHardwareGetPush ||
           urlPath === '/api/hardware-sos' ||
           urlPath === '/api/sos/hardware' ||
+          data.cardID ||
+          data.card_id ||
+          data.hw_mac ||
+          data.bc_seal ||
           data.device_id ||
           data.deviceId ||
           data.source === 'WEARABLE_IOT_BUTTON' ||
           data.isHardwareSos
         );
-        const deviceId = String(data.device_id || data.deviceId || (isHardwareSos ? 'TDM2421-4G-GPS-01' : '')).trim();
+        const cardID = String(data.cardID || data.card_id || data.device_id || data.deviceId || '').trim();
+        const deviceId = String(cardID || (isHardwareSos ? 'TDM2421-4G-GPS-01' : '')).trim();
         const hardwareModel = String(data.hardware_model || data.hardwareModel || (isHardwareSos ? 'Kit 4G GPS ESP32-C3 TDM2421 (Quectel EG800K)' : '')).trim();
         const networkMode = String(data.network_mode || data.networkMode || (isHardwareSos ? '4G_LTE_SIM' : '')).trim();
         const signalCsq = Number.isFinite(Number(data.signal_csq ?? data.signalCsq)) ? Number(data.signal_csq ?? data.signalCsq) : 26;
@@ -4857,21 +5250,25 @@ const server = http.createServer(async (req, res) => {
         const hdop = Number.isFinite(Number(data.hdop)) ? Number(data.hdop) : 1.1;
         const altitude = Number.isFinite(Number(data.altitude)) ? Number(data.altitude) : 12.0;
         const iotSource = String(data.source || (isHardwareSos ? 'WEARABLE_IOT_BUTTON' : '')).trim();
-        const rawIncidentType = String(data.incident_type || data.incidentType || '').trim();
+        const rawIncidentType = String(data.target_unit || data.type || data.incident_type || data.incidentType || '').trim();
+        const hardwareUnitTitle = String(data.unit_title || '').trim();
+        const isStealthSos = Boolean(data.isStealthSos || data.stealthMode);
+        const stealthModeType = data.stealthMode ? String(data.stealthMode).trim() : null;
 
         let hardwarePressStep = null;
         let hardwareTargetLabel = null;
         let resolvedHwAgency = null;
 
         if (isHardwareSos) {
-          const explicitStep = parseInt(data.press_step || data.pressStep || data.press_count || data.pressCount, 10);
+          const explicitStep = parseInt(data.button || data.press_step || data.pressStep || data.press_count || data.pressCount, 10);
+          const upperUnit = rawIncidentType.toUpperCase();
           if (explicitStep >= 1 && explicitStep <= 3) {
             hardwarePressStep = explicitStep;
-          } else if (rawIncidentType === 'BAO_CONG_AN_DIA_PHUONG' || rawIncidentType === 'BAO_CONG_AN_DON_VI' || data.agency === 'police') {
+          } else if (upperUnit === 'CONG_AN_DIA_PHUONG' || upperUnit === 'BAO_CONG_AN_DIA_PHUONG' || upperUnit === 'BAO_CONG_AN_DON_VI' || data.agency === 'police') {
             hardwarePressStep = 1;
-          } else if (rawIncidentType === 'BAO_CANH_SAT_GIAO_THONG' || data.agency === 'csgt') {
+          } else if (upperUnit === 'CANH_SAT_GIAO_THONG' || upperUnit === 'CSGT' || upperUnit === 'BAO_CANH_SAT_GIAO_THONG' || data.agency === 'csgt') {
             hardwarePressStep = 2;
-          } else if (rawIncidentType === 'BAO_PCCC_VA_CNCH' || data.agency === 'fire') {
+          } else if (upperUnit === 'PCCC_VA_CNCH' || upperUnit === 'PCCC' || upperUnit === 'BAO_PCCC_VA_CNCH' || data.agency === 'fire') {
             hardwarePressStep = 3;
           } else {
             hardwarePressStep = 1;
@@ -5017,9 +5414,15 @@ const server = http.createServer(async (req, res) => {
           agencyName: agency === 'police' ? 'Công An Nhân Dân' : (agency === 'csgt' ? 'Cảnh Sát Giao Thông (CSGT)' : (agency === 'fire' ? 'Cảnh Sát PCCC & CNCH' : (agency === 'traffic-rescue' ? 'Cứu Hộ Giao Thông & Đường Bộ' : (agency === 'hospital' || agency === 'ambulance' ? 'Cấp Cứu Y Tế' : 'Trung Tâm Chỉ Huy Tổng Hợp')))),
           incidentTags: resolvedIncidentTags,
           customNotes: resolvedCustomNotes,
+          cardID: cardID || null,
+          hardwareUnitTitle: hardwareUnitTitle || null,
+          isStealthSos,
+          stealthModeType,
+          evidenceRecords: [],
           media: Array.isArray(data.media) ? data.media : (data.media ? [data.media] : []),
-          reporterName: data.citizen_name || data.reporterName || data.name || (isHardwareSos ? 'Cụ Nguyễn Văn A (78 tuổi)' : 'Người dân cần cứu hộ'),
-          reporterPhone: data.phone || data.reporterPhone || (isHardwareSos ? '0988113114' : '0988113115'),
+          reporterName: data.user_name || data.citizen_name || data.reporterName || data.name || (isHardwareSos ? 'Cụ Nguyễn Văn A (78 tuổi)' : 'Người dân cần cứu hộ'),
+          reporterPhone: data.user_phone || data.phone || data.reporterPhone || (isHardwareSos ? '0988113114' : '0988113115'),
+          reporterCCCD: String(data.user_cccd || data.cccd || '').trim() || null,
           clientIp: rawClientIp,
           deviceTelemetry: {
             ip: rawClientIp,
@@ -5069,7 +5472,65 @@ const server = http.createServer(async (req, res) => {
           ]
         };
 
+        if (isHardwareSos) {
+          const hwAuth = verifyHardwareDePINPayload(data, body);
+          incident.hardwareSecurity = hwAuth;
+          incident.hwMac = hwAuth.hwMac;
+          if (!incident.cardID && hwAuth.cardID) incident.cardID = hwAuth.cardID;
+          if (hwAuth.status === 'SPOOF_SUSPECTED') {
+            incident.messages.push({
+              id: 'msg-depin-warn-' + Date.now(),
+              sender: 'system',
+              senderName: 'Hệ Thống Bảo Chứng DePIN',
+              text: '⚠️ CẢNH BÁO AN NINH: Chữ ký phần cứng (bc_seal) không khớp khóa bí mật Bộ Tư Lệnh! Nghi vấn gói tin giả mạo thiết bị.',
+              timestamp: new Date().toISOString()
+            });
+          }
+        } else {
+          incident.hardwareSecurity = {
+            hasSeal: false,
+            verified: false,
+            status: isStealthSos ? 'WEB_STEALTH_SESSION' : 'WEB_CITIZEN_SESSION',
+            sealScheme: 'WEB_TLS',
+            badgeText: isStealthSos
+              ? '🕵️ CHẾ ĐỘ NGỤY TRANG KHẨN CẤP (WEB STEALTH)'
+              : '🌐 KẾT NỐI TRÌNH DUYỆT BẢO MẬT (WEB TLS)',
+            cardID: null,
+            hwMac: isStealthSos ? 'WEB-STEALTH-CLIENT' : 'WEB-TLS-CLIENT',
+            userCCCD: incident.reporterCCCD || null,
+            bcSeal: null,
+            liveEvidenceHash: null,
+            liveHashVerified: null,
+            reportedChainId: null
+          };
+          incident.hwMac = incident.hardwareSecurity.hwMac;
+        }
+
         normalizeHardwareIncidentForDisplay(incident);
+
+        // Seal 1_SOS_TRIGGER onto Blockchain Ledger before persisting & broadcasting
+        const triggerReceipt = recordIncidentBlockchainEvent(
+          incident,
+          LIFECYCLE_ACTIONS.SOS_TRIGGER,
+          {
+            agency: incident.agency,
+            lat: incident.lat,
+            lng: incident.lng,
+            address: incident.address,
+            isHardwareSos: incident.isHardwareSos,
+            isStealthSos: incident.isStealthSos,
+            stealthModeType: incident.stealthModeType,
+            cardID: incident.cardID || incident.deviceId || null,
+            hwMac: incident.hwMac,
+            hardwareStatus: incident.hardwareSecurity?.status,
+            hardwareVerified: Boolean(incident.hardwareSecurity?.verified),
+            bcSeal: incident.hardwareSecurity?.bcSeal || null,
+            liveEvidenceHash: incident.hardwareSecurity?.liveEvidenceHash || null,
+            reporterPhone: incident.reporterPhone,
+            userCCCD: incident.reporterCCCD
+          },
+          { host: resolveEffectiveRequestHost(req) }
+        );
 
         // 2. Multi-Channel Alerts
         const dispatchChannels = generateMultiChannelDispatch(incident);
@@ -5148,7 +5609,15 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         // This is the sole response containing the raw citizen token.  The UI
         // stores it only in sessionStorage and sends it back on future requests.
-        res.end(JSON.stringify({ ok: true, incident: incidentForClient(incident), citizenAccessToken }));
+        res.end(JSON.stringify({
+          ok: true,
+          blockNumber: triggerReceipt?.blockNumber ?? null,
+          txHash: triggerReceipt?.txHash ?? null,
+          chainId: triggerReceipt?.chainId ?? null,
+          hardwareAuth: incident.hardwareSecurity,
+          incident: incidentForClient(incident),
+          citizenAccessToken
+        }));
       } catch (err) {
         console.error('Error creating SOS:', err);
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -5161,7 +5630,15 @@ const server = http.createServer(async (req, res) => {
   // -------------------------------------------------------------
   // API: Get Single SOS
   // -------------------------------------------------------------
-  if (urlPath.startsWith('/api/sos/') && req.method === 'GET' && !urlPath.includes('stream')) {
+  if (
+    urlPath.startsWith('/api/sos/') &&
+    req.method === 'GET' &&
+    !urlPath.includes('stream') &&
+    !urlPath.startsWith('/api/sos/evidence-file/') &&
+    !urlPath.startsWith('/api/sos/sync-doc') &&
+    !urlPath.startsWith('/api/sos/videocall/') &&
+    !urlPath.startsWith('/api/sos/voicecall/')
+  ) {
     const id = urlPath.replace('/api/sos/', '');
     const incident = incidents.get(id);
     if (!requireIncidentActor(req, res, urlObj, incident)) return;
@@ -5734,6 +6211,19 @@ const server = http.createServer(async (req, res) => {
 
         console.log(`🚓 [DISPATCH ACCEPT] #${id} by ${incident.dispatchUnit.officerFullTitle} (${incident.dispatchUnit.unitName})`);
 
+        recordIncidentBlockchainEvent(
+          incident,
+          LIFECYCLE_ACTIONS.OFFICER_DISPATCH,
+          {
+            via: 'web_dispatcher',
+            unitName: respondingName,
+            officerName: incident.dispatchUnit.officerFullTitle,
+            officerPhone: phone,
+            etaMinutes: eta
+          },
+          { host: resolveEffectiveRequestHost(req) }
+        );
+
         saveIncidentHistory();
         notifyCitizen(id, 'sos_update', incident);
         broadcastToDispatchers('sos_update', incident);
@@ -5952,6 +6442,17 @@ const server = http.createServer(async (req, res) => {
             time: new Date().toISOString(),
             done: true
           });
+          recordIncidentBlockchainEvent(
+            incident,
+            LIFECYCLE_ACTIONS.CASE_RESOLVED,
+            {
+              closedBy: 'dispatcher',
+              unitName: incident.dispatchUnit?.unitName || incident.assignedUnit?.name || '',
+              officerName: req.user?.officerName || incident.dispatchUnit?.officerFullTitle || 'Trực ban',
+              resolutionNote: message || incident.statusText
+            },
+            { host: resolveEffectiveRequestHost(req) }
+          );
         }
 
         if (message) {
@@ -5964,6 +6465,7 @@ const server = http.createServer(async (req, res) => {
           });
         }
 
+        saveIncidentHistory();
         notifyCitizen(id, 'sos_update', incident);
         broadcastToDispatchers('sos_update', incident);
 
@@ -6863,6 +7365,17 @@ const server = http.createServer(async (req, res) => {
         };
         incident.messages = Array.isArray(incident.messages) ? incident.messages : [];
         incident.messages.push(systemMsg);
+
+        recordIncidentBlockchainEvent(
+          incident,
+          LIFECYCLE_ACTIONS.CASE_RESOLVED,
+          {
+            closedBy: 'citizen',
+            reason
+          },
+          { host: resolveEffectiveRequestHost(req) }
+        );
+        saveIncidentHistory();
 
         notifyCitizen(incidentId, 'sos_update', incident);
         broadcastToDispatchers('sos_update', incident);

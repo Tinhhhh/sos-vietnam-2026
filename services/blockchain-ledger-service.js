@@ -15,8 +15,11 @@ import http from 'http';
 import { readRuntimeData, writeRuntimeData } from './runtime-data-store.js';
 
 export const COMMAND_SECRET_KEY = process.env.COMMAND_SECRET_KEY || 'BTL_CSCD_E10_D1_SOS_VIETNAM_2026';
+export const DAC_TA_SECRET_KEY = process.env.DAC_TA_SECRET_KEY || 'SOS_VIETNAM_TACTICAL_ESC_2026_DEPIN_SECURE_KEY';
+export const ZERO_PREV_SEAL = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 const LEDGER_STORE_NAME = 'blockchain-ledger.json';
+const CARD_REGISTRY_STORE_NAME = 'depin-cards-registry.json';
 const GENESIS_SEED = 'SOS_VIETNAM_2026_GENESIS_BLOCK_CHAIN_842026_DEPIN_V2';
 const GENESIS_HASH = '0x' + crypto.createHash('sha256').update(GENESIS_SEED).digest('hex');
 const MAX_PERSISTED_BLOCKS = 5000;
@@ -25,7 +28,8 @@ export const LIFECYCLE_ACTIONS = Object.freeze({
   SOS_TRIGGER: '1_SOS_TRIGGER',
   EVIDENCE_SEAL: '2_EVIDENCE_SEAL',
   OFFICER_DISPATCH: '3_OFFICER_DISPATCH',
-  CASE_RESOLVED: '4_CASE_RESOLVED'
+  CASE_RESOLVED: '4_CASE_RESOLVED',
+  CARD_PROVISION_SEAL: '0_CARD_PROVISION_SEAL'
 });
 
 function sha256HexRaw(input) {
@@ -111,6 +115,96 @@ export function resolveSystemBlockchainConfig(hostOrOrigin = '') {
   };
 }
 
+function getAcceptedSecretKeys() {
+  return Array.from(new Set([
+    DAC_TA_SECRET_KEY,
+    COMMAND_SECRET_KEY,
+    'SOS_VIETNAM_TACTICAL_ESC_2026_DEPIN_SECURE_KEY',
+    'BTL_CSCD_E10_D1_SOS_VIETNAM_2026'
+  ].filter(Boolean)));
+}
+
+/**
+ * Computes Chained Identity Block SHA-256 seal per DAC_TA_DONG_BO_WEB_VA_AI.md Section 4 & CapPhatTheSOS.cpp:
+ * payload = PrevSeal + "|" + BlockIndex + "|" + Mode + "|" + ID + "|" + Name + "|" + Phone + "|" + CCCD + "|" + Officer + "|" + Timestamp + "|" + SecretKey
+ */
+export function computeChainedCardSeal(
+  {
+    prevSeal = ZERO_PREV_SEAL,
+    blockIndex = 1,
+    mode = 'REAL',
+    id = '',
+    name = '',
+    phone = '',
+    cccd = '',
+    officer = '',
+    timestamp = ''
+  } = {},
+  secretKey = DAC_TA_SECRET_KEY,
+  { uppercaseNoPrefix = true } = {}
+) {
+  const cleanPrev = String(prevSeal || '').trim() || ZERO_PREV_SEAL;
+  const idx = Math.max(1, parseInt(blockIndex, 10) || 1);
+  const normMode = String(mode || 'REAL').trim().toUpperCase();
+  const payload = `${cleanPrev}|${idx}|${normMode}|${String(id ?? '').trim()}|${String(name ?? '').trim()}|${String(phone ?? '').trim()}|${String(cccd ?? '').trim()}|${String(officer ?? '').trim()}|${String(timestamp ?? '').trim()}|${secretKey}`;
+  const hex = sha256HexRaw(Buffer.from(payload, 'utf8'));
+  return uppercaseNoPrefix ? hex.toUpperCase() : ('0x' + hex.toLowerCase());
+}
+
+export function verifyChainedCardSeal(cardData = {}) {
+  const suppliedSeal = String(cardData.seal || cardData.bc_seal || cardData.bcSeal || '').trim();
+  const normSupplied = normalizeHexDigest(suppliedSeal);
+  if (!normSupplied) {
+    return { verified: false, reason: 'MISSING_OR_MALFORMED_SEAL', matchedScheme: null };
+  }
+  const id = String(cardData.id || cardData.cardID || cardData.card_id || '').trim();
+  const name = String(cardData.name || cardData.user_name || '').trim();
+  const phone = String(cardData.phone || cardData.user_phone || '').trim();
+  const cccd = String(cardData.cccd || cardData.user_cccd || '').trim();
+  const officer = String(cardData.officer || cardData.card_officer || '').trim();
+  const timestamp = String(cardData.timestamp || cardData.time || cardData.card_time || '').trim();
+  const blockIndex = Math.max(1, parseInt(cardData.blockIndex ?? cardData.block ?? cardData.card_block ?? 1, 10) || 1);
+  const rawMode = String(cardData.mode || cardData.card_mode || '').trim().toUpperCase();
+  const rawPrev = String(cardData.prevSeal || cardData.prev_seal || '').trim();
+  const normPrevHex = normalizeHexDigest(rawPrev);
+
+  const prevCandidates = Array.from(new Set([
+    rawPrev,
+    ZERO_PREV_SEAL,
+    normPrevHex ? normPrevHex.toUpperCase() : '',
+    normPrevHex ? normPrevHex.toLowerCase() : '',
+    normPrevHex ? ('0x' + normPrevHex.toLowerCase()) : '',
+    normPrevHex ? ('0x' + normPrevHex.toUpperCase()) : ''
+  ].filter(Boolean)));
+  const modeCandidates = Array.from(new Set([rawMode, 'REAL', 'TEST', 'LEGACY'].filter(Boolean)));
+  const keys = getAcceptedSecretKeys();
+
+  for (const key of keys) {
+    for (const m of modeCandidates) {
+      for (const prev of prevCandidates) {
+        const candidateHex = computeChainedCardSeal(
+          { prevSeal: prev, blockIndex, mode: m, id, name, phone, cccd, officer, timestamp },
+          key,
+          { uppercaseNoPrefix: true }
+        );
+        if (timingSafeHexEqual(suppliedSeal, candidateHex)) {
+          const keyLabel = key === DAC_TA_SECRET_KEY ? 'DAC_TA_E10' : 'CPP_CMD_E10';
+          return {
+            verified: true,
+            matchedScheme: `CHAINED_BLOCK_V2_${m}_${keyLabel}`,
+            mode: m,
+            blockIndex,
+            prevSeal: prev,
+            canonicalSealUpper: candidateHex,
+            canonicalSealPrefixed: '0x' + candidateHex.toLowerCase()
+          };
+        }
+      }
+    }
+  }
+  return { verified: false, reason: 'SIGNATURE_MISMATCH', matchedScheme: null };
+}
+
 /**
  * Computes C++ CapPhatTheSOS.exe and ESP32-C3 hardware seals for testing & verification
  */
@@ -156,22 +250,30 @@ function extractRawJsonCoordTokens(rawBody = '') {
 }
 
 /**
- * Verifies hardware payload against Spec Section 2.1 & 2.2:
- * - C++ App bc_seal: SHA256(cardID|userName|userPhone|userCCCD|COMMAND_SECRET_KEY)
- * - ESP32-C3 bc_seal: SHA256(cardID|userName|userPhone|userCCCD|hwMacID|COMMAND_SECRET_KEY)
+ * Verifies hardware payload against BOTH Spec documents:
+ * - DAC_TA_DONG_BO_WEB_VA_AI.md Chained v2: SHA256(prevSeal|blockIndex|mode|id|name|phone|cccd|officer|timestamp|SecretKey)
+ * - Registered Card Registry sync (cards provisioned via CapPhatTheSOS.exe or Web Serial Portal)
+ * - C++ App v1 bc_seal: SHA256(cardID|userName|userPhone|userCCCD|SECRET_KEY)
+ * - ESP32-C3 v1 bc_seal: SHA256(cardID|userName|userPhone|userCCCD|hwMacID|SECRET_KEY)
  * - live_evidence_hash: SHA256(cardID|hwMacID|unitCode|currentLat,currentLon|bc_seal)
  */
 export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
-  const cardID = String(data.cardID || data.card_id || data.device_id || data.deviceId || '').trim();
+  const cardID = String(data.cardID || data.card_id || data.id || data.device_id || data.deviceId || '').trim();
   const userName = String(data.user_name || data.name || data.citizen_name || data.reporterName || '').trim();
   const userPhone = String(data.user_phone || data.phone || data.reporterPhone || '').trim();
   const userCCCD = String(data.user_cccd || data.cccd || '').trim();
+  const cardOfficer = String(data.officer || data.card_officer || '').trim();
+  const cardTimestamp = String(data.card_time || data.timestamp || data.time || '').trim();
+  const cardMode = String(data.card_mode || data.mode || '').trim().toUpperCase() || null;
+  const cardBlockIndex = parseInt(data.card_block ?? data.blockIndex ?? data.block ?? 0, 10) || null;
+  const cardPrevSeal = String(data.prev_seal || data.prevSeal || '').trim() || null;
+
   const rawHwMac = String(data.hw_mac || data.hwMac || data.mac || '').trim();
   const cleanHwMacUpper = rawHwMac.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
   const cleanHwMacLower = cleanHwMacUpper.toLowerCase();
   const displayHwMac = cleanHwMacUpper || rawHwMac || 'UNSPECIFIED-MCU';
 
-  const suppliedBcSeal = String(data.bc_seal || data.bcSeal || '').trim();
+  const suppliedBcSeal = String(data.bc_seal || data.bcSeal || data.seal || '').trim();
   const suppliedLiveHash = String(data.live_evidence_hash || data.liveEvidenceHash || '').trim();
   const reportedChainId = Number(data.chain_id || data.chainId || 0) || null;
 
@@ -189,6 +291,9 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
       cardID: cardID || null,
       hwMac: displayHwMac,
       userCCCD: userCCCD || null,
+      cardMode,
+      cardBlockIndex,
+      cardOfficer: cardOfficer || null,
       bcSeal: null,
       liveEvidenceHash: suppliedLiveHash || syntheticHash,
       liveHashVerified: null,
@@ -207,6 +312,9 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
       cardID: cardID || null,
       hwMac: displayHwMac,
       userCCCD: userCCCD || null,
+      cardMode,
+      cardBlockIndex,
+      cardOfficer: cardOfficer || null,
       bcSeal: suppliedBcSeal,
       liveEvidenceHash: suppliedLiveHash || null,
       liveHashVerified: false,
@@ -214,20 +322,88 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
     };
   }
 
-  // 1. Check C++ CapPhatTheSOS.exe seal formula
-  const cppSeal = computeCppHardwareSeal({ cardID, userName, userPhone, userCCCD });
   let matchedScheme = null;
-  if (timingSafeHexEqual(suppliedBcSeal, cppSeal)) {
-    matchedScheme = 'CPP_CAP_PHAT_THE';
-  } else {
-    // 2. Check ESP32-C3 self-generated seal formula across MAC formatting variants
-    const macVariants = Array.from(new Set([rawHwMac, cleanHwMacUpper, cleanHwMacLower].filter(Boolean)));
-    for (const macVar of macVariants) {
-      const espSeal = computeEsp32HardwareSeal({ cardID, userName, userPhone, userCCCD, hwMacID: macVar });
-      if (timingSafeHexEqual(suppliedBcSeal, espSeal)) {
-        matchedScheme = 'ESP32_C3_CHIP';
+  let resolvedMode = cardMode;
+  let resolvedBlockIdx = cardBlockIndex;
+  let resolvedOfficer = cardOfficer || null;
+
+  // 1. Check Chained Identity Block v2 (DAC_TA_DONG_BO_WEB_VA_AI.md & CapPhatTheSOS.cpp)
+  if (cardOfficer || cardTimestamp || cardPrevSeal || cardMode || cardBlockIndex) {
+    const chainedRes = verifyChainedCardSeal({
+      prevSeal: cardPrevSeal || ZERO_PREV_SEAL,
+      blockIndex: cardBlockIndex || 1,
+      mode: cardMode || 'REAL',
+      id: cardID,
+      name: userName,
+      phone: userPhone,
+      cccd: userCCCD,
+      officer: cardOfficer,
+      timestamp: cardTimestamp,
+      seal: suppliedBcSeal
+    });
+    if (chainedRes.verified) {
+      matchedScheme = chainedRes.matchedScheme;
+      resolvedMode = chainedRes.mode;
+      resolvedBlockIdx = chainedRes.blockIndex;
+    }
+  }
+
+  // 2. Check C++ Legacy 4-arg overload in CapPhatTheSOS.cpp line 278:
+  // GenerateBlockchainSeal("0x000...00", 1, "LEGACY", id, name, phone, cccd, "OFFICER", "2026-01-01 00:00:00")
+  if (!matchedScheme) {
+    for (const secretKey of getAcceptedSecretKeys()) {
+      const cppLegacyChained = computeChainedCardSeal(
+        {
+          prevSeal: ZERO_PREV_SEAL,
+          blockIndex: 1,
+          mode: 'LEGACY',
+          id: cardID,
+          name: userName,
+          phone: userPhone,
+          cccd: userCCCD,
+          officer: 'OFFICER',
+          timestamp: '2026-01-01 00:00:00'
+        },
+        secretKey,
+        { uppercaseNoPrefix: false }
+      );
+      if (timingSafeHexEqual(suppliedBcSeal, cppLegacyChained)) {
+        matchedScheme = 'CPP_LEGACY_CHAINED';
+        resolvedMode = 'LEGACY';
+        resolvedBlockIdx = 1;
         break;
       }
+    }
+  }
+
+  // 3. Check C++ v1 & ESP32-C3 v1 formulas across all accepted secret keys
+  if (!matchedScheme) {
+    const macVariants = Array.from(new Set([rawHwMac, cleanHwMacUpper, cleanHwMacLower].filter(Boolean)));
+    outerKey:
+    for (const secretKey of getAcceptedSecretKeys()) {
+      const cppSeal = computeCppHardwareSeal({ cardID, userName, userPhone, userCCCD }, secretKey);
+      if (timingSafeHexEqual(suppliedBcSeal, cppSeal)) {
+        matchedScheme = 'CPP_CAP_PHAT_THE';
+        break outerKey;
+      }
+      for (const macVar of macVariants) {
+        const espSeal = computeEsp32HardwareSeal({ cardID, userName, userPhone, userCCCD, hwMacID: macVar }, secretKey);
+        if (timingSafeHexEqual(suppliedBcSeal, espSeal)) {
+          matchedScheme = 'ESP32_C3_CHIP';
+          break outerKey;
+        }
+      }
+    }
+  }
+
+  // 4. Check Registered DePIN Card Registry (cards provisioned via Web Serial Portal or synced from CapPhatTheSOS.exe)
+  if (!matchedScheme && typeof blockchainLedgerService !== 'undefined' && blockchainLedgerService) {
+    const regMatch = blockchainLedgerService.findRegisteredCardBySeal(cardID, suppliedBcSeal);
+    if (regMatch) {
+      matchedScheme = `DEPIN_CARD_REGISTRY_${regMatch.matchedBlock.mode || 'REAL'}`;
+      resolvedMode = regMatch.matchedBlock.mode || resolvedMode;
+      resolvedBlockIdx = regMatch.matchedBlock.blockIndex || resolvedBlockIdx;
+      resolvedOfficer = regMatch.matchedBlock.officer || resolvedOfficer;
     }
   }
 
@@ -241,6 +417,9 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
       cardID: cardID || null,
       hwMac: displayHwMac,
       userCCCD: userCCCD || null,
+      cardMode: resolvedMode,
+      cardBlockIndex: resolvedBlockIdx,
+      cardOfficer: resolvedOfficer,
       bcSeal: '0x' + normalizedSeal,
       liveEvidenceHash: suppliedLiveHash ? ('0x' + (normalizeHexDigest(suppliedLiveHash) || suppliedLiveHash.replace(/^0x/i, ''))) : null,
       liveHashVerified: false,
@@ -248,7 +427,7 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
     };
   }
 
-  // 3. Verify live_evidence_hash if provided by ESP32-C3 firmware
+  // 5. Verify live_evidence_hash if provided by ESP32-C3 firmware
   let liveHashVerified = null;
   let canonicalLiveHash = suppliedLiveHash;
   if (suppliedLiveHash) {
@@ -307,16 +486,24 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
     });
   }
 
+  const modeBadgeSuffix = resolvedMode === 'TEST'
+    ? ` [THẺ TEST · BLOCK #${resolvedBlockIdx || 1}]`
+    : (resolvedMode === 'REAL' ? ` [THẺ THẬT · BLOCK #${resolvedBlockIdx || 1}]` : '');
+
   return {
     hasSeal: true,
     verified: true,
     status: 'DEPIN_VERIFIED',
     sealScheme: matchedScheme,
-    badgeText: '✔ ĐÃ XÁC THỰC TRÊN SỔ CÁI (DePIN VERIFIED)',
+    badgeText: `✔ ĐÃ XÁC THỰC TRÊN SỔ CÁI (DePIN VERIFIED)${modeBadgeSuffix}`,
     cardID: cardID || null,
     hwMac: displayHwMac,
     userCCCD: userCCCD || null,
+    cardMode: resolvedMode,
+    cardBlockIndex: resolvedBlockIdx,
+    cardOfficer: resolvedOfficer,
     bcSeal: '0x' + normalizedSeal,
+    sealUppercase: normalizedSeal.toUpperCase(),
     liveEvidenceHash: canonicalLiveHash,
     liveHashVerified,
     reportedChainId
@@ -326,7 +513,27 @@ export function verifyHardwareDePINPayload(data = {}, rawJsonBody = '') {
 class BlockchainLedgerService {
   constructor() {
     this.state = null;
+    this.cardRegistry = null;
     this.loadLedger();
+    this.loadCardRegistry();
+  }
+
+  loadCardRegistry() {
+    const fallback = { schemaVersion: '2.0', cards: {} };
+    const loaded = readRuntimeData(CARD_REGISTRY_STORE_NAME, fallback);
+    if (!loaded || typeof loaded !== 'object' || typeof loaded.cards !== 'object' || Array.isArray(loaded.cards)) {
+      this.cardRegistry = { ...fallback, cards: {} };
+      return;
+    }
+    this.cardRegistry = {
+      schemaVersion: '2.0',
+      cards: loaded.cards
+    };
+  }
+
+  persistCardRegistry() {
+    if (!this.cardRegistry) this.loadCardRegistry();
+    writeRuntimeData(CARD_REGISTRY_STORE_NAME, this.cardRegistry);
   }
 
   loadLedger() {
@@ -411,15 +618,7 @@ class BlockchainLedgerService {
     });
   }
 
-  /**
-   * Standard Dynamic JSON Envelope sealing function (Spec Section 3.1.2)
-   * Supports all 4 Case Lifecycle actions:
-   * - 1_SOS_TRIGGER
-   * - 2_EVIDENCE_SEAL
-   * - 3_OFFICER_DISPATCH
-   * - 4_CASE_RESOLVED
-   */
-  async writeToSOSBlockchain(actionType, caseId, payloadData = {}, options = {}) {
+  sealBlockSync(actionType, caseId, payloadData = {}, options = {}) {
     if (!this.state) this.loadLedger();
     const sysCfg = resolveSystemBlockchainConfig(options.host || options.origin || '');
     const timestamp = options.timestamp || new Date().toISOString();
@@ -460,6 +659,33 @@ class BlockchainLedgerService {
     this.state.blocks.push(blockEntry);
     this.persistLedger();
 
+    return {
+      blockEntry,
+      receipt: {
+        blockNumber,
+        txHash,
+        prevHash,
+        payloadDigest,
+        evidenceHash: blockEntry.evidenceHash,
+        chainId: sysCfg.chainId,
+        envName: sysCfg.envName,
+        timestamp,
+        payload: record
+      }
+    };
+  }
+
+  /**
+   * Standard Dynamic JSON Envelope sealing function (Spec Section 3.1.2)
+   * Supports all 4 Case Lifecycle actions:
+   * - 1_SOS_TRIGGER
+   * - 2_EVIDENCE_SEAL
+   * - 3_OFFICER_DISPATCH
+   * - 4_CASE_RESOLVED
+   */
+  async writeToSOSBlockchain(actionType, caseId, payloadData = {}, options = {}) {
+    const { blockEntry, receipt } = this.sealBlockSync(actionType, caseId, payloadData, options);
+
     // Non-blocking external RPC probe if NDA_CHAIN_RPC_URL or POLYGON_AMOY_RPC_URL is configured
     const rpcTargets = [
       { key: 'NDA', url: process.env.NDA_CHAIN_RPC_URL },
@@ -479,17 +705,7 @@ class BlockchainLedgerService {
       this.persistLedger();
     }
 
-    return {
-      blockNumber,
-      txHash,
-      prevHash,
-      payloadDigest,
-      evidenceHash: blockEntry.evidenceHash,
-      chainId: sysCfg.chainId,
-      envName: sysCfg.envName,
-      timestamp,
-      payload: record
-    };
+    return receipt;
   }
 
   getCaseBlocks(caseId) {
@@ -561,7 +777,9 @@ class BlockchainLedgerService {
 
   getLedgerStats(host = '') {
     if (!this.state) this.loadLedger();
+    if (!this.cardRegistry) this.loadCardRegistry();
     const sysCfg = resolveSystemBlockchainConfig(host);
+    const cardsList = Object.values(this.cardRegistry.cards || {});
     return {
       ok: true,
       schemaVersion: this.state.schemaVersion,
@@ -573,7 +791,236 @@ class BlockchainLedgerService {
       nextBlockNumber: this.state.nextBlockNumber,
       lastBlockHash: this.state.lastBlockHash,
       totalBlocks: this.state.blocks.length,
+      registeredCardsCount: cardsList.length,
+      realCardsCount: cardsList.filter((c) => c.isImmutableReal).length,
+      testCardsCount: cardsList.filter((c) => !c.isImmutableReal).length,
       networks: sysCfg.networks
+    };
+  }
+
+  getRegisteredCard(cardID) {
+    if (!this.cardRegistry) this.loadCardRegistry();
+    const key = String(cardID || '').trim();
+    if (!key) return null;
+    return this.cardRegistry.cards[key] || null;
+  }
+
+  listRegisteredCards() {
+    if (!this.cardRegistry) this.loadCardRegistry();
+    return Object.values(this.cardRegistry.cards || {}).sort((a, b) =>
+      String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+    );
+  }
+
+  findRegisteredCardBySeal(cardID, suppliedSeal) {
+    if (!this.cardRegistry) this.loadCardRegistry();
+    const normTarget = normalizeHexDigest(suppliedSeal);
+    if (!normTarget) return null;
+    const candidates = cardID && this.cardRegistry.cards[cardID]
+      ? [this.cardRegistry.cards[cardID]]
+      : Object.values(this.cardRegistry.cards || {});
+    for (const card of candidates) {
+      for (const blk of card.blocks || []) {
+        if (timingSafeHexEqual(blk.seal, suppliedSeal)) {
+          return { card, matchedBlock: blk };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Provisions Genesis Block #1 or appends Chained Update Block #N per DAC_TA_DONG_BO_WEB_VA_AI.md
+   */
+  registerOrUpdateCardBlock(input = {}, options = {}) {
+    if (!this.cardRegistry) this.loadCardRegistry();
+    const id = String(input.id || input.cardID || '').trim();
+    const name = String(input.name || input.user_name || '').trim();
+    const phone = String(input.phone || input.user_phone || '').trim();
+    const cccd = String(input.cccd || input.user_cccd || '').trim();
+    const officer = String(input.officer || input.card_officer || 'Cán bộ E10 - Đ1').trim();
+    const requestedMode = String(input.mode || input.card_mode || 'TEST').trim().toUpperCase() === 'REAL' ? 'REAL' : 'TEST';
+    const timestamp = String(input.timestamp || input.time || '').trim() ||
+      new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    if (!id || !name) {
+      return { ok: false, statusCode: 400, error: 'Mã Thẻ SOS (ID) và Họ Tên không được để trống!' };
+    }
+
+    const existing = this.cardRegistry.cards[id] || null;
+    let targetBlockIndex = 1;
+    let targetPrevSeal = ZERO_PREV_SEAL;
+    let effectiveMode = requestedMode;
+
+    if (existing && Array.isArray(existing.blocks) && existing.blocks.length > 0) {
+      const lastBlk = existing.blocks[existing.blocks.length - 1];
+      if (existing.isImmutableReal) {
+        // Real card: CANNOT reset to Genesis Block #1; MUST chain Block #N+1
+        effectiveMode = 'REAL';
+        targetBlockIndex = lastBlk.blockIndex + 1;
+        targetPrevSeal = lastBlk.seal;
+      } else if (input.appendChain !== false && requestedMode === existing.mode) {
+        targetBlockIndex = lastBlk.blockIndex + 1;
+        targetPrevSeal = lastBlk.seal;
+      } else if (requestedMode === 'REAL') {
+        effectiveMode = 'REAL';
+        targetBlockIndex = 1;
+        targetPrevSeal = ZERO_PREV_SEAL;
+      }
+    }
+
+    // If caller supplied an explicit seal from CapPhatTheSOS.exe / ESP32 READ_DATA, verify it; otherwise generate per DAC_TA 4.1
+    let finalSealUpper = '';
+    let sealScheme = `DAC_TA_V2_${effectiveMode}`;
+    if (input.seal || input.bc_seal) {
+      const check = verifyChainedCardSeal({
+        prevSeal: input.prevSeal || input.prev_seal || targetPrevSeal,
+        blockIndex: input.blockIndex || input.block || targetBlockIndex,
+        mode: effectiveMode,
+        id,
+        name,
+        phone,
+        cccd,
+        officer,
+        timestamp,
+        seal: input.seal || input.bc_seal
+      });
+      if (!check.verified) {
+        return {
+          ok: false,
+          statusCode: 400,
+          error: 'Chữ ký niêm phong SHA-256 (SEAL) không khớp chuẩn DAC_TA_DONG_BO_WEB_VA_AI!',
+          verification: check
+        };
+      }
+      targetBlockIndex = check.blockIndex;
+      targetPrevSeal = check.prevSeal;
+      effectiveMode = check.mode === 'REAL' ? 'REAL' : 'TEST';
+      finalSealUpper = check.canonicalSealUpper;
+      sealScheme = check.matchedScheme;
+    } else {
+      finalSealUpper = computeChainedCardSeal(
+        {
+          prevSeal: targetPrevSeal,
+          blockIndex: targetBlockIndex,
+          mode: effectiveMode,
+          id,
+          name,
+          phone,
+          cccd,
+          officer,
+          timestamp
+        },
+        DAC_TA_SECRET_KEY,
+        { uppercaseNoPrefix: true }
+      );
+    }
+
+    const blockRecord = {
+      blockIndex: targetBlockIndex,
+      mode: effectiveMode,
+      id,
+      name,
+      phone,
+      cccd,
+      officer,
+      timestamp,
+      prevSeal: targetPrevSeal,
+      seal: finalSealUpper,
+      sealPrefixed: '0x' + finalSealUpper.toLowerCase(),
+      scheme: sealScheme,
+      syncedAt: new Date().toISOString()
+    };
+
+    const ledgerReceipt = this.sealBlockSync(
+      LIFECYCLE_ACTIONS.CARD_PROVISION_SEAL,
+      id,
+      {
+        cardID: id,
+        cardMode: effectiveMode,
+        cardBlockIndex: targetBlockIndex,
+        prevSeal: targetPrevSeal,
+        sha256Hash: '0x' + finalSealUpper.toLowerCase(),
+        sealUppercase: finalSealUpper,
+        officer,
+        timestamp
+      },
+      options
+    ).receipt;
+
+    blockRecord.ledgerBlockNumber = ledgerReceipt.blockNumber;
+    blockRecord.ledgerTxHash = ledgerReceipt.txHash;
+
+    const nextBlocks = (existing && (existing.isImmutableReal || targetBlockIndex > 1))
+      ? [...existing.blocks, blockRecord]
+      : [blockRecord];
+
+    const updatedCard = {
+      id,
+      mode: effectiveMode,
+      isImmutableReal: Boolean(existing?.isImmutableReal || effectiveMode === 'REAL'),
+      wipeProtected: Boolean(existing?.isImmutableReal || effectiveMode === 'REAL'),
+      currentBlockIndex: targetBlockIndex,
+      currentSeal: finalSealUpper,
+      prevSeal: targetPrevSeal,
+      name,
+      phone,
+      cccd,
+      officer,
+      timestamp,
+      latestLedgerBlock: ledgerReceipt.blockNumber,
+      latestLedgerTxHash: ledgerReceipt.txHash,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      blocks: nextBlocks
+    };
+
+    this.cardRegistry.cards[id] = updatedCard;
+    this.persistCardRegistry();
+
+    return {
+      ok: true,
+      card: updatedCard,
+      block: blockRecord,
+      ledgerReceipt,
+      uartCommands: [
+        `SET_ID:${id}`,
+        `SET_NAME:${name}`,
+        `SET_PHONE:${phone}`,
+        `SET_CCCD:${cccd}`,
+        `SET_OFFICER:${officer}`,
+        `SET_TIME:${timestamp}`,
+        `SET_MODE:${effectiveMode}`,
+        `SET_BLOCK:${targetBlockIndex}`,
+        `SET_PREV_SEAL:${targetPrevSeal}`,
+        `SET_SEAL:${finalSealUpper}`,
+        'SAVE_FLASH'
+      ]
+    };
+  }
+
+  wipeTestCard(cardID) {
+    if (!this.cardRegistry) this.loadCardRegistry();
+    const id = String(cardID || '').trim();
+    const existing = this.cardRegistry.cards[id];
+    if (!existing) {
+      return { ok: true, wiped: true, id, note: 'Card not in registry (ready for fresh test)' };
+    }
+    if (existing.isImmutableReal || existing.mode === 'REAL') {
+      return {
+        ok: false,
+        statusCode: 403,
+        wipeProtected: true,
+        error: '🔒 BẢO VỆ DỮ LIỆU THẬT: CHỈ CẤP 1 LẦN (KHÔNG ĐƯỢC XÓA TRẮNG). Nghiêm cấm xóa trắng thẻ chính thức! Vui lòng dùng tính năng Cập nhật thông tin & nối chuỗi Blockchain (Update Block #N).'
+      };
+    }
+    delete this.cardRegistry.cards[id];
+    this.persistCardRegistry();
+    return {
+      ok: true,
+      wiped: true,
+      id,
+      uartCommands: ['WIPE_CARD', 'WIPE_FLASH']
     };
   }
 }
