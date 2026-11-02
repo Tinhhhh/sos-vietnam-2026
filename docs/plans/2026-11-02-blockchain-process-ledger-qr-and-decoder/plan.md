@@ -3,7 +3,7 @@
 ## Metadata
 
 - Date: `2026-11-02`
-- Status: `in_progress`
+- Status: `complete`
 - Plan: `docs/plans/2026-11-02-blockchain-process-ledger-qr-and-decoder/plan.md`
 - Evidence: `docs/plans/2026-11-02-blockchain-process-ledger-qr-and-decoder/evidence.md`
 - Benchmark: `docs/plans/2026-11-02-blockchain-process-ledger-qr-and-decoder/benchmark.md`
@@ -393,7 +393,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - Actual-status Update: Record `R5` Docker E2E pass.
   - Commit Boundary: Commit `playwright/verify-blockchain-process-qr-decoder.mjs`, `Reports/qa/playwright/blockchain-process-qr-decoder-local.*`, and ledger updates.
 
-- [ ] P3-B: Push to Render Staging (`https://sos-vietnam-2026.onrender.com/`) & Run Live Staging Playwright + OpenCV QR Verification
+- [x] P3-B: Push to Render Staging (`https://sos-vietnam-2026.onrender.com/`) & Run Live Staging Playwright + OpenCV QR Verification
   - Goal: Deploy committed changes to `https://sos-vietnam-2026.onrender.com/` via `git push origin main`, wait for Render rollout using `schedule` timer (never shell `sleep`), and run `playwright/verify-blockchain-process-qr-decoder.mjs` directly against `https://sos-vietnam-2026.onrender.com/`.
   - Scope Boundary:
     - Editable: `Reports/qa/playwright/blockchain-process-qr-decoder-staging.{json,md}`, plan ledgers
@@ -441,7 +441,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - Actual-status Update: Record `R6` live staging pass.
   - Commit Boundary: Commit staging QA evidence & ledger updates.
 
-- [ ] Pn-A: Call supervisor for the implemented-plan acceptance loop.
+- [x] Pn-A: Call supervisor for the implemented-plan acceptance loop.
   - Goal: Zero-trust verification of all claims, changed files, QR scan proof, process timing blocks, and live Render Staging evidence using `.agents/skills/supervisor/SKILL.md`.
   - Work Steps:
     1. Audit all source diffs, Anvien `detect-changes`, Docker E2E, OpenCV QR proof, and live Staging E2E against `.agents/skills/supervisor/SKILL.md` and write supervisor verdict report.
@@ -449,7 +449,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - Implementation Gate: `P1-A`..`P3-B` completed.
   - Acceptance: Supervisor verdict `PASS` recorded in `Reports/supervisor/`.
 
-- [ ] Pn-B: Remove dead work created during this plan.
+- [x] Pn-B: Remove dead work created during this plan.
   - Goal: Clean up `.tmp/` scratch files created during this plan while preserving pre-existing unrelated workspace files.
   - Work Steps:
     1. Remove plan-created temp files inside `.tmp/` and verify no leftover Docker containers exist.
@@ -457,7 +457,7 @@ Upgrade SOS Vietnam's Blockchain Ledger on Staging (`https://sos-vietnam-2026.on
   - Implementation Gate: Only remove temporary artifacts created by this plan.
   - Acceptance: Clean worktree & zero leftover QA containers.
 
-- [ ] Pn-C: Close the plan.
+- [x] Pn-C: Close the plan.
   - Goal: Finalize `plan.md` (`Status: complete`), `actual-status.md`, `evidence.md`, `benchmark.md`, commit closure, and push to `origin/main`.
   - Work Steps:
     1. Update final metrics in `benchmark.md`, closure evidence in `evidence.md`, and mark `Status: complete` in `plan.md`.

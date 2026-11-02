@@ -2,7 +2,7 @@
 
 Title: Blockchain Transaction Process Ledger, Scannable QR & Block Decoder Portal
 Date: 2026-11-02
-Status: P0 Complete
+Status: Complete
 Companion plan: `docs/plans/2026-11-02-blockchain-process-ledger-qr-and-decoder/plan.md`
 Companion evidence: `docs/plans/2026-11-02-blockchain-process-ledger-qr-and-decoder/evidence.md`
 Companion benchmark: `docs/plans/2026-11-02-blockchain-process-ledger-qr-and-decoder/benchmark.md`
@@ -64,6 +64,7 @@ Out of scope:
 | R3 | 2026-11-02 | `P2-A` (`tra-cuu-blockchain.html`, `js/blockchain-verifier-portal.js`, `css/style.css`) | Official Blockchain Cross-Verification & `.JSON` Block Decoder Web Portal | `missing` -> `correct` | `E2-P2A-HTML1`, `E2-P2A-JS1`, `E2-P2A-DETECT1` | Proceed to `P2-B` unchanged |
 | R4 | 2026-11-02 | `P2-B` (`js/stealth-sos.js`, `dispatcher.html`, `js/dispatcher.js`, `index.html`, `cap-phat-the.html`, `sw.js`, `css/style.css`) | Lightweight Stealth SOS default + Dispatcher Process Summary UI + cross-portal navigation & PWA cache | `partial` -> `correct` | `E2-P2B-STEALTH1`, `E2-P2B-UI1`, `E2-P2B-DETECT1` | Proceed to `P3-A` (Docker build & Playwright + OpenCV E2E) unchanged |
 | R5 | 2026-11-02 | `P3-A` (`sos-vietnam:local` Docker + `playwright/verify-blockchain-process-qr-decoder.mjs`) | Real production Docker container E2E + OpenCV QR decode + `.JSON` tamper detection (`12/12 PASS`) + `js/stealth-sos.js` incident tag wording polish | All target units verified `correct` in real Docker container | `E3-P3A-SCRIPT1`, `E3-P3A-DOCKER1`, `E3-P3A-DETECT1` | Proceed to `P3-B` (`git push origin main` & live Render Staging E2E) |
+| R6 | 2026-11-02 | `P3-B` & `Pn-A..C` (`f4c162a` live on `https://sos-vietnam-2026.onrender.com/`) | Fixed `renderQueue()` history-drawer preservation in `js/dispatcher.js:10863`, verified `12/12 PASS` on live HTTPS Render Staging (`OpenCV QR 100%`, WebCrypto `0.5ms` `5/5`, tamper Block `#` caught), Supervisor verdict `PASS`, `.tmp/` scratch cleaned | Plan closed (`Complete`) | `E3-P3B-DEPLOY1`, `E3-P3B-STAGING1`, `En-PNA-SUP1`, `En-PNB-CLEAN1`, `En-PNC-CLOSE1` | Done |
 
 ## Phase Touch Map
 

@@ -1,0 +1,171 @@
+{
+  "suite": "SOS Vietnam 2026 — Blockchain Process Ledger, Scannable QR & .JSON Dossier Decoder E2E",
+  "reportPrefix": "staging",
+  "targetUrl": "https://sos-vietnam-2026.onrender.com",
+  "verifiedAt": "2026-11-02T10:46:29.328Z",
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0
+  },
+  "metrics": {
+    "dispatcherLiveAuditMs": 413.05,
+    "exportedDossierBytes": 33383
+  },
+  "qrDecodes": {
+    "dispatcherVerifyQr": {
+      "ok": true,
+      "decoded": "https://sos-vietnam-2026.onrender.com/tra-cuu-blockchain.html?tx=0x13d055c5158de459bfa8a5c399f11c072208e8759ff96df8316573e4c3a5718f&case=SOS-MVZ4WA4I-831",
+      "hasPoints": true
+    },
+    "portalLookupQr": {
+      "ok": true,
+      "decoded": "https://sos-vietnam-2026.onrender.com/tra-cuu-blockchain.html?tx=0x13d055c5158de459bfa8a5c399f11c072208e8759ff96df8316573e4c3a5718f&case=SOS-MVZ4WA4I-831",
+      "hasPoints": true
+    }
+  },
+  "screenshots": [
+    "Reports/qa/playwright/screenshots/bc-decoder-staging-01-dispatcher-qr-box.png",
+    "Reports/qa/playwright/screenshots/bc-decoder-staging-02-dispatcher-bc-security-panel.png",
+    "Reports/qa/playwright/screenshots/bc-decoder-staging-03-verifier-portal-qr-box.png",
+    "Reports/qa/playwright/screenshots/bc-decoder-staging-04-verifier-portal-public-lookup.png",
+    "Reports/qa/playwright/screenshots/bc-decoder-staging-05-decoder-intact-json-verified.png",
+    "Reports/qa/playwright/screenshots/bc-decoder-staging-06-decoder-tampered-json-caught.png"
+  ],
+  "assertions": [
+    {
+      "name": "1A. Citizen Portal (/) exposes Blockchain Verifier links (#btnNavBlockchainVerifier & #btnStealthBlockchainVerifier) and lightweight Stealth copy",
+      "passed": true,
+      "details": {
+        "navLink": "/tra-cuu-blockchain.html",
+        "stealthLink": "/tra-cuu-blockchain.html",
+        "stealthDesc": "Âm thầm khóa tọa độ GPS vệ tinh thời gian thực, báo động ngầm về Công an gần nhất và ghi nhận giao dịch quy trình cứu hộ siêu nhẹ trên Chuỗi khối SHA-256 (không cần ghi âm/video nặng máy) mà kẻ xấu nhìn vào màn hình không thể phát hiện."
+      }
+    },
+    {
+      "name": "1B. Stealth Fake Incoming Call creates covert SOS transaction silently while keeping audioRecordingEnabled === false and chunksUploaded === 0",
+      "passed": true,
+      "details": {
+        "stealthIncidentId": "SOS-MVZ4W4B8-347",
+        "audioRecordingEnabled": false,
+        "chunksUploaded": 0
+      }
+    },
+    {
+      "name": "2A. Citizen SOS creation seals Block #1 (1_SOS_TRIGGER) with valid 66-char TxHash and 0 media files",
+      "passed": true,
+      "details": {
+        "mainCaseId": "SOS-MVZ4WA4I-831",
+        "triggerBlockNumber": 102,
+        "triggerTxHash": "0xca3f2f1640c687d0db348ab0cfe4f37ed67219eca89570d41d8930cc7025ee07"
+      }
+    },
+    {
+      "name": "2B. Full 5-stage SOS lifecycle seals 5 sequential blocks with positive responseTimeSeconds, travelTimeSeconds, onSceneHandlingSeconds & totalCaseDurationSeconds",
+      "passed": true,
+      "details": {
+        "totalBlocksInCase": 5,
+        "durations": {
+          "responseTimeSeconds": 11,
+          "responseTimeTextVi": "11 giây",
+          "approachingTimeSeconds": 1,
+          "approachingTimeTextVi": "1 giây",
+          "travelTimeSeconds": 3,
+          "travelTimeTextVi": "3 giây",
+          "totalToSceneSeconds": 13,
+          "totalToSceneTextVi": "13 giây",
+          "onSceneHandlingSeconds": 1,
+          "onSceneHandlingTextVi": "1 giây",
+          "totalCaseDurationSeconds": 15,
+          "totalCaseDurationTextVi": "15 giây"
+        }
+      }
+    },
+    {
+      "name": "3A. Dispatcher #bcSecurityPanel displays complete Transaction Process Summary (Reporter, Officer, Timestamps, 4 Duration Metrics & 5 Timeline Steps)",
+      "passed": true,
+      "details": {
+        "reporter": "Nguyễn Minh Khôi (4VZDC) (0918246810)",
+        "officer": "Đại úy Lê Minh Tuấn · Công an Phường Tân An",
+        "timestamps": "17:46:43 → 17:46:54 → Tới: 17:46:57",
+        "durResponse": "11s",
+        "durTravel": "3s",
+        "durScene": "1s",
+        "durTotal": "15s",
+        "evidenceType": "Giao dịch Quy trình Cứu hộ + Tọa độ GPS (Không cần tệp âm thanh nặng)",
+        "headerPortalHref": "/tra-cuu-blockchain.html?tx=0x13d055c5158de459bfa8a5c399f11c072208e8759ff96df8316573e4c3a5718f&case=SOS-MVZ4WA4I-831",
+        "timelineCount": 5
+      }
+    },
+    {
+      "name": "3B. 0-media Live Audit populates matching 66-char 0x... TxHashes and renders 100% OpenCV-scannable QR resolving to /tra-cuu-blockchain.html",
+      "passed": true,
+      "details": {
+        "origHash": "0x13d055c5158de459bfa8a5c399f11c072208e8759ff96df8316573e4c3a5718f",
+        "qrDecoded": "https://sos-vietnam-2026.onrender.com/tra-cuu-blockchain.html?tx=0x13d055c5158de459bfa8a5c399f11c072208e8759ff96df8316573e4c3a5718f&case=SOS-MVZ4WA4I-831"
+      }
+    },
+    {
+      "name": "3C. Clicking #btnExportLegalDossierJson downloads complete HoSo_PhapLy_ChuoiKhoi_<id>.json (schemaVersion 2.1-PROCESS-DOSSIER, 5 lifecycleBlocks with payload)",
+      "passed": true,
+      "details": {
+        "downloadedFileName": "HoSo_PhapLy_ChuoiKhoi_SOS-MVZ4WA4I-831.json",
+        "bytes": 33383,
+        "blockCount": 5
+      }
+    },
+    {
+      "name": "4A. Opening scanned QR URL on /tra-cuu-blockchain.html (public context) confirms 100% genuine ledger chain, masks citizen phone (***), displays 6 process cards + 5 decoded blocks, and renders scannable QR",
+      "passed": true,
+      "details": {
+        "verdictTitle": "✔ DỮ LIỆU THẬT ĐANG LƯU TRÊN SỔ CÁI HỆ THỐNG — CHUỖI KHỐI NGUYÊN VẸN 100%",
+        "summaryCardsCount": 6,
+        "stepCardsCount": 5,
+        "portalQrDecoded": "https://sos-vietnam-2026.onrender.com/tra-cuu-blockchain.html?tx=0x13d055c5158de459bfa8a5c399f11c072208e8759ff96df8316573e4c3a5718f&case=SOS-MVZ4WA4I-831"
+      }
+    },
+    {
+      "name": "4B. Authenticated Officer session opening /tra-cuu-blockchain.html automatically sees unmasked citizen phone (👮 Chế độ Cán bộ Trực ban)",
+      "passed": true,
+      "details": {
+        "roleBadge": "👮 Chế độ Cán bộ Trực ban (Hiển thị đầy đủ dữ liệu nghiệp vụ)",
+        "hasFullPhone": true
+      }
+    },
+    {
+      "name": "5. Uploading intact HoSo_PhapLy_ChuoiKhoi_<id>.json in Tab 2 decodes all 5 Vietnamese blocks and passes BOTH Offline WebCrypto SHA-256 & Online Server Ledger checks",
+      "passed": true,
+      "details": {
+        "bannerClass": "bcv-verdict-banner",
+        "verdictTitle": "✔ XÁC THỰC THÀNH CÔNG 100% — DỮ LIỆU NGUYÊN VẸN & KHỚP SỔ CÁI GỐC",
+        "offlineBadge": "✔ Băm lại SHA-256 Trình duyệt (WebCrypto): Khớp 5/5 Block (0.5 ms)",
+        "offlineOk": true,
+        "onlineBadge": "✔ Đối chứng Sổ cái Máy chủ: Tồn tại & Trùng khớp 100%",
+        "onlineOk": true,
+        "decodedStepCount": 5
+      }
+    },
+    {
+      "name": "6. Uploading 1-field edited .JSON dossier triggers red tamper alert (is-tampered), fails both Offline WebCrypto & Online Server badges, and names exact tampered Block #",
+      "passed": true,
+      "details": {
+        "tamperedBlockNum": 105,
+        "bannerClass": "bcv-verdict-banner is-tampered",
+        "verdictTitle": "❌ CẢNH BÁO GIẢ MẠO / CHỈNH SỬA TRÁI PHÉP TẠI BLOCK #105",
+        "verdictDetail": "Nội dung tệp JSON hoặc mã băm đã bị thay đổi dù chỉ 1 ký tự so với bản ghi đã niêm phong trên chuỗi khối. Hồ sơ này KHÔNG còn giá trị chứng cứ nguyên bản.",
+        "offlineFail": true,
+        "onlineFail": true,
+        "offlineBadge": "❌ Băm lại SHA-256 Trình duyệt: Sai lệch 1 Block (0.3 ms)",
+        "onlineBadge": "❌ Đối chứng Sổ cái Máy chủ: KHÔNG KHỚP BẢN GỐC"
+      }
+    },
+    {
+      "name": "7. /cap-phat-the.html links to /tra-cuu-blockchain.html (#btnDePinOpenVerifier) and /api/blockchain/explorer/:txHash renders HTTP 200 certificate",
+      "passed": true,
+      "details": {
+        "depinVerifierHref": "/tra-cuu-blockchain.html",
+        "explorerStatus": 200
+      }
+    }
+  ]
+}
