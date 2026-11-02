@@ -1,5 +1,5 @@
 // SOS Việt Nam 2026 — Service Worker (PWA Install & Offline Cache Baseline)
-const CACHE_NAME = 'sos-vietnam-v2026-11-02-bc-process-decoder-v2';
+const CACHE_NAME = 'sos-vietnam-v2026-11-02-multinet-zeropii-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

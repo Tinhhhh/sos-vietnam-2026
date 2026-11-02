@@ -260,7 +260,7 @@ Triển khai kiến trúc **Đa mạng Chuỗi khối phân tầng bảo mật Z
   - Actual-status Update: Cập nhật 3 dòng tương ứng trong `actual-status.md` và ghi `R3`.
   - Commit Boundary: commit sau khi `P2-A` vượt qua kiểm thử và `anvien detect-changes`.
 
-- [ ] P2-B: Segmented 4-Network Switcher Pill Bar & Live Full-vs-Zero-PII Preview inside `dispatcher.html` `#bcSecurityPanel`
+- [x] P2-B: Segmented 4-Network Switcher Pill Bar & Live Full-vs-Zero-PII Preview inside `dispatcher.html` `#bcSecurityPanel`
   - Goal: Biến phần chọn mạng trong `#bcSecurityPanel` của Bàn Điều Phối Trực Ban (`dispatcher.html` + `js/dispatcher.js`) thành **Thanh Chuyển Đổi 4 Mạng Nổi Bật (`#bcNetPillBar`)** đồng bộ hai chiều với `#bcNetworkSwitch`, giúp cán bộ trực ban bấm chuyển qua lại ngay trên màn hình tác chiến để xem:
     - **Mạng Nội Bộ `842026`**: Full 100% thông tin ca trực (Họ tên, SĐT đầy đủ, CCCD, tọa độ GPS, Cán bộ nhận ca, thời lượng từng khâu, tệp âm thanh hiện trường nếu có),
     - **Mạng Quốc Gia `NDA` / Quốc Tế `OTS` · `POLYGON`**: Chế độ đối chứng ngoài nội bộ đã khóa Zero-PII (`🔒 Đã ẩn bảo mật Họ tên/SĐT/GPS/Cán bộ trên mạng quốc tế`), hiện `Case Commitment Hash`, trạng thái neo toàn cầu `.ots`, và nút tải chứng chỉ `.ots` / mở Cổng Đối Chứng ở đúng mạng đang chọn; đồng thời cập nhật `CACHE_NAME` trong `sw.js`.

@@ -34,7 +34,7 @@ Benchmark records measured numbers only (inventory counts, payload/proof byte si
 
 | Phase | Metric | Unit | Baseline | Latest | Final | Target | Delta | Evidence |
 |-------|--------|------|----------|--------|-------|--------|-------|----------|
-| P2-B | UI surfaces with interactive 4-network switcher & tiered visibility | surfaces | 0 | - | - | 3 | - | Pending `P2-B` |
+| P2-B | UI surfaces with interactive 4-network switcher & tiered visibility | surfaces | 0 | 3 | 3 | 3 | +3 | `E1-P1B-ROUTE2`, `E2-P2A-UI2`, `E2-P2B-UI2` |
 
 ## B3 - P3 Benchmarks
 
